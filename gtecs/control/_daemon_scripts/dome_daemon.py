@@ -11,8 +11,8 @@ from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Conditions, Status
-from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier
-from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome
+from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier, DomeHeartbeat
+from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome, FakeHeartbeat
 from gtecs.control.observing import get_conditions
 from gtecs.control.slack import send_slack_msg
 
@@ -29,6 +29,7 @@ class DomeDaemon(BaseDaemon):
 
         # hardware
         self.dome = None
+        self.heartbeat = None
         self.dehumidifier = None
 
         # command flags
@@ -291,10 +292,10 @@ class DomeDaemon(BaseDaemon):
                 try:
                     if self.heartbeat_enabled:
                         self.log.info('Enabling heartbeat')
-                        c = self.dome.set_heartbeat(True)
+                        c = self.heartbeat.enable()
                     else:
                         self.log.info('Disabling heartbeat')
-                        c = self.dome.set_heartbeat(False)
+                        c = self.heartbeat.disable()
                     if c:
                         self.log.info(c)
                 except Exception:
@@ -345,7 +346,6 @@ class DomeDaemon(BaseDaemon):
             else:
                 try:
                     self.dome = AstroHavenDome(params.DOME_LOCATION,
-                                               params.DOME_HEARTBEAT_LOCATION,
                                                self.log,
                                                params.DOME_DEBUG,
                                                )
@@ -361,23 +361,48 @@ class DomeDaemon(BaseDaemon):
                         self.log.error('Failed to connect to dome')
                         self.bad_hardware.add('dome')
 
-        # Check the connections within the dome
+        # Connect to the heartbeat monitor
+        if self.heartbeat is None:
+            if params.FAKE_DOME:
+                self.dome = FakeHeartbeat(self.log)
+                self.log.info('Connected to heartbeat')
+            else:
+                try:
+                    self.heartbeat = DomeHeartbeat(params.DOME_HEARTBEAT_LOCATION,
+                                                   params.DOME_HEARTBEAT_PERIOD,
+                                                   self.log,
+                                                   params.DOME_DEBUG,
+                                                   )
+                    self.log.info('Connected to heartbeat')
+                    if 'heartbeat' in self.bad_hardware:
+                        self.bad_hardware.remove('heartbeat')
+                    # sleep briefly, to make sure the connection has started
+                    time.sleep(3)
+                except Exception:
+                    self.heartbeat.disconnect()
+                    self.heartbeat = None
+                    if 'heartbeat' not in self.bad_hardware:
+                        self.log.error('Failed to connect to heartbeat')
+                        self.bad_hardware.add('heartbeat')
+
+        # Check the device connections
         if self.dome is not None:
             if self.dome.plc_error:
                 self.log.error('Failed to connect to dome PLC')
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            elif self.dome.arduino_error:
+            if self.dome.arduino_error:
                 self.log.error('Failed to connect to dome arduino')
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            elif self.dome.heartbeat_error:
+        if self.heartbeat is not None:
+            if self.heartbeat.status == 'ERROR':
                 self.log.error('Failed to connect to dome heartbeat monitor')
-                self.dome.disconnect()
-                self.dome = None
-                self.bad_hardware.add('dome')
+                self.heartbeat.disconnect()
+                self.heartbeat = None
+                self.bad_hardware.add('heartbeat')
 
         # Connect to the dehumidifer
         if self.dehumidifier is None:
@@ -426,7 +451,7 @@ class DomeDaemon(BaseDaemon):
             else:
                 temp_info['dome'] = 'ERROR'
 
-            heartbeat_status = self.dome.heartbeat_status
+            heartbeat_status = self.heartbeat.status
             temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
             self.log.error('Failed to get dome info')

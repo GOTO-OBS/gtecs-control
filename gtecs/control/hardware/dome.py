@@ -1,6 +1,7 @@
 """Classes to control telescope domes and dehumidifiers."""
 
 import json
+import logging
 import os
 import subprocess
 import threading
@@ -15,10 +16,9 @@ from .. import params
 class FakeDome(object):
     """Fake AstroHaven dome class."""
 
-    def __init__(self, dome_port, heartbeat_port=None, log=None, log_debug=False):
+    def __init__(self, dome_port, log=None, log_debug=False):
         self.fake = True
         self.dome_serial_port = dome_port
-        self.heartbeat_serial_port = heartbeat_port
         self.side = ''
         self.frac = 1
         self.command = ''
@@ -29,10 +29,6 @@ class FakeDome(object):
 
         self.plc_error = False
         self.arduino_error = False
-
-        self.heartbeat_status = 'enabled'
-        self.heartbeat_enabled = True
-        self.heartbeat_error = False
 
         self.output_thread_running = False
 
@@ -226,42 +222,32 @@ class FakeDome(object):
         subprocess.getoutput(bell)
         return
 
-    def set_heartbeat(self, command):
-        """Enable or disable the heartbeat."""
-        if command:
-            if self.heartbeat_enabled:
-                return 'Heartbeat already enabled'
-            else:
-                self.heartbeat_enabled = True
-                self.heartbeat_status = 'enabled'
-                return 'Heartbeat enabled'
-        else:
-            if not self.heartbeat_enabled:
-                return 'Heartbeat already disabled'
-            else:
-                self.heartbeat_enabled = False
-                self.heartbeat_status = 'disabled'
-                return 'Heartbeat disabled'
-
 
 class AstroHavenDome(object):
-    """New AstroHaven dome class (based on Warwick 1m control)."""
+    """AstroHaven dome control class (based on Warwick 1m control).
 
-    def __init__(self, dome_port, heartbeat_port=None, log=None, log_debug=False):
+    Parameters
+    ----------
+    dome_port : str
+        Device location for the dome (e.g. '/dev/ttyUSB0')
+
+    log : logger, optional
+        logger to log to
+        default = None
+    log_debug : bool, optional
+        log debug strings?
+        default = False
+
+    """
+    def __init__(self, dome_port, log=None, log_debug=False):
         self.dome_serial_port = dome_port
         self.dome_serial_baudrate = 9600
         self.dome_serial_timeout = 1
-
-        self.heartbeat_serial_port = heartbeat_port
-        self.heartbeat_serial_baudrate = 9600
-        self.heartbeat_serial_timeout = 1
 
         self.move_code = {'south': {'open': b'a', 'close': b'A'},
                           'north': {'open': b'b', 'close': b'B'}}
         self.move_time = {'south': {'open': 36., 'close': 26.},
                           'north': {'open': 24., 'close': 24.}}
-
-        self.fake = False
 
         self.log = log
         self.log_debug = log_debug
@@ -278,12 +264,6 @@ class AstroHavenDome(object):
 
         self.honeywell_was_triggered = {'north': False, 'south': False}
 
-        self.heartbeat_enabled = True
-        self.heartbeat_timeout = params.DOME_HEARTBEAT_PERIOD
-        self.heartbeat_status = 'ERROR'
-        self.old_heartbeat_status = None
-        self.heartbeat_error = False
-
         self.side = ''
         self.frac = 1
         self.command = ''
@@ -291,7 +271,6 @@ class AstroHavenDome(object):
 
         self.output_thread_running = False
         self.status_thread_running = False
-        self.heartbeat_thread_running = False
 
         # serial connection to the dome
         self.dome_serial = serial.Serial(self.dome_serial_port,
@@ -304,36 +283,6 @@ class AstroHavenDome(object):
         st.daemon = True
         st.start()
 
-        # serial connection to the dome monitor box
-        # #########################
-        # TODO Why do we have these threads? It would be better to have the heartbeat in the
-        # dome daemon (like the sentinel) and remove the status check thread, replace it with
-        # something similar to the SiTech class where it updates every time you request.
-        # The output thread I suppose should stay rather than be part of the daemon, since it has
-        # to be regular. But why don't we do that with the camera daemon?
-        # Also the quick-close button could arguably be it's own thread in the dome daemon, and move
-        # the function into this class?
-        # #########################
-        if self.heartbeat_serial_port:
-            try:
-                self.heartbeat_serial = serial.Serial(self.heartbeat_serial_port,
-                                                      baudrate=self.heartbeat_serial_baudrate,
-                                                      timeout=self.heartbeat_serial_timeout)
-            except Exception:
-                if self.log:
-                    self.log.error('Error connecting to heartbeat monitor')
-                    self.log.debug('', exc_info=True)
-                self.heartbeat_error = True
-                self.heartbeat_status = 'ERROR'
-
-            # start heartbeat check thread
-            self.heartbeat_thread_running = True
-            ht = threading.Thread(target=self._heartbeat_thread)
-            ht.daemon = True
-            ht.start()
-        else:
-            self.heartbeat_status = 'disabled'
-
     def __del__(self):
         self.disconnect()
 
@@ -342,12 +291,10 @@ class AstroHavenDome(object):
         # Stop threads
         self.output_thread_running = False
         self.status_thread_running = False
-        self.heartbeat_thread_running = False
 
         # Close serial
         try:
             self.dome_serial.close()
-            self.heartbeat_serial.close()
         except AttributeError:
             pass
 
@@ -582,92 +529,6 @@ class AstroHavenDome(object):
         if self.log:
             self.log.debug('status thread finished')
 
-    def _read_heartbeat(self, attempts=3):
-        attempts_remaining = attempts
-        while attempts_remaining:
-            try:
-                if self.heartbeat_serial.in_waiting:
-                    out = self.heartbeat_serial.read(self.heartbeat_serial.in_waiting)
-                    x = out[-1]
-                    if self.log and self.log_debug:
-                        self.log.debug('heartbeat RECV:"{}"'.format(x))
-                    self._parse_heartbeat_status(x)
-                return
-            except Exception:
-                attempts_remaining -= 1
-                if self.log:
-                    self.log.warning('Error communicating with the heartbeat monitor')
-                    self.log.debug('', exc_info=True)
-                    self.log.debug('Previous status: {}'.format(self.old_heartbeat_status))
-                if attempts_remaining > 0:
-                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
-                    time.sleep(0.5)
-                else:
-                    if self.log:
-                        self.log.error('Could not communicate with the heartbeat monitor')
-                    self.heartbeat_error = True
-                    self.heartbeat_status = 'ERROR'
-
-    def _parse_heartbeat_status(self, status_character):
-        # save previous status
-        self.old_heartbeat_status = self.heartbeat_status
-        # parse value from heartbeat box
-        if status_character == 254:
-            self.heartbeat_status = 'closing'
-        elif status_character == 255:
-            self.heartbeat_status = 'closed'
-        elif status_character == 0:
-            self.heartbeat_status = 'disabled'
-        elif 0 < status_character < 254:
-            self.heartbeat_status = 'enabled'
-        else:
-            raise ValueError('Unable to parse reply from the heartbeat monitor: {}'.format(
-                status_character))
-        return
-
-    def _heartbeat_thread(self):
-        if self.log:
-            self.log.debug('heartbeat thread started')
-
-        while self.heartbeat_thread_running:
-            # check heartbeat status
-            self._read_heartbeat()
-
-            if not self.heartbeat_enabled:
-                # send a 0 to make sure the system is disabled
-                # if it's in the closed state it's already disabled, so leave it
-                if self.heartbeat_status not in ['disabled', 'closed']:
-                    if self.log:
-                        self.log.debug('disabling heartbeat (status = {})'.format(
-                            self.heartbeat_status))
-                    v = chr(0).encode('ascii')
-                    self.heartbeat_serial.write(v)
-                    if self.log and self.log_debug:
-                        self.log.debug('heartbeat SEND:"{}"'.format(v))
-            else:
-                if self.heartbeat_status == 'closed':
-                    # send a 0 to reset it
-                    if self.log:
-                        self.log.debug('resetting heartbeat (status = {})'.format(
-                            self.heartbeat_status))
-                    v = chr(0).encode('ascii')
-                    self.heartbeat_serial.write(v)
-                    if self.log and self.log_debug:
-                        self.log.debug('heartbeat SEND:"{}"'.format(v))
-                else:
-                    # send the heartbeat time to the serial port
-                    # NB the timeout param is in s, but the board takes .5 second intervals
-                    v = chr(self.heartbeat_timeout * 2).encode('ascii')
-                    self.heartbeat_serial.write(v)
-                    if self.log and self.log_debug:
-                        self.log.debug('heartbeat SEND:"{}"'.format(v))
-
-            # Sleep for halt the timeout period
-            time.sleep(self.heartbeat_timeout / 2)
-
-        if self.log:
-            self.log.debug('heartbeat thread finished')
-
     def _output_thread(self):
         side = self.side
         frac = self.frac
@@ -791,20 +652,214 @@ class AstroHavenDome(object):
             time.sleep(duration)
         return
 
-    def set_heartbeat(self, command):
-        """Enable or disable the heartbeat."""
-        if command:
-            if self.heartbeat_enabled:
-                return 'Heartbeat already enabled'
+
+class FakeHeartbeat(object):
+    """Fake dome heartbeat class."""
+    def __init__(self):
+        self.status = 'enabled'
+
+    def disconnect(self):
+        return
+
+    def sound_alarm(self, sleep=True):
+        # Note this is always blocking
+        bell = 'play -qn --channels 1 synth 5 sine 440 vol 0.1'
+        subprocess.getoutput(bell)
+
+    def enable(self):
+        self.status = 'enabled'
+        return 'Heartbeat enabled'
+
+    def disable(self):
+        self.status = 'disabled'
+        return 'Heartbeat disabled'
+
+
+class DomeHeartbeat(object):
+    """Dome heartbeat monitoring and control class.
+
+    Parameters
+    ----------
+    port : str
+        Device location for the heartbeat (e.g. '/dev/ttyUSB0')
+
+    timeout : int
+        Timeout period for signals to the heartbeat.
+        If this time is exceeded without receiving a signal the heartbeat box will close the dome.
+
+    log : logger, optional
+        logger to log to
+        default = None
+    log_debug : bool, optional
+        log debug strings?
+        default = False
+
+    """
+    def __init__(self, port, timeout=10, log=None, log_debug=False):
+
+        self.serial_port = port
+        self.serial_baudrate = 9600
+        self.serial_timeout = 1
+
+        # Create a logger if one isn't given
+        if log is None:
+            logging.basicConfig(level=logging.INFO)
+            log = logging.getLogger('dome')
+            log.setLevel(level=logging.DEBUG)
+        self.log = log
+        self.log_debug = log_debug
+
+        self.enabled = True
+        self.timeout = timeout
+        self.status = 'ERROR'
+        self.old_status = None
+
+        # connect to serial port
+        try:
+            self.serial = serial.Serial(self.serial_port,
+                                        baudrate=self.serial_baudrate,
+                                        timeout=self.serial_timeout)
+        except Exception:
+            if self.log:
+                self.log.error('Error connecting to heartbeat monitor')
+                self.log.debug('', exc_info=True)
+            self.status = 'ERROR'
+
+        # start heartbeat thread
+        self.thread_running = False
+        ht = threading.Thread(target=self._heartbeat_thread)
+        ht.daemon = True
+        ht.start()
+        self.thread_running = True
+
+    def __del__(self):
+        self.disconnect()
+
+    def disconnect(self):
+        """Shutdown the thread."""
+        # Stop thread
+        self.thread_running = False
+
+        # Close serial port
+        try:
+            self.serial.close()
+        except AttributeError:
+            pass
+
+    def _heartbeat_thread(self):
+        if self.log:
+            self.log.debug('heartbeat thread started')
+
+        while self.thread_running:
+            # check heartbeat status
+            self._read_heartbeat()
+
+            if not self.enabled:
+                # send a 0 to make sure the system is disabled
+                # if it's in the closed state it's already disabled, so leave it
+                if self.status not in ['disabled', 'closed']:
+                    if self.log:
+                        self.log.debug('disabling heartbeat (status={})'.format(self.status))
+                    v = 0
             else:
-                self.heartbeat_enabled = True
-                return 'Heartbeat enabled'
+                if self.status == 'closed':
+                    # the heartbeat has triggered, send a 0 to reset it
+                    if self.log:
+                        self.log.debug('resetting heartbeat (status={})'.format(self.status))
+                    v = 0
+                else:
+                    # send the heartbeat time to the serial port
+                    # NB the timeout param is in s, but the board takes .5 second intervals
+                    v = self.timeout * 2
+
+            self.serial.write(bytes([v]))
+            if self.log and self.log_debug:
+                self.log.debug('heartbeat SEND:"{}" (status={})'.format(v, self.status))
+
+            # Sleep for half of the timeout period
+            time.sleep(self.timeout / 2)
+
+        if self.log:
+            self.log.debug('heartbeat thread finished')
+
+    def _read_heartbeat(self, attempts=3):
+        attempts_remaining = attempts
+        while attempts_remaining:
+            try:
+                if self.serial.in_waiting:
+                    out = self.serial.read(self.serial.in_waiting)
+                    x = out[-1]
+                    self._parse_status(x)
+                    if self.log and self.log_debug:
+                        self.log.debug('heartbeat RECV:"{}" (status={})'.format(x, self.status))
+                return
+            except Exception:
+                attempts_remaining -= 1
+                if self.log:
+                    self.log.warning('Error communicating with the heartbeat monitor')
+                    self.log.debug('', exc_info=True)
+                    self.log.debug('Previous status: {}'.format(self.old_status))
+                if attempts_remaining > 0:
+                    self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                    time.sleep(0.5)
+                else:
+                    if self.log:
+                        self.log.error('Could not communicate with the heartbeat monitor')
+                    self.status = 'ERROR'
+
+    def _parse_status(self, status_character):
+        # save previous status
+        self.old_status = self.status
+        # parse value from heartbeat box
+        if status_character == 254:
+            self.status = 'closing'
+        elif status_character == 255:
+            self.status = 'closed'
+        elif status_character == 0:
+            self.status = 'disabled'
+        elif 0 < status_character < 254:
+            self.status = 'enabled'
         else:
-            if not self.heartbeat_enabled:
-                return 'Heartbeat already disabled'
-            else:
-                self.heartbeat_enabled = False
-                return 'Heartbeat disabled'
+            self.status = 'ERROR'
+            raise ValueError('Unable to parse reply from the heartbeat monitor: {}'.format(
+                status_character))
+        return
+
+    def sound_alarm(self, sleep=True):
+        """Sound the dome alarm using the heartbeat.
+        The heartbeat siren always sounds for 5s.
+
+        Parameters
+        ----------
+        sleep : bool, optional
+            Whether to sleep for the duration of the alarm or return immediately
+            default = True
+        """
+        if self.log:
+            self.log.debug('sounding alarm (status={})'.format(self.status))
+        v = 255
+        self.serial.write(bytes([v]))
+        if self.log and self.log_debug:
+            self.log.debug('heartbeat SEND:"{}" (status={})'.format(v, self.status))
+        if sleep:
+            time.sleep(5)
+        return
+
+    def enable(self):
+        """Enable the heartbeat."""
+        if self.enabled:
+            return 'Heartbeat already enabled'
+        else:
+            self.enabled = True
+            return 'Heartbeat enabled'
+
+    def disable(self):
+        """Disable the heartbeat."""
+        if not self.enabled:
+            return 'Heartbeat already disabled'
+        else:
+            self.enabled = False
+            return 'Heartbeat disabled'
 
 
 class FakeDehumidifier(object):
