@@ -16,19 +16,19 @@ from .. import params
 class FakeDome(object):
     """Fake AstroHaven dome class."""
 
-    def __init__(self, dome_port, log=None, log_debug=False):
-        self.fake = True
-        self.dome_serial_port = dome_port
-        self.side = ''
-        self.frac = 1
-        self.command = ''
-        self.timeout = 0
-
+    def __init__(self, log=None, log_debug=False):
+        # Create a logger if one isn't given
+        if log is None:
+            logging.basicConfig(level=logging.INFO)
+            log = logging.getLogger('dome')
+            log.setLevel(level=logging.DEBUG)
         self.log = log
         self.log_debug = log_debug
 
         self.plc_error = False
         self.arduino_error = False
+
+        self.move_timeout = 40.
 
         self.output_thread_running = False
 
@@ -36,6 +36,8 @@ class FakeDome(object):
         self._temp_file = '/tmp/dome'
         self._status_arr = [0, 0, 0]
         self._writing = False  # had problems with reading and writing overlapping
+        self._moving_side = None
+        self._moving_command = None
 
         self._read_temp()
 
@@ -82,10 +84,11 @@ class FakeDome(object):
             status['north'] = 'closed'
         elif self._status_arr[0] == 9:
             status['north'] = 'full_open'
-        elif self.output_thread_running and self.command == 'open' and self.side == 'north':
-            status['north'] = 'opening'
-        elif self.output_thread_running and self.command == 'close' and self.side == 'north':
-            status['north'] = 'closing'
+        elif self.output_thread_running and self._moving_side == 'north':
+            if self._moving_command == 'open':
+                status['north'] = 'opening'
+            elif self._moving_command == 'close':
+                status['north'] = 'closing'
         else:
             status['north'] = 'part_open'
 
@@ -94,10 +97,11 @@ class FakeDome(object):
             status['south'] = 'closed'
         elif self._status_arr[1] == 9:
             status['south'] = 'full_open'
-        elif self.output_thread_running and self.command == 'open' and self.side == 'south':
-            status['south'] = 'opening'
-        elif self.output_thread_running and self.command == 'close' and self.side == 'south':
-            status['south'] = 'closing'
+        elif self.output_thread_running and self._moving_side == 'south':
+            if self._moving_command == 'open':
+                status['south'] = 'opening'
+            elif self._moving_command == 'close':
+                status['south'] = 'closing'
         else:
             status['south'] = 'part_open'
 
@@ -109,50 +113,47 @@ class FakeDome(object):
 
         return status
 
-    def _output_thread(self):
-        if self.side == 'north':
-            side = 0
-        elif self.side == 'south':
-            side = 1
+    def _output_thread(self, side, command, frac):
+        if side == 'north':
+            i_side = 0
+        elif side == 'south':
+            i_side = 1
         else:
-            raise ValueError('Invalid side: {}'.format(self.side))
-        frac = self.frac
-        command = self.command
-        timeout = self.timeout
+            raise ValueError('Invalid side: {}'.format(side))
         start_time = time.time()
         if self.log:
             self.log.debug('output thread started')
 
         self._read_temp()
-        start_position = self._status_arr[side]
+        start_position = self._status_arr[i_side]
 
         while self.output_thread_running:
             # store running time for timeout
             running_time = time.time() - start_time
 
             # check reasons to break out and stop the thread
-            if command == 'open' and self._status_arr[side] == 9:
+            if command == 'open' and self._status_arr[i_side] == 9:
                 if self.log:
                     self.log.info('Dome at limit')
                 self.output_thread_running = False
                 break
-            elif command == 'close' and self._status_arr[side] == 0:
+            elif command == 'close' and self._status_arr[i_side] == 0:
                 if self.log:
                     self.log.info('Dome at limit')
                 self.output_thread_running = False
                 break
             elif (frac != 1 and
-                  abs(start_position - self._status_arr[side]) > frac * 9):
+                  abs(start_position - self._status_arr[i_side]) > frac * 9):
                 if self.log:
                     self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
-            elif running_time > timeout:
+            elif running_time > self.move_timeout:
                 if self.log:
                     self.log.info('Dome moving timed out')
                 self.output_thread_running = False
                 break
-            elif self.status[self.side] == 'ERROR':
+            elif self.status[side] == 'ERROR':
                 if self.log:
                     self.log.warning('All sensors failed, stopping movement')
                 self.output_thread_running = False
@@ -160,29 +161,22 @@ class FakeDome(object):
 
             # if we're still going, send the command to "the serial port"
             if command == 'open':
-                self._status_arr[side] += 1
+                self._status_arr[i_side] += 1
                 self._write_temp()
                 time.sleep(3)
             elif command == 'close':
-                self._status_arr[side] -= 1
+                self._status_arr[i_side] -= 1
                 self._write_temp()
                 time.sleep(3)
 
             time.sleep(0.5)
 
-        # finished moving for whatever reason, reset before exiting
-        self.side = ''
-        self.command = ''
-        self.timeout = 40.
+        self._moving_side = None
+        self._moving_command = None
         if self.log:
             self.log.debug('output thread finished')
 
-    def _move_dome(self, side, command, frac, timeout=40.):
-        self.side = side
-        self.frac = frac
-        self.command = command
-        self.timeout = timeout
-
+    def _move_dome(self, side, command, frac):
         # Don't interupt!
         if self.status[side] in ['opening', 'closing']:
             return
@@ -191,8 +185,11 @@ class FakeDome(object):
         if not self.output_thread_running:
             if self.log:
                 self.log.info('starting to move: {} {} {}'.format(side, command, frac))
+            self._moving_side = side
+            self._moving_command = command
             self.output_thread_running = True
-            ot = threading.Thread(target=self._output_thread)
+            ot = threading.Thread(target=self._output_thread,
+                                  args=[side, command, frac])
             ot.daemon = True
             ot.start()
             return
@@ -244,11 +241,11 @@ class AstroHavenDome(object):
         self.dome_serial_baudrate = 9600
         self.dome_serial_timeout = 1
 
-        self.move_code = {'south': {'open': b'a', 'close': b'A'},
-                          'north': {'open': b'b', 'close': b'B'}}
-        self.move_time = {'south': {'open': 36., 'close': 26.},
-                          'north': {'open': 24., 'close': 24.}}
-
+        # Create a logger if one isn't given
+        if log is None:
+            logging.basicConfig(level=logging.INFO)
+            log = logging.getLogger('dome')
+            log.setLevel(level=logging.DEBUG)
         self.log = log
         self.log_debug = log_debug
 
@@ -264,10 +261,11 @@ class AstroHavenDome(object):
 
         self.honeywell_was_triggered = {'north': False, 'south': False}
 
-        self.side = ''
-        self.frac = 1
-        self.command = ''
-        self.timeout = 40.
+        self.move_code = {'south': {'open': b'a', 'close': b'A'},
+                          'north': {'open': b'b', 'close': b'B'}}
+        self.move_time = {'south': {'open': 36., 'close': 26.},     # TODO: should be in params
+                          'north': {'open': 24., 'close': 24.}}
+        self.move_timeout = 40.  # TODO: should be in params?
 
         self.output_thread_running = False
         self.status_thread_running = False
@@ -522,6 +520,7 @@ class AstroHavenDome(object):
             self.log.debug('status thread started')
         while self.status_thread_running:
             self.status = self._read_status()
+            # Check status more often if we are moving
             if self.output_thread_running:
                 time.sleep(0.5)
             else:
@@ -529,11 +528,7 @@ class AstroHavenDome(object):
         if self.log:
             self.log.debug('status thread finished')
 
-    def _output_thread(self):
-        side = self.side
-        frac = self.frac
-        command = self.command
-        timeout = self.timeout
+    def _output_thread(self, side, command, frac):
         start_time = time.time()
         if self.log:
             self.log.debug('output thread started')
@@ -561,7 +556,7 @@ class AstroHavenDome(object):
                     self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
-            elif running_time > timeout:
+            elif running_time > self.move_timeout:
                 if self.log:
                     self.log.info('Dome moving timed out')
                 self.output_thread_running = False
@@ -583,25 +578,16 @@ class AstroHavenDome(object):
                 # Used to "stutter step" the south side when opening,
                 # so that the top shutter doesn't jerk on the belts when it tips over.
                 # NEW: add start_position, so it doesn't stutter when already partially open
+                # TODO: running_time limit should be in params?
                 time.sleep(1.5)
             else:
                 time.sleep(0.5)
 
-        # finished moving for whatever reason, reset before exiting
-        self.side = ''
-        self.command = ''
-        self.timeout = 40.
-
         if self.log:
             self.log.debug('output thread finished')
 
-    def _move_dome(self, side, command, frac, timeout=40.):
+    def _move_dome(self, side, command, frac):
         """Move the dome until it reaches its limit."""
-        self.side = side
-        self.frac = frac
-        self.command = command
-        self.timeout = timeout
-
         # Don't interupt!
         if self.status[side] in ['opening', 'closing']:
             return
@@ -611,7 +597,8 @@ class AstroHavenDome(object):
             if self.log:
                 self.log.info('starting to move: {} {} {}'.format(side, command, frac))
             self.output_thread_running = True
-            ot = threading.Thread(target=self._output_thread)
+            ot = threading.Thread(target=self._output_thread,
+                                  args=[side, command, frac])
             ot.daemon = True
             ot.start()
             return
@@ -696,7 +683,6 @@ class DomeHeartbeat(object):
 
     """
     def __init__(self, port, timeout=10, log=None, log_debug=False):
-
         self.serial_port = port
         self.serial_baudrate = 9600
         self.serial_timeout = 1

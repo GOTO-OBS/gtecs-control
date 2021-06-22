@@ -341,7 +341,7 @@ class DomeDaemon(BaseDaemon):
         # Connect to the dome
         if self.dome is None:
             if params.FAKE_DOME:
-                self.dome = FakeDome('/dev/fake', '/dev/fake2', self.log, params.DOME_DEBUG)
+                self.dome = FakeDome(self.log, params.DOME_DEBUG)
                 self.log.info('Connected to dome')
             else:
                 try:
