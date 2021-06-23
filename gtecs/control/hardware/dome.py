@@ -684,6 +684,8 @@ class AstroHavenDome(object):
             or return immediately
             default = True
         """
+        if not self.arduino_ip:
+            return
         subprocess.getoutput('curl -s {}?s{}'.format(self.arduino_ip, duration))
         if sleep:
             time.sleep(duration)
