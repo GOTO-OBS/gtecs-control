@@ -284,7 +284,6 @@ class AstroHavenDome(object):
                                          timeout=self.serial_timeout)
 
         # start status check thread
-        self.status_thread_running = True
         st = threading.Thread(target=self._status_thread)
         st.daemon = True
         st.start()
@@ -568,6 +567,8 @@ class AstroHavenDome(object):
     def _status_thread(self):
         if self.log:
             self.log.debug('status thread started')
+        self.status_thread_running = True
+
         while self.status_thread_running:
             self.status = self._read_status()
             # Check status more often if we are moving
@@ -582,6 +583,7 @@ class AstroHavenDome(object):
         start_time = time.time()
         if self.log:
             self.log.debug('output thread started')
+        self.output_thread_running = True
 
         while self.output_thread_running:
             # store running time for timeout
@@ -646,7 +648,6 @@ class AstroHavenDome(object):
         if not self.output_thread_running:
             if self.log:
                 self.log.info('starting to move: {} {} {}'.format(side, command, frac))
-            self.output_thread_running = True
             ot = threading.Thread(target=self._output_thread,
                                   args=[side, command, frac])
             ot.daemon = True
@@ -719,16 +720,17 @@ class DomeHeartbeat(object):
     port : str
         Device location for the heartbeat (e.g. '/dev/ttyUSB0')
 
-    timeout : int
+    timeout : int, optional
         Timeout period for signals to the heartbeat.
         If this time is exceeded without receiving a signal the heartbeat box will close the dome.
+        Default is 10 seconds
 
     log : logger, optional
         logger to log to
-        default = None
+        Default is None, meaning a new logger will be created
     log_debug : bool, optional
         log debug strings?
-        default = False
+        Default is False
 
     """
     def __init__(self, port, timeout=10, log=None, log_debug=False):
@@ -749,6 +751,8 @@ class DomeHeartbeat(object):
         self.status = 'ERROR'
         self.old_status = None
 
+        self.thread_running = False
+
         # connect to serial port
         try:
             self.serial = serial.Serial(self.serial_port,
@@ -761,11 +765,9 @@ class DomeHeartbeat(object):
             self.status = 'ERROR'
 
         # start heartbeat thread
-        self.thread_running = False
         ht = threading.Thread(target=self._heartbeat_thread)
         ht.daemon = True
         ht.start()
-        self.thread_running = True
 
     def __del__(self):
         self.disconnect()
@@ -784,6 +786,7 @@ class DomeHeartbeat(object):
     def _heartbeat_thread(self):
         if self.log:
             self.log.debug('heartbeat thread started')
+        self.thread_running = True
 
         while self.thread_running:
             # check heartbeat status
