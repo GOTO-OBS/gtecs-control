@@ -399,7 +399,7 @@ class DomeDaemon(BaseDaemon):
                 self.dome = None
                 self.bad_hardware.add('dome')
         if self.heartbeat is not None:
-            if self.heartbeat.status == 'ERROR':
+            if self.heartbeat.connection_error:
                 self.log.error('Failed to connect to dome heartbeat monitor')
                 self.heartbeat.disconnect()
                 self.heartbeat = None

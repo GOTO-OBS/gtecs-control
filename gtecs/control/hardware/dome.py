@@ -752,6 +752,7 @@ class DomeHeartbeat(object):
         self.timeout = timeout
         self.status = 'ERROR'
         self.old_status = None
+        self.connection_error = False
 
         self.thread_running = False
 
@@ -846,6 +847,7 @@ class DomeHeartbeat(object):
                     if self.log:
                         self.log.error('Could not communicate with the heartbeat monitor')
                     self.status = 'ERROR'
+                    self.connection_error = True
 
     def _parse_status(self, status_character):
         # save previous status
