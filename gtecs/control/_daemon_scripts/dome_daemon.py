@@ -157,7 +157,7 @@ class DomeDaemon(BaseDaemon):
                                 self.log.error('Failed to open dome')
                                 self.log.debug('', exc_info=True)
 
-                    if self.move_started and not self.dome.output_thread_running:
+                    elif self.move_started and not self.dome.output_thread_running:
                         # we've finished
                         # check if we timed out
                         if time.time() - self.move_start_time > self.dome_timeout:
@@ -230,7 +230,7 @@ class DomeDaemon(BaseDaemon):
                                 self.log.error('Failed to close dome')
                                 self.log.debug('', exc_info=True)
 
-                    if self.move_started and not self.dome.output_thread_running:
+                    elif self.move_started and not self.dome.output_thread_running:
                         # we've finished
                         # check if we timed out
                         if time.time() - self.move_start_time > self.dome_timeout:
