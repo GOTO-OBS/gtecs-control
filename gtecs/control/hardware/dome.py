@@ -228,7 +228,7 @@ class AstroHavenDome(object):
     ----------
     port : str
         Device location for the dome (e.g. '/dev/ttyUSB0')
-    arduino_ip : str
+    arduino_ip : str, optional
         Connection IP for the arduino with the additional switches
 
     log : logger, optional
@@ -239,12 +239,12 @@ class AstroHavenDome(object):
         default = False
 
     """
-    def __init__(self, port, arduino_ip, log=None, log_debug=False):
+    def __init__(self, port, arduino_ip=None, log=None, log_debug=False):
         self.serial_port = port
         self.serial_baudrate = 9600
         self.serial_timeout = 1
 
-        if not arduino_ip.startswith('http'):
+        if arduino_ip and not arduino_ip.startswith('http'):
             arduino_ip = 'http://' + arduino_ip
         self.arduino_ip = arduino_ip
 
@@ -266,6 +266,7 @@ class AstroHavenDome(object):
         self.old_switch_status = None
         self.switch_error = False
 
+        self.full_open = {'north': False, 'south': False}
         self.honeywell_was_triggered = {'north': False, 'south': False}
 
         self.move_code = {'south': {'open': b'a', 'close': b'A'},
@@ -335,36 +336,58 @@ class AstroHavenDome(object):
         self.old_plc_status = self.plc_status.copy()
         # Non-moving statuses
         # returned when we're NOT sending command bytes
+        # note the open status depends on the full_open flags
         if status_character == '0':
             self.plc_status['north'] = 'closed'
             self.plc_status['south'] = 'closed'
         elif status_character == '1':
-            self.plc_status['north'] = 'part_open'
+            if self.full_open['north']:
+                self.plc_status['north'] = 'full_open'
+            else:
+                self.plc_status['north'] = 'part_open'
             self.plc_status['south'] = 'closed'
         elif status_character == '2':
             self.plc_status['north'] = 'closed'
-            self.plc_status['south'] = 'part_open'
+            if self.full_open['south']:
+                self.plc_status['south'] = 'full_open'
+            else:
+                self.plc_status['south'] = 'part_open'
         elif status_character == '3':
-            self.plc_status['north'] = 'part_open'
-            self.plc_status['south'] = 'part_open'
+            if self.full_open['north']:
+                self.plc_status['north'] = 'full_open'
+            else:
+                self.plc_status['north'] = 'part_open'
+            if self.full_open['south']:
+                self.plc_status['south'] = 'full_open'
+            else:
+                self.plc_status['south'] = 'part_open'
         # Moving statuses
         # returned when we ARE sending command bytes
+        # note here we set the full_open flag, since we only get that info when a move has finished
         elif status_character == 'a':
             self.plc_status['south'] = 'opening'
+            self.full_open['south'] = False
         elif status_character == 'A':
             self.plc_status['south'] = 'closing'
+            self.full_open['south'] = False
         elif status_character == 'b':
             self.plc_status['north'] = 'opening'
+            self.full_open['north'] = False
         elif status_character == 'B':
             self.plc_status['north'] = 'closing'
+            self.full_open['north'] = False
         elif status_character == 'x':
             self.plc_status['south'] = 'full_open'
+            self.full_open['south'] = True
         elif status_character == 'X':
             self.plc_status['south'] = 'closed'
+            self.full_open['south'] = False
         elif status_character == 'y':
             self.plc_status['north'] = 'full_open'
+            self.full_open['north'] = True
         elif status_character == 'Y':
             self.plc_status['north'] = 'closed'
+            self.full_open['north'] = False
         else:
             raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
@@ -390,7 +413,10 @@ class AstroHavenDome(object):
         attempts_remaining = attempts
         while attempts_remaining:
             try:
-                switch_dict = self._read_arduino()
+                if self.arduino_ip:
+                    switch_dict = self._read_arduino()
+                else:
+                    switch_dict = None
                 self._parse_switch_status(switch_dict)
                 return
             except Exception:
@@ -413,6 +439,13 @@ class AstroHavenDome(object):
     def _parse_switch_status(self, switch_dict):
         # save previous status
         self.old_switch_status = self.switch_status.copy()
+
+        # no source of switches
+        if switch_dict is None:
+            self.switch_status = {'north': 'unknown', 'south': 'unknown', 'hatch': 'unknown'}
+            return
+
+        # we should have switch info
         try:
             if switch_dict['all_closed']:
                 if not switch_dict['north_open']:
@@ -494,34 +527,38 @@ class AstroHavenDome(object):
             plc_status = self.plc_status[side]
             switch_status = self.switch_status[side]
 
-            # Chose which dome status to report
-            if plc_status == switch_status:
-                # arbitrary
-                status[side] = plc_status
-            elif plc_status == 'ERROR' and switch_status != 'ERROR':
-                # go with the one that is still working
-                status[side] = switch_status
-            elif switch_status == 'ERROR' and plc_status != 'ERROR':
-                # go with the one that is still working
-                status[side] = plc_status
-            elif plc_status[-3:] == 'ing':
-                if switch_status == 'part_open':
-                    # the switches can't tell if it's moving
+            if switch_status != 'unknown':
+                # Chose which dome status to report
+                if plc_status == switch_status:
+                    # arbitrary
                     status[side] = plc_status
-                else:  # closed or full_open
-                    # switch says it's reached the limit,
-                    # but it hasn't stopped!!
+                elif plc_status == 'ERROR' and switch_status != 'ERROR':
+                    # go with the one that is still working
                     status[side] = switch_status
-            elif plc_status == 'part_open':
-                # switch says closed or full_open
-                status[side] = switch_status
-            elif switch_status == 'part_open':
-                # plc says closed or full_open
-                status[side] = plc_status
+                elif switch_status == 'ERROR' and plc_status != 'ERROR':
+                    # go with the one that is still working
+                    status[side] = plc_status
+                elif plc_status[-3:] == 'ing':
+                    if switch_status == 'part_open':
+                        # the switches can't tell if it's moving
+                        status[side] = plc_status
+                    else:  # closed or full_open
+                        # switch says it's reached the limit,
+                        # but it hasn't stopped!!
+                        status[side] = switch_status
+                elif plc_status == 'part_open':
+                    # switch says closed or full_open
+                    status[side] = switch_status
+                elif switch_status == 'part_open':
+                    # plc says closed or full_open
+                    status[side] = plc_status
+                else:
+                    # if one says closed and the other says full_open
+                    # or something totally unexpected
+                    status[side] = 'ERROR'
             else:
-                # if one says closed and the other says full_open
-                # or something totally unexpected
-                status[side] = 'ERROR'
+                # we don't have any switches for extra infomation
+                status[side] = plc_status
 
         # Get the hatch status from the switch
         status['hatch'] = self.switch_status['hatch']
