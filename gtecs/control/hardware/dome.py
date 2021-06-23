@@ -623,7 +623,7 @@ class AstroHavenDome(object):
             self.dome_serial.write(self.move_code[side][command])
             if self.log and self.log_debug:
                 self.log.debug('plc SEND:"{}" ({} {} {})'.format(
-                    self.move_code[side][command], side, frac, command))
+                    self.move_code[side][command].decode(), side, frac, command))
 
             if (side == 'south' and start_position == 'closed' and command == 'open' and
                     running_time < 12.5):
