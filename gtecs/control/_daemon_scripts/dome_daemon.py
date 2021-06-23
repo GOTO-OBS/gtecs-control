@@ -346,6 +346,7 @@ class DomeDaemon(BaseDaemon):
             else:
                 try:
                     self.dome = AstroHavenDome(params.DOME_LOCATION,
+                                               params.ARDUINO_LOCATION,
                                                self.log,
                                                params.DOME_DEBUG,
                                                )
@@ -392,8 +393,8 @@ class DomeDaemon(BaseDaemon):
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            if self.dome.arduino_error:
-                self.log.error('Failed to connect to dome arduino')
+            if self.dome.switch_error:
+                self.log.error('Failed to connect to dome switches')
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')

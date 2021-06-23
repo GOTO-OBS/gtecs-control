@@ -6,6 +6,7 @@ import os
 import subprocess
 import threading
 import time
+import urllib
 
 import serial
 
@@ -225,8 +226,10 @@ class AstroHavenDome(object):
 
     Parameters
     ----------
-    dome_port : str
+    port : str
         Device location for the dome (e.g. '/dev/ttyUSB0')
+    arduino_ip : str
+        Connection IP for the arduino with the additional switches
 
     log : logger, optional
         logger to log to
@@ -236,10 +239,14 @@ class AstroHavenDome(object):
         default = False
 
     """
-    def __init__(self, dome_port, log=None, log_debug=False):
-        self.dome_serial_port = dome_port
-        self.dome_serial_baudrate = 9600
-        self.dome_serial_timeout = 1
+    def __init__(self, port, arduino_ip, log=None, log_debug=False):
+        self.serial_port = port
+        self.serial_baudrate = 9600
+        self.serial_timeout = 1
+
+        if not arduino_ip.startswith('http'):
+            arduino_ip = 'http://' + arduino_ip
+        self.arduino_ip = arduino_ip
 
         # Create a logger if one isn't given
         if log is None:
@@ -255,9 +262,9 @@ class AstroHavenDome(object):
         self.old_plc_status = None
         self.plc_error = False
 
-        self.arduino_status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
-        self.old_arduino_status = None
-        self.arduino_error = False
+        self.switch_status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
+        self.old_switch_status = None
+        self.switch_error = False
 
         self.honeywell_was_triggered = {'north': False, 'south': False}
 
@@ -271,9 +278,9 @@ class AstroHavenDome(object):
         self.status_thread_running = False
 
         # serial connection to the dome
-        self.dome_serial = serial.Serial(self.dome_serial_port,
-                                         baudrate=self.dome_serial_baudrate,
-                                         timeout=self.dome_serial_timeout)
+        self.dome_serial = serial.Serial(self.serial_port,
+                                         baudrate=self.serial_baudrate,
+                                         timeout=self.serial_timeout)
 
         # start status check thread
         self.status_thread_running = True
@@ -361,70 +368,75 @@ class AstroHavenDome(object):
         else:
             raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
-    def _read_arduino(self, attempts=3):
+    def _read_arduino(self):
+        with urllib.request.urlopen(self.arduino_ip) as r:
+            data = json.loads(r.read())
+        if self.log and self.log_debug:
+            self.log.debug('arduino RECV:"{}"'.format(data))
+
+        assert data['switch_a'] in [0, 1]
+        assert data['switch_b'] in [0, 1]
+        assert data['switch_c'] in [0, 1]
+        assert data['switch_d'] in [0, 1]
+
+        switch_dict = {'all_closed': bool(data['switch_a']),
+                       'north_open': bool(data['switch_b']),
+                       'south_open': bool(data['switch_c']),
+                       'hatch_closed': bool(data['switch_d']),
+                       }
+        return switch_dict
+
+    def _read_switches(self, attempts=3):
         attempts_remaining = attempts
         while attempts_remaining:
             try:
-                arduino = subprocess.getoutput('curl -s {}'.format(params.ARDUINO_LOCATION))
-                data = json.loads(arduino)
-                if self.log and self.log_debug:
-                    self.log.debug('arduino RECV:"{}"'.format(data))
-                self._parse_arduino_status(data)
+                switch_dict = self._read_arduino()
+                self._parse_switch_status(switch_dict)
                 return
             except Exception:
                 attempts_remaining -= 1
                 if self.log:
-                    self.log.warning('Error communicating with the arduino')
+                    self.log.warning('Error communicating with the switches')
                     self.log.debug('', exc_info=True)
-                    self.log.debug('Previous status: {}'.format(self.old_arduino_status))
+                    self.log.debug('Previous status: {}'.format(self.old_switch_status))
                 if attempts_remaining > 0:
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
                     time.sleep(0.5)
                 else:
                     if self.log:
-                        self.log.error('Could not communicate with the arduino')
-                    self.arduino_error = True
-                    self.arduino_status['north'] = 'ERROR'
-                    self.arduino_status['south'] = 'ERROR'
-                    self.arduino_status['hatch'] = 'ERROR'
+                        self.log.error('Could not communicate with the switches')
+                    self.switch_error = True
+                    self.switch_status['north'] = 'ERROR'
+                    self.switch_status['south'] = 'ERROR'
+                    self.switch_status['hatch'] = 'ERROR'
 
-    def _parse_arduino_status(self, status_dict):
+    def _parse_switch_status(self, switch_dict):
         # save previous status
-        self.old_arduino_status = self.arduino_status.copy()
+        self.old_switch_status = self.switch_status.copy()
         try:
-            assert status_dict['switch_a'] in [0, 1]
-            assert status_dict['switch_b'] in [0, 1]
-            assert status_dict['switch_c'] in [0, 1]
-            assert status_dict['switch_d'] in [0, 1]
-
-            all_closed = status_dict['switch_a']
-            north_open = status_dict['switch_b']
-            south_open = status_dict['switch_c']
-            hatch_closed = status_dict['switch_d']
-
-            if all_closed:
-                if not north_open:
-                    self.arduino_status['north'] = 'closed'
+            if switch_dict['all_closed']:
+                if not switch_dict['north_open']:
+                    self.switch_status['north'] = 'closed'
                 else:
-                    self.arduino_status['north'] = 'ERROR'
-                if not south_open:
-                    self.arduino_status['south'] = 'closed'
+                    self.switch_status['north'] = 'ERROR'
+                if not switch_dict['south_open']:
+                    self.switch_status['south'] = 'closed'
                 else:
-                    self.arduino_status['south'] = 'ERROR'
+                    self.switch_status['south'] = 'ERROR'
             else:
-                if north_open:
-                    self.arduino_status['north'] = 'full_open'
+                if switch_dict['north_open']:
+                    self.switch_status['north'] = 'full_open'
                 else:
-                    self.arduino_status['north'] = 'part_open'
-                if south_open:
-                    self.arduino_status['south'] = 'full_open'
+                    self.switch_status['north'] = 'part_open'
+                if switch_dict['south_open']:
+                    self.switch_status['south'] = 'full_open'
                 else:
-                    self.arduino_status['south'] = 'part_open'
+                    self.switch_status['south'] = 'part_open'
 
-            if hatch_closed:
-                self.arduino_status['hatch'] = 'closed'
+            if switch_dict['hatch_closed']:
+                self.switch_status['hatch'] = 'closed'
             else:
-                self.arduino_status['hatch'] = 'open'
+                self.switch_status['hatch'] = 'open'
 
             # the Honeywells need memory, in case the built-in
             # sensors fail again
@@ -438,9 +450,9 @@ class AstroHavenDome(object):
             for side in ['north', 'south']:
                 # find the current status
                 if side == 'north':
-                    honeywell_triggered = north_open
+                    honeywell_triggered = switch_dict['north_open']
                 else:
-                    honeywell_triggered = south_open
+                    honeywell_triggered = switch_dict['south_open']
 
                 # if the honeywell is triggered now, store it
                 if honeywell_triggered:
@@ -455,64 +467,65 @@ class AstroHavenDome(object):
                             # and it's still going!!
                             if self.log:
                                 self.log.warning('Honeywell limit error, stopping!')
-                            self.arduino_status[side] == 'full_open'
+                            self.switch_status[side] == 'full_open'
                             self.output_thread_running = False  # to be sure
                         else:
                             # It's moving back, clear the memory
                             self.honeywell_was_triggered[side] = False
 
         except Exception:
-            raise ValueError('Unable to parse reply from the arduino: {}'.format(status_dict))
+            raise ValueError('Unable to parse reply from switches: {}'.format(switch_dict))
 
     def _read_status(self):
-        """Check the dome status reported by both the dome plc and the arduino."""
+        """Check the dome status reported by both the dome plc and the extra switches."""
         # check plc
         self._read_plc()
 
-        # check arduino
-        self._read_arduino()
+        # check switches
+        self._read_switches()
 
         if self.log and self.log_debug:
-            self.log.debug('plc:{} arduino:{}'.format(self.plc_status, self.arduino_status))
+            self.log.debug('plc:{} switches:{}'.format(self.plc_status, self.switch_status))
 
         status = {}
-
-        # Only the arduino reports the hatch
-        status['hatch'] = self.arduino_status['hatch']
 
         # dome logic
         for side in ['north', 'south']:
             plc_status = self.plc_status[side]
-            arduino_status = self.arduino_status[side]
+            switch_status = self.switch_status[side]
 
             # Chose which dome status to report
-            if plc_status == arduino_status:
+            if plc_status == switch_status:
                 # arbitrary
                 status[side] = plc_status
-            elif plc_status == 'ERROR' and arduino_status != 'ERROR':
+            elif plc_status == 'ERROR' and switch_status != 'ERROR':
                 # go with the one that is still working
-                status[side] = arduino_status
-            elif arduino_status == 'ERROR' and plc_status != 'ERROR':
+                status[side] = switch_status
+            elif switch_status == 'ERROR' and plc_status != 'ERROR':
                 # go with the one that is still working
                 status[side] = plc_status
             elif plc_status[-3:] == 'ing':
-                if arduino_status == 'part_open':
-                    # arduino can't tell if it's moving
+                if switch_status == 'part_open':
+                    # the switches can't tell if it's moving
                     status[side] = plc_status
                 else:  # closed or full_open
-                    # arduino says it's reached the limit,
+                    # switch says it's reached the limit,
                     # but it hasn't stopped!!
-                    status[side] = arduino_status
+                    status[side] = switch_status
             elif plc_status == 'part_open':
-                # arduino says closed or full_open
-                status[side] = arduino_status
-            elif arduino_status == 'part_open':
+                # switch says closed or full_open
+                status[side] = switch_status
+            elif switch_status == 'part_open':
                 # plc says closed or full_open
                 status[side] = plc_status
             else:
                 # if one says closed and the other says full_open
                 # or something totally unexpected
                 status[side] = 'ERROR'
+
+        # Get the hatch status from the switch
+        status['hatch'] = self.switch_status['hatch']
+
         return status
 
     def _status_thread(self):
@@ -622,7 +635,7 @@ class AstroHavenDome(object):
         self.output_thread_running = False
 
     def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
-        """Sound the dome alarm using the Arduino.
+        """Sound the dome alarm attached to the Arduino box.
 
         duration : int [0-9]
             The time to sound the alarm for (seconds)
@@ -633,8 +646,7 @@ class AstroHavenDome(object):
             or return immediately
             default = True
         """
-        loc = params.ARDUINO_LOCATION
-        subprocess.getoutput('curl -s {}?s{}'.format(loc, duration))
+        subprocess.getoutput('curl -s {}?s{}'.format(self.arduino_ip, duration))
         if sleep:
             time.sleep(duration)
         return
