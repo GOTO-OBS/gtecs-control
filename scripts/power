@@ -195,10 +195,13 @@ def print_outlets(unit_dict, group_dict):
     print('OUTLETS:')
     for unit in unit_dict:
         string = '   {: >7}:  '.format(unit.upper())
-        for name in unit_dict[unit]['NAMES']:
-            if name[0] != '_':
-                string += '{}, '.format(name)
-        print(string[:-2])
+        if 'NAMES' in params.POWER_UNITS[unit]:
+            for name in unit_dict[unit]['NAMES']:
+                if name[0] != '_':
+                    string += '{}, '.format(name)
+            print(string[:-2])
+        else:
+            print(string)
 
     print('GROUPS:')
     for group in group_dict:
