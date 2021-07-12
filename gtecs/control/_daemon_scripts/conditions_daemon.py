@@ -252,6 +252,24 @@ class ConditionsDaemon(BaseDaemon):
                 weather_dict['type'] = 'internal'
                 weather[source] = weather_dict
 
+            # Get the internal conditions from Paul's extra board
+            if params.INTDAEMON_URI != 'none':
+                source = 'board_int'
+                try:
+                    weather_dict = conditions.get_SHT35()
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'temperature': -999,
+                                    'humidity': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+
+                # Store the dict
+                weather_dict['type'] = 'internal'
+                weather[source] = weather_dict
+
             temp_info['weather'] = {}
             for source in weather:
                 source_info = weather[source].copy()

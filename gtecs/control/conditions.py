@@ -213,6 +213,34 @@ def get_internal(source):
     return weather_dict
 
 
+def get_SHT35():
+    """Get internal readings from Paul's SHT35 board."""
+    with Pyro4.Proxy(params.INTDAEMON_URI) as pyro_daemon:
+        pyro_daemon._pyroSerializer = 'serpent'
+        info = pyro_daemon.last_measurement()
+
+    weather_dict = {}
+
+    weather_dict['update_time'] = Time(info['date'])
+    dt = Time.now() - weather_dict['update_time']
+    weather_dict['dt'] = int(dt.to('second').value)
+
+    try:
+        if info['temperature_valid']:
+            weather_dict['temperature'] = info['temperature']
+        else:
+            weather_dict['temperature'] = -999
+        if info['relative_humidity_valid']:
+            weather_dict['humidity'] = info['relative_humidity']
+        else:
+            weather_dict['humidity'] = -999
+    except Exception:
+        weather_dict['temperature'] = -999
+        weather_dict['humidity'] = -999
+
+    return weather_dict
+
+
 def get_vaisala(source):
     """Get the current weather from the Warwick Vaisala weather stations."""
     url = 'http://{}/{}-vaisala'.format(params.CONDITIONS_JSON_LOCATION, source)
@@ -554,25 +582,22 @@ def get_ing_internal(source):
 
 def get_rain():
     """Get rain readings from the W1m boards."""
-    rain_daemon_uri = 'PYRO:{}@{}:{}'.format(params.RAINDAEMON_NAME,
-                                             params.RAINDAEMON_IP,
-                                             params.RAINDAEMON_PORT)
-    with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
-        rain_daemon._pyroSerializer = 'serpent'
-        info = rain_daemon.last_measurement()
+    with Pyro4.Proxy(params.RAINDAEMON_URI) as pyro_daemon:
+        pyro_daemon._pyroSerializer = 'serpent'
+        info = pyro_daemon.last_measurement()
 
-    rain_dict = {}
+    weather_dict = {}
 
-    rain_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - rain_dict['update_time']
-    rain_dict['dt'] = int(dt.to('second').value)
+    weather_dict['update_time'] = Time(info['date'])
+    dt = Time.now() - weather_dict['update_time']
+    weather_dict['dt'] = int(dt.to('second').value)
 
     if info['unsafe_boards'] > 0:
-        rain_dict['rain'] = True
+        weather_dict['rain'] = True
     else:
-        rain_dict['rain'] = False
+        weather_dict['rain'] = False
 
-    return rain_dict
+    return weather_dict
 
 
 def check_ping(url, count=3, timeout=10):
