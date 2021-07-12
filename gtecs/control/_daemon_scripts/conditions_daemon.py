@@ -137,7 +137,8 @@ class ConditionsDaemon(BaseDaemon):
                 try:
                     # Save a history of windspeed so we can detect gusts
                     if (self.info and source in self.info['weather'] and
-                            'windspeed_history' in self.info['weather'][source]):
+                            'windspeed_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['windspeed_history'] != -999):
                         windspeed_history = self.info['weather'][source]['windspeed_history']
                     else:
                         windspeed_history = []
@@ -194,7 +195,8 @@ class ConditionsDaemon(BaseDaemon):
                 try:
                     # Save a history of temperature so we can detect glitches
                     if (self.info and source in self.info['weather'] and
-                            'temperature_history' in self.info['weather'][source]):
+                            'temperature_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['temperature_history'] != -999):
                         temperature_history = self.info['weather'][source]['temperature_history']
                     else:
                         temperature_history = []
@@ -206,7 +208,7 @@ class ConditionsDaemon(BaseDaemon):
                     # compare to the most recent readings
                     median = np.median([hist[1] for hist in temperature_history])
                     if abs(weather_dict['temperature'] - median) > 1:
-                        # It's very unlikly to have changed by more than 1 degree that quickly...
+                        # It's very unlikely to have changed by more than 1 degree that quickly...
                         self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['temperature'],
                                                                       median,
                                                                       temperature_history))
@@ -222,7 +224,8 @@ class ConditionsDaemon(BaseDaemon):
                 try:
                     # Save a history of humidity so we can detect glitches
                     if (self.info and source in self.info['weather'] and
-                            'humidity_history' in self.info['weather'][source]):
+                            'humidity_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['humidity_history'] != -999):
                         humidity_history = self.info['weather'][source]['humidity_history']
                     else:
                         humidity_history = []
@@ -234,7 +237,7 @@ class ConditionsDaemon(BaseDaemon):
                     # compare to the most recent readings
                     median = np.median([hist[1] for hist in humidity_history])
                     if abs(weather_dict['humidity'] - median) > 20:
-                        # It's very unlikly to have changed by more than 20% that quickly...
+                        # It's very unlikely to have changed by more than 20% that quickly...
                         self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['humidity'],
                                                                       median,
                                                                       humidity_history))
@@ -274,9 +277,11 @@ class ConditionsDaemon(BaseDaemon):
             for source in weather:
                 source_info = weather[source].copy()
 
-                # check if the weather timeout has been exceded
+                # check if the weather timeout has been exceeded
                 dt = source_info['dt']
                 if dt >= params.WEATHER_TIMEOUT or dt == -999:
+                    self.log.error('Timeout exceeded for source "{}" ({:.1f} > {:.1f})'.format(
+                        source, dt, params.WEATHER_TIMEOUT))
                     source_info = {key: -999 for key in source_info}
 
                 # check if the weather hasn't changed for a certain time
@@ -285,7 +290,10 @@ class ConditionsDaemon(BaseDaemon):
                     changed_time = self.info['weather'][source]['changed_time']
                     unchanged = [source_info[key] == self.info['weather'][source][key]
                                  for key in source_info]
-                    if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
+                    dt = self.loop_time - changed_time
+                    if all(unchanged) and dt > params.WEATHER_STATIC:
+                        self.log.error('Values unchanged for source "{}" ({:.1f} > {:.1f})'.format(
+                            source, dt, params.WEATHER_STATIC))
                         source_info = {key: -999 for key in source_info}
                         source_info['changed_time'] = changed_time
 
@@ -298,7 +306,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get seeing and dust from the TNG webpage
         try:
             tng_dict = conditions.get_tng()
-            # check if the timeouts have been exceded
+            # check if the timeouts have been exceeded
             if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
                 tng_dict['seeing'] = -999
             if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
@@ -316,7 +324,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get seeing from the ING RoboDIMM
         try:
             dimm_dict = conditions.get_robodimm()
-            # check if the timeout has been exceded
+            # check if the timeout has been exceeded
             if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
                 dimm_dict['seeing'] = -999
         except Exception:
@@ -480,7 +488,7 @@ class ConditionsDaemon(BaseDaemon):
         sunalt = sunalt[sunalt != -999]
 
         # ~~~~~~~~~~~~~~
-        # Calcualte the flags and if they are valid.
+        # Calculate the flags and if they are valid.
         # At least two of the external sources and one of the internal sources need to be valid,
         # except for rain and wind* because we only have two sources (no SuperWASP),
         # so only need at least one.
