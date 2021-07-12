@@ -161,7 +161,7 @@ class ConditionsDaemon(BaseDaemon):
                 weather[source] = weather_dict
 
             # Get the W1m rain boards reading
-            if params.USE_W1M_RAINBOARDS:
+            if params.RAINDAEMON_URI != 'none':
                 try:
                     rain = conditions.get_rain()['rain']
                     # Replace the local rain measurements
