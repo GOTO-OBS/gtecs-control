@@ -337,16 +337,22 @@ def print_info(info):
         print('Target distance:  NO TARGET')
 
     print('~~~~~~~')
-    if info['trackrate_ra'] == 0:
-        print('RA track rate:    SIDEREAL')
-    else:
-        print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
-    if info['trackrate_dec'] == 0:
-        print('Dec track rate:   SIDEREAL')
-    else:
-        print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
-    print('LST:              {:.2f}'.format(info['lst']))
-    print('Hour Angle:       {:.2f}'.format(info['ha']))
+    if info['class'] == 'SITECH':
+        if info['trackrate_ra'] == 0:
+            print('RA track rate:    SIDEREAL')
+        else:
+            print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
+        if info['trackrate_dec'] == 0:
+            print('Dec track rate:   SIDEREAL')
+        else:
+            print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
+        print('LST:              {:.2f}'.format(info['lst']))
+        print('Hour Angle:       {:.2f}'.format(info['ha']))
+    elif info['class'] == 'ASA':
+        print('Motor current:    {:.2f}'.format(info['motor_current']))
+        print('Tracking rate:    {:.2f}'.format(info['tracking_rate']))
+        print('Tracking error:   {:.2f}'.format(info['tracking_error']))
+        print('Position error:   {:.2f}'.format(info['position_error']))
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
