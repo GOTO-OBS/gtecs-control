@@ -1269,6 +1269,16 @@ class DDM500(object):
             raise ValueError('Property {} not in reply {}'.format(property, reply))
         return reply[property]
 
+    def _set_property(self, property, value):
+        """Set the value of a keyword property of the mount."""
+        command = 'SETPROPERTY'
+        params = [('PROPERTY', 'INT16', Keywords[property].value),
+                  (property, 'CHAR', value)]
+
+        reply = self._command(command, params)
+
+        return reply
+
     def connect(self):
         """Connect to the mount device."""
         reply = self._send_command('TELCONNECT')
@@ -1468,7 +1478,7 @@ class DDM500(object):
 
     def track(self):
         """Start tracking at the siderial rate."""
-        reply = self._send_command('TELCONNECT')
+        reply = self._set_property('TELTRACKING', '1')
         return reply['CMDSTATUS']
 
     def park(self):
