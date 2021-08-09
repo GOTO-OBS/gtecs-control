@@ -6,6 +6,10 @@ import threading
 import time
 from enum import Enum
 
+from astropy.time import Time
+
+from ..astronomy import apparent_to_j2000, j2000_to_apparent
+
 
 class Commands(Enum):
     NONE = 0
@@ -1310,8 +1314,17 @@ class DDM500(object):
             # Get main status
             params = [('TELTIME', 'DOUBLE', -1.0)]
             status_dict = self._send_command('MOUNTSTATUS', params)
-            self._ra = float(status_dict['RIGHTASCENSION'])
-            self._dec = float(status_dict['DECLINATION'])
+            self._jd = float(status_dict['UTC'])
+            self._ra_jnow = float(status_dict['RIGHTASCENSION'])
+            self._dec_jnow = float(status_dict['DECLINATION'])
+            # Need to "uncook" from apparent to J2000
+            ra_j2000, dec_j2000 = apparent_to_j2000(self._ra_jnow * 360 / 24,
+                                                    self._dec_jnow,
+                                                    self._jd)
+            self._ra = ra_j2000 * 24 / 360
+            if self._ra >= 24:
+                self._ra -= 24
+            self._dec = dec_j2000
             self._az = float(status_dict['AZIMUTH'])
             self._alt = float(status_dict['ELEVATION'])
             self._slewing = bool(status_dict['TELSLEWING'])
@@ -1439,6 +1452,15 @@ class DDM500(object):
         """Slew to given RA and Dec coordinates (J2000), and set tracking rate (arcseconds/sec)."""
         self.target_radec = (ra, dec)
 
+        # first need to "cook" the coordinates into apparent
+        ra_jnow, dec_jnow = j2000_to_apparent(ra * 360 / 24, dec, Time.now().jd)
+        ra_jnow *= 24 / 360
+        if ra_jnow >= 24:
+            ra_jnow -= 24
+        if self.log and self.log_debug:
+            self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
+                ra, dec, ra_jnow, dec_jnow))
+
         if ra_rate is None:
             ra_rate = 0
         if dec_rate is None:
@@ -1449,7 +1471,7 @@ class DDM500(object):
                   ('RIGHTASCENSION', 'DOUBLE', float(ra)),
                   ('DEC_RATE', 'DOUBLE', float(ra_rate)),
                   ('RA_RATE', 'DOUBLE', float(dec_rate)),
-                  ('REFSYSTEM', 'INT16', EquatorialCoordinateType['J2000'].value),
+                  ('REFSYSTEM', 'INT16', EquatorialCoordinateType['LOCALTOPOCENTRIC'].value),
                   ('PIERSIDE', 'INT16', -1),  # select automatically
                   ]
         reply = self._send_command('MOUNTSLEWTOSTARASYNC', params)
@@ -1468,6 +1490,15 @@ class DDM500(object):
 
     def sync_radec(self, ra, dec):
         """Set current pointing to given RA and Dec coordinates (in J2000)."""
+        # first need to "cook" the coordinates into apparent
+        ra_jnow, dec_jnow = j2000_to_apparent(ra * 360 / 24, dec, Time.now().jd)
+        ra_jnow *= 24 / 360
+        if ra_jnow >= 24:
+            ra_jnow -= 24
+        if self.log and self.log_debug:
+            self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
+                ra, dec, ra_jnow, dec_jnow))
+
         params = [('RIGHTASCENSION', 'DOUBLE', float(ra)),
                   ('DECLINATION', 'DOUBLE', float(dec)),
                   ]
