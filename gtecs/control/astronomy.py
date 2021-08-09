@@ -180,7 +180,10 @@ def j2000_to_apparent(ra, dec, jd=None):
 
     """
     j2000 = SkyCoord(ra, dec, unit=u.deg, frame='fk5')
-    now = Time(jd, format='jd')
+    if jd is None:
+        now = Time.now().jd
+    else:
+        now = Time(jd, format='jd')
     cirs = j2000.transform_to(CIRS(obstime=now))
     # find the equation of the origins to transform CIRS to apparent place
     eo = eo06a(*get_jd12(now, 'tt')) * u.rad
@@ -207,7 +210,10 @@ def apparent_to_j2000(ra, dec, jd):
          J2000, FK5 RA and Dec of star.
 
     """
-    now = Time(jd, format='jd')
+    if jd is None:
+        now = Time.now().jd
+    else:
+        now = Time(jd, format='jd')
     # find the equation of the origins to transform apparent place to CIRS
     eo = eo06a(*get_jd12(now, 'tt')) * u.rad
     cirs = SkyCoord(ra + eo.to(u.deg).value, dec, unit=u.deg,
