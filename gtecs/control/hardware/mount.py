@@ -1467,8 +1467,8 @@ class DDM500(object):
             dec_rate = 0
 
         params = [('TIMETAG', 'DOUBLE', -1),
-                  ('DECLINATION', 'DOUBLE', float(dec)),
-                  ('RIGHTASCENSION', 'DOUBLE', float(ra)),
+                  ('DECLINATION', 'DOUBLE', float(dec_jnow)),
+                  ('RIGHTASCENSION', 'DOUBLE', float(ra_jnow)),
                   ('DEC_RATE', 'DOUBLE', float(ra_rate)),
                   ('RA_RATE', 'DOUBLE', float(dec_rate)),
                   ('REFSYSTEM', 'INT16', EquatorialCoordinateType['LOCALTOPOCENTRIC'].value),
