@@ -1447,8 +1447,8 @@ class DDM500(object):
         params = [('TIMETAG', 'DOUBLE', -1),
                   ('DECLINATION', 'DOUBLE', float(dec)),
                   ('RIGHTASCENSION', 'DOUBLE', float(ra)),
-                  ('DEC_RATE', 'DOUBLE', float(ra)),
-                  ('RA_RATE', 'DOUBLE', float(ra)),
+                  ('DEC_RATE', 'DOUBLE', float(ra_rate)),
+                  ('RA_RATE', 'DOUBLE', float(dec_rate)),
                   ('REFSYSTEM', 'INT16', EquatorialCoordinateType['J2000'].value),
                   ('PIERSIDE', 'INT16', -1),  # select automatically
                   ]
