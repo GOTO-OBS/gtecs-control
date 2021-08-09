@@ -1272,8 +1272,14 @@ class DDM500(object):
     def _set_property(self, property, value):
         """Set the value of a keyword property of the mount."""
         command = 'SETPROPERTY'
+        if isinstance(value, str):
+            param_type = 'CHAR'
+        elif isinstance(value, int):
+            param_type = 'INT16'
+        else:
+            param_type = 'DOUBLE'
         params = [('PROPERTY', 'INT16', Keywords[property].value),
-                  (property, 'CHAR', value)]
+                  (property, param_type, value)]
 
         reply = self._command(command, params)
 
