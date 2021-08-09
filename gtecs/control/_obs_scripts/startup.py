@@ -28,9 +28,11 @@ def run():
 
     # Power on the UT hardware and mount box
     execute_command('power on cams,focs,filts,fans')
-    time.sleep(0.5)
-    execute_command('power on sitech')
-
+    if params.MOUNT_CLASS == 'SITECH':
+        time.sleep(0.5)
+        execute_command('power on sitech')
+    elif params.MOUNT_CLASS == 'ASA':
+        execute_command('power on mount,tcu')
     time.sleep(10)
 
     # Restart the UT interfaces

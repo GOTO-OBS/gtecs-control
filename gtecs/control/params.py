@@ -210,9 +210,10 @@ SEEING_TIMEOUT = config['SEEING_TIMEOUT']
 ############################################################
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION']
-SITECH_HOST = config['SITECH_HOST']
-SITECH_PORT = config['SITECH_PORT']
-SITECH_DEBUG = config['SITECH_DEBUG']
+MOUNT_CLASS = config['MOUNT_CLASS']
+MOUNT_HOST = config['MOUNT_HOST']
+MOUNT_PORT = config['MOUNT_PORT']
+MOUNT_DEBUG = config['MOUNT_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
 ############################################################

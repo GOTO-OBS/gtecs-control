@@ -359,13 +359,13 @@ def print_info_s(info):
     if status != 'Slewing':
         if status == 'Tracking' and info['nonsidereal']:
             status += ' (non-sidereal)'
-        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, status))
+        print('MOUNT ({})        [{}]'.format(params.MOUNT_HOST, status))
     else:
         if info['target_dist']:
-            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.SITECH_HOST,
+            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.MOUNT_HOST,
                                                                   info['target_dist']))
         else:
-            print('MOUNT ({})        Slewing '.format(params.SITECH_HOST))
+            print('MOUNT ({})        Slewing '.format(params.MOUNT_HOST))
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']
