@@ -367,7 +367,7 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     status = info['status']
     if status != 'Slewing':
-        if status == 'Tracking' and info['nonsidereal']:
+        if status == 'Tracking' and 'nonsidereal' in info and info['nonsidereal']:
             status += ' (non-sidereal)'
         print('MOUNT ({})        [{}]'.format(params.MOUNT_HOST, status))
     else:
