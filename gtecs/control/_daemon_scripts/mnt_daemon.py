@@ -354,11 +354,13 @@ class MntDaemon(BaseDaemon):
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
-        if self.targeting == 'radec':
+        if (self.targeting == 'radec' and
+                self.target_ra is not None and self.target_dec is not None):
             current_coord = SkyCoord(self.mount.ra, self.mount.dec, unit=(u.hour, u.deg))
             target_coord = SkyCoord(self.target_ra, self.target_dec, unit=(u.hour, u.deg))
             return current_coord.separation(target_coord).deg
-        elif self.targeting == 'altaz':
+        elif (self.targeting == 'altaz' and
+                self.target_alt is not None and self.target_az is not None):
             now = Time.now()
             current_coord = AltAz(alt=self.mount.alt * u.deg, az=self.mount.az * u.deg,
                                   obstime=now, location=observatory_location())
