@@ -399,7 +399,7 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
+        elif isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -431,7 +431,7 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
+        elif isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -581,7 +581,7 @@ class MntDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
-        if self.info['status'] == 'Parked':
+        if isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -601,7 +601,7 @@ class MntDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
-        if self.info['status'] == 'Parked':
+        if isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -623,7 +623,7 @@ class MntDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
-        if self.info['status'] == 'Parked':
+        if isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
