@@ -54,7 +54,7 @@ def python_command(filename, command, host='127.0.0.1',
                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                    in_background=False):
     """Send a command to a control script as if using the terminal."""
-    command_string = ' '.join((sys.executable, filename, command))
+    command_string = ' '.join((params.PYTHON_EXE, filename, command))
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = "ssh {} '{}'".format(host, command_string)
 

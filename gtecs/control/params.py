@@ -1,6 +1,7 @@
 """Package parameters."""
 
 import os
+import sys
 
 from gtecs.common.package import load_config, get_package_version
 
@@ -18,6 +19,11 @@ config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.cont
 ############################################################
 # Module parameters
 VERSION = get_package_version('control')
+PYTHON_EXE = sys.executable
+if '.' not in PYTHON_EXE:
+    # Needed for remote machines, which might have different versions as default
+    # (e.g. python3 might be python3.6, but we want to force python3.8)
+    PYTHON_EXE += f'.{sys.version_info.minor}'
 
 # File locations
 FILE_PATH = config['FILE_PATH']
