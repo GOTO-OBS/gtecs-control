@@ -6,7 +6,9 @@ import threading
 import time
 from enum import Enum
 
+from astropy import units as u
 from astropy.time import Time
+from astropy.coordinates import SkyCoord
 
 from ..astronomy import apparent_to_j2000, j2000_to_apparent
 
@@ -1448,9 +1450,10 @@ class DDM500(object):
         self._update_status()
         return self._tracking_rate
 
-    def slew_to_radec(self, ra, dec, ra_rate=None, dec_rate=None):
+    def slew_to_radec(self, ra, dec, ra_rate=None, dec_rate=None, set_target=True):
         """Slew to given RA and Dec coordinates (J2000), and set tracking rate (arcseconds/sec)."""
-        self.target_radec = (ra, dec)
+        if set_target:
+            self.target_radec = (ra, dec)
 
         # first need to "cook" the coordinates into apparent
         ra_jnow, dec_jnow = j2000_to_apparent(ra * 360 / 24, dec, Time.now().jd)
@@ -1477,9 +1480,10 @@ class DDM500(object):
         reply = self._send_command('MOUNTSLEWTOSTARASYNC', params)
         return reply['CMDSTATUS']
 
-    def slew_to_altaz(self, alt, az):
+    def slew_to_altaz(self, alt, az, set_target=True):
         """Slew mount to given Alt/Az."""
-        self.target_altaz = (alt, az)
+        if set_target:
+            self.target_altaz = (alt, az)
 
         params = [('AZIMUTH', 'DOUBLE', float(az)),
                   ('ELEVATION', 'DOUBLE', float(alt)),
@@ -1533,18 +1537,16 @@ class DDM500(object):
         reply = self._send_command('ABORTSLEW')
         return reply['CMDSTATUS']
 
-    # def offset(self, direction, distance):
-    #     """Set offset in the given direction by the given distance (in arcsec)."""
-    #     if direction.upper() not in ['N', 'E', 'S', 'W']:
-    #         raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
-    #     if not self.tracking:
-    #         raise ValueError('Can only offset when tracking')
-
-    #     params = [('AZIMUTH', 'DOUBLE', float(az)),
-    #               ('ELEVATION', 'DOUBLE', float(alt)),
-    #               ]
-    #     reply = self._send_command('SYNCTOALTAZ', params)
-    #     return reply['CMDSTATUS']
+    def offset(self, direction, distance):
+        """Set offset in the given direction by the given distance (in arcsec)."""
+        if direction.upper() not in ['N', 'E', 'S', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        if not self.tracking:
+            raise ValueError('Can only offset when tracking')
+        angle = {'N': 0, 'E': 90, 'S': 180, 'W': 270}
+        old_coord = SkyCoord(self.ra * u.hourangle, self.dec * u.deg)
+        new_coord = old_coord.directional_offset_by(angle[direction] * u.deg, distance * u.arcsec)
+        self.slew_to_radec(new_coord.ra.hourangle, new_coord.dec.deg, set_target=False)
 
     def error_check(self):
         """Check for any errors logged by the mount."""
