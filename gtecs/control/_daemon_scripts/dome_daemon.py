@@ -347,6 +347,7 @@ class DomeDaemon(BaseDaemon):
                 try:
                     self.dome = AstroHavenDome(params.DOME_LOCATION,
                                                params.ARDUINO_LOCATION,
+                                               params.ROOMALERT_IP,
                                                self.log,
                                                params.DOME_DEBUG,
                                                )

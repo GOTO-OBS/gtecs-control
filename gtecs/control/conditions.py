@@ -98,16 +98,31 @@ def get_ups():
 
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
-    status = Status()
-    url = 'http://{}'.format(params.ARDUINO_LOCATION)
-    outfile = os.path.join(params.FILE_PATH, 'arduino.json')
+    # TODO
+    # The dome daemon always knows the status of the hatch already, but doesn't do anything with it.
+    # Would it be better if the hatch was only within the dome daemon, like the QC button?
+    # But would the dome daemon then have to track the delay time?
+    # And isn't it similar to the UPS %, the power daemon shows it but conditions still uses it?
+    # I won't change it for now, but the whole conditions-dome interaction could be looked at.
+    hatch_closed = None
+    if params.ARDUINO_LOCATION:
+        url = 'http://{}'.format(params.ARDUINO_LOCATION)
+        outfile = os.path.join(params.FILE_PATH, 'arduino.json')
 
-    indata = download_data_from_url(url, outfile)
-    data = json.loads(indata)
+        indata = download_data_from_url(url, outfile)
+        data = json.loads(indata)
+        hatch_closed = bool(data['switch_d'])
+    else:
+        url = 'http://{}/getData.json'.format(params.ROOMALERT_IP)
+        with urllib.request.urlopen(url) as r:
+            data = json.loads(r.read())
+            switches = {d['lab']: d['stat'] for d in data['s_sen']}
+            hatch_closed = bool(switches['Hatch'])
 
-    if data['switch_d'] == 1:
+    if hatch_closed:
         return True
     else:
+        status = Status()
         if params.IGNORE_HATCH:
             print('Hatch is open but IGNORE_HATCH is true')
             return True

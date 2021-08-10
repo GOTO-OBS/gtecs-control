@@ -27,7 +27,7 @@ class FakeDome(object):
         self.log_debug = log_debug
 
         self.plc_error = False
-        self.arduino_error = False
+        self.switch_error = False
 
         self.move_timeout = 40.
 
@@ -229,7 +229,9 @@ class AstroHavenDome(object):
     port : str
         Device location for the dome (e.g. '/dev/ttyUSB0')
     arduino_ip : str, optional
-        Connection IP for the arduino with the additional switches
+        Connection IP for the Arduino with additional switches
+    roomalert_ip : str, optional
+        Connection IP for the RoomAlert with additional switches
 
     log : logger, optional
         logger to log to
@@ -239,7 +241,7 @@ class AstroHavenDome(object):
         default = False
 
     """
-    def __init__(self, port, arduino_ip=None, log=None, log_debug=False):
+    def __init__(self, port, arduino_ip=None, roomalert_ip=None, log=None, log_debug=False):
         self.serial_port = port
         self.serial_baudrate = 9600
         self.serial_timeout = 1
@@ -247,6 +249,13 @@ class AstroHavenDome(object):
         if arduino_ip and not arduino_ip.startswith('http'):
             arduino_ip = 'http://' + arduino_ip
         self.arduino_ip = arduino_ip
+
+        if roomalert_ip and not roomalert_ip.startswith('http'):
+            roomalert_ip = 'http://' + roomalert_ip
+        self.roomalert_ip = roomalert_ip
+
+        if arduino_ip and roomalert_ip:
+            raise ValueError('Either `arduino_ip` or `roomalert_ip` can be given, but not both.')
 
         # Create a logger if one isn't given
         if log is None:
@@ -408,12 +417,33 @@ class AstroHavenDome(object):
                        }
         return switch_dict
 
+    def _read_roomalert(self):
+        with urllib.request.urlopen(self.roomalert_ip + '/getData.json') as r:
+            data = json.loads(r.read())
+        if self.log and self.log_debug:
+            self.log.debug('roomalert RECV:"{}"'.format(data))
+
+        switches = {d['lab']: d['stat'] for d in data['s_sen']}
+        assert 'Hatch' in switches and switches['Hatch'] in [0, 1]
+        assert 'North Limit' in switches and switches['North Limit'] in [0, 1]
+        assert 'South Limit' in switches and switches['South Limit'] in [0, 1]
+        assert 'Full Close' in switches and switches['Full Close'] in [0, 1]
+
+        switch_dict = {'all_closed': bool(switches['Full Close']),
+                       'north_open': bool(switches['North Limit']),
+                       'south_open': bool(switches['South Limit']),
+                       'hatch_closed': bool(switches['Hatch']),
+                       }
+        return switch_dict
+
     def _read_switches(self, attempts=3):
         attempts_remaining = attempts
         while attempts_remaining:
             try:
-                if self.arduino_ip:
+                if self.arduino_ip is not None:
                     switch_dict = self._read_arduino()
+                elif self.roomalert_ip is not None:
+                    switch_dict = self._read_roomalert()
                 else:
                     switch_dict = None
                 self._parse_switch_status(switch_dict)
@@ -685,6 +715,7 @@ class AstroHavenDome(object):
             default = True
         """
         if not self.arduino_ip:
+            # Alarm is sounded through the heartbeat
             return
         subprocess.getoutput('curl -s {}?s{}'.format(self.arduino_ip, duration))
         if sleep:
