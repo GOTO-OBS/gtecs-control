@@ -656,9 +656,6 @@ class MntDaemon(BaseDaemon):
 
     def offset(self, direction, distance):
         """Offset in a specified (cardinal) direction by the given distance."""
-        if isinstance(self.mount, DDM500):
-            raise NotImplementedError('Mount offset command is not implemented')
-
         # Check input
         if direction.upper() not in ['N', 'E', 'S', 'W']:
             raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
