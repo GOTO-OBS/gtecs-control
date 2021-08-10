@@ -19,7 +19,7 @@ config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.cont
 ############################################################
 # Module parameters
 VERSION = get_package_version('control')
-PYTHON_EXE = sys.executable
+PYTHON_EXE = sys.executable.split('/')[-1]
 if '.' not in PYTHON_EXE:
     # Needed for remote machines, which might have different versions as default
     # (e.g. python3 might be python3.6, but we want to force python3.8)
