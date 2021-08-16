@@ -54,7 +54,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
     uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
         UTs to measure focus for.
     regions : 2-tuple of slice or list of 2-tuple of slice or None, default=None
-        image region(s) to measure the focus within
+        image region(s) to measure the focus within, in UNBINNED pixels
         if None then use the default central region from
         `gtecs.control.analysis.extract_image_sources()`
 
@@ -89,6 +89,9 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
         # Measure the median HFDs in each image
         for ut in all_uts:
             for j, region in enumerate(regions):
+                # correct the region limits if binning
+                region = slice(region.start // binning, region.stop // binning)
+
                 if ut in image_data:
                     # Measure focus within each given region
                     try:
