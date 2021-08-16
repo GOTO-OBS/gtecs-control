@@ -89,9 +89,9 @@ def calculate_positions(range_frac, steps, scale_factors=None):
     return pd.DataFrame(all_positions)
 
 
-def estimate_time(steps, num_exp, exp_time, corners=False):
+def estimate_time(steps, num_exp, exp_time, binning, corners=False):
     """Estimate how long it will take to complete the run."""
-    READOUT_TIME_PER_EXPOSURE = 30
+    READOUT_TIME_PER_EXPOSURE = 30 / (binning ** 2)
     ANALYSIS_TIME_PER_EXPOSURE = 15 if not corners else 30  # it takes longer with more regions
     MOVING_TIME_PER_STEP = 20
     FAR_MOVING_TIME = 40  # Time to move out and back from the extreme ends of the run
@@ -459,7 +459,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                      for ut in params.AUTOFOCUS_PARAMS}
     positions = calculate_positions(range_frac, steps, scale_factors)
 
-    total_time = estimate_time(steps, num_exp, exptime, measure_corners)
+    total_time = estimate_time(steps, num_exp, exptime, binning, measure_corners)
     print('ESTIMATED TIME TO COMPLETE RUN: {:.1f} min'.format(total_time / 60))
 
     # Confirm
