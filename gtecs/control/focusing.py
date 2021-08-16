@@ -90,7 +90,9 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
         for ut in all_uts:
             for j, region in enumerate(regions):
                 # correct the region limits if binning
-                region = slice(region.start // binning, region.stop // binning)
+                if region is not None:
+                    region = (slice(region[0].start // binning, region[0].stop // binning),
+                              slice(region[1].start // binning, region[1].stop // binning)
 
                 if ut in image_data:
                     # Measure focus within each given region
