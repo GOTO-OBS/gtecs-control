@@ -293,7 +293,7 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_dec'] = self.mount.dec
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
-                temp_info['nonsidereal'] = self.mount.nonsidereal
+                # temp_info['nonsidereal'] = self.mount.nonsidereal
                 temp_info['lst'] = self.mount.sidereal_time
                 temp_info['ha'] = get_ha(temp_info['mount_ra'], temp_info['lst'])
             elif isinstance(self.mount, DDM500):
@@ -336,6 +336,7 @@ class MntDaemon(BaseDaemon):
         temp_info['last_move_time'] = self.last_move_time
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
+        temp_info['nonsidereal'] = self.trackrate_ra != 0 or self.trackrate_dec != 0
 
         # Write debug log line
         try:
