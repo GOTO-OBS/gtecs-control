@@ -37,7 +37,7 @@ def take_sky(exptime, current_filter, name, glance=False):
         uts = params.UTS_WITH_FILTERWHEELS
     else:
         uts = None
-    image_data = get_analysis_image(exptime, current_filter, name, 'FLAT', glance, uts=uts)
+    image_data = get_analysis_image(exptime, current_filter, 1, name, 'FLAT', glance, uts=uts)
 
     # Get the mean value for the images
     sky_medians = {ut: int(np.median(image_data[ut])) for ut in sorted(image_data)}

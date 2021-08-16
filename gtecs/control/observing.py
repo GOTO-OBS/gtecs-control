@@ -514,7 +514,7 @@ def offset(direction, distance):
     time.sleep(2)
 
 
-def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts=None):
+def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None):
     """Take a single exposure set, then open the images and return the image data.
 
     Parameters
@@ -523,6 +523,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
         exposure time for the image
     filt : str
         filter to take the image in
+    binning : int
+        binning factor to take the image with
     name : str
         target name
     imgtype : str, default='SCIENCE'
@@ -548,18 +550,20 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
         if len(uts) == 0:
             raise ValueError('Invalid UT values (not in {})'.format(params.UTS_WITH_CAMERAS))
         ut_string = ','.join(uts)
-        exq_command = 'exq {} {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
-                                                             ut_string,
-                                                             exptime,
-                                                             filt,
-                                                             name,
-                                                             imgtype if not glance else '')
+        exq_command = 'exq {} {} {:.1f} {} {} "{}" {}'.format('image' if not glance else 'glance',
+                                                              ut_string,
+                                                              exptime,
+                                                              filt,
+                                                              binning,
+                                                              name,
+                                                              imgtype if not glance else '')
     else:
-        exq_command = 'exq {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
-                                                          exptime,
-                                                          filt,
-                                                          name,
-                                                          imgtype if not glance else '')
+        exq_command = 'exq {} {:.1f} {} {} "{}" {}'.format('image' if not glance else 'glance',
+                                                           exptime,
+                                                           filt,
+                                                           binning,
+                                                           name,
+                                                           imgtype if not glance else '')
 
     # Send the command
     execute_command(exq_command)

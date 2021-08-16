@@ -34,8 +34,8 @@ def get_best_focus_position(xval, yval, m_l, m_r, delta_x):
     return meeting_point
 
 
-def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None,
-                  regions=None):
+def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus test image',
+                  uts=None, regions=None):
     """Take a set of images and measure the median half-flux diameters.
 
     Parameters
@@ -47,6 +47,8 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         Image exposure time.
     filt : str, default='L'
        Filter to use for the exposures.
+    binning : int, default=1
+       Binning factor to use for the exposures.
     target_name : str, default='Focus test image'
         Name of the target being observed.
     uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
@@ -81,7 +83,8 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
-        image_data = get_analysis_image(exptime, filt, target_name, 'FOCUS', glance=False, uts=uts)
+        image_data = get_analysis_image(exptime, filt, binning, target_name, 'FOCUS',
+                                        glance=False, uts=uts)
 
         # Measure the median HFDs in each image
         for ut in all_uts:

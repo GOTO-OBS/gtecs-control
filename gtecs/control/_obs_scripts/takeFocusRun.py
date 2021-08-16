@@ -449,7 +449,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
         plt.show()
 
 
-def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L',
+def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
         measure_corners=False, go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -513,7 +513,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L',
         set_focuser_positions(new_positions.to_dict(), timeout=120)
         print('New positions:', get_focuser_positions())
         print('Taking {} measurements at new focus position...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, target_name, regions=regions)
+        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, regions=regions)
         if not isinstance(foc_data, pd.DataFrame):
             # Concat region list
             foc_data = pd.concat(foc_data)
@@ -638,6 +638,9 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
                         help=('filter to use (default=L)')
                         )
+    parser.add_argument('-b', '--binning', type=int, default=1,
+                        help=('image binning factor (default=1)')
+                        )
     parser.add_argument('--corners', action='store_true',
                         help=('measure focus position in the corners as well as the centre')
                         )
@@ -660,6 +663,7 @@ if __name__ == '__main__':
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter
+    binning = args.binning
     measure_corners = args.corners
     go_to_best = args.go_to_best
     no_slew = args.no_slew
@@ -670,7 +674,7 @@ if __name__ == '__main__':
     initial_positions = get_focuser_positions()
     try:
         RestoreFocusCloser(initial_positions)
-        run(steps, range_frac, num_exp, exptime, filt,
+        run(steps, range_frac, num_exp, exptime, filt, binning,
             measure_corners, go_to_best, no_slew, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
