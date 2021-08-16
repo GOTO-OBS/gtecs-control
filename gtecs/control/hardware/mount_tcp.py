@@ -1,4 +1,4 @@
-"""Classes to control ASA mounts."""
+"""Classes to control ASA mounts using TCP commands."""
 
 import logging
 import socket

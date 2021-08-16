@@ -18,7 +18,8 @@ This package requires the following G-TeCS packages to function fully:
 
 This package requires the following other packages created for GOTO:
 
-- [FLI-API](https://github.com/GOTO-OBS/fli-api)
+- [ASASDK](https://github.com/GOTO-OBS/ASASDK) (to control the ASA mount)
+- [FLI-API](https://github.com/GOTO-OBS/fli-api) (to control the FLI cameras)
 
 ## Installation
 
