@@ -278,6 +278,7 @@ FOCUS_COMPENSATION_VERBOSE = config['FOCUS_COMPENSATION_VERBOSE']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
 COMPRESS_IMAGES = config['COMPRESS_IMAGES']
+WRITE_IMAGE_LOG = config['WRITE_IMAGE_LOG']
 
 ############################################################
 # Exposure Queue parameters

@@ -107,7 +107,7 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
         log.debug('', exc_info=True)
 
     # write the image log to the database
-    if not all_info['cam']['current_exposure']['glance']:
+    if params.WRITE_IMAGE_LOG and not all_info['cam']['current_exposure']['glance']:
         try:
             write_image_log(filename, hdu.header)
         except Exception:
