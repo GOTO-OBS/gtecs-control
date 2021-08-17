@@ -141,6 +141,18 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'blinky', [activate])
         print(reply)
 
+    elif command == 'motors':
+        # parse arguments
+        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
+            activate = True
+        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
+            activate = False
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'power_motors', [activate])
+        print(reply)
+
     elif command == 'park':
         reply = daemons.daemon_function(daemon_id, 'park')
         print(reply)
@@ -408,7 +420,8 @@ def print_instructions():
           '  unpark                         leave park state',
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
-          '  blinky on|off                  turn on or off blinky mode',
+          '  blinky on|off                  turn on or off blinky mode (SiTech only)',
+          '  motors on|off                  turn on or off the mount motors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

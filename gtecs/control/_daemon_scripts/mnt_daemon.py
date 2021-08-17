@@ -34,6 +34,7 @@ class MntDaemon(BaseDaemon):
         self.full_stop_flag = 0
         self.set_trackrate_flag = 0
         self.set_blinky_mode_flag = 0
+        self.set_motor_power_flag = 0
         self.park_flag = 0
         self.unpark_flag = 0
         self.set_target_ra_flag = 0
@@ -49,6 +50,7 @@ class MntDaemon(BaseDaemon):
         self.targeting = None
         self.last_move_time = None
         self.set_blinky = False
+        self.set_motor_power = True
         self.offset_direction = None
         self.offset_distance = None
         self.trackrate_ra = 0
@@ -182,6 +184,21 @@ class MntDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 0
+                self.force_check_flag = True
+
+            # power motors on or off
+            if self.set_motor_power_flag:
+                try:
+                    mode = 'on' if self.set_motor_power else 'off'
+                    self.log.info('Turing motors {}'.format(mode))
+                    c = self.mount.set_motor_power(self.set_motor_power)
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('set_motor_power command failed')
+                    self.log.debug('', exc_info=True)
+                self.set_motor_power = True
+                self.set_motor_power_flag = 0
                 self.force_check_flag = True
 
             # park the mount
@@ -406,6 +423,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set values
         self.target_ra = ra
@@ -438,6 +457,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set values
         self.target_alt = alt
@@ -464,6 +485,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
         if not above_elevation_limit(self.info['mount_ra'] * 360. / 24.,
                                      self.info['mount_dec'],
                                      Time.now()):
@@ -535,6 +558,31 @@ class MntDaemon(BaseDaemon):
             s = 'Turning off blinky mode'
         return s
 
+    def power_motors(self, activate):
+        """Turn on or off the mount motors."""
+        if not isinstance(self.mount, DDM500):
+            raise NotImplementedError('Only ASA mounts allow motors to be powered')
+
+        # Check current status
+        self.wait_for_info()
+        if activate and self.mount.motors_on:
+            return 'Motors are already on'
+        elif not activate and not self.mount.motors_on:
+            return 'Motors are already off'
+
+        # Set values
+        self.set_motor_power = activate
+
+        # Set flag
+        self.force_check_flag = True
+        self.set_motor_power_flag = 1
+
+        if activate:
+            s = 'Turning on mount motors'
+        else:
+            s = 'Turning off mount motors'
+        return s
+
     def park(self):
         """Move the mount to the park position."""
         # Check current status
@@ -545,6 +593,8 @@ class MntDaemon(BaseDaemon):
             return 'Already parking'
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set flag
         self.force_check_flag = True
@@ -564,10 +614,14 @@ class MntDaemon(BaseDaemon):
             self.full_stop_flag = 1
             time.sleep(0.2)
 
-        # If we are parked then we need to turn off blinky mode
+        # If we are parked then we need to turn off blinky mode or turn on the motors
         if self.info['status'] == 'Parked':
-            self.set_blinky = False
-            self.set_blinky_mode_flag = 1
+            if isinstance(self.mount, SiTech):
+                self.set_blinky = False
+                self.set_blinky_mode_flag = 1
+            elif isinstance(self.mount, DDM500):
+                self.set_motor_power = True
+                self.set_motor_power_flag = 1
             time.sleep(0.2)
 
         # Set flag
@@ -669,6 +723,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set values
         self.offset_direction = direction

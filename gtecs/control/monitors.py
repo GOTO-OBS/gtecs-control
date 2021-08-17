@@ -31,6 +31,7 @@ STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
 STATUS_MNT_NONSIDEREAL = 'tracking_nonsidereal'
 STATUS_MNT_BLINKY = 'in_blinky'
+STATUS_MNT_MOTORSOFF = 'motors_off'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 STATUS_CAM_COOL = 'cool'
 STATUS_CAM_WARM = 'warm'
@@ -73,6 +74,7 @@ ERROR_MNT_NONSIDEREAL = 'MNT:TRACKING_NONSIDEREAL'
 ERROR_MNT_PARKED = 'MNT:PARKED'
 ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
 ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
+ERROR_MNT_MOTORSOFF = 'MNT:MOTORS_OFF'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
 ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
@@ -660,6 +662,8 @@ class MntMonitor(BaseMonitor):
             hardware_status = STATUS_MNT_STOPPED
         elif mount == 'IN BLINKY MODE':
             hardware_status = STATUS_MNT_BLINKY
+        elif mount == 'MOTORS OFF':
+            hardware_status = STATUS_MNT_MOTORSOFF
         elif mount == 'CONNECTION ERROR':
             hardware_status = STATUS_MNT_CONNECTION_ERROR
         else:
@@ -693,6 +697,14 @@ class MntMonitor(BaseMonitor):
         # Clear the error if blinky is off
         if self.hardware_status != STATUS_MNT_BLINKY:
             self.clear_error(ERROR_MNT_INBLINKY)
+
+        # ERROR_MNT_MOTORSOFF
+        # Set the error if the mount motors are off
+        if self.hardware_status == STATUS_MNT_MOTORSOFF:
+            self.add_error(ERROR_MNT_MOTORSOFF)
+        # Clear the error if the motors are on
+        if self.hardware_status != STATUS_MNT_MOTORSOFF:
+            self.clear_error(ERROR_MNT_MOTORSOFF)
 
         # ERROR_MNT_CONNECTION
         # Set the error if the mount computer has lost connection to the mount
@@ -821,6 +833,18 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[4] = ['mnt restart', 10]
             # OUT OF SOLUTIONS: It's still in blinky mode, sounds like a hardware issue.
             return ERROR_MNT_INBLINKY, recovery_procedure
+
+        elif ERROR_MNT_MOTORSOFF in self.errors:
+            # PROBLEM: The mount motors are powered off.
+            #          This shouldn't happen automatically, but maybe we didn't unpark correctly.
+            #          NB this only applies to ASA mounts.
+            recovery_procedure = {}
+            # SOLUTION 1: Try turning motors on.
+            recovery_procedure[1] = ['mnt motors on', 60]
+            # SOLUTION 2: Restart the daemon.
+            recovery_procedure[4] = ['mnt restart', 10]
+            # OUT OF SOLUTIONS: The motors are still off, sounds like a hardware issue.
+            return ERROR_MNT_MOTORSOFF, recovery_procedure
 
         elif ERROR_MNT_MOVETIMEOUT in self.errors:
             # PROBLEM: The mount has reported it's been moving for too long.

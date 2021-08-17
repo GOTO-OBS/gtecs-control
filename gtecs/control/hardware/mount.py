@@ -102,6 +102,7 @@ class DDM500(object):
             self._slewing = status_dict['slewing']
             self._tracking = status_dict['tracking']
             self._initializing = status_dict['initializing']
+            self._motors_started = status_dict['motors_started']
 
             self._position_error = {'ra': status_dict['position_error'][0],
                                     'dec': status_dict['position_error'][1]}
@@ -128,6 +129,8 @@ class DDM500(object):
         self._update_status()
         if not self.connected:
             status = 'CONNECTION ERROR'
+        elif not self._motors_started:
+            status = 'MOTORS OFF'
         elif self._parked:
             status = 'Parked'
         elif self._slewing:
@@ -166,6 +169,12 @@ class DDM500(object):
         """Return if the mount is currently parked."""
         self._update_status()
         return self._parked
+
+    @property
+    def motors_on(self):
+        """Return if the mount motors are currently on."""
+        self._update_status()
+        return self._motors_started
 
     @property
     def ra(self):
@@ -271,6 +280,21 @@ class DDM500(object):
     def halt(self):
         """Abort slew (if slewing) and stop tracking (if tracking)."""
         return self.mount.abort_slew()
+
+    def start_motors(self):
+        """Start the mount motors."""
+        return self.mount.start_motors()
+
+    def stop_motors(self):
+        """Stop the mount motors."""
+        return self.mount.stop_motors()
+
+    def set_motor_power(self, activate):
+        """Turn the mount motors on or off."""
+        if activate:
+            return self.start_motors()
+        else:
+            return self.stop_motors()
 
     def offset(self, direction, distance):
         """Set offset in the given direction by the given distance (in arcsec)."""

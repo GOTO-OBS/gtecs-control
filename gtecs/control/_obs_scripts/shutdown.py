@@ -12,6 +12,7 @@ This script should perform the following simple tasks:
 
 import time
 
+from gtecs.control import params
 from gtecs.control.misc import execute_command
 from gtecs.control.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
 from gtecs.control.slack import send_slack_msg
@@ -48,6 +49,9 @@ def run():
     except TimeoutError:
         print('Mount timed out, continuing with shutdown')
         send_slack_msg('Shutdown script could not park the mount!')
+    # Power off the mount motors
+    if params.MOUNT_CLASS == 'ASA':
+        execute_command('mount motors off')
 
     # Close the dome and wait (pilot will try again before shutdown)
     execute_command('dome close')
