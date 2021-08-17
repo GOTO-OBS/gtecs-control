@@ -69,7 +69,7 @@ def run():
     # execute_command('mnt info -f')
     # But we can power on the motors
     if params.MOUNT_CLASS == 'ASA':
-        execute_command('mount motors on')
+        execute_command('mnt motors on')
 
     # Clean up any persistent queue from previous night
     execute_command('exq clear')
