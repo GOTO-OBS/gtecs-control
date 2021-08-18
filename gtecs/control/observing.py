@@ -82,6 +82,7 @@ def prepare_for_images(open_covers=True):
     - ensure the filter wheels are homed
     - ensure the cameras are not windowed
     - ensure the cameras are at operating temperature
+    - ensure the mount motors are on
     - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
     # Turn off any sources of light in the dome
@@ -124,6 +125,12 @@ def prepare_for_images(open_covers=True):
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(0.5)
+
+    # Start the mount motors (but remain parked, or in whatever position we're in)
+    if not mount_motors_are_on():
+        print('Turning on mount motors')
+        execute_command('mnt motors on')
+        time.sleep(4)
 
     if open_covers is True:
         # Open the mirror covers
@@ -355,6 +362,12 @@ def get_mount_position():
     ra = ra * 360 / 24.  # mount uses RA in hours
     dec = mnt_info['mount_dec']
     return ra, dec
+
+
+def mount_motors_are_on():
+    """Check if the mount motors are enabled."""
+    mnt_info = daemon_info('mnt', force_update=False)
+    return mnt_info['motors_on']
 
 
 def slew_to_radec(ra, dec, wait=False, timeout=None):

@@ -319,6 +319,7 @@ class MntDaemon(BaseDaemon):
                 temp_info['tracking_error'] = self.mount.tracking_error
                 temp_info['motor_current'] = self.mount.motor_current
                 temp_info['tracking_rate'] = self.mount.tracking_rate
+                temp_info['motors_on'] = self.mount.motors_on
         except Exception:
             self.log.error('Failed to get mount info')
             self.log.debug('', exc_info=True)
@@ -338,6 +339,7 @@ class MntDaemon(BaseDaemon):
                 temp_info['tracking_error'] = None
                 temp_info['motor_current'] = None
                 temp_info['tracking_rate'] = None
+                temp_info['motors_on'] = None
             # Report the connection as failed
             self.mount = None
             if 'mount' not in self.bad_hardware:
