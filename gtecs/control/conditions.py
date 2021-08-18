@@ -9,10 +9,11 @@ import traceback
 import urllib
 import warnings
 
-from astropy._erfa import ErfaWarning
 from astropy.time import Time
 
 import cv2
+
+from erfa import ErfaWarning
 
 import numpy as np
 

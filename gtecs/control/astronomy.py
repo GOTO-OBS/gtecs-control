@@ -8,11 +8,12 @@ from astroplan import Observer
 from astroplan.moon import moon_illumination
 
 from astropy import units as u
-from astropy._erfa import eo06a
 from astropy.coordinates import (AltAz, CIRS, EarthLocation, FK5, GCRS, Longitude, SkyCoord,
                                  get_moon, get_sun)
 from astropy.coordinates.builtin_frames.utils import get_jd12
 from astropy.time import Time
+
+from erfa import eo06a
 
 import numpy as np
 from numpy.polynomial.polynomial import polyval
