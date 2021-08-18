@@ -361,14 +361,14 @@ def print_info(info):
         print('LST:              {:.2f}'.format(info['lst']))
         print('Hour Angle:       {:.2f}'.format(info['ha']))
     elif info['class'] == 'ASA':
-        print('RA track rate:    {:.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
-        print('Dec track rate:   {:.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
-        print('RA tracking err:  {:.2f}'.format(info['tracking_error']['ra']))
-        print('Dec tracking err: {:.2f}'.format(info['tracking_error']['dec']))
-        print('RA position err:  {:.2f}'.format(info['position_error']['ra']))
-        print('Dec position err: {:.2f}'.format(info['position_error']['dec']))
-        print('RA current:       {:.1f} A'.format(info['motor_current']['ra']))
-        print('Dec current:      {:.1f} A'.format(info['motor_current']['dec']))
+        print('RA track rate:    {:>6.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
+        print('Dec track rate:   {:>6.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
+        print('RA tracking err:   {:+.4f} arcsec'.format(info['tracking_error']['ra']))
+        print('Dec tracking err:  {:+.4f} arcsec'.format(info['tracking_error']['dec']))
+        print('RA position err:   {:+.4f} arcsec'.format(info['position_error']['ra']))
+        print('Dec position err:  {:+.4f} arcsec'.format(info['position_error']['dec']))
+        print('RA current:         {:.1f} A'.format(info['motor_current']['ra']))
+        print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -394,8 +394,8 @@ def print_info_s(info):
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
-    print('  RA:  {:>11}       Alt: {:7.3f}'.format(ra_str, alt))
-    print('  Dec: {:>11}       Az:  {:7.3f}'.format(dec_str, az))
+    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
+    print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
 
 
 def print_instructions():
