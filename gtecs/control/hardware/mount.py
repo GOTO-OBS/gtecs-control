@@ -86,9 +86,10 @@ class DDM500(object):
         if (time.time() - self._status_update_time) > 0.5:
             # Get main status
             status_dict = self.mount.get_status()
+            self._status_dict = status_dict
             self._jd = status_dict['UTC'][0]
-            self._ra_jnow = status_dict['ra']
-            self._dec_jnow = status_dict['dec']
+            self._ra_jnow = status_dict['RightAscension']
+            self._dec_jnow = status_dict['Declination']
             # Need to "uncook" from apparent to J2000
             ra_j2000, dec_j2000 = apparent_to_j2000(self._ra_jnow * 360 / 24,
                                                     self._dec_jnow,
@@ -97,23 +98,23 @@ class DDM500(object):
             if self._ra >= 24:
                 self._ra -= 24
             self._dec = dec_j2000
-            self._az = status_dict['az']
-            self._alt = status_dict['ele']
-            self._slewing = status_dict['slewing']
-            self._tracking = status_dict['tracking']
-            self._initializing = status_dict['initializing']
-            self._motors_started = status_dict['motors_started']
+            self._az = status_dict['Azimuth']
+            self._alt = status_dict['Elevation']
+            self._slewing = status_dict['Slewing']
+            self._tracking = status_dict['Tracking']
+            self._initializing = status_dict['Initializing']
+            self._motors_started = status_dict['MotorsStarted']
 
-            self._position_error = {'ra': status_dict['position_error'][0],
-                                    'dec': status_dict['position_error'][1]}
-            self._tracking_error = {'ra': status_dict['tracking_error'][0],
-                                    'dec': status_dict['tracking_error'][1]}
-            self._velocity = {'ra': status_dict['velocity'][0],
-                              'dec': status_dict['velocity'][1]}
-            self._acceleration = {'ra': status_dict['acceleration'][0],
-                                  'dec': status_dict['acceleration'][1]}
-            self._current = {'ra': status_dict['current_Q'][0],
-                             'dec': status_dict['current_Q'][1]}
+            self._position_error = {'ra': status_dict['PositionErrorC'][0],
+                                    'dec': status_dict['PositionErrorC'][1]}
+            self._tracking_error = {'ra': status_dict['TrackingError'][0],
+                                    'dec': status_dict['TrackingError'][1]}
+            self._velocity = {'ra': status_dict['Velocity'][0],
+                              'dec': status_dict['Velocity'][1]}
+            self._acceleration = {'ra': status_dict['Acceleration'][0],
+                                  'dec': status_dict['Acceleration'][1]}
+            self._current = {'ra': status_dict['CurrentQ'][0],
+                             'dec': status_dict['CurrentQ'][1]}
             self._tracking_rate = {'ra': self.mount.get_rate_primary_axis(),
                                    'dec': self.mount.get_rate_secondary_axis()}
 
