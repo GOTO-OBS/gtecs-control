@@ -221,6 +221,7 @@ MOUNT_HOST = config['MOUNT_HOST']
 MOUNT_PORT = config['MOUNT_PORT']
 MOUNT_DEBUG = config['MOUNT_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
+MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 ############################################################
 # Interface parameters

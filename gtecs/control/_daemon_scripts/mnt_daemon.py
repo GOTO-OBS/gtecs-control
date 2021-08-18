@@ -320,6 +320,36 @@ class MntDaemon(BaseDaemon):
                 temp_info['motor_current'] = self.mount.motor_current
                 temp_info['tracking_rate'] = self.mount.tracking_rate
                 temp_info['motors_on'] = self.mount.motors_on
+
+                # Save a history of errors so we can add to image headers
+                if (self.info and 'position_error_history' in self.info and
+                        self.info['position_error_history'] is not None):
+                    p_error_history = self.info['position_error_history']
+                else:
+                    p_error_history = []
+                if (self.info and 'tracking_error_history' in self.info and
+                        self.info['tracking_error_history'] is not None):
+                    t_error_history = self.info['tracking_error_history']
+                else:
+                    t_error_history = []
+                if (self.info and 'motor_current_history' in self.info and
+                        self.info['motor_current_history'] is not None):
+                    current_history = self.info['motor_current_history']
+                else:
+                    current_history = []
+                p_error_history = [hist for hist in p_error_history
+                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
+                t_error_history = [hist for hist in t_error_history
+                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
+                current_history = [hist for hist in current_history
+                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
+                p_error_history.append((self.loop_time, temp_info['position_error']))
+                t_error_history.append((self.loop_time, temp_info['tracking_error']))
+                current_history.append((self.loop_time, temp_info['motor_current']))
+                temp_info['position_error_history'] = p_error_history
+                temp_info['tracking_error_history'] = t_error_history
+                temp_info['motor_current_history'] = current_history
+
         except Exception:
             self.log.error('Failed to get mount info')
             self.log.debug('', exc_info=True)
@@ -340,6 +370,9 @@ class MntDaemon(BaseDaemon):
                 temp_info['motor_current'] = None
                 temp_info['tracking_rate'] = None
                 temp_info['motors_on'] = None
+                temp_info['position_error_history'] = None
+                temp_info['tracking_error_history'] = None
+                temp_info['motor_current_history'] = None
             # Report the connection as failed
             self.mount = None
             if 'mount' not in self.bad_hardware:
