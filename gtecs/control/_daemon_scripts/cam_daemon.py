@@ -424,7 +424,6 @@ class CamDaemon(BaseDaemon):
             # we need to include the cam info, from before we finished the current exposure
             self.log.info('{}: Fetching info from other daemons'.format(expstr))
             future_info = executor.submit(get_all_info, cam_info, self.log)
-            self.log.info('{}: Fetched info from other daemons'.format(expstr))
 
             # wait for images to be fetched
             images = {ut: None for ut in active_uts}
