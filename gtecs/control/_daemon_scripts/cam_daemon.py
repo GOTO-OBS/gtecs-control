@@ -406,7 +406,8 @@ class CamDaemon(BaseDaemon):
 
         # start fetching images from the interfaces in parallel
         future_images = {ut: None for ut in active_uts}
-        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+        future_info = None
+        with ThreadPoolExecutor(max_workers=len(active_uts) + 1) as executor:
             for ut in active_uts:
                 self.image_saving[ut] = 1
                 interface_id = params.UT_DICT[ut]['INTERFACE']
@@ -419,26 +420,30 @@ class CamDaemon(BaseDaemon):
                     self.log.error('No response from interface {}'.format(interface_id))
                     self.log.debug('', exc_info=True)
 
-        # get daemon info (once, for all images)
-        # we need to include the cam info, from before we finished the current exposure
-        self.log.info('{}: Fetching info from other daemons'.format(expstr))
-        all_info = get_all_info(cam_info, self.log)
-        self.log.info('{}: Fetched info from other daemons'.format(expstr))
+            # get daemon info (once, for all images)
+            # we need to include the cam info, from before we finished the current exposure
+            self.log.info('{}: Fetching info from other daemons'.format(expstr))
+            future_info = executor.submit(get_all_info, cam_info, self.log)
+            self.log.info('{}: Fetched info from other daemons'.format(expstr))
 
-        # wait for images to be fetched
-        images = {ut: None for ut in active_uts}
-        while True:
-            time.sleep(0.001)
-            for ut in active_uts:
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                if future_images[ut].done() and images[ut] is None:
-                    images[ut] = future_images[ut].result()
-                    self.log.info('{}: Fetched exposure from camera {} ({})'.format(
-                                  expstr, ut, interface_id))
+            # wait for images to be fetched
+            images = {ut: None for ut in active_uts}
+            all_info = None
+            while True:
+                time.sleep(0.001)
+                for ut in active_uts:
+                    interface_id = params.UT_DICT[ut]['INTERFACE']
+                    if future_images[ut].done() and images[ut] is None:
+                        images[ut] = future_images[ut].result()
+                        self.log.info('{}: Fetched exposure from camera {} ({})'.format(
+                                      expstr, ut, interface_id))
+                if future_info.done() and all_info is None:
+                    all_info = future_info.result()
+                    self.log.info('{}: Fetched info from other daemons'.format(expstr))
 
-            # keep looping until all the images are fetched
-            if all(images[ut] is not None for ut in active_uts):
-                break
+                # keep looping until all the images and info are fetched
+                if all(images[ut] is not None for ut in active_uts) and all_info is not None:
+                    break
 
         # if taking glance images, clear all old glances (all, not just those in active UTs)
         glance = current_exposure['glance']
