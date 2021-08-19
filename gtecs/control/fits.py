@@ -14,6 +14,8 @@ from astropy.time import Time
 
 from gtecs.obs import database as db
 
+import numpy as np
+
 from . import astronomy
 from . import misc
 from . import params
@@ -367,7 +369,8 @@ def update_header(header, ut, all_info, log=None):
     header['SET-TOT '] = (exposure_info['set_tot'], 'Total number of exposures in this set')
 
     # Exposure data
-    header['EXPTIME '] = (exposure_info['exptime'], 'Exposure time, seconds')
+    exptime = exposure_info['exptime']
+    header['EXPTIME '] = (exptime, 'Exposure time, seconds')
 
     start_time = Time(cam_info['exposure_start_time'], format='unix')
     mid_time = start_time + (exposure_info['exptime'] * u.second) / 2.
@@ -865,6 +868,121 @@ def update_header(header, ut, all_info, log=None):
         trackrate_ra = info['trackrate_ra']
         trackrate_dec = info['trackrate_dec']
 
+        poserr_ra = info['position_error']['ra']
+        poserr_dec = info['position_error']['dec']
+        trkerr_ra = info['tracking_error']['ra']
+        trkerr_dec = info['tracking_error']['dec']
+        current_ra = info['motor_current']['ra']
+        current_dec = info['motor_current']['dec']
+
+        if info['position_error_history'] is None:
+            poserr_hist_time = -999
+            poserr_ra_max = 'NA'
+            poserr_ra_mean = 'NA'
+            poserr_ra_std = 'NA'
+            poserr_dec_max = 'NA'
+            poserr_dec_mean = 'NA'
+            poserr_dec_std = 'NA'
+        else:
+            max_hist = write_time.unix - info['position_error_history'][0][0]
+            poserr_hist_time = params.MIN_HEADER_HIST_TIME
+            if exptime > poserr_hist_time:
+                poserr_hist_time = exptime
+            if poserr_hist_time > max_hist:
+                poserr_hist_time = max_hist
+            poserr_ra_hist = [h[1]['ra'] for h in info['position_error_history']
+                              if write_time.unix - h[0] <= poserr_hist_time]
+            if len(poserr_ra_hist) > 0:
+                poserr_ra_max = np.max(poserr_ra_hist)
+                poserr_ra_mean = np.mean(poserr_ra_hist)
+                poserr_ra_std = np.std(poserr_ra_hist)
+            else:
+                poserr_ra_max = 'NA'
+                poserr_ra_mean = 'NA'
+                poserr_ra_std = 'NA'
+            poserr_dec_hist = [h[1]['dec'] for h in info['position_error_history']
+                               if write_time.unix - h[0] <= poserr_hist_time]
+            if len(poserr_dec_hist) > 0:
+                poserr_dec_max = np.max(poserr_dec_hist)
+                poserr_dec_mean = np.mean(poserr_dec_hist)
+                poserr_dec_std = np.std(poserr_dec_hist)
+            else:
+                poserr_dec_max = 'NA'
+                poserr_dec_mean = 'NA'
+                poserr_dec_std = 'NA'
+
+        if info['tracking_error_history'] is None:
+            trkerr_hist_time = -999
+            trkerr_ra_max = 'NA'
+            trkerr_ra_mean = 'NA'
+            trkerr_ra_std = 'NA'
+            trkerr_dec_max = 'NA'
+            trkerr_dec_mean = 'NA'
+            trkerr_dec_std = 'NA'
+        else:
+            max_hist = write_time.unix - info['tracking_error_history'][0][0]
+            trkerr_hist_time = params.MIN_HEADER_HIST_TIME
+            if exptime > trkerr_hist_time:
+                trkerr_hist_time = exptime
+            if trkerr_hist_time > max_hist:
+                trkerr_hist_time = max_hist
+            trkerr_ra_hist = [h[1]['ra'] for h in info['tracking_error_history']
+                              if write_time.unix - h[0] <= trkerr_hist_time]
+            if len(poserr_dec_hist) > 0:
+                trkerr_ra_max = np.max(trkerr_ra_hist)
+                trkerr_ra_mean = np.mean(trkerr_ra_hist)
+                trkerr_ra_std = np.std(trkerr_ra_hist)
+            else:
+                trkerr_ra_max = 'NA'
+                trkerr_ra_mean = 'NA'
+                trkerr_ra_std = 'NA'
+            trkerr_dec_hist = [h[1]['dec'] for h in info['tracking_error_history']
+                               if write_time.unix - h[0] <= trkerr_hist_time]
+            if len(poserr_dec_hist) > 0:
+                trkerr_dec_max = np.max(trkerr_dec_hist)
+                trkerr_dec_mean = np.mean(trkerr_dec_hist)
+                trkerr_dec_std = np.std(trkerr_dec_hist)
+            else:
+                trkerr_dec_max = 'NA'
+                trkerr_dec_mean = 'NA'
+                trkerr_dec_std = 'NA'
+
+        if info['motor_current_history'] is None:
+            current_hist_time = -999
+            current_ra_max = 'NA'
+            current_ra_mean = 'NA'
+            current_ra_std = 'NA'
+            current_dec_max = 'NA'
+            current_dec_mean = 'NA'
+            current_dec_std = 'NA'
+        else:
+            max_hist = write_time.unix - info['motor_current_history'][0][0]
+            current_hist_time = params.MIN_HEADER_HIST_TIME
+            if exptime > current_hist_time:
+                current_hist_time = exptime
+            if current_hist_time > max_hist:
+                current_hist_time = max_hist
+            current_ra_hist = [h[1]['ra'] for h in info['motor_current_history']
+                               if write_time.unix - h[0] <= current_hist_time]
+            if len(poserr_dec_hist) > 0:
+                current_ra_max = np.max(current_ra_hist)
+                current_ra_mean = np.mean(current_ra_hist)
+                current_ra_std = np.std(current_ra_hist)
+            else:
+                current_ra_max = 'NA'
+                current_ra_mean = 'NA'
+                current_ra_std = 'NA'
+            current_dec_hist = [h[1]['dec'] for h in info['motor_current_history']
+                                if write_time.unix - h[0] <= current_hist_time]
+            if len(poserr_dec_hist) > 0:
+                current_dec_max = np.max(current_dec_hist)
+                current_dec_mean = np.mean(current_dec_hist)
+                current_dec_std = np.std(current_dec_hist)
+            else:
+                current_dec_max = 'NA'
+                current_dec_mean = 'NA'
+                current_dec_std = 'NA'
+
         zen_dist = 90 - mnt_alt
         airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
         equinox = 2000
@@ -890,6 +1008,33 @@ def update_header(header, ut, all_info, log=None):
         sidereal = 'NA'
         trackrate_ra = 'NA'
         trackrate_dec = 'NA'
+        poserr_ra = 'NA'
+        poserr_dec = 'NA'
+        trkerr_ra = 'NA'
+        trkerr_dec = 'NA'
+        current_ra = 'NA'
+        current_dec = 'NA'
+        poserr_hist_time = -999
+        poserr_ra_max = 'NA'
+        poserr_ra_mean = 'NA'
+        poserr_ra_std = 'NA'
+        poserr_dec_max = 'NA'
+        poserr_dec_mean = 'NA'
+        poserr_dec_std = 'NA'
+        trkerr_hist_time = -999
+        trkerr_ra_max = 'NA'
+        trkerr_ra_mean = 'NA'
+        trkerr_ra_std = 'NA'
+        trkerr_dec_max = 'NA'
+        trkerr_dec_mean = 'NA'
+        trkerr_dec_std = 'NA'
+        current_hist_time = -999
+        current_ra_max = 'NA'
+        current_ra_mean = 'NA'
+        current_ra_std = 'NA'
+        current_dec_max = 'NA'
+        current_dec_mean = 'NA'
+        current_dec_std = 'NA'
         zen_dist = 'NA'
         airmass = 'NA'
         equinox = 'NA'
@@ -914,6 +1059,51 @@ def update_header(header, ut, all_info, log=None):
     header['SIDEREAL'] = (sidereal, 'Mount is tracking at sidereal rate')
     header['RA-TRKR '] = (trackrate_ra, 'RA tracking rate (0=sidereal)')
     header['DEC-TRKR'] = (trackrate_dec, 'Dec tracking rate (0=sidereal)')
+
+    header['RA-PERR '] = (poserr_ra, 'RA position error')
+    header['RA-PMAX '] = (poserr_ra_max, 'RA max position error (last {:.0f}s)'.format(
+                          poserr_hist_time))
+    header['RA-PMEA '] = (poserr_ra_mean, 'RA mean position error (last {:.0f}s)'.format(
+                          poserr_hist_time))
+    header['RA-PSTD '] = (poserr_ra_std, 'RA std position error (last {:.0f}s)'.format(
+                          poserr_hist_time))
+    header['DEC-PERR'] = (poserr_dec, 'Dec position error')
+    header['DEC-PMAX'] = (poserr_dec_max, 'Dec max position error (last {:.0f}s)'.format(
+                          poserr_hist_time))
+    header['DEC-PMEA'] = (poserr_dec_mean, 'Dec mean position error (last {:.0f}s)'.format(
+                          poserr_hist_time))
+    header['DEC-PSTD'] = (poserr_dec_std, 'Dec std position error (last {:.0f}s)'.format(
+                          poserr_hist_time))
+
+    header['RA-TERR '] = (trkerr_ra, 'RA tracking error')
+    header['RA-TMAX '] = (trkerr_ra_max, 'RA max tracking error (last {:.0f}s)'.format(
+                          trkerr_hist_time))
+    header['RA-TMEA '] = (trkerr_ra_mean, 'RA mean tracking error (last {:.0f}s)'.format(
+                          trkerr_hist_time))
+    header['RA-TSTD '] = (trkerr_ra_std, 'RA std tracking error (last {:.0f}s)'.format(
+                          trkerr_hist_time))
+    header['DEC-TERR'] = (trkerr_dec, 'Dec tracking error')
+    header['DEC-TMAX'] = (trkerr_dec_max, 'Dec max tracking error (last {:.0f}s)'.format(
+                          trkerr_hist_time))
+    header['DEC-TMEA'] = (trkerr_dec_mean, 'Dec mean tracking error (last {:.0f}s)'.format(
+                          trkerr_hist_time))
+    header['DEC-TSTD'] = (trkerr_dec_std, 'Dec std tracking error (last {:.0f}s)'.format(
+                          trkerr_hist_time))
+
+    header['RA-CURR '] = (current_ra, 'RA motor current')
+    header['RA-CMAX '] = (current_ra_max, 'RA max motor current (last {:.0f}s)'.format(
+                          current_hist_time))
+    header['RA-CMEA '] = (current_ra_mean, 'RA mean motor current (last {:.0f}s)'.format(
+                          current_hist_time))
+    header['RA-CSTD '] = (current_ra_std, 'RA std motor current (last {:.0f}s)'.format(
+                          current_hist_time))
+    header['DEC-CURR'] = (current_dec, 'Dec motor current')
+    header['DEC-CMAX'] = (current_dec_max, 'Dec max motor current (last {:.0f}s)'.format(
+                          current_hist_time))
+    header['DEC-CMEA'] = (current_dec_mean, 'Dec mean motor current (last {:.0f}s)'.format(
+                          current_hist_time))
+    header['DEC-CSTD'] = (current_dec_std, 'Dec std motor current (last {:.0f}s)'.format(
+                          current_hist_time))
 
     header['AIRMASS '] = (airmass, 'Airmass')
 
@@ -990,6 +1180,29 @@ def update_header(header, ut, all_info, log=None):
         if ext_gust == -999:
             ext_gust = 'NA'
 
+        if ext_weather['windgust_history'] == -999:
+            hist_time = -999
+            ext_gustmax = 'NA'
+            ext_gustmean = 'NA'
+            ext_guststd = 'NA'
+        else:
+            max_hist = write_time.unix - ext_weather['windgust_history'][0][0]
+            hist_time = params.MIN_HEADER_HIST_TIME
+            if exptime > hist_time:
+                hist_time = exptime
+            if hist_time > max_hist:
+                hist_time = max_hist
+            ext_gusthist = [h[1] for h in ext_weather['windgust_history']
+                            if write_time.unix - h[0] <= hist_time]
+            if len(ext_gusthist) > 0:
+                ext_gustmax = np.max(ext_gusthist)
+                ext_gustmean = np.mean(ext_gusthist)
+                ext_guststd = np.std(ext_gusthist)
+            else:
+                ext_gustmax = 'NA'
+                ext_gustmean = 'NA'
+                ext_guststd = 'NA'
+
         int_source = params.INTERNAL_WEATHER_SOURCES[0]
         int_weather = info['weather'][int_source]
 
@@ -1014,6 +1227,10 @@ def update_header(header, ut, all_info, log=None):
         ext_hum = 'NA'
         ext_wind = 'NA'
         ext_gust = 'NA'
+        hist_time = -999
+        ext_gustmax = 'NA'
+        ext_gustmean = 'NA'
+        ext_guststd = 'NA'
         int_temp = 'NA'
         int_hum = 'NA'
 
@@ -1025,8 +1242,10 @@ def update_header(header, ut, all_info, log=None):
     header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
     header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')
     header['EXT-WIND'] = (ext_wind, 'External wind speed, km/h (GOTO mast)')
-    header['EXT-GUST'] = (ext_wind, 'External wind gust, km/h (last {:.0f}s)'.format(
-                          params.WINDGUST_PERIOD))
+    header['EXT-GUST'] = (ext_gust, 'External wind gust, km/h (GOTO mast)')
+    header['EXT-GMAX'] = (ext_gustmax, 'Max wind gust, km/h (last {:.0f}s)'.format(hist_time))
+    header['EXT-GMEA'] = (ext_gustmean, 'Mean wind gust, km/h (last {:.0f}s)'.format(hist_time))
+    header['EXT-GSTD'] = (ext_guststd, 'Std wind gust, km/h (last {:.0f}s)'.format(hist_time))
 
     header['INT-TEMP'] = (int_temp, 'Internal temperature, Celsius (dome)')
     header['INT-HUM '] = (int_hum, 'Internal humidity, percent (dome)')
