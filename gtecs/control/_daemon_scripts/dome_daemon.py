@@ -486,7 +486,7 @@ class DomeDaemon(BaseDaemon):
         try:
             conditions = get_conditions(timeout=10)
             # Windspeed - take the maximum gust from all stations
-            windspeed = np.max([conditions[source]['windgust']
+            windspeed = np.max([conditions[source]['windmax']
                                 for source in conditions
                                 if conditions[source]['type'] == 'external'])
             # Internal - take mean of internal sensors

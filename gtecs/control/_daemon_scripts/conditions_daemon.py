@@ -124,6 +124,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'pressure': -999,
                                     'windspeed': -999,
                                     'winddir': -999,
+                                    'windgust': -999,
                                     'humidity': -999,
                                     'rain': -999,
                                     'dew_point': -999,
@@ -135,27 +136,27 @@ class ConditionsDaemon(BaseDaemon):
                 source = source.lower()
 
                 try:
-                    # Save a history of windspeed so we can detect gusts
+                    # Save a history of windgusts so we can log the maximum
                     if (self.info and source in self.info['weather'] and
-                            'windspeed_history' in self.info['weather'][source] and
-                            self.info['weather'][source]['windspeed_history'] != -999):
-                        windspeed_history = self.info['weather'][source]['windspeed_history']
+                            'windgust_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['windgust_history'] != -999):
+                        windgust_history = self.info['weather'][source]['windgust_history']
                     else:
-                        windspeed_history = []
+                        windgust_history = []
                     # remove old values and add the latest value
-                    windspeed_history = [hist for hist in windspeed_history
-                                         if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
-                    windspeed_history.append((self.loop_time, weather_dict['windspeed']))
-                    weather_dict['windspeed_history'] = windspeed_history
-                    # store maximum (windgust)
-                    if len(windspeed_history) > 1:
-                        weather_dict['windgust'] = max(hist[1] for hist in windspeed_history)
+                    windgust_history = [hist for hist in windgust_history
+                                        if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                    windgust_history.append((self.loop_time, weather_dict['windgust']))
+                    weather_dict['windgust_history'] = windgust_history
+                    # store maximum (windmax)
+                    if len(windgust_history) > 1:
+                        weather_dict['windmax'] = max(hist[1] for hist in windgust_history)
                     else:
-                        weather_dict['windgust'] = -999
+                        weather_dict['windmax'] = -999
                 except Exception:
-                    self.log.error('Error getting windgust for "{}"'.format(source))
+                    self.log.error('Error getting windmax for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
-                    weather_dict['windgust'] = -999
+                    weather_dict['windmax'] = -999
 
                 # Store the dict
                 weather_dict['type'] = 'external'
@@ -432,6 +433,8 @@ class ConditionsDaemon(BaseDaemon):
                               if 'windspeed' in weather[source]])
         windgust = np.array([weather[source]['windgust'] for source in weather
                              if 'windgust' in weather[source]])
+        windmax = np.array([weather[source]['windmax'] for source in weather
+                            if 'windmax' in weather[source]])
         ext_temperature = np.array([weather[source]['temperature'] for source in weather
                                     if ('temperature' in weather[source] and
                                         weather[source]['type'] == 'external')])
@@ -450,6 +453,7 @@ class ConditionsDaemon(BaseDaemon):
         rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
         windgust = windgust[windgust != -999]
+        windmax = windmax[windmax != -999]
         ext_temperature = ext_temperature[ext_temperature != -999]
         ext_humidity = ext_humidity[ext_humidity != -999]
         dew_point = dew_point[dew_point != -999]
@@ -504,15 +508,15 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['rain'] = params.RAIN_GOODDELAY
         bad_delay['rain'] = params.RAIN_BADDELAY
 
-        # windspeed flag
-        good['windspeed'] = np.all(windspeed < params.MAX_WINDSPEED)
-        valid['windspeed'] = len(windspeed) >= 1
+        # windspeed flag (based on instantaneous windgust)
+        good['windspeed'] = np.all(windgust < params.MAX_WINDSPEED)
+        valid['windspeed'] = len(windgust) >= 1
         good_delay['windspeed'] = params.WINDSPEED_GOODDELAY
         bad_delay['windspeed'] = params.WINDSPEED_BADDELAY
 
-        # windgust flag
-        good['windgust'] = np.all(windgust < params.MAX_WINDGUST)
-        valid['windgust'] = len(windgust) >= 1
+        # windgust flag (based on historic windgust maximum)
+        good['windgust'] = np.all(windmax < params.MAX_WINDGUST)
+        valid['windgust'] = len(windmax) >= 1
         good_delay['windgust'] = params.WINDGUST_GOODDELAY
         bad_delay['windgust'] = params.WINDGUST_BADDELAY
 

@@ -175,7 +175,7 @@ def print_info(info):
             else:
                 print('')
 
-        print('WEATHER:          temp   humid    dewpt  wind (gust)        rain')
+        print('WEATHER:          temp   humid    dewpt  wind (gust, max)       rain')
         weather = info['weather']
 
         for source in weather:
@@ -225,12 +225,22 @@ def print_info(info):
                 windgust = weather[source]['windgust']
                 if windgust == -999:
                     windgust_str = style.rtxt(' ERR')
-                elif (windgust < params.MAX_WINDGUST):
+                elif (windgust < params.MAX_WINDSPEED):
                     windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                    if (windgust < params.MAX_WINDGUST - 5):
+                    if (windgust < params.MAX_WINDSPEED - 5):
                         windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
                 else:
                     windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
+
+                windmax = weather[source]['windmax']
+                if windmax == -999:
+                    windmax_str = style.rtxt(' ERR')
+                elif (windmax < params.MAX_WINDGUST):
+                    windmax_str = style.ytxt('{:>4.1f}'.format(windmax))
+                    if (windmax < params.MAX_WINDGUST - 5):
+                        windmax_str = style.gtxt('{:>4.1f}'.format(windmax))
+                else:
+                    windmax_str = style.rtxt('{:>4.1f}'.format(windmax))
 
                 rain = weather[source]['rain'] if 'rain' in weather[source] else None
                 if rain is None:
@@ -251,13 +261,14 @@ def print_info(info):
                     dt_str = style.gtxt('{:.0f}'.format(dt))
 
                 print('  {: <10}'.format(source), end='\t')
-                weather_str = '{}°C  {}%  {}°C  {} ({}) km/h  {}  dt={}'.format(temperature_str,
-                                                                                humidity_str,
-                                                                                dewpoint_str,
-                                                                                windspeed_str,
-                                                                                windgust_str,
-                                                                                rain_str,
-                                                                                dt_str)
+                weather_str = '{}°C  {}%  {}°C  {} ({},{}) km/h  {}  dt={}'.format(temperature_str,
+                                                                                   humidity_str,
+                                                                                   dewpoint_str,
+                                                                                   windspeed_str,
+                                                                                   windgust_str,
+                                                                                   windmax_str,
+                                                                                   rain_str,
+                                                                                   dt_str)
                 print(weather_str)
 
             elif weather[source]['type'] == 'internal':
@@ -292,7 +303,7 @@ def print_info(info):
                     dt_str = style.gtxt('{:.0f}'.format(dt))
 
                 print('  {: <10}'.format(source), end='\t')
-                weather_str = '{}°C  {}%                                    dt={}'.format(
+                weather_str = '{}°C  {}%                                         dt={}'.format(
                     temperature_str, humidity_str, dt_str)
                 print(weather_str)
 
@@ -479,29 +490,6 @@ def print_limits(info):
 
         print('WIND SPEED:')
         for source in weather:
-            if 'windspeed' not in weather[source]:
-                continue
-
-            print('  {: <10}'.format(source), end='\t')
-
-            windspeed = weather[source]['windspeed']
-            if windspeed == -999:
-                status = style.rtxt('ERROR')
-                windspeed_str = style.rtxt(' ERR')
-            elif (windspeed < params.MAX_WINDSPEED):
-                status = style.gtxt('Good')
-                windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
-                if (windspeed < params.MAX_WINDSPEED - 5):
-                    windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
-            else:
-                status = style.rtxt('Bad')
-                windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
-
-            print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
-                windspeed_str, params.MAX_WINDSPEED, status))
-
-        print('WIND GUST ({:.0f} min maximum):'.format(params.WINDGUST_PERIOD / 60))
-        for source in weather:
             if 'windgust' not in weather[source]:
                 continue
 
@@ -511,17 +499,40 @@ def print_limits(info):
             if windgust == -999:
                 status = style.rtxt('ERROR')
                 windgust_str = style.rtxt(' ERR')
-            elif (windgust < params.MAX_WINDGUST):
+            elif (windgust < params.MAX_WINDSPEED):
                 status = style.gtxt('Good')
                 windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                if (windgust < params.MAX_WINDGUST - 5):
+                if (windgust < params.MAX_WINDSPEED - 5):
                     windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
             else:
                 status = style.rtxt('Bad')
                 windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
 
             print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
-                windgust_str, params.MAX_WINDGUST, status))
+                windgust_str, params.MAX_WINDSPEED, status))
+
+        print('WIND GUST ({:.0f} min maximum):'.format(params.WINDGUST_PERIOD / 60))
+        for source in weather:
+            if 'windmax' not in weather[source]:
+                continue
+
+            print('  {: <10}'.format(source), end='\t')
+
+            windmax = weather[source]['windmax']
+            if windmax == -999:
+                status = style.rtxt('ERROR')
+                windmax_str = style.rtxt(' ERR')
+            elif (windmax < params.MAX_WINDGUST):
+                status = style.gtxt('Good')
+                windmax_str = style.ytxt('{:>4.1f}'.format(windmax))
+                if (windmax < params.MAX_WINDGUST - 5):
+                    windmax_str = style.gtxt('{:>4.1f}'.format(windmax))
+            else:
+                status = style.rtxt('Bad')
+                windmax_str = style.rtxt('{:>4.1f}'.format(windmax))
+
+            print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
+                windmax_str, params.MAX_WINDGUST, status))
 
         print('INTERNAL (critical limits):')
         for source in weather:

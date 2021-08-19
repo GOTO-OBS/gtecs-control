@@ -303,6 +303,13 @@ def get_vaisala(source):
     except Exception:
         weather_dict['winddir'] = -999
 
+    # windgust
+    try:
+        assert data['wind_gust_valid']
+        weather_dict['windgust'] = float(data['wind_gust'])
+    except Exception:
+        weather_dict['windgust'] = -999
+
     # humidity
     try:
         assert data['relative_humidity_valid']
