@@ -49,7 +49,6 @@ class CamDaemon(BaseDaemon):
         self.current_exposure = None
         self.exposing = False
         self.exposing_start_time = 0
-        self.all_info = None
         self.exposure_start_time = {ut: 0 for ut in self.uts}
         self.image_ready = {ut: 0 for ut in self.uts}
         self.image_saving = {ut: 0 for ut in self.uts}
@@ -136,7 +135,7 @@ class CamDaemon(BaseDaemon):
                             self.log.debug('', exc_info=True)
 
                     # start exposure
-                    # (seperate from the above, so they all start closer together)
+                    # (separate from the above, so they all start closer together)
                     self.exposing_start_time = self.loop_time
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
@@ -163,13 +162,6 @@ class CamDaemon(BaseDaemon):
                 elif self.exposing and self.info['time'] > self.exposing_start_time:
                     expstr = self.current_exposure.expstr.capitalize()
 
-                    # get daemon info (once, for all images)
-                    # do it here so we know the cam info has been updated
-                    if self.all_info is None:
-                        self.log.info('{}: Fetching info from other daemons'.format(expstr))
-                        self.all_info = get_all_info(self.info, self.log)
-                        self.log.info('{}: Fetched info from other daemons'.format(expstr))
-
                     # check if exposures are complete
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
@@ -190,7 +182,7 @@ class CamDaemon(BaseDaemon):
                             not any(self.image_saving[ut] for ut in self.active_uts)):
                         t = threading.Thread(target=self._exposure_saving_thread,
                                              args=[self.active_uts.copy(),
-                                                   self.all_info.copy()])
+                                                   self.info.copy()])
                         t.daemon = True
                         t.start()
 
@@ -201,7 +193,6 @@ class CamDaemon(BaseDaemon):
                         self.exposure_start_time = {ut: 0 for ut in self.uts}
                         self.image_ready = {ut: 0 for ut in self.uts}
                         self.active_uts = []
-                        self.all_info = None
                         self.num_taken += 1
                         self.take_exposure_flag = 0
                         self.force_check_flag = True
@@ -234,7 +225,6 @@ class CamDaemon(BaseDaemon):
                         self.exposing = False
                         self.current_exposure = None
                         self.active_uts = []
-                        self.all_info = None
                         self.num_taken += 1
                         self.take_exposure_flag = 0
                 except Exception:
@@ -399,7 +389,7 @@ class CamDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-    def _exposure_saving_thread(self, active_uts, all_info):
+    def _exposure_saving_thread(self, active_uts, cam_info):
         """Thread to be started whenever an exposure is completed.
 
         By containing fetching images from the interfaces and saving them to
@@ -411,7 +401,7 @@ class CamDaemon(BaseDaemon):
             self.log.warning('Exposure saving thread aborted')
             return
 
-        current_exposure = all_info['cam']['current_exposure']
+        current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
 
         # start fetching images from the interfaces in parallel
@@ -428,6 +418,12 @@ class CamDaemon(BaseDaemon):
                 except Exception:
                     self.log.error('No response from interface {}'.format(interface_id))
                     self.log.debug('', exc_info=True)
+
+        # get daemon info (once, for all images)
+        # we need to include the cam info, from before we finished the current exposure
+        self.log.info('{}: Fetching info from other daemons'.format(expstr))
+        all_info = get_all_info(cam_info, self.log)
+        self.log.info('{}: Fetched info from other daemons'.format(expstr))
 
         # wait for images to be fetched
         images = {ut: None for ut in active_uts}
