@@ -22,8 +22,7 @@ def run():
     print('Running startup tasks')
 
     # Make sure the power daemon is running first
-    execute_command('power restart')
-
+    execute_command('power start')
     time.sleep(5)
 
     # Power on the UT hardware and mount box
@@ -46,11 +45,13 @@ def run():
     # Make sure the interfaces are started before the other daemons
     execute_command('intf start')
     time.sleep(10)
+    execute_command('intf info')
 
     # Make all the other daemons are running
+    # Note we can't shutdown and restart, because the daemons will die when this script ends
     for daemon_id in list(params.DAEMONS):
         if daemon_id not in params.INTERFACES:
-            execute_command('{} restart'.format(daemon_id))
+            execute_command('{} start'.format(daemon_id))
             time.sleep(1)
 
     time.sleep(4)
