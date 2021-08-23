@@ -483,7 +483,7 @@ def wait_for_mount_parking(timeout=None):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
-            done = mnt_info['status'] == 'Parked'
+            done = mnt_info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']
             if done:
                 reached_position = True
         except Exception:
