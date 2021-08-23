@@ -1176,6 +1176,10 @@ def update_header(header, ut, all_info, log=None):
         if ext_wind == -999:
             ext_wind = 'NA'
 
+        ext_winddir = ext_weather['winddir']
+        if ext_winddir == -999:
+            ext_winddir = 'NA'
+
         ext_gust = ext_weather['windgust']
         if ext_gust == -999:
             ext_gust = 'NA'
@@ -1226,6 +1230,7 @@ def update_header(header, ut, all_info, log=None):
         ext_temp = 'NA'
         ext_hum = 'NA'
         ext_wind = 'NA'
+        ext_winddir = 'NA'
         ext_gust = 'NA'
         hist_time = -999
         ext_gustmax = 'NA'
@@ -1242,6 +1247,7 @@ def update_header(header, ut, all_info, log=None):
     header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
     header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')
     header['EXT-WIND'] = (ext_wind, 'External wind speed, km/h (GOTO mast)')
+    header['EXT-WDIR'] = (ext_winddir, 'External wind direction, degrees (GOTO mast)')
     header['EXT-GUST'] = (ext_gust, 'External wind gust, km/h (GOTO mast)')
     header['EXT-GMAX'] = (ext_gustmax, 'Max wind gust, km/h (last {:.0f}s)'.format(hist_time))
     header['EXT-GMEA'] = (ext_gustmean, 'Mean wind gust, km/h (last {:.0f}s)'.format(hist_time))
