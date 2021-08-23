@@ -269,13 +269,19 @@ class PowerDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(unit, temp_info['status_' + unit]['outlet_statuses'])
-                        for unit in sorted(params.POWER_UNITS)]
+                        if 'outlet_statuses' in temp_info['status_' + unit]
+                        else '{}:{}'.format(unit, temp_info['status_' + unit]['status'])
+                        for unit in sorted(params.POWER_UNITS)
+                        ]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Power units are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(unit, self.info['status_' + unit]['outlet_statuses'])
-                            for unit in sorted(params.POWER_UNITS)]
+                            if 'outlet_statuses' in temp_info['status_' + unit]
+                            else '{}:{}'.format(unit, temp_info['status_' + unit]['status'])
+                            for unit in sorted(params.POWER_UNITS)
+                            ]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Power units are {}'.format(now_str))
