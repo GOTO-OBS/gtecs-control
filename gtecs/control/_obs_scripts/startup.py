@@ -21,8 +21,8 @@ def run():
     """Run startup tasks."""
     print('Running startup tasks')
 
-    # Make sure the power daemon is running
-    execute_command('power start')
+    # Make sure the power daemon is running first
+    execute_command('power restart')
 
     time.sleep(5)
 
@@ -45,13 +45,13 @@ def run():
 
     # Make sure the interfaces are started before the other daemons
     execute_command('intf start')
-    time.sleep(4)
+    time.sleep(10)
 
     # Make all the other daemons are running
     for daemon_id in list(params.DAEMONS):
         if daemon_id not in params.INTERFACES:
-            execute_command('{} start'.format(daemon_id))
-            time.sleep(0.5)
+            execute_command('{} restart'.format(daemon_id))
+            time.sleep(1)
 
     time.sleep(4)
 

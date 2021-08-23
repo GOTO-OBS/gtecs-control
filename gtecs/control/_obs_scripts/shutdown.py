@@ -39,6 +39,12 @@ def run():
         print('Mirror covers timed out, continuing with shutdown')
         send_slack_msg('Shutdown script could not close the mirror covers!')
 
+    # Shutdown the interfaces (kill to be sure, they can be sticky sometimes)
+    execute_command('intf shutdown')
+    time.sleep(2)
+    execute_command('intf kill')
+    time.sleep(2)
+
     # Power off the cameras and fans
     execute_command('power off cams,focs,filts,fans')
 
