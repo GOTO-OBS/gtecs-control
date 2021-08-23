@@ -27,6 +27,7 @@ def run():
 
     # Power on the UT hardware and mount box
     execute_command('power on cams,focs,filts,fans')
+    time.sleep(5)
     if params.MOUNT_CLASS == 'SITECH':
         time.sleep(0.5)
         execute_command('power on sitech')
