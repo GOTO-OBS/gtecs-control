@@ -420,10 +420,11 @@ class AstroHavenDome(object):
     def _read_roomalert(self):
         with urllib.request.urlopen(self.roomalert_ip + '/getData.json') as r:
             data = json.loads(r.read())
-        if self.log and self.log_debug:
-            self.log.debug('roomalert RECV:"{}"'.format(data))
 
-        switches = {d['lab']: d['stat'] for d in data['s_sen']}
+        switches = {d['lab']: d['stat'] for d in data['s_sen'] if 'Switch Sen' not in d['lab']}
+        if self.log and self.log_debug:
+            self.log.debug('roomalert RECV:"{}"'.format(switches))
+
         assert 'Hatch' in switches and switches['Hatch'] in [0, 1]
         assert 'North Limit' in switches and switches['North Limit'] in [0, 1]
         assert 'South Limit' in switches and switches['South Limit'] in [0, 1]
