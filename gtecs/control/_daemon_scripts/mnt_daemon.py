@@ -518,6 +518,7 @@ class MntDaemon(BaseDaemon):
 
         # Convert to RA/Dec and use that function instead.
         ra, dec = radec_from_altaz(alt, az, Time.now())
+        ra = ra * 24. / 360.
         self.slew_to_radec(ra, dec)
 
     def start_tracking(self):
