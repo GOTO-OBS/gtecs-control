@@ -45,8 +45,10 @@ def run():
     execute_command('intf kill')
     time.sleep(2)
 
-    # Power off the cameras and fans
+    # Power off the cameras, focusers etc
     execute_command('power off cams,focs,filts,fans')
+    if params.MOUNT_CLASS == 'ASA':
+        execute_command('power off asa_gateways')
 
     # Park the mount
     execute_command('mnt park')
@@ -58,6 +60,8 @@ def run():
     # Power off the mount motors
     if params.MOUNT_CLASS == 'ASA':
         execute_command('mnt motors off')
+    # Note we don't power off the mount control computers here,
+    # we just make sure they are powered on during startup
 
     # Close the dome and wait (pilot will try again before shutdown)
     execute_command('dome close')
