@@ -518,7 +518,7 @@ class MntDaemon(BaseDaemon):
 
         # ASA mounts count Az=0 from south, which is different from Astropy
         if isinstance(self.mount, DDM500):
-            az = -180
+            az -= 180
             if az < 0:
                 az += 360
 
