@@ -508,6 +508,18 @@ class MntDaemon(BaseDaemon):
 
         return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
 
+    def slew_to_altaz_sidereal(self, alt, az):
+        """Slew to specified alt/az but track sidereally when we get there."""
+        # Check input
+        if not (0 <= alt < 90):
+            raise ValueError('Alt in degrees must be between 0 and 90')
+        if not (0 <= az < 360):
+            raise ValueError('Az in degrees must be between 0 and 360')
+
+        # Convert to RA/Dec and use that function instead.
+        ra, dec = radec_from_altaz(alt, az, Time.now())
+        self.slew_to_radec(ra, dec)
+
     def start_tracking(self):
         """Start the mount tracking."""
         # Check current status
