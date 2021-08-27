@@ -286,6 +286,7 @@ class AstroHavenDome(object):
 
         self.output_thread_running = False
         self.status_thread_running = False
+        self.status_update_time = 0
 
         # serial connection to the dome
         self.dome_serial = serial.Serial(self.serial_port,
@@ -601,12 +602,20 @@ class AstroHavenDome(object):
         self.status_thread_running = True
 
         while self.status_thread_running:
-            self.status = self._read_status()
-            # Check status more often if we are moving
-            if self.output_thread_running:
-                time.sleep(0.5)
-            else:
-                time.sleep(2)
+            try:
+                self.status = self._read_status()
+                self.status_update_time = time.time()
+                # Check status more often if we are moving
+                if self.output_thread_running:
+                    time.sleep(0.5)
+                else:
+                    time.sleep(2)
+            except Exception:
+                if self.log:
+                    self.log.error('Error in status thread')
+                    self.log.debug('', exc_info=True)
+                self.status_thread_running = False
+
         if self.log:
             self.log.debug('status thread finished')
 

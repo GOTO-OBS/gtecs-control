@@ -399,6 +399,12 @@ class DomeDaemon(BaseDaemon):
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
+            if (not self.dome.status_thread_running or
+                    (time.time() - self.dome.status_update_time) > 5):
+                self.log.error('Failed to check dome status')
+                self.dome.disconnect()
+                self.dome = None
+                self.bad_hardware.add('dome')
         if self.heartbeat is not None:
             if self.heartbeat.connection_error:
                 self.log.error('Failed to connect to dome heartbeat monitor')
@@ -444,6 +450,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['north'] = dome_status['north']
             temp_info['south'] = dome_status['south']
             temp_info['hatch'] = dome_status['hatch']
+            temp_info['status_update_time'] = self.dome.status_update_time
 
             # general, backwards-compatible open/closed
             if ('open' in temp_info['north']) or ('open' in temp_info['south']):
