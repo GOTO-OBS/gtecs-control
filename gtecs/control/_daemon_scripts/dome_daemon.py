@@ -399,8 +399,8 @@ class DomeDaemon(BaseDaemon):
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            if (not self.dome.status_thread_running or
-                    (time.time() - self.dome.status_update_time) > 5):
+            if ((not self.dome.status_thread_running) or
+                    (time.time() - self.dome.status_update_time) > params.DOME_CHECK_PERIOD):
                 self.log.error('Failed to check dome status')
                 self.dome.disconnect()
                 self.dome = None
