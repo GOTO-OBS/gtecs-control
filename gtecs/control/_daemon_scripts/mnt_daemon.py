@@ -516,10 +516,16 @@ class MntDaemon(BaseDaemon):
         if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
 
+        # ASA mounts count Az=0 from south, which is different from Astropy
+        if isinstance(self.mount, DDM500):
+            az = -180
+            if az < 0:
+                az += 360
+
         # Convert to RA/Dec and use that function instead.
         ra, dec = radec_from_altaz(alt, az, Time.now())
         ra = ra * 24. / 360.
-        self.slew_to_radec(ra, dec)
+        return self.slew_to_radec(ra, dec)
 
     def start_tracking(self):
         """Start the mount tracking."""
