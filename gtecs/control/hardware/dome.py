@@ -549,7 +549,7 @@ class AstroHavenDome(object):
         self._read_switches()
 
         if self.log and self.log_debug:
-            self.log.debug('plc:{} switches:{}'.format(self.plc_status, self.switch_status))
+            self.log.debug('status: plc:{} switches:{}'.format(self.plc_status, self.switch_status))
 
         status = {}
 
@@ -597,6 +597,11 @@ class AstroHavenDome(object):
         return status
 
     def _status_thread(self):
+        if self.status_thread_running:
+            if self.log:
+                self.log.debug('status thread tried to start when already running')
+            return
+
         if self.log:
             self.log.debug('status thread started')
         self.status_thread_running = True
@@ -620,6 +625,11 @@ class AstroHavenDome(object):
             self.log.debug('status thread finished')
 
     def _output_thread(self, side, command, frac):
+        if self.output_thread_running:
+            if self.log:
+                self.log.debug('output thread tried to start when already running')
+            return
+
         start_time = time.time()
         if self.log:
             self.log.debug('output thread started')
