@@ -197,7 +197,7 @@ class ConditionsDaemon(BaseDaemon):
                                     }
 
                 # Format source key
-                source = source.lower() + '_int'
+                source = source.lower().split('-')[-1] + '_int'
 
                 try:
                     # Save a history of temperature so we can detect glitches
