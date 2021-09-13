@@ -407,6 +407,8 @@ class MntDaemon(BaseDaemon):
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
+        if self.mount is None:
+            return None
         if (self.targeting == 'radec' and
                 self.target_ra is not None and self.target_dec is not None):
             current_coord = SkyCoord(self.mount.ra, self.mount.dec, unit=(u.hour, u.deg))
