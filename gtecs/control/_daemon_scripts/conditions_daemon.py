@@ -180,7 +180,7 @@ class ConditionsDaemon(BaseDaemon):
             # Get the internal conditions from the RoomAlert
             for source in params.INTERNAL_WEATHER_SOURCES:
                 try:
-                    weather_dict = conditions.get_internal(source)
+                    weather_dict = conditions.get_roomalert(source)
                 except Exception:
                     self.log.error('Error getting weather from "{}"'.format(source))
                     self.log.debug('', exc_info=True)
