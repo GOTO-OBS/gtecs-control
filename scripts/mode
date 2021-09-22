@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
         status.mode = 'manual'
         print('System now in Manual mode')
-        print('You are in control')
+        print('All automated systems are on, but can be disabled at your own risk')
         sys.exit()
 
     # ENGINEERING mode

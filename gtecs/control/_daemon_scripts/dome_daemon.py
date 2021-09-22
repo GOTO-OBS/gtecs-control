@@ -550,6 +550,10 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_time'] = status.emergency_shutdown_time
             temp_info['emergency_reasons'] = ', '.join(status.emergency_shutdown_reasons)
             temp_info['mode'] = status.mode
+            if self.info is not None and 'mode' in self.info:
+                temp_info['old_mode'] = self.info['mode']
+            else:
+                temp_info['old_mode'] = status.mode
         except Exception:
             self.log.error('Failed to get status info')
             self.log.debug('', exc_info=True)
@@ -557,6 +561,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_time'] = None
             temp_info['emergency_reasons'] = None
             temp_info['mode'] = None
+            temp_info['old_mode'] = None
 
         # Get other internal info
         temp_info['last_move_time'] = self.last_move_time
@@ -608,11 +613,28 @@ class DomeDaemon(BaseDaemon):
                 self.autoshield_enabled = True
 
         elif self.info['mode'] == 'manual':
-            # In manual mode the heartbeat should be enabled, everything else can be set
+            # In manual mode the heartbeat should always be enabled,
+            # everything else should turn on when manual mode is enabled
+            # but can then be turned off if desired
             if not self.heartbeat_enabled:
                 self.log.info('System is in manual mode, enabling heartbeat')
                 self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
+            if self.info['old_mode'] != 'manual':
+                # This will turn everything on when switching from engineering to manual
+                # (if we're switching from robotic they should all be on anyway!)
+                if not self.alarm_enabled:
+                    self.log.info('System is in manual mode, enabling alarm')
+                    self.alarm_enabled = True
+                if not self.autodehum_enabled:
+                    self.log.info('System is in manual mode, enabling autodehum')
+                    self.autodehum_enabled = True
+                if not self.autoclose_enabled:
+                    self.log.info('System is in manual mode, enabling autoclose')
+                    self.autoclose_enabled = True
+                if not self.autoshield_enabled:
+                    self.log.info('System is in manual mode, enabling autoshield')
+                    self.autoshield_enabled = True
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
