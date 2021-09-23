@@ -366,7 +366,7 @@ class DomeDaemon(BaseDaemon):
         # Connect to the heartbeat monitor
         if self.heartbeat is None:
             if params.FAKE_DOME:
-                self.dome = FakeHeartbeat(self.log)
+                self.heartbeat = FakeHeartbeat()
                 self.log.info('Connected to heartbeat')
             else:
                 try:

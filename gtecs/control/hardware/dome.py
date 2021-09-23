@@ -32,6 +32,7 @@ class FakeDome(object):
         self.move_timeout = 40.
 
         self.output_thread_running = False
+        self.status_thread_running = True
 
         # fake stuff
         self._temp_file = '/tmp/dome'
@@ -76,6 +77,13 @@ class FakeDome(object):
     def status(self):
         """Return the current status of the dome."""
         return self._check_status()
+
+    @property
+    def status_update_time(self):
+        return time.time() - 2
+
+    def disconnect(self):
+        return
 
     def _check_status(self):
         status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
@@ -747,6 +755,7 @@ class FakeHeartbeat(object):
     """Fake dome heartbeat class."""
     def __init__(self):
         self.status = 'enabled'
+        self.connection_error = False
 
     def disconnect(self):
         return
