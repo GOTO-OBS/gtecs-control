@@ -62,6 +62,8 @@ class DomeDaemon(BaseDaemon):
         self.autoclose_enabled = True
         self.autoshield_enabled = True
 
+        self.autoclose_timeout = None
+
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -576,6 +578,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['autodehum_enabled'] = self.autodehum_enabled
         temp_info['autoclose_enabled'] = self.autoclose_enabled
         temp_info['autoshield_enabled'] = self.autoshield_enabled
+        temp_info['autoclose_timeout'] = self.autoclose_timeout
 
         # Write debug log line
         try:
@@ -609,6 +612,7 @@ class DomeDaemon(BaseDaemon):
             if not self.autoclose_enabled:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose_enabled = True
+                self.autoclose_timeout = None
             if not self.autoshield_enabled:
                 self.log.info('System is in robotic mode, enabling autoshield')
                 self.autoshield_enabled = True
@@ -633,6 +637,7 @@ class DomeDaemon(BaseDaemon):
                 if not self.autoclose_enabled:
                     self.log.info('System is in manual mode, enabling autoclose')
                     self.autoclose_enabled = True
+                    self.autoclose_timeout = None
                 if not self.autoshield_enabled:
                     self.log.info('System is in manual mode, enabling autoshield')
                     self.autoshield_enabled = True
@@ -652,6 +657,7 @@ class DomeDaemon(BaseDaemon):
             if self.autoclose_enabled:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose_enabled = False
+                self.autoclose_timeout = None
             if self.autoshield_enabled:
                 self.log.info('System is in engineering mode, disabling autoshield')
                 self.autoshield_enabled = False
@@ -693,6 +699,9 @@ class DomeDaemon(BaseDaemon):
                     self.log.warning('IGNORING Lockdown: {}'.format(', '.join(reasons)))
                     self.lockdown_reasons = reasons
                     self.ignoring_lockdown = True
+                if self.autoclose_timeout is not None:
+                    delta = self.autoclose_timeout - self.loop_time
+                    self.log.warning(f'Autoclose will reactivate in {delta:.1f} seconds')
         else:
             if self.lockdown or self.lockdown_reasons:
                 # Clear lockdown
@@ -709,7 +718,17 @@ class DomeDaemon(BaseDaemon):
 
         # Return if autoclose disabled
         if not self.autoclose_enabled:
-            return
+            # Check timeout (if set)
+            if self.autoclose_timeout is None:
+                return
+            else:
+                if self.loop_time < self.autoclose_timeout:
+                    # Return if a timeout is set and hasn't been exceeded yet
+                    return
+                else:
+                    self.log.warning('Autoclose timeout exceeded, turning autoclose on')
+                    self.autoclose_enabled = True
+                    self.autoclose_timeout = None
 
         # Decide if we need to autoclose
         if self.lockdown and self.info['dome'] != 'closed' and not self.close_flag:
@@ -1012,11 +1031,13 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off':
             return 'Disabling autodehum, the dehumidifier will NOT turn on or off automatically'
 
-    def set_autoclose(self, command):
+    def set_autoclose(self, command, timeout=None):
         """Enable or disable the dome autoclosing in bad conditions."""
         # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
+        if timeout is not None and not isinstance(timeout, (int, float)):
+            raise ValueError("Timeout must be a number (time in seconds)")
 
         # Check current status
         self.wait_for_info()
@@ -1028,21 +1049,33 @@ class DomeDaemon(BaseDaemon):
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            elif not self.autoclose_enabled:
+            elif not self.autoclose_enabled and timeout == self.autoclose_timeout:
                 return 'Autoclose is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling autoclose')
             self.autoclose_enabled = True
+            self.autoclose_timeout = None
         elif command == 'off':
-            self.log.info('Disabling autoclose')
+            msg = 'Disabling autoclose'
+            if timeout is not None:
+                msg += f' for {timeout / 60:.1f} minutes'
+            self.log.info(msg)
             self.autoclose_enabled = False
+            if timeout is not None:
+                self.autoclose_timeout = time.time() + timeout
+            else:
+                self.autoclose_timeout = None
 
         if command == 'on':
             return 'Enabling autoclose, dome will close in bad conditions'
         elif command == 'off':
-            return 'Disabling autoclose, dome will NOT close in bad conditions'
+            msg = 'Disabling autoclose'
+            if timeout is not None:
+                msg += f' for {timeout / 60:.1f} minutes'
+            msg += ', dome will NOT close in bad conditions'
+            return msg
 
     def set_alarm(self, command):
         """Enable or disable the dome alarm when moving."""
