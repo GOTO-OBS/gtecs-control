@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 
 from gtecs.control import daemons
 from gtecs.control import errors
@@ -253,7 +254,9 @@ def print_info(info):
     print('Autodehum:    {}'.format(style.rtxt('Disabled')
                                     if not info['autodehum_enabled']
                                     else 'Enabled'))
-    print('Autoclose:    {}'.format(style.rtxt('Disabled')
+    print('Autoclose:    {}'.format(style.rtxt('Disabled') +
+                                    (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
+                                     if info['autoclose_timeout'] is not None else '')
                                     if not info['autoclose_enabled']
                                     else 'Enabled'))
     print('Autoshield:   {}'.format(style.rtxt('Disabled')
@@ -291,7 +294,9 @@ def print_info_s(info):
     print('   Windshield:      [{}]'.format(style.gtxt('On')
                                             if info['windshield_enabled']
                                             else 'Off'))
-    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
+    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled') +
+                                            (f' for {info["autoclose_timeout"]-time.time():.1f}s'
+                                             if info['autoclose_timeout'] is not None else '')
                                             if not info['autoclose_enabled']
                                             else 'Enabled'))
     print('   Autodehum:       [{}]'.format(style.rtxt('Disabled')
