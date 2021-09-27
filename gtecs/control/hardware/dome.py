@@ -291,6 +291,8 @@ class AstroHavenDome(object):
         self.move_time = {'south': {'open': 36., 'close': 26.},     # TODO: should be in params
                           'north': {'open': 24., 'close': 24.}}
         self.move_timeout = 40.  # TODO: should be in params?
+        self.command_timestep = 0.5
+        self.stutter_timestep = 1.5
 
         self.output_thread_running = False
         self.status_thread_running = False
@@ -689,9 +691,9 @@ class AstroHavenDome(object):
                 # so that the top shutter doesn't jerk on the belts when it tips over.
                 # NEW: add start_position, so it doesn't stutter when already partially open
                 # TODO: running_time limit should be in params?
-                time.sleep(1.5)
+                time.sleep(self.stutter_timestep)
             else:
-                time.sleep(0.5)
+                time.sleep(self.command_timestep)
 
         if self.log:
             self.log.debug('output thread finished')
