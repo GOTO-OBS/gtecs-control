@@ -92,6 +92,26 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'update')
         print(reply)
 
+    elif command == 'ignore':
+        # parse arguments
+        if len(args) == 1:
+            flags = args[0].split(',')
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'ignore_flags', args=[flags])
+        print(reply)
+
+    elif command == 'enable':
+        # parse arguments
+        if len(args) == 1:
+            flags = args[0].split(',')
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'enable_flags', args=[flags])
+        print(reply)
+
     elif command == 'override':
         # parse arguments
         if len(args) == 1:
@@ -147,31 +167,36 @@ def print_info(info):
     else:
         print('FLAGS ({}):'.format(info['timestamp']))
         flags = info['flags']
-        n_flags = sorted(info['normal_flags'])
-        c_flags = sorted(info['critical_flags'])
-        for i in range(max(len(n_flags), len(c_flags))):
+        normal_flags = sorted(info['normal_flags'])
+        critical_flags = sorted(info['critical_flags'])
+        ignored_flags = sorted(info['ignored_flags'])
+        for i in range(max(len(normal_flags), len(critical_flags))):
             # Print normal flags on the left, and critical flags on the right
-            if len(n_flags) >= i + 1:
-                n_flag = n_flags[i]
-                if flags[n_flag] == 0:
+            if len(normal_flags) >= i + 1:
+                flag = normal_flags[i]
+                if flag in ignored_flags:
+                    status = '----' + '\u200c' * 11
+                elif flags[flag] == 0:
                     status = style.gtxt('Good')
-                elif flags[n_flag] == 1:
+                elif flags[flag] == 1:
                     status = style.rtxt('Bad')
                 else:
                     status = style.rtxt('ERROR')
-                print('  {: >12} : {: <16} ({})'.format(n_flag, status, flags[n_flag]), end='')
+                print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]), end='')
             else:
                 print('                          ', end='')
 
-            if len(c_flags) >= i + 1:
-                c_flag = c_flags[i]
-                if flags[c_flag] == 0:
+            if len(critical_flags) >= i + 1:
+                flag = critical_flags[i]
+                if flag in ignored_flags:
+                    status = '----' + '\u200c' * 11
+                elif flags[flag] == 0:
                     status = style.gtxt('Good')
-                elif flags[c_flag] == 1:
+                elif flags[flag] == 1:
                     status = style.rtxt('Bad')
                 else:
                     status = style.rtxt('ERROR')
-                print('  {: >12} : {: <16} ({})'.format(c_flag, status, flags[c_flag]))
+                print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
             else:
                 print('')
 

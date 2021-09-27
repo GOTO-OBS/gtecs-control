@@ -49,8 +49,9 @@ class Conditions(object):
                              for flag in [k for k in self.data if k.endswith('_update_time')]}
         self.conditions_dict = {flag: self.data[flag] for flag in self.update_times}
         self.info_flags = self.data['info_flags']
+        self.ignored_flags = self.data['ignored_flags']
 
-        # Get update time and caclulate age flag
+        # Get update time and calculate age flag
         self.current_time = Time(self.data['current_time'])
         self.age = float(Time.now().unix - self.current_time.unix)
         self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
@@ -58,19 +59,25 @@ class Conditions(object):
         # Store the total of all flags, excluding info flags
         self.total = 0
         self.bad_flags = []
-        for key, value in self.conditions_dict.items():
-            if key not in self.info_flags:
-                self.total += value
-                if value:
-                    self.bad_flags += [key]
+        for flag, status in self.conditions_dict.items():
+            if flag not in self.info_flags and flag not in self.ignored_flags:
+                self.total += status
+                if status > 0:
+                    self.bad_flags += [flag]
         self.bad = bool(self.total)
 
-    def get_formatted_string(self, good='1', bad='0'):
+    def get_formatted_string(self, good='G', bad='B', ignored='X'):
         """Get a formatted string of the conditions flags."""
-        flags = self.conditions_dict.copy()
-        arr = ['{} {}'.format(flag, good if not flags[flag] else bad)
-               for flag in sorted(flags.keys())
-               if flag not in self.info_flags]
+        arr = []
+        for flag in sorted(self.conditions_dict):
+            if flag in self.info_flags:
+                continue
+            if flag in self.ignored_flags:
+                arr.append('{} {}'.format(flag, ignored))
+            elif self.conditions_dict[flag] == 0:
+                arr.append('{} {}'.format(flag, good))
+            else:
+                arr.append('{} {}'.format(flag, bad))
         return ' - '.join(arr)
 
 

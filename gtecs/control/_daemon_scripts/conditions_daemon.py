@@ -55,9 +55,14 @@ class ConditionsDaemon(BaseDaemon):
             self.flags = {flag: data[flag] for flag in self.flag_names}
             self.update_times = {flag: float(Time(data[flag + '_update_time']).unix)
                                  for flag in self.flag_names}
+            if 'ignored_flags' in data:
+                self.ignored_flags = data['ignored_flags']
+            else:
+                self.ignored_flags = []
         except Exception:
             self.flags = {flag: 2 for flag in self.flag_names}
             self.update_times = {flag: 0 for flag in self.flag_names}
+            self.ignored_flags = []
 
         if 'override' in self.flags and self.flags['override'] == 1:
             self.manual_override = True
@@ -403,6 +408,7 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
         temp_info['critical_flags'] = sorted(self.critical_flag_names)
+        temp_info['ignored_flags'] = sorted(self.ignored_flags)
         temp_info['manual_override'] = self.manual_override
 
         # Write debug log line
@@ -663,6 +669,7 @@ class ConditionsDaemon(BaseDaemon):
         data['info_flags'] = sorted(self.info_flag_names)
         data['normal_flags'] = sorted(self.normal_flag_names)
         data['critical_flags'] = sorted(self.critical_flag_names)
+        data['ignored_flags'] = sorted(self.ignored_flags)
         with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
@@ -689,6 +696,50 @@ class ConditionsDaemon(BaseDaemon):
         self.force_check_flag = 1
 
         return 'Updating conditions'
+
+    def ignore_flags(self, flags):
+        """Add the given flags to the ignore list."""
+        retstrs = []
+        for flag in flags:
+            # Check current status
+            if flag not in self.flags:
+                retstrs.append('"{}" is not a recognised flag'.format(flag))
+                continue
+            elif flag in self.ignored_flags:
+                retstrs.append('"{}" flag is already in the ignored list'.format(flag))
+                continue
+            elif flag == 'override':
+                retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
+                continue
+
+            # Set flag
+            self.ignored_flags.append(flag)
+            retstrs.append('"{}" flag added to the ignored list'.format(flag))
+
+        # Format return string
+        return '\n'.join(retstrs)
+
+    def enable_flags(self, flags):
+        """Remove the given flags from the ignore list."""
+        retstrs = []
+        for flag in flags:
+            # Check current status
+            if flag not in self.flags:
+                retstrs.append('"{}" is not a recognised flag'.format(flag))
+                continue
+            elif flag not in self.ignored_flags:
+                retstrs.append('"{}" flag is not in the ignored list'.format(flag))
+                continue
+            elif flag == 'override':
+                retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
+                continue
+
+            # Set flag
+            self.ignored_flags.remove(flag)
+            retstrs.append('"{}" flag removed from the ignored list'.format(flag))
+
+        # Format return string
+        return '\n'.join(retstrs)
 
     def set_override(self):
         """Activate the manual override flag."""
