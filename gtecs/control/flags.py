@@ -66,13 +66,13 @@ class Conditions(object):
                     self.bad_flags += [flag]
         self.bad = bool(self.total)
 
-    def get_formatted_string(self, good='G', bad='B', ignored='X'):
+    def get_formatted_string(self, good='G', bad='B', ignored=None):
         """Get a formatted string of the conditions flags."""
         arr = []
         for flag in sorted(self.conditions_dict):
             if flag in self.info_flags:
                 continue
-            if flag in self.ignored_flags:
+            if flag in self.ignored_flags and ignored is not None:
                 arr.append('{} {}'.format(flag, ignored))
             elif self.conditions_dict[flag] == 0:
                 arr.append('{} {}'.format(flag, good))
