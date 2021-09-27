@@ -21,7 +21,6 @@ import Pyro4
 
 from . import misc
 from . import params
-from .flags import Status
 from .hardware.power import APCUPS, FakeUPS
 
 
@@ -122,21 +121,7 @@ def hatch_closed():
             switches = {d['lab']: d['stat'] for d in data['s_sen']}
             hatch_closed = bool(switches['Hatch'])
 
-    if hatch_closed:
-        return True
-    else:
-        status = Status()
-        if params.IGNORE_HATCH:
-            print('Hatch is open but IGNORE_HATCH is true')
-            return True
-        elif status.emergency_shutdown:
-            print('Hatch is open during emergency shutdown!')
-            return False
-        elif status.mode != 'robotic':
-            print('Hatch is open but not in robotic mode')
-            return True
-        else:
-            return False
+    return hatch_closed
 
 
 def get_roomalert(source):

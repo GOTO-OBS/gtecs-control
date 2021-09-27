@@ -104,6 +104,9 @@ class ConditionsDaemon(BaseDaemon):
                 if status.mode == 'robotic':
                     # Can't ignore flags in robotic mode
                     self.ignored_flags = []
+                elif status.mode != 'robotic' and 'hatch' not in self.ignored_flags:
+                    # Ignore the hatch in manual and engineering modes
+                    self.ignored_flags.append('hatch')
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -723,6 +726,9 @@ class ConditionsDaemon(BaseDaemon):
             elif flag == 'override':
                 retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
                 continue
+            elif flag == 'hatch':
+                retstrs.append('"{}" flag is always ignored in non-robotic modes'.format(flag))
+                continue
 
             # Set flag
             self.ignored_flags.append(flag)
@@ -749,6 +755,9 @@ class ConditionsDaemon(BaseDaemon):
                 continue
             elif flag == 'override':
                 retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
+                continue
+            elif flag == 'hatch':
+                retstrs.append('"{}" flag is always ignored in non-robotic modes'.format(flag))
                 continue
 
             # Set flag
