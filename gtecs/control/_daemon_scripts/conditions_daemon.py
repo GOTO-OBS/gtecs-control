@@ -13,6 +13,7 @@ from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.daemons import BaseDaemon
+from gtecs.control.flags import Status
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -97,6 +98,12 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.error('Failed to set conditions flags')
                     self.log.debug('', exc_info=True)
                     self.flags = {flag: 2 for flag in self.flag_names}
+
+                # Set ignored flags in some circumstances
+                status = Status()
+                if status.mode == 'robotic':
+                    # Can't ignore flags in robotic mode
+                    self.ignored_flags = []
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -699,6 +706,11 @@ class ConditionsDaemon(BaseDaemon):
 
     def ignore_flags(self, flags):
         """Add the given flags to the ignore list."""
+        # Check current status
+        status = Status()
+        if status.mode == 'robotic':
+            return 'Can not ignore flags in robotic mode'
+
         retstrs = []
         for flag in flags:
             # Check current status
@@ -721,6 +733,11 @@ class ConditionsDaemon(BaseDaemon):
 
     def enable_flags(self, flags):
         """Remove the given flags from the ignore list."""
+        # Check current status
+        status = Status()
+        if status.mode == 'robotic':
+            return 'All flags are enabled in robotic mode'
+
         retstrs = []
         for flag in flags:
             # Check current status
