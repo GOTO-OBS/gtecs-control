@@ -9,6 +9,7 @@ import time
 from astropy.time import Time
 
 import gcn.voeventclient as pygcn
+import voeventparse as vp
 
 from gtecs.alert.events import Event
 from gtecs.alert.handler import event_handler
@@ -17,6 +18,7 @@ from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.slack import send_slack_msg
 
+from urllib.request import urlopen
 
 class SentinelDaemon(BaseDaemon):
     """Sentinel alerts daemon class."""
@@ -63,11 +65,27 @@ class SentinelDaemon(BaseDaemon):
                 # There's at least one new event!
                 self.latest_event = self.events_queue.pop(0)
                 self.log.info('Processing new event: {}'.format(self.latest_event.ivorn))
+                event_handled = False
                 try:
                     self._handle_event()
+                    event_handled = True
+
                 except Exception:
                     self.log.error('handle_event command failed')
                     self.log.debug('', exc_info=True)
+
+                # thread for listening the skymap of Fermin events
+                # no point to start the skymap listening thread if the event hasn't been handled
+                if self.latest_event.source == 'Fermi' and event_handled:
+                    try:
+                        urlopen(self.latest_event.skymap_url)
+                    except:
+                        try:
+                            Fermi_skymap_listener = threading.Thread(target=self._Fermi_skymap_thread(event=self.latest_event, listening=True))
+                            Fermi_skymap_listener.daemon = True
+                            Fermi_skymap_listener.start()
+                        except:
+                            self.log.error('error in {}_{} skymap listener'.format(self.latest_event.source, self.latest_event.id))
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -149,6 +167,34 @@ class SentinelDaemon(BaseDaemon):
 
         self.log.info('Alert listener thread stopped')
         return
+
+    # A thread to listen the official skymap for Fermi events
+    def _Fermi_skymap_thread(self, event, listening):
+        self.log.info('{}_{} skymap listening thread started'.format(event.source, event.id))
+        top_params = vp.get_toplevel_params(event.voevent)
+        lightcurve_url = top_params['LightCurve_URL']['value']
+        skymap_url = lightcurve_url.replace('lc_medres34', 'healpix_all').replace('.gif', '.fit')
+
+        while self.running and listening:
+            try: 
+                urlopen(skymap_url)
+                event = Event.from_payload(event.payload)
+                event.ivorn = event.ivorn + '_new_skymap' # assign a new ivorn
+                listening = False
+            except:
+                # if the link is not working yet, sleep for 30s
+                time.sleep(30)
+        if listening == False:
+            try: 
+                event_handler(event, send_messages=params.SENTINEL_SEND_MESSAGES, log=self.log) 
+                send_slack_msg('Latest skymap used for {}_{}'.format(event.source, event.id))
+                self.log.info('{}_{} skymap listening thread finished'.format(event.source, event.id))
+            except Exception as err:
+                self.log.error('Exception in event handler')
+                self.log.exception(err)
+               
+        if listening and not self.running:
+            self.log.info('{}_{} skymap listener thread stopped'.format(event.source, event.id)) 
 
     # Internal functions
     def _get_info(self):
