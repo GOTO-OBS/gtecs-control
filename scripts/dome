@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 
 from gtecs.control import daemons
 from gtecs.control import errors
@@ -176,12 +177,16 @@ def query(command, args, daemon_id):
         # parse arguments
         if len(args) == 1:
             command = args[0]
+            timeout = None
+        elif len(args) == 2 and misc.is_num(args[1]):
+            command = args[0]
+            timeout = float(args[1]) * 60  # timeout in minutes
         else:
             raise errors.InputError('Invalid arguments')
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function(daemon_id, 'set_autoclose', [command])
+        reply = daemons.daemon_function(daemon_id, 'set_autoclose', [command, timeout])
         print(reply)
 
     elif command in ['windshield', 'shield']:
@@ -249,7 +254,9 @@ def print_info(info):
     print('Autodehum:    {}'.format(style.rtxt('Disabled')
                                     if not info['autodehum_enabled']
                                     else 'Enabled'))
-    print('Autoclose:    {}'.format(style.rtxt('Disabled')
+    print('Autoclose:    {}'.format(style.rtxt('Disabled') +
+                                    (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
+                                     if info['autoclose_timeout'] is not None else '')
                                     if not info['autoclose_enabled']
                                     else 'Enabled'))
     print('Autoshield:   {}'.format(style.rtxt('Disabled')
@@ -287,7 +294,9 @@ def print_info_s(info):
     print('   Windshield:      [{}]'.format(style.gtxt('On')
                                             if info['windshield_enabled']
                                             else 'Off'))
-    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled')
+    print('   Autoclose:       [{}]'.format(style.rtxt('Disabled') +
+                                            (f' for {info["autoclose_timeout"]-time.time():.1f}s'
+                                             if info['autoclose_timeout'] is not None else '')
                                             if not info['autoclose_enabled']
                                             else 'Enabled'))
     print('   Autodehum:       [{}]'.format(style.rtxt('Disabled')
@@ -320,7 +329,7 @@ def print_instructions():
           '  open north|south [frac]        open the dome (optional frac 0-1)',
           '  close north|south [frac]       close the dome (optional frac 0-1)',
           '  stop/halt/abort                stop the dome moving',
-          '  autoclose [on|off]             automatically close in bad weather?',
+          '  autoclose [on|off] [timeout]   automatically close in bad weather? (timeout in min)',
           '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
           '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
           '  windshield [on|off]            manually turn wind shielding on/off',

@@ -31,6 +31,7 @@ STATUS_MNT_PARKED = 'parked'
 STATUS_MNT_STOPPED = 'stopped'
 STATUS_MNT_NONSIDEREAL = 'tracking_nonsidereal'
 STATUS_MNT_BLINKY = 'in_blinky'
+STATUS_MNT_MOTORSOFF = 'motors_off'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 STATUS_CAM_COOL = 'cool'
 STATUS_CAM_WARM = 'warm'
@@ -73,6 +74,7 @@ ERROR_MNT_NONSIDEREAL = 'MNT:TRACKING_NONSIDEREAL'
 ERROR_MNT_PARKED = 'MNT:PARKED'
 ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
 ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
+ERROR_MNT_MOTORSOFF = 'MNT:MOTORS_OFF'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
 ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
@@ -660,6 +662,8 @@ class MntMonitor(BaseMonitor):
             hardware_status = STATUS_MNT_STOPPED
         elif mount == 'IN BLINKY MODE':
             hardware_status = STATUS_MNT_BLINKY
+        elif mount == 'MOTORS OFF':
+            hardware_status = STATUS_MNT_MOTORSOFF
         elif mount == 'CONNECTION ERROR':
             hardware_status = STATUS_MNT_CONNECTION_ERROR
         else:
@@ -694,11 +698,19 @@ class MntMonitor(BaseMonitor):
         if self.hardware_status != STATUS_MNT_BLINKY:
             self.clear_error(ERROR_MNT_INBLINKY)
 
+        # ERROR_MNT_MOTORSOFF
+        # Set the error if the mount motors are off
+        if self.hardware_status == STATUS_MNT_MOTORSOFF:
+            self.add_error(ERROR_MNT_MOTORSOFF)
+        # Clear the error if the motors are on
+        if self.hardware_status != STATUS_MNT_MOTORSOFF:
+            self.clear_error(ERROR_MNT_MOTORSOFF)
+
         # ERROR_MNT_CONNECTION
-        # Set the error if SiTech has lost connection to the mount
+        # Set the error if the mount computer has lost connection to the mount
         if self.hardware_status == STATUS_MNT_CONNECTION_ERROR:
             self.add_error(ERROR_MNT_CONNECTION)
-        # Clear the error if SiTech has restored connection
+        # Clear the error if the mount computer has restored connection
         if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
             self.clear_error(ERROR_MNT_CONNECTION)
 
@@ -751,17 +763,19 @@ class MntMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # The mount daemon connects to SiTechEXE.
-            if 'sitech' in self.bad_hardware:
-                # PROBLEM: We've lost connection to SiTechEXE.
+            # The mount daemon connects to the mount hardware.
+            if 'mount' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the mount.
                 recovery_procedure = {}
-                # SOLUTION 1: Try rebooting the mount NUC.
-                #             Note we need to wait for ages for Windows to restart.
-                #             NB: This was considered a bad idea, so has been removed.
-                # recovery_procedure[1] = ['power off mount_nuc', 10]
-                # recovery_procedure[2] = ['power on mount_nuc', 180]
-                # OUT OF SOLUTIONS: SiTechEXE must not have started correctly.
-                return ERROR_HARDWARE + 'sitech', recovery_procedure
+                # SOLUTION 1: Try rebooting the mount.
+                if params.MOUNT_CLASS == 'SITECH':
+                    recovery_procedure[1] = ['power off sitech', 10]
+                    recovery_procedure[2] = ['power on sitech', 180]
+                elif params.MOUNT_CLASS == 'ASA':
+                    recovery_procedure[1] = ['power off mount,tcu', 10]
+                    recovery_procedure[2] = ['power on mount,tcu', 180]
+                # OUT OF SOLUTIONS: Them mount must not have started correctly.
+                return ERROR_HARDWARE + 'mount', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
             return ERROR_HARDWARE, {}
 
@@ -791,14 +805,16 @@ class MntMonitor(BaseMonitor):
             return ERROR_STATUS, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
-            # PROBLEM: The SiTechEXE has lost connection to the mount controller.
+            # PROBLEM: The mount computer has lost connection to the mount controller.
             #          Maybe it's been powered off.
             recovery_procedure = {}
-            # SOLUTION 1: Try turning on the sitech box.
-            recovery_procedure[1] = ['power on sitech', 60]
-            # SOLUTION 2: Still an error? Try restarting it.
-            recovery_procedure[2] = ['power off sitech', 10]
-            recovery_procedure[3] = ['power on sitech', 60]
+            # SOLUTION 1: Try rebooting the mount.
+            if params.MOUNT_CLASS == 'SITECH':
+                recovery_procedure[1] = ['power off sitech', 10]
+                recovery_procedure[2] = ['power on sitech', 180]
+            elif params.MOUNT_CLASS == 'ASA':
+                recovery_procedure[1] = ['power off mount,tcu', 10]
+                recovery_procedure[2] = ['power on mount,tcu', 180]
             # OUT OF SOLUTIONS: It still can't connect, sounds like a hardware issue.
             return ERROR_MNT_CONNECTION, recovery_procedure
 
@@ -806,6 +822,7 @@ class MntMonitor(BaseMonitor):
             # PROBLEM: The mount is in blinky mode.
             #          Maybe it's been tracking for too long and reached the limit,
             #          or there's been some voltage problem.
+            #          NB this only applies to SiTech mounts.
             recovery_procedure = {}
             # SOLUTION 1: Try turning blinky mode off.
             recovery_procedure[1] = ['mnt blinky off', 60]
@@ -817,13 +834,28 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: It's still in blinky mode, sounds like a hardware issue.
             return ERROR_MNT_INBLINKY, recovery_procedure
 
+        elif ERROR_MNT_MOTORSOFF in self.errors:
+            # PROBLEM: The mount motors are powered off.
+            #          This shouldn't happen automatically, but maybe we didn't unpark correctly.
+            #          NB this only applies to ASA mounts.
+            recovery_procedure = {}
+            # SOLUTION 1: Try turning motors on.
+            recovery_procedure[1] = ['mnt motors on', 60]
+            # SOLUTION 2: Restart the daemon.
+            recovery_procedure[4] = ['mnt restart', 10]
+            # OUT OF SOLUTIONS: The motors are still off, sounds like a hardware issue.
+            return ERROR_MNT_MOTORSOFF, recovery_procedure
+
         elif ERROR_MNT_MOVETIMEOUT in self.errors:
             # PROBLEM: The mount has reported it's been moving for too long.
             recovery_procedure = {}
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
             # SOLUTION 2: Still moving? Okay, kill the power.
-            recovery_procedure[2] = ['power off sitech', 10]
+            if params.MOUNT_CLASS == 'SITECH':
+                recovery_procedure[2] = ['power off sitech', 10]
+            elif params.MOUNT_CLASS == 'ASA':
+                recovery_procedure[2] = ['power off mount,tcu', 10]
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_MNT_MOVETIMEOUT, recovery_procedure
 
@@ -864,7 +896,10 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 2: Try again.
             recovery_procedure[2] = ['mnt stop', 30]
             # SOLUTION 3: If it's really not stopping then best to kill the power.
-            recovery_procedure[3] = ['power off sitech', 10]
+            if params.MOUNT_CLASS == 'SITECH':
+                recovery_procedure[2] = ['power off sitech', 10]
+            elif params.MOUNT_CLASS == 'ASA':
+                recovery_procedure[2] = ['power off mount,tcu', 10]
             # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
             #                   it's been put into stopped mode. It could be parked, but that's
             #                   a different error.

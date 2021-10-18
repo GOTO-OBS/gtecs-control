@@ -15,6 +15,10 @@
   "temperature_valid": true, 
   "wind_direction": 148.0, 
   "wind_direction_valid": true, 
+  "wind_gust": 16.8, 
+  "wind_gust_valid": true, 
+  "wind_lull": 1.1, 
+  "wind_lull_valid": true, 
   "wind_speed": 11.7, 
   "wind_speed_valid": true
 }

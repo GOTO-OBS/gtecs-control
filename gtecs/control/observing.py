@@ -82,6 +82,7 @@ def prepare_for_images(open_covers=True):
     - ensure the filter wheels are homed
     - ensure the cameras are not windowed
     - ensure the cameras are at operating temperature
+    - ensure the mount motors are on
     - ensure the mirror covers are open, unless `open_covers` is False (e.g. for darks)
     """
     # Turn off any sources of light in the dome
@@ -124,6 +125,12 @@ def prepare_for_images(open_covers=True):
         execute_command('cam temp {}'.format(params.CCD_TEMP))
         while not cameras_are_cool():
             time.sleep(0.5)
+
+    # Start the mount motors (but remain parked, or in whatever position we're in)
+    if not mount_motors_are_on():
+        print('Turning on mount motors')
+        execute_command('mnt motors on')
+        time.sleep(4)
 
     if open_covers is True:
         # Open the mirror covers
@@ -357,6 +364,12 @@ def get_mount_position():
     return ra, dec
 
 
+def mount_motors_are_on():
+    """Check if the mount motors are enabled."""
+    mnt_info = daemon_info('mnt', force_update=False)
+    return mnt_info['motors_on']
+
+
 def slew_to_radec(ra, dec, wait=False, timeout=None):
     """Move mount to given RA/Dec.
 
@@ -470,7 +483,7 @@ def wait_for_mount_parking(timeout=None):
         try:
             mnt_info = daemon_info('mnt', force_update=True)
 
-            done = mnt_info['status'] == 'Parked'
+            done = mnt_info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']
             if done:
                 reached_position = True
         except Exception:
@@ -514,7 +527,7 @@ def offset(direction, distance):
     time.sleep(2)
 
 
-def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts=None):
+def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None):
     """Take a single exposure set, then open the images and return the image data.
 
     Parameters
@@ -523,6 +536,8 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
         exposure time for the image
     filt : str
         filter to take the image in
+    binning : int
+        binning factor to take the image with
     name : str
         target name
     imgtype : str, default='SCIENCE'
@@ -548,18 +563,20 @@ def get_analysis_image(exptime, filt, name, imgtype='SCIENCE', glance=False, uts
         if len(uts) == 0:
             raise ValueError('Invalid UT values (not in {})'.format(params.UTS_WITH_CAMERAS))
         ut_string = ','.join(uts)
-        exq_command = 'exq {} {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
-                                                             ut_string,
-                                                             exptime,
-                                                             filt,
-                                                             name,
-                                                             imgtype if not glance else '')
+        exq_command = 'exq {} {} {:.1f} {} {} "{}" {}'.format('image' if not glance else 'glance',
+                                                              ut_string,
+                                                              exptime,
+                                                              filt,
+                                                              binning,
+                                                              name,
+                                                              imgtype if not glance else '')
     else:
-        exq_command = 'exq {} {:.1f} {} 1 "{}" {}'.format('image' if not glance else 'glance',
-                                                          exptime,
-                                                          filt,
-                                                          name,
-                                                          imgtype if not glance else '')
+        exq_command = 'exq {} {:.1f} {} {} "{}" {}'.format('image' if not glance else 'glance',
+                                                           exptime,
+                                                           filt,
+                                                           binning,
+                                                           name,
+                                                           imgtype if not glance else '')
 
     # Send the command
     execute_command(exq_command)

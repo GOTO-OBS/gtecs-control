@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control APC PDUs and UPSs."""
+"""Daemon to control APC power devices."""
 
 import threading
 import time
@@ -9,7 +9,7 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.power import APCPDU, APCUPS, ETH8020
+from gtecs.control.hardware.power import APCPDU, APCUPS, APCATS, EPCPDU, ETH8020
 from gtecs.control.hardware.power import FakePDU, FakeUPS
 
 
@@ -55,7 +55,7 @@ class PowerDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -176,6 +176,30 @@ class PowerDaemon(BaseDaemon):
                             self.log.error('Failed to connect to {}'.format(unit_name))
                             self.bad_hardware.add(unit_name)
 
+                elif unit_class == 'APCATS':
+                    try:
+                        self.power_units[unit_name] = APCATS(unit_ip)
+                        self.log.info('Connected to {}'.format(unit_name))
+                        if unit_name in self.bad_hardware:
+                            self.bad_hardware.remove(unit_name)
+                    except Exception:
+                        self.power_units[unit_name] = None
+                        if unit_name not in self.bad_hardware:
+                            self.log.error('Failed to connect to {}'.format(unit_name))
+                            self.bad_hardware.add(unit_name)
+
+                elif unit_class == 'EPCPDU':
+                    try:
+                        self.power_units[unit_name] = EPCPDU(unit_ip)
+                        self.log.info('Connected to {}'.format(unit_name))
+                        if unit_name in self.bad_hardware:
+                            self.bad_hardware.remove(unit_name)
+                    except Exception:
+                        self.power_units[unit_name] = None
+                        if unit_name not in self.bad_hardware:
+                            self.log.error('Failed to connect to {}'.format(unit_name))
+                            self.bad_hardware.add(unit_name)
+
                 elif unit_class == 'ETH8020':
                     try:
                         unit_port = int(unit_params['PORT'])
@@ -208,24 +232,30 @@ class PowerDaemon(BaseDaemon):
             try:
                 power = self.power_units[unit_name]
                 temp_status = {}
-                if power.unit_type == 'PDU':
-                    outlet_statuses = power.status()
-                elif power.unit_type == 'UPS':
-                    outlet_statuses = power.outlet_status()
-                temp_status['outlet_statuses'] = outlet_statuses
-                outlet_names = params.POWER_UNITS[unit_name]['NAMES']
-                for name, status in zip(outlet_names, outlet_statuses):
-                    if status == str(power.on_value):
-                        temp_status[name] = 'on'
-                    elif status == str(power.off_value):
-                        temp_status[name] = 'off'
-                    else:
-                        temp_status[name] = 'ERROR'
+                if hasattr(power, 'outlets'):
+                    if power.unit_type == 'PDU':
+                        outlet_statuses = power.status()
+                    elif power.unit_type == 'UPS':
+                        outlet_statuses = power.outlet_status()
+                    temp_status['outlet_statuses'] = outlet_statuses
+                    outlet_names = params.POWER_UNITS[unit_name]['NAMES']
+                    for name, status in zip(outlet_names, outlet_statuses):
+                        if status == str(power.on_value):
+                            temp_status[name] = 'on'
+                        elif status == str(power.off_value):
+                            temp_status[name] = 'off'
+                        else:
+                            temp_status[name] = 'ERROR'
                 if power.unit_type == 'UPS':
                     temp_status['status'] = power.status()
                     temp_status['percent'] = power.percent_remaining()
                     temp_status['time'] = power.time_remaining()
                     temp_status['load'] = power.load()
+                if power.unit_type == 'ATS':
+                    temp_status['status'] = power.status()
+                    temp_status['status_A'] = power.source_status('A')
+                    temp_status['status_B'] = power.source_status('B')
+                    temp_status['source'] = power.active_source()
                 temp_info['status_' + unit_name] = temp_status
             except Exception:
                 self.log.error('Failed to get {} info'.format(unit_name))
@@ -239,13 +269,19 @@ class PowerDaemon(BaseDaemon):
         # Write debug log line
         try:
             now_strs = ['{}:{}'.format(unit, temp_info['status_' + unit]['outlet_statuses'])
-                        for unit in sorted(params.POWER_UNITS)]
+                        if 'outlet_statuses' in temp_info['status_' + unit]
+                        else '{}:{}'.format(unit, temp_info['status_' + unit]['status'])
+                        for unit in sorted(params.POWER_UNITS)
+                        ]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Power units are {}'.format(now_str))
             else:
                 old_strs = ['{}:{}'.format(unit, self.info['status_' + unit]['outlet_statuses'])
-                            for unit in sorted(params.POWER_UNITS)]
+                            if 'outlet_statuses' in temp_info['status_' + unit]
+                            else '{}:{}'.format(unit, temp_info['status_' + unit]['status'])
+                            for unit in sorted(params.POWER_UNITS)
+                            ]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
                     self.log.debug('Power units are {}'.format(now_str))
@@ -308,7 +344,7 @@ class PowerDaemon(BaseDaemon):
             # outlet and unit.
             unit_list = self._units_from_names(outlet_list)
 
-            # Finally for each unit go through and get which of the outlets from the intial list
+            # Finally for each unit go through and get which of the outlets from the initial list
             # are on that unit.
             # The final lists of `units` and `outlets` will be of the same length and a direct
             # mapping between the two, so order matters once they're created.
@@ -345,6 +381,8 @@ class PowerDaemon(BaseDaemon):
 
     def _get_valid_outlets(self, unit, outlet_list):
         """Check outlets are valid for the given unit, and convert any names to numbers."""
+        if 'NAMES' not in params.POWER_UNITS[unit]:
+            return []
         names = params.POWER_UNITS[unit]['NAMES']
         n_outlets = len(names)
         valid_list = []

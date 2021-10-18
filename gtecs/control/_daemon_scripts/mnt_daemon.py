@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to access SiTech mount control."""
+"""Daemon to access mount control."""
 
 import threading
 import time
@@ -14,6 +14,7 @@ from gtecs.control import params
 from gtecs.control.astronomy import (altaz_from_radec, above_elevation_limit, get_ha,
                                      observatory_location, radec_from_altaz)
 from gtecs.control.daemons import BaseDaemon
+from gtecs.control.hardware.mount import DDM500
 from gtecs.control.hardware.sitech import SiTech
 
 
@@ -24,7 +25,7 @@ class MntDaemon(BaseDaemon):
         super().__init__('mnt')
 
         # hardware
-        self.sitech = None
+        self.mount = None
 
         # command flags
         self.slew_target_flag = 0
@@ -33,6 +34,7 @@ class MntDaemon(BaseDaemon):
         self.full_stop_flag = 0
         self.set_trackrate_flag = 0
         self.set_blinky_mode_flag = 0
+        self.set_motor_power_flag = 0
         self.park_flag = 0
         self.unpark_flag = 0
         self.set_target_ra_flag = 0
@@ -48,6 +50,7 @@ class MntDaemon(BaseDaemon):
         self.targeting = None
         self.last_move_time = None
         self.set_blinky = False
+        self.set_motor_power = True
         self.offset_direction = None
         self.offset_distance = None
         self.trackrate_ra = 0
@@ -96,7 +99,7 @@ class MntDaemon(BaseDaemon):
                     targ_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
                         self.target_ra * 360 / 24, self.target_dec, target_alt, target_az)
                     self.log.info('Slewing from {} to {}'.format(self._pos_str(), targ_str))
-                    c = self.sitech.slew_to_radec(self.target_ra, self.target_dec)
+                    c = self.mount.slew_to_radec(self.target_ra, self.target_dec)
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -113,7 +116,7 @@ class MntDaemon(BaseDaemon):
                     targ_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
                         target_ra * 360 / 24, target_dec, self.target_alt, self.target_az)
                     self.log.info('Slewing from {} to {}'.format(self._pos_str(), targ_str))
-                    c = self.sitech.slew_to_altaz(self.target_alt, self.target_az)
+                    c = self.mount.slew_to_altaz(self.target_alt, self.target_az)
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -128,7 +131,7 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Starting tracking')
                     self.log.debug('pos = {}'.format(self._pos_str()))
-                    c = self.sitech.track()
+                    c = self.mount.track()
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -143,7 +146,7 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Halting mount')
                     self.log.debug('pos = {}'.format(self._pos_str()))
-                    c = self.sitech.halt()
+                    c = self.mount.halt()
                     if c:
                         self.log.info(c)
                 except Exception:
@@ -158,7 +161,7 @@ class MntDaemon(BaseDaemon):
                     self.log.info('Setting track rate to ({},{})'.format(
                         self.trackrate_ra, self.trackrate_dec))
                     self.log.debug('pos = {}'.format(self._pos_str()))
-                    c = self.sitech.set_trackrate(self.trackrate_ra, self.trackrate_dec)
+                    c = self.mount.set_trackrate(self.trackrate_ra, self.trackrate_dec)
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -173,7 +176,7 @@ class MntDaemon(BaseDaemon):
                 try:
                     mode = 'on' if self.set_blinky else 'off'
                     self.log.info('Turing blinky mode {}'.format(mode))
-                    c = self.sitech.set_blinky_mode(self.set_blinky)
+                    c = self.mount.set_blinky_mode(self.set_blinky)
                     if c:
                         self.log.info(c)
                 except Exception:
@@ -183,12 +186,27 @@ class MntDaemon(BaseDaemon):
                 self.set_blinky_mode_flag = 0
                 self.force_check_flag = True
 
+            # power motors on or off
+            if self.set_motor_power_flag:
+                try:
+                    mode = 'on' if self.set_motor_power else 'off'
+                    self.log.info('Turing motors {}'.format(mode))
+                    c = self.mount.set_motor_power(self.set_motor_power)
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('set_motor_power command failed')
+                    self.log.debug('', exc_info=True)
+                self.set_motor_power = True
+                self.set_motor_power_flag = 0
+                self.force_check_flag = True
+
             # park the mount
             if self.park_flag:
                 try:
                     self.log.info('Parking mount')
                     self.log.debug('pos = {}'.format(self._pos_str()))
-                    c = self.sitech.park()
+                    c = self.mount.park()
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -209,7 +227,7 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Unparking mount')
                     self.log.debug('pos = {}'.format(self._pos_str()))
-                    c = self.sitech.unpark()
+                    c = self.mount.unpark()
                     if c:
                         self.log.info(c)
                 except Exception:
@@ -224,7 +242,7 @@ class MntDaemon(BaseDaemon):
                     self.log.info('Offsetting {} {} arcsec'.format(
                         self.offset_direction, self.offset_distance))
                     self.log.debug('pos = {}'.format(self._pos_str()))
-                    c = self.sitech.offset(self.offset_direction, self.offset_distance)
+                    c = self.mount.offset(self.offset_direction, self.offset_distance)
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -244,22 +262,31 @@ class MntDaemon(BaseDaemon):
     # Internal functions
     def _connect(self):
         """Connect to hardware."""
-        # Connect to sitech
-        if self.sitech is None:
+        # Connect to the mount
+        if self.mount is None:
             try:
-                self.sitech = SiTech(params.SITECH_HOST,
-                                     params.SITECH_PORT,
-                                     self.log,
-                                     params.SITECH_DEBUG,
-                                     )
-                self.log.info('Connected to SiTechEXE')
-                if 'sitech' in self.bad_hardware:
-                    self.bad_hardware.remove('sitech')
+                if params.MOUNT_CLASS == 'SITECH':
+                    self.mount = SiTech(params.MOUNT_HOST,
+                                        params.MOUNT_PORT,
+                                        self.log,
+                                        params.MOUNT_DEBUG,
+                                        )
+                elif params.MOUNT_CLASS == 'ASA':
+                    self.mount = DDM500(params.MOUNT_HOST,
+                                        params.MOUNT_PORT,
+                                        self.log,
+                                        params.MOUNT_DEBUG,
+                                        )
+                else:
+                    raise ValueError('Unknown mount class')
+                self.log.info('Connected to mount')
+                if 'mount' in self.bad_hardware:
+                    self.bad_hardware.remove('mount')
             except Exception:
-                self.sitech = None
-                if 'sitech' not in self.bad_hardware:
-                    self.log.error('Failed to connect to SiTechEXE')
-                    self.bad_hardware.add('sitech')
+                self.mount = None
+                if 'mount' not in self.bad_hardware:
+                    self.log.error('Failed to connect to mount')
+                    self.bad_hardware.add('mount')
 
         # Finally check if we need to report an error
         self._check_errors()
@@ -274,16 +301,55 @@ class MntDaemon(BaseDaemon):
         temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
         temp_info['uptime'] = self.loop_time - self.start_time
 
-        # Get info from sitech
+        # Get info from mount
         try:
-            temp_info['status'] = self.sitech.status
-            temp_info['mount_alt'] = self.sitech.alt
-            temp_info['mount_az'] = self.sitech.az
-            temp_info['mount_ra'] = self.sitech.ra
-            temp_info['mount_dec'] = self.sitech.dec
-            temp_info['nonsidereal'] = self.sitech.nonsidereal
-            temp_info['lst'] = self.sitech.sidereal_time
-            temp_info['ha'] = get_ha(temp_info['mount_ra'], temp_info['lst'])
+            temp_info['status'] = self.mount.status
+            temp_info['mount_alt'] = self.mount.alt
+            temp_info['mount_az'] = self.mount.az
+            temp_info['mount_ra'] = self.mount.ra
+            temp_info['mount_dec'] = self.mount.dec
+            if isinstance(self.mount, SiTech):
+                temp_info['class'] = 'SITECH'
+                # temp_info['nonsidereal'] = self.mount.nonsidereal
+                temp_info['lst'] = self.mount.sidereal_time
+                temp_info['ha'] = get_ha(temp_info['mount_ra'], temp_info['lst'])
+            elif isinstance(self.mount, DDM500):
+                temp_info['class'] = 'ASA'
+                temp_info['position_error'] = self.mount.position_error
+                temp_info['tracking_error'] = self.mount.tracking_error
+                temp_info['motor_current'] = self.mount.motor_current
+                temp_info['tracking_rate'] = self.mount.tracking_rate
+                temp_info['motors_on'] = self.mount.motors_on
+
+                # Save a history of errors so we can add to image headers
+                if (self.info and 'position_error_history' in self.info and
+                        self.info['position_error_history'] is not None):
+                    p_error_history = self.info['position_error_history']
+                else:
+                    p_error_history = []
+                if (self.info and 'tracking_error_history' in self.info and
+                        self.info['tracking_error_history'] is not None):
+                    t_error_history = self.info['tracking_error_history']
+                else:
+                    t_error_history = []
+                if (self.info and 'motor_current_history' in self.info and
+                        self.info['motor_current_history'] is not None):
+                    current_history = self.info['motor_current_history']
+                else:
+                    current_history = []
+                p_error_history = [hist for hist in p_error_history
+                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
+                t_error_history = [hist for hist in t_error_history
+                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
+                current_history = [hist for hist in current_history
+                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
+                p_error_history.append((self.loop_time, temp_info['position_error']))
+                t_error_history.append((self.loop_time, temp_info['tracking_error']))
+                current_history.append((self.loop_time, temp_info['motor_current']))
+                temp_info['position_error_history'] = p_error_history
+                temp_info['tracking_error_history'] = t_error_history
+                temp_info['motor_current_history'] = current_history
+
         except Exception:
             self.log.error('Failed to get mount info')
             self.log.debug('', exc_info=True)
@@ -292,13 +358,25 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_az'] = None
             temp_info['mount_ra'] = None
             temp_info['mount_dec'] = None
-            temp_info['nonsidereal'] = None
-            temp_info['lst'] = None
-            temp_info['ha'] = None
+            if isinstance(self.mount, SiTech):
+                temp_info['class'] = 'SITECH'
+                temp_info['nonsidereal'] = None
+                temp_info['lst'] = None
+                temp_info['ha'] = None
+            elif isinstance(self.mount, DDM500):
+                temp_info['class'] = 'ASA'
+                temp_info['position_error'] = None
+                temp_info['tracking_error'] = None
+                temp_info['motor_current'] = None
+                temp_info['tracking_rate'] = None
+                temp_info['motors_on'] = None
+                temp_info['position_error_history'] = None
+                temp_info['tracking_error_history'] = None
+                temp_info['motor_current_history'] = None
             # Report the connection as failed
-            self.sitech = None
-            if 'sitech' not in self.bad_hardware:
-                self.bad_hardware.add('sitech')
+            self.mount = None
+            if 'mount' not in self.bad_hardware:
+                self.bad_hardware.add('mount')
 
         # Get other internal info
         temp_info['target_ra'] = self.target_ra
@@ -310,6 +388,7 @@ class MntDaemon(BaseDaemon):
         temp_info['last_move_time'] = self.last_move_time
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
+        temp_info['nonsidereal'] = self.trackrate_ra != 0 or self.trackrate_dec != 0
 
         # Write debug log line
         try:
@@ -328,13 +407,17 @@ class MntDaemon(BaseDaemon):
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
-        if self.targeting == 'radec':
-            current_coord = SkyCoord(self.sitech.ra, self.sitech.dec, unit=(u.hour, u.deg))
+        if self.mount is None:
+            return None
+        if (self.targeting == 'radec' and
+                self.target_ra is not None and self.target_dec is not None):
+            current_coord = SkyCoord(self.mount.ra, self.mount.dec, unit=(u.hour, u.deg))
             target_coord = SkyCoord(self.target_ra, self.target_dec, unit=(u.hour, u.deg))
             return current_coord.separation(target_coord).deg
-        elif self.targeting == 'altaz':
+        elif (self.targeting == 'altaz' and
+                self.target_alt is not None and self.target_az is not None):
             now = Time.now()
-            current_coord = AltAz(alt=self.sitech.alt * u.deg, az=self.sitech.az * u.deg,
+            current_coord = AltAz(alt=self.mount.alt * u.deg, az=self.mount.az * u.deg,
                                   obstime=now, location=observatory_location())
             target_coord = AltAz(alt=self.target_alt * u.deg, az=self.target_az * u.deg,
                                  obstime=now, location=observatory_location())
@@ -373,10 +456,12 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
+        elif isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set values
         self.target_ra = ra
@@ -405,10 +490,12 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
+        elif isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set values
         self.target_alt = alt
@@ -423,6 +510,25 @@ class MntDaemon(BaseDaemon):
 
         return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
 
+    def slew_to_altaz_sidereal(self, alt, az):
+        """Slew to specified alt/az but track sidereally when we get there."""
+        # Check input
+        if not (0 <= alt < 90):
+            raise ValueError('Alt in degrees must be between 0 and 90')
+        if not (0 <= az < 360):
+            raise ValueError('Az in degrees must be between 0 and 360')
+
+        # ASA mounts count Az=0 from south, which is different from Astropy
+        if isinstance(self.mount, DDM500):
+            az -= 180
+            if az < 0:
+                az += 360
+
+        # Convert to RA/Dec and use that function instead.
+        ra, dec = radec_from_altaz(alt, az, Time.now())
+        ra = ra * 24. / 360.
+        return self.slew_to_radec(ra, dec)
+
     def start_tracking(self):
         """Start the mount tracking."""
         # Check current status
@@ -435,6 +541,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
         if not above_elevation_limit(self.info['mount_ra'] * 360. / 24.,
                                      self.info['mount_dec'],
                                      Time.now()):
@@ -464,6 +572,9 @@ class MntDaemon(BaseDaemon):
 
     def set_trackrate(self, ra_rate=0, dec_rate=0):
         """Set tracking rate in RA and Dec in arcseconds per second (0=default)."""
+        if isinstance(self.mount, DDM500):
+            raise NotImplementedError('Mount trackrate command is not implemented')
+
         # Set values
         self.trackrate_ra = ra_rate
         self.trackrate_dec = dec_rate
@@ -480,11 +591,14 @@ class MntDaemon(BaseDaemon):
 
     def blinky(self, activate):
         """Turn on or off blinky mode."""
+        if not isinstance(self.mount, SiTech):
+            raise NotImplementedError('Only SiTech mounts use blinky mode')
+
         # Check current status
         self.wait_for_info()
-        if activate and self.sitech.blinky:
+        if activate and self.mount.blinky:
             return 'Already in blinky mode'
-        elif not activate and not self.sitech.blinky:
+        elif not activate and not self.mount.blinky:
             return 'Already not in blinky mode'
 
         # Set values
@@ -500,6 +614,31 @@ class MntDaemon(BaseDaemon):
             s = 'Turning off blinky mode'
         return s
 
+    def power_motors(self, activate):
+        """Turn on or off the mount motors."""
+        if not isinstance(self.mount, DDM500):
+            raise NotImplementedError('Only ASA mounts allow motors to be powered')
+
+        # Check current status
+        self.wait_for_info()
+        if activate and self.mount.motors_on:
+            return 'Motors are already on'
+        elif not activate and not self.mount.motors_on:
+            return 'Motors are already off'
+
+        # Set values
+        self.set_motor_power = activate
+
+        # Set flag
+        self.force_check_flag = True
+        self.set_motor_power_flag = 1
+
+        if activate:
+            s = 'Turning on mount motors'
+        else:
+            s = 'Turning off mount motors'
+        return s
+
     def park(self):
         """Move the mount to the park position."""
         # Check current status
@@ -510,6 +649,8 @@ class MntDaemon(BaseDaemon):
             return 'Already parking'
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set flag
         self.force_check_flag = True
@@ -529,10 +670,14 @@ class MntDaemon(BaseDaemon):
             self.full_stop_flag = 1
             time.sleep(0.2)
 
-        # If we are parked then we need to turn off blinky mode
+        # If we are parked then we need to turn off blinky mode or turn on the motors
         if self.info['status'] == 'Parked':
-            self.set_blinky = False
-            self.set_blinky_mode_flag = 1
+            if isinstance(self.mount, SiTech):
+                self.set_blinky = False
+                self.set_blinky_mode_flag = 1
+            elif isinstance(self.mount, DDM500):
+                self.set_motor_power = True
+                self.set_motor_power_flag = 1
             time.sleep(0.2)
 
         # Set flag
@@ -549,7 +694,7 @@ class MntDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
-        if self.info['status'] == 'Parked':
+        if isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -569,7 +714,7 @@ class MntDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
-        if self.info['status'] == 'Parked':
+        if isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -591,7 +736,7 @@ class MntDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
-        if self.info['status'] == 'Parked':
+        if isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, can not set target')
 
         # Set values
@@ -634,6 +779,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is parked')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
 
         # Set values
         self.offset_direction = direction

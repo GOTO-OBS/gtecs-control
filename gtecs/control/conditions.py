@@ -9,10 +9,11 @@ import traceback
 import urllib
 import warnings
 
-from astropy._erfa import ErfaWarning
 from astropy.time import Time
 
 import cv2
+
+from erfa import ErfaWarning
 
 import numpy as np
 
@@ -20,7 +21,6 @@ import Pyro4
 
 from . import misc
 from . import params
-from .flags import Status
 from .hardware.power import APCUPS, FakeUPS
 
 
@@ -98,27 +98,30 @@ def get_ups():
 
 def hatch_closed():
     """Get hatch status from GOTO Dome Arduino."""
-    status = Status()
-    url = 'http://{}'.format(params.ARDUINO_LOCATION)
-    outfile = os.path.join(params.FILE_PATH, 'arduino.json')
-
-    indata = download_data_from_url(url, outfile)
-    data = json.loads(indata)
-
-    if data['switch_d'] == 1:
+    # TODO
+    # The dome daemon always knows the status of the hatch already, but doesn't do anything with it.
+    # Would it be better if the hatch was only within the dome daemon, like the QC button?
+    # But would the dome daemon then have to track the delay time?
+    # And isn't it similar to the UPS %, the power daemon shows it but conditions still uses it?
+    # I won't change it for now, but the whole conditions-dome interaction could be looked at.
+    hatch_closed = None
+    if params.FAKE_DOME:
         return True
+    if params.ARDUINO_LOCATION:
+        url = 'http://{}'.format(params.ARDUINO_LOCATION)
+        outfile = os.path.join(params.FILE_PATH, 'arduino.json')
+
+        indata = download_data_from_url(url, outfile)
+        data = json.loads(indata)
+        hatch_closed = bool(data['switch_d'])
     else:
-        if params.IGNORE_HATCH:
-            print('Hatch is open but IGNORE_HATCH is true')
-            return True
-        elif status.emergency_shutdown:
-            print('Hatch is open during emergency shutdown!')
-            return False
-        elif status.mode != 'robotic':
-            print('Hatch is open but not in robotic mode')
-            return True
-        else:
-            return False
+        url = 'http://{}/getData.json'.format(params.ROOMALERT_IP)
+        with urllib.request.urlopen(url) as r:
+            data = json.loads(r.read())
+            switches = {d['lab']: d['stat'] for d in data['s_sen']}
+            hatch_closed = bool(switches['Hatch'])
+
+    return hatch_closed
 
 
 def get_roomalert(source):
@@ -213,6 +216,34 @@ def get_internal(source):
     return weather_dict
 
 
+def get_SHT35():
+    """Get internal readings from Paul's SHT35 board."""
+    with Pyro4.Proxy(params.INTDAEMON_URI) as pyro_daemon:
+        pyro_daemon._pyroSerializer = 'serpent'
+        info = pyro_daemon.last_measurement()
+
+    weather_dict = {}
+
+    weather_dict['update_time'] = Time(info['date'])
+    dt = Time.now() - weather_dict['update_time']
+    weather_dict['dt'] = int(dt.to('second').value)
+
+    try:
+        if info['temperature_valid']:
+            weather_dict['temperature'] = info['temperature']
+        else:
+            weather_dict['temperature'] = -999
+        if info['relative_humidity_valid']:
+            weather_dict['humidity'] = info['relative_humidity']
+        else:
+            weather_dict['humidity'] = -999
+    except Exception:
+        weather_dict['temperature'] = -999
+        weather_dict['humidity'] = -999
+
+    return weather_dict
+
+
 def get_vaisala(source):
     """Get the current weather from the Warwick Vaisala weather stations."""
     url = 'http://{}/{}-vaisala'.format(params.CONDITIONS_JSON_LOCATION, source)
@@ -258,6 +289,13 @@ def get_vaisala(source):
         weather_dict['winddir'] = float(data['wind_direction'])
     except Exception:
         weather_dict['winddir'] = -999
+
+    # windgust
+    try:
+        assert data['wind_gust_valid']
+        weather_dict['windgust'] = float(data['wind_gust'])
+    except Exception:
+        weather_dict['windgust'] = -999
 
     # humidity
     try:
@@ -554,25 +592,22 @@ def get_ing_internal(source):
 
 def get_rain():
     """Get rain readings from the W1m boards."""
-    rain_daemon_uri = 'PYRO:{}@{}:{}'.format(params.RAINDAEMON_NAME,
-                                             params.RAINDAEMON_IP,
-                                             params.RAINDAEMON_PORT)
-    with Pyro4.Proxy(rain_daemon_uri) as rain_daemon:
-        rain_daemon._pyroSerializer = 'serpent'
-        info = rain_daemon.last_measurement()
+    with Pyro4.Proxy(params.RAINDAEMON_URI) as pyro_daemon:
+        pyro_daemon._pyroSerializer = 'serpent'
+        info = pyro_daemon.last_measurement()
 
-    rain_dict = {}
+    weather_dict = {}
 
-    rain_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - rain_dict['update_time']
-    rain_dict['dt'] = int(dt.to('second').value)
+    weather_dict['update_time'] = Time(info['date'])
+    dt = Time.now() - weather_dict['update_time']
+    weather_dict['dt'] = int(dt.to('second').value)
 
     if info['unsafe_boards'] > 0:
-        rain_dict['rain'] = True
+        weather_dict['rain'] = True
     else:
-        rain_dict['rain'] = False
+        weather_dict['rain'] = False
 
-    return rain_dict
+    return weather_dict
 
 
 def check_ping(url, count=3, timeout=10):

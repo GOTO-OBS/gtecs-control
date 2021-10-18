@@ -12,7 +12,7 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.asa import FakeH400, H400
+from gtecs.control.hardware.ota import FakeH400, H400
 from gtecs.control.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.control.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 from gtecs.control.hardware.rasa import FocusLynxHub

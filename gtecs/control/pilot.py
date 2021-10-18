@@ -650,7 +650,7 @@ class Pilot(object):
         loop = asyncio.get_event_loop()
         with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
             cmd = [str(path), *args] if args is not None else [str(path)]
-            proc = loop.subprocess_exec(factory, sys.executable, '-u', *cmd,
+            proc = loop.subprocess_exec(factory, params.PYTHON_EXE, '-u', *cmd,
                                         stdin=None)
 
         # start the process and get transport and protocol for control of it

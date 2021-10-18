@@ -13,6 +13,7 @@ from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.daemons import BaseDaemon
+from gtecs.control.flags import Status
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -55,9 +56,14 @@ class ConditionsDaemon(BaseDaemon):
             self.flags = {flag: data[flag] for flag in self.flag_names}
             self.update_times = {flag: float(Time(data[flag + '_update_time']).unix)
                                  for flag in self.flag_names}
+            if 'ignored_flags' in data:
+                self.ignored_flags = data['ignored_flags']
+            else:
+                self.ignored_flags = []
         except Exception:
             self.flags = {flag: 2 for flag in self.flag_names}
             self.update_times = {flag: 0 for flag in self.flag_names}
+            self.ignored_flags = []
 
         if 'override' in self.flags and self.flags['override'] == 1:
             self.manual_override = True
@@ -93,6 +99,15 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                     self.flags = {flag: 2 for flag in self.flag_names}
 
+                # Set ignored flags in some circumstances
+                status = Status()
+                if status.mode == 'robotic':
+                    # Can't ignore flags in robotic mode
+                    self.ignored_flags = []
+                elif status.mode != 'robotic' and 'hatch' not in self.ignored_flags:
+                    # Ignore the hatch in manual and engineering modes
+                    self.ignored_flags.append('hatch')
+
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
@@ -124,6 +139,7 @@ class ConditionsDaemon(BaseDaemon):
                                     'pressure': -999,
                                     'windspeed': -999,
                                     'winddir': -999,
+                                    'windgust': -999,
                                     'humidity': -999,
                                     'rain': -999,
                                     'dew_point': -999,
@@ -135,33 +151,34 @@ class ConditionsDaemon(BaseDaemon):
                 source = source.lower()
 
                 try:
-                    # Save a history of windspeed so we can detect gusts
+                    # Save a history of windgusts so we can log the maximum
                     if (self.info and source in self.info['weather'] and
-                            'windspeed_history' in self.info['weather'][source]):
-                        windspeed_history = self.info['weather'][source]['windspeed_history']
+                            'windgust_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['windgust_history'] != -999):
+                        windgust_history = self.info['weather'][source]['windgust_history']
                     else:
-                        windspeed_history = []
+                        windgust_history = []
                     # remove old values and add the latest value
-                    windspeed_history = [hist for hist in windspeed_history
-                                         if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
-                    windspeed_history.append((self.loop_time, weather_dict['windspeed']))
-                    weather_dict['windspeed_history'] = windspeed_history
-                    # store maximum (windgust)
-                    if len(windspeed_history) > 1:
-                        weather_dict['windgust'] = max(hist[1] for hist in windspeed_history)
+                    windgust_history = [hist for hist in windgust_history
+                                        if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
+                    windgust_history.append((self.loop_time, weather_dict['windgust']))
+                    weather_dict['windgust_history'] = windgust_history
+                    # store maximum (windmax)
+                    if len(windgust_history) > 1:
+                        weather_dict['windmax'] = max(hist[1] for hist in windgust_history)
                     else:
-                        weather_dict['windgust'] = -999
+                        weather_dict['windmax'] = -999
                 except Exception:
-                    self.log.error('Error getting windgust for "{}"'.format(source))
+                    self.log.error('Error getting windmax for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
-                    weather_dict['windgust'] = -999
+                    weather_dict['windmax'] = -999
 
                 # Store the dict
                 weather_dict['type'] = 'external'
                 weather[source] = weather_dict
 
             # Get the W1m rain boards reading
-            if params.USE_W1M_RAINBOARDS:
+            if params.RAINDAEMON_URI != 'none':
                 try:
                     rain = conditions.get_rain()['rain']
                     # Replace the local rain measurements
@@ -178,7 +195,13 @@ class ConditionsDaemon(BaseDaemon):
             # Get the internal conditions from the RoomAlert
             for source in params.INTERNAL_WEATHER_SOURCES:
                 try:
-                    weather_dict = conditions.get_internal(source)
+                    if params.INTERNAL_WEATHER_FUNCTION == 'roomalert':
+                        weather_dict = conditions.get_roomalert(source)
+                    elif params.INTERNAL_WEATHER_FUNCTION == 'intdaemon':
+                        weather_dict = conditions.get_internal(source)
+                    else:
+                        raise ValueError('Invalid internal weather function: "{}"'.format(
+                            params.INTERNAL_WEATHER_FUNCTION))
                 except Exception:
                     self.log.error('Error getting weather from "{}"'.format(source))
                     self.log.debug('', exc_info=True)
@@ -189,12 +212,13 @@ class ConditionsDaemon(BaseDaemon):
                                     }
 
                 # Format source key
-                source = source.lower() + '_int'
+                source = source.lower().split('-')[-1] + '_int'
 
                 try:
                     # Save a history of temperature so we can detect glitches
                     if (self.info and source in self.info['weather'] and
-                            'temperature_history' in self.info['weather'][source]):
+                            'temperature_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['temperature_history'] != -999):
                         temperature_history = self.info['weather'][source]['temperature_history']
                     else:
                         temperature_history = []
@@ -206,7 +230,7 @@ class ConditionsDaemon(BaseDaemon):
                     # compare to the most recent readings
                     median = np.median([hist[1] for hist in temperature_history])
                     if abs(weather_dict['temperature'] - median) > 1:
-                        # It's very unlikly to have changed by more than 1 degree that quickly...
+                        # It's very unlikely to have changed by more than 1 degree that quickly...
                         self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['temperature'],
                                                                       median,
                                                                       temperature_history))
@@ -222,7 +246,8 @@ class ConditionsDaemon(BaseDaemon):
                 try:
                     # Save a history of humidity so we can detect glitches
                     if (self.info and source in self.info['weather'] and
-                            'humidity_history' in self.info['weather'][source]):
+                            'humidity_history' in self.info['weather'][source] and
+                            self.info['weather'][source]['humidity_history'] != -999):
                         humidity_history = self.info['weather'][source]['humidity_history']
                     else:
                         humidity_history = []
@@ -234,7 +259,7 @@ class ConditionsDaemon(BaseDaemon):
                     # compare to the most recent readings
                     median = np.median([hist[1] for hist in humidity_history])
                     if abs(weather_dict['humidity'] - median) > 20:
-                        # It's very unlikly to have changed by more than 20% that quickly...
+                        # It's very unlikely to have changed by more than 20% that quickly...
                         self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['humidity'],
                                                                       median,
                                                                       humidity_history))
@@ -252,13 +277,33 @@ class ConditionsDaemon(BaseDaemon):
                 weather_dict['type'] = 'internal'
                 weather[source] = weather_dict
 
+            # Get the internal conditions from Paul's extra board
+            if params.INTDAEMON_URI != 'none':
+                source = 'board_int'
+                try:
+                    weather_dict = conditions.get_SHT35()
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'temperature': -999,
+                                    'humidity': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+
+                # Store the dict
+                weather_dict['type'] = 'internal'
+                weather[source] = weather_dict
+
             temp_info['weather'] = {}
             for source in weather:
                 source_info = weather[source].copy()
 
-                # check if the weather timeout has been exceded
+                # check if the weather timeout has been exceeded
                 dt = source_info['dt']
                 if dt >= params.WEATHER_TIMEOUT or dt == -999:
+                    self.log.error('Timeout exceeded for source "{}" ({:.1f} > {:.1f})'.format(
+                        source, dt, params.WEATHER_TIMEOUT))
                     source_info = {key: -999 for key in source_info}
 
                 # check if the weather hasn't changed for a certain time
@@ -267,7 +312,10 @@ class ConditionsDaemon(BaseDaemon):
                     changed_time = self.info['weather'][source]['changed_time']
                     unchanged = [source_info[key] == self.info['weather'][source][key]
                                  for key in source_info]
-                    if all(unchanged) and (self.loop_time - changed_time) > params.WEATHER_STATIC:
+                    dt = self.loop_time - changed_time
+                    if all(unchanged) and dt > params.WEATHER_STATIC:
+                        self.log.error('Values unchanged for source "{}" ({:.1f} > {:.1f})'.format(
+                            source, dt, params.WEATHER_STATIC))
                         source_info = {key: -999 for key in source_info}
                         source_info['changed_time'] = changed_time
 
@@ -280,7 +328,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get seeing and dust from the TNG webpage
         try:
             tng_dict = conditions.get_tng()
-            # check if the timeouts have been exceded
+            # check if the timeouts have been exceeded
             if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
                 tng_dict['seeing'] = -999
             if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
@@ -298,7 +346,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get seeing from the ING RoboDIMM
         try:
             dimm_dict = conditions.get_robodimm()
-            # check if the timeout has been exceded
+            # check if the timeout has been exceeded
             if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
                 dimm_dict['seeing'] = -999
         except Exception:
@@ -370,6 +418,7 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
         temp_info['critical_flags'] = sorted(self.critical_flag_names)
+        temp_info['ignored_flags'] = sorted(self.ignored_flags)
         temp_info['manual_override'] = self.manual_override
 
         # Write debug log line
@@ -406,6 +455,8 @@ class ConditionsDaemon(BaseDaemon):
                               if 'windspeed' in weather[source]])
         windgust = np.array([weather[source]['windgust'] for source in weather
                              if 'windgust' in weather[source]])
+        windmax = np.array([weather[source]['windmax'] for source in weather
+                            if 'windmax' in weather[source]])
         ext_temperature = np.array([weather[source]['temperature'] for source in weather
                                     if ('temperature' in weather[source] and
                                         weather[source]['type'] == 'external')])
@@ -424,6 +475,7 @@ class ConditionsDaemon(BaseDaemon):
         rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
         windgust = windgust[windgust != -999]
+        windmax = windmax[windmax != -999]
         ext_temperature = ext_temperature[ext_temperature != -999]
         ext_humidity = ext_humidity[ext_humidity != -999]
         dew_point = dew_point[dew_point != -999]
@@ -462,7 +514,7 @@ class ConditionsDaemon(BaseDaemon):
         sunalt = sunalt[sunalt != -999]
 
         # ~~~~~~~~~~~~~~
-        # Calcualte the flags and if they are valid.
+        # Calculate the flags and if they are valid.
         # At least two of the external sources and one of the internal sources need to be valid,
         # except for rain and wind* because we only have two sources (no SuperWASP),
         # so only need at least one.
@@ -478,15 +530,15 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['rain'] = params.RAIN_GOODDELAY
         bad_delay['rain'] = params.RAIN_BADDELAY
 
-        # windspeed flag
-        good['windspeed'] = np.all(windspeed < params.MAX_WINDSPEED)
-        valid['windspeed'] = len(windspeed) >= 1
+        # windspeed flag (based on instantaneous windgust)
+        good['windspeed'] = np.all(windgust < params.MAX_WINDSPEED)
+        valid['windspeed'] = len(windgust) >= 1
         good_delay['windspeed'] = params.WINDSPEED_GOODDELAY
         bad_delay['windspeed'] = params.WINDSPEED_BADDELAY
 
-        # windgust flag
-        good['windgust'] = np.all(windgust < params.MAX_WINDGUST)
-        valid['windgust'] = len(windgust) >= 1
+        # windgust flag (based on historic windgust maximum)
+        good['windgust'] = np.all(windmax < params.MAX_WINDGUST)
+        valid['windgust'] = len(windmax) >= 1
         good_delay['windgust'] = params.WINDGUST_GOODDELAY
         bad_delay['windgust'] = params.WINDGUST_BADDELAY
 
@@ -627,6 +679,7 @@ class ConditionsDaemon(BaseDaemon):
         data['info_flags'] = sorted(self.info_flag_names)
         data['normal_flags'] = sorted(self.normal_flag_names)
         data['critical_flags'] = sorted(self.critical_flag_names)
+        data['ignored_flags'] = sorted(self.ignored_flags)
         with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
@@ -653,6 +706,66 @@ class ConditionsDaemon(BaseDaemon):
         self.force_check_flag = 1
 
         return 'Updating conditions'
+
+    def ignore_flags(self, flags):
+        """Add the given flags to the ignore list."""
+        # Check current status
+        status = Status()
+        if status.mode == 'robotic':
+            return 'Can not ignore flags in robotic mode'
+
+        retstrs = []
+        for flag in flags:
+            # Check current status
+            if flag not in self.flags:
+                retstrs.append('"{}" is not a recognised flag'.format(flag))
+                continue
+            elif flag in self.ignored_flags:
+                retstrs.append('"{}" flag is already in the ignored list'.format(flag))
+                continue
+            elif flag == 'override':
+                retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
+                continue
+            elif flag == 'hatch':
+                retstrs.append('"{}" flag is always ignored in non-robotic modes'.format(flag))
+                continue
+
+            # Set flag
+            self.ignored_flags.append(flag)
+            retstrs.append('"{}" flag added to the ignored list'.format(flag))
+
+        # Format return string
+        return '\n'.join(retstrs)
+
+    def enable_flags(self, flags):
+        """Remove the given flags from the ignore list."""
+        # Check current status
+        status = Status()
+        if status.mode == 'robotic':
+            return 'All flags are enabled in robotic mode'
+
+        retstrs = []
+        for flag in flags:
+            # Check current status
+            if flag not in self.flags:
+                retstrs.append('"{}" is not a recognised flag'.format(flag))
+                continue
+            elif flag not in self.ignored_flags:
+                retstrs.append('"{}" flag is not in the ignored list'.format(flag))
+                continue
+            elif flag == 'override':
+                retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
+                continue
+            elif flag == 'hatch':
+                retstrs.append('"{}" flag is always ignored in non-robotic modes'.format(flag))
+                continue
+
+            # Set flag
+            self.ignored_flags.remove(flag)
+            retstrs.append('"{}" flag removed from the ignored list'.format(flag))
+
+        # Format return string
+        return '\n'.join(retstrs)
 
     def set_override(self):
         """Activate the manual override flag."""

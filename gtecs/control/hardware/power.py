@@ -360,6 +360,148 @@ class APCUPS(object):
         return out
 
 
+class APCATS(object):
+    """APC ATS power class (for AP4421 Rack Automatic Transfer Switch)."""
+
+    def __init__(self, address):
+        self.unit_type = 'ATS'
+        self.address = address
+        self.command_oids = {'STATUS': '5.1.3.0',
+                             'STATUS_A': '5.1.12.0',
+                             'STATUS_B': '5.1.13.0',
+                             'SOURCE': '5.1.2.0',
+                             }
+        self.statuses = {'1': 'ERROR',
+                         '2': 'Normal',
+                         }
+        self.sources = {'1': 'A',
+                        '2': 'B',
+                        }
+
+    def _initialise_oid_array(self, command_oid):
+        """Set up the oid array to use with snmpget and snmpset."""
+        base = '.1.3.6.1.4.1.318.1.1.8'
+        oid_arr = [base + '.' + str(command_oid)]
+        return oid_arr
+
+    def _snmpget(self, oid_arr):
+        """Get a value using snmpget."""
+        snmpget = shutil.which('snmpget')
+        if snmpget is None:
+            raise OSError('SNMP tools not installed')
+        address = self.address
+        command = [snmpget, '-v', '1', '-c', 'public', address] + oid_arr
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = ''
+        for i in range(len(output) - 1):
+            status += output[i].split(' ')[-1]
+        return status
+
+    def status(self):
+        """Return the current status of the ATS."""
+        oid_arr = self._initialise_oid_array(self.command_oids['STATUS'])
+        out = self._snmpget(oid_arr)
+        status = self.statuses[out]
+        return status
+
+    def source_status(self, source):
+        """Return the current status of the given source."""
+        if source == 'A':
+            oid_arr = self._initialise_oid_array(self.command_oids['STATUS_A'])
+        elif source == 'B':
+            oid_arr = self._initialise_oid_array(self.command_oids['STATUS_B'])
+        else:
+            raise ValueError('Invalid source')
+        out = self._snmpget(oid_arr)
+        status = self.statuses[out]
+        return status
+
+    def active_source(self):
+        """Return which source is currently active."""
+        oid_arr = self._initialise_oid_array(self.command_oids['SOURCE'])
+        out = self._snmpget(oid_arr)
+        source = self.sources[out]
+        return source
+
+
+class EPCPDU(object):
+    """Expert Power Control PDU power class (for EPC-8211, 8 ports)."""
+
+    def __init__(self, address):
+        self.unit_type = 'PDU'
+        self.address = address
+        self.commands = {'ON': '1', 'OFF': '0'}
+        self.count = 8
+        self.outlets = list(range(1, self.count + 1))
+        self.on_value = 1
+        self.off_value = 0
+
+    def _initialise_oid_array(self, outlet):
+        """Set up the oid array to use with snmpget and snmpset."""
+        base = '.1.3.6.1.4.1.28507.29.1.3.1.2.1.3'
+        if outlet in self.outlets:
+            oid_arr = [base + '.' + str(outlet)]
+        elif outlet == 0:  # all
+            oid_arr = [base + '.' + str(outlet) for outlet in self.outlets]
+        else:
+            raise ValueError('Invalid outlet')
+        return oid_arr
+
+    def _snmpget(self, oid_arr):
+        """Get a value using snmpget."""
+        snmpget = shutil.which('snmpget')
+        if snmpget is None:
+            raise OSError('SNMP tools not installed')
+        address = self.address
+        command = [snmpget, '-v', '1', '-c', 'public', address] + oid_arr
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = ''
+        for i in range(len(output) - 1):
+            status += output[i][-1]
+        return status
+
+    def _snmpset(self, oid_arr, value):
+        """Set a value using snmpset."""
+        snmpset = shutil.which('snmpset')
+        if snmpset is None:
+            raise OSError('SNMP tools not installed')
+        address = self.address
+        command_oid_arr = []
+        for oid in oid_arr:
+            command_oid_arr += [oid, 'i', value]
+        command = [snmpset, '-v', '1', '-c', 'private', address] + command_oid_arr
+        output = subprocess.check_output(command).decode('ascii').split('\n')
+        status = ''
+        for i in range(len(output) - 1):
+            status += output[i][-1]
+        return status
+
+    def status(self):
+        """Return the current status of the outlets."""
+        outlet = 0  # all
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self._snmpget(oid_arr)
+        return out
+
+    def on(self, outlet):
+        """Turn on the given outlet."""
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self._snmpset(oid_arr, self.commands['ON'])
+        return out
+
+    def off(self, outlet):
+        """Turn off the given outlet."""
+        oid_arr = self._initialise_oid_array(outlet)
+        out = self._snmpset(oid_arr, self.commands['OFF'])
+        return out
+
+    def reboot(self, outlet):
+        """Reboot the given outlet."""
+        self.off(outlet)
+        time.sleep(1)
+        self.on(outlet)
+
+
 class ETH8020(object):
     """Ethernet relay power class (for ETH8020, 20 ports)."""
 

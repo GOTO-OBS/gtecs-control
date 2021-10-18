@@ -131,23 +131,26 @@ def print_info(info):
     print('####### POWER INFO ########')
     for unit in params.POWER_UNITS:
         ip = params.POWER_UNITS[unit]['IP']
+        unit_class = params.POWER_UNITS[unit]['CLASS']
         print('UNIT {} ({})'.format(unit, ip))
         status = info['status_' + unit]
-        if 'UPS' in unit:
-            ups_status = status['status']
-            ups_percent = status['percent']
-            ups_time = status['time']
-            ups_load = status['load']
-            print('Status: {}'.format(ups_status))
-            print('Current load:       {}%'.format(ups_load))
-            print('Percent remaining:  {}%'.format(ups_percent))
-            print('Time remaining:     {}s'.format(ups_time))
-        names = params.POWER_UNITS[unit]['NAMES']
-        for outlet in names:
-            outlet_name = '({}):'.format(outlet)
-            outlet_no = names.index(outlet) + 1
-            outlet_status = status[outlet].capitalize()
-            print('Outlet {: <2} {: <15} {}'.format(outlet_no, outlet_name, outlet_status))
+        if 'UPS' in unit_class:
+            print('Status: {}'.format(status['status']))
+            print('Current load:       {}%'.format(status['load']))
+            print('Percent remaining:  {}%'.format(status['percent']))
+            print('Time remaining:     {}s'.format(status['time']))
+        if 'ATS' in unit_class:
+            print('Status: {}'.format(status['status']))
+            print('Current source:     {}'.format(status['source']))
+            print('Source A status:    {}'.format(status['status_A']))
+            print('Source B status:    {}'.format(status['status_B']))
+        if 'NAMES' in params.POWER_UNITS[unit]:
+            names = params.POWER_UNITS[unit]['NAMES']
+            for outlet in names:
+                outlet_name = '({}):'.format(outlet)
+                outlet_no = names.index(outlet) + 1
+                outlet_status = status[outlet].capitalize()
+                print('Outlet {: <2} {: <15} {}'.format(outlet_no, outlet_name, outlet_status))
         print('~~~~~~~')
 
     print('Uptime: {:.1f}s'.format(info['uptime']))
@@ -159,25 +162,32 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     for unit in params.POWER_UNITS:
         ip = params.POWER_UNITS[unit]['IP']
+        unit_class = params.POWER_UNITS[unit]['CLASS']
         status = info['status_' + unit]
         if 'status' in status:
             unit_status = status['status']
             print('{} ({})       [{}]'.format(unit, ip, unit_status))
         else:
             print('{} ({})'.format(unit, ip))
-        if 'UPS' in unit:
-            ups_percent = status['percent']
-            ups_time = status['time']
-            ups_load = status['load']
-            print('   Load: {: >5}%'.format(ups_load))
-            print('   Remaining: {}% ({}s)'.format(ups_percent, ups_time))
-        names = params.POWER_UNITS[unit]['NAMES']
-        for outlet in names:
-            outlet_name = '({}):'.format(outlet)
-            outlet_no = names.index(outlet) + 1
-            outlet_status = status[outlet].capitalize()
-            if outlet[0] != '_':
-                print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no, outlet_name, outlet_status))
+        if 'UPS' in unit_class:
+            print('   Load: {: >5}%'.format(status['load']))
+            print('   Remaining: {}% ({}s)'.format(status['percent'], status['time']))
+        if 'ATS' in unit_class:
+            if status['source'] == 'A':
+                source_status = status['status_A']
+            else:
+                source_status = status['status_B']
+            print('   Current source: {} ({})'.format(status['source'], source_status))
+        if 'NAMES' in params.POWER_UNITS[unit]:
+            names = params.POWER_UNITS[unit]['NAMES']
+            for outlet in names:
+                outlet_name = '({}):'.format(outlet)
+                outlet_no = names.index(outlet) + 1
+                outlet_status = status[outlet].capitalize()
+                if outlet[0] != '_':
+                    print('   Outlet {:<2} {: <15} [{}]'.format(outlet_no,
+                                                                outlet_name,
+                                                                outlet_status))
 
 
 def print_outlets(unit_dict, group_dict):
@@ -185,10 +195,13 @@ def print_outlets(unit_dict, group_dict):
     print('OUTLETS:')
     for unit in unit_dict:
         string = '   {: >7}:  '.format(unit.upper())
-        for name in unit_dict[unit]['NAMES']:
-            if name[0] != '_':
-                string += '{}, '.format(name)
-        print(string[:-2])
+        if 'NAMES' in params.POWER_UNITS[unit]:
+            for name in unit_dict[unit]['NAMES']:
+                if name[0] != '_':
+                    string += '{}, '.format(name)
+            print(string[:-2])
+        else:
+            print(string)
 
     print('GROUPS:')
     for group in group_dict:

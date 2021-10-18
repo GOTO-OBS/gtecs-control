@@ -1,6 +1,7 @@
 """Package parameters."""
 
 import os
+import sys
 
 from gtecs.common.package import load_config, get_package_version
 
@@ -18,6 +19,11 @@ config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.cont
 ############################################################
 # Module parameters
 VERSION = get_package_version('control')
+PYTHON_EXE = sys.executable.split('/')[-1]
+if '.' not in PYTHON_EXE:
+    # Needed for remote machines, which might have different versions as default
+    # (e.g. python3 might be python3.6, but we want to force python3.8)
+    PYTHON_EXE += f'.{sys.version_info.minor}'
 
 # File locations
 FILE_PATH = config['FILE_PATH']
@@ -123,13 +129,12 @@ WEATHER_INTERVAL = config['WEATHER_INTERVAL']
 
 EXTERNAL_WEATHER_SOURCES = config['EXTERNAL_WEATHER_SOURCES']
 INTERNAL_WEATHER_SOURCES = config['INTERNAL_WEATHER_SOURCES']
-USE_W1M_RAINBOARDS = config['USE_W1M_RAINBOARDS']
+INTERNAL_WEATHER_FUNCTION = config['INTERNAL_WEATHER_FUNCTION']
 
 CONDITIONS_JSON_LOCATION = config['CONDITIONS_JSON_LOCATION']
 ROOMALERT_IP = config['ROOMALERT_IP']
-RAINDAEMON_NAME = config['RAINDAEMON_NAME']
-RAINDAEMON_IP = config['RAINDAEMON_IP']
-RAINDAEMON_PORT = config['RAINDAEMON_PORT']
+INTDAEMON_URI = config['INTDAEMON_URI']
+RAINDAEMON_URI = config['RAINDAEMON_URI']
 
 # Rain
 RAIN_BADDELAY = config['RAIN_BADDELAY']
@@ -188,7 +193,6 @@ LINK_BADDELAY = config['LINK_BADDELAY']
 LINK_GOODDELAY = config['LINK_GOODDELAY']
 
 # Hatch
-IGNORE_HATCH = config['IGNORE_HATCH']
 HATCH_BADDELAY = config['HATCH_BADDELAY']
 HATCH_GOODDELAY = config['HATCH_GOODDELAY']
 
@@ -212,10 +216,12 @@ SEEING_TIMEOUT = config['SEEING_TIMEOUT']
 ############################################################
 # Mount parameters
 MIN_ELEVATION = config['MIN_ELEVATION']
-SITECH_HOST = config['SITECH_HOST']
-SITECH_PORT = config['SITECH_PORT']
-SITECH_DEBUG = config['SITECH_DEBUG']
+MOUNT_CLASS = config['MOUNT_CLASS']
+MOUNT_HOST = config['MOUNT_HOST']
+MOUNT_PORT = config['MOUNT_PORT']
+MOUNT_DEBUG = config['MOUNT_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
+MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 ############################################################
 # Interface parameters
@@ -273,6 +279,8 @@ FOCUS_COMPENSATION_VERBOSE = config['FOCUS_COMPENSATION_VERBOSE']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
 COMPRESS_IMAGES = config['COMPRESS_IMAGES']
+WRITE_IMAGE_LOG = config['WRITE_IMAGE_LOG']
+MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 
 ############################################################
 # Exposure Queue parameters
@@ -292,6 +300,8 @@ OBSERVING_OFF_OUTLETS = config['OBSERVING_OFF_OUTLETS']
 DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
 DOME_LOCATION = config['DOME_LOCATION']
 ARDUINO_LOCATION = config['ARDUINO_LOCATION']
+if ARDUINO_LOCATION == 'unknown':
+    ARDUINO_LOCATION = None
 DOME_HEARTBEAT_LOCATION = config['DOME_HEARTBEAT_LOCATION']
 DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
 DOME_DEBUG = config['DOME_DEBUG']

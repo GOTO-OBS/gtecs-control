@@ -57,7 +57,7 @@ def send_conditions_report(slack_channel=None):
     blocks.append(block)
 
     # Conditions flags
-    text = conditions.get_formatted_string(good=':heavy_check_mark:',
+    text = conditions.get_formatted_string(good=':white_check_mark:',
                                            bad=':exclamation:')
     block = {'type': 'section',
              'text': {'text': text, 'type': 'mrkdwn'},

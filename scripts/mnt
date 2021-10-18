@@ -141,6 +141,18 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'blinky', [activate])
         print(reply)
 
+    elif command == 'motors':
+        # parse arguments
+        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
+            activate = True
+        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
+            activate = False
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'power_motors', [activate])
+        print(reply)
+
     elif command == 'park':
         reply = daemons.daemon_function(daemon_id, 'park')
         print(reply)
@@ -284,6 +296,23 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
+        reply = daemons.daemon_function(daemon_id, 'slew_to_altaz_sidereal', [alt_deg, az_deg])
+        print(reply)
+
+    elif command in ['slew_altaz_target', 'altaz_target']:
+        # parse arguments
+        if len(args) == 2:
+            alt_deg = float(args[0])
+            if alt_deg == 90:
+                alt_deg = 89.99999
+            assert 0 <= alt_deg < 90
+            az_deg = float(args[1])
+            if az_deg == 360:
+                az_deg = 0
+            assert 0 <= az_deg < 360
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
         reply = daemons.daemon_function(daemon_id, 'slew_to_altaz', [alt_deg, az_deg])
         print(reply)
 
@@ -337,16 +366,26 @@ def print_info(info):
         print('Target distance:  NO TARGET')
 
     print('~~~~~~~')
-    if info['trackrate_ra'] == 0:
-        print('RA track rate:    SIDEREAL')
-    else:
-        print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
-    if info['trackrate_dec'] == 0:
-        print('Dec track rate:   SIDEREAL')
-    else:
-        print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
-    print('LST:              {:.2f}'.format(info['lst']))
-    print('Hour Angle:       {:.2f}'.format(info['ha']))
+    if info['class'] == 'SITECH':
+        if info['trackrate_ra'] == 0:
+            print('RA track rate:    SIDEREAL')
+        else:
+            print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
+        if info['trackrate_dec'] == 0:
+            print('Dec track rate:   SIDEREAL')
+        else:
+            print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
+        print('LST:              {:.2f}'.format(info['lst']))
+        print('Hour Angle:       {:.2f}'.format(info['ha']))
+    elif info['class'] == 'ASA':
+        print('RA track rate:    {:>6.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
+        print('Dec track rate:   {:>6.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
+        print('RA tracking err:   {:+.4f} arcsec'.format(info['tracking_error']['ra']))
+        print('Dec tracking err:  {:+.4f} arcsec'.format(info['tracking_error']['dec']))
+        print('RA position err:   {:+.4f} arcsec'.format(info['position_error']['ra']))
+        print('Dec position err:  {:+.4f} arcsec'.format(info['position_error']['dec']))
+        print('RA current:         {:.1f} A'.format(info['motor_current']['ra']))
+        print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -357,23 +396,23 @@ def print_info_s(info):
     """Print the info dict in a compact way."""
     status = info['status']
     if status != 'Slewing':
-        if status == 'Tracking' and info['nonsidereal']:
+        if status == 'Tracking' and 'nonsidereal' in info and info['nonsidereal']:
             status += ' (non-sidereal)'
-        print('MOUNT ({})        [{}]'.format(params.SITECH_HOST, status))
+        print('MOUNT ({})        [{}]'.format(params.MOUNT_HOST, status))
     else:
         if info['target_dist']:
-            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.SITECH_HOST,
+            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.MOUNT_HOST,
                                                                   info['target_dist']))
         else:
-            print('MOUNT ({})        Slewing '.format(params.SITECH_HOST))
+            print('MOUNT ({})        Slewing '.format(params.MOUNT_HOST))
 
     alt, az = info['mount_alt'], info['mount_az']
     ra, dec = info['mount_ra'], info['mount_dec']
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
-    print('  RA:  {:>11}       Alt: {:7.3f}'.format(ra_str, alt))
-    print('  Dec: {:>11}       Az:  {:7.3f}'.format(dec_str, az))
+    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
+    print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
 
 
 def print_instructions():
@@ -391,14 +430,16 @@ def print_instructions():
           '  target name                    set target as named object (can include spaces)',
           '  clear                          clear the stored target',
           '  slew [ra dec]                  slew to target or given ra/dec',
-          '  slew_altaz alt az              slew to given alt/az',
+          '  slew_altaz alt az              slew to given alt/az, then track at siderial rate',
+          '  slew_altaz_target alt az       slew to given alt/az, then "track" alt/az position',
           '  track                          start tracking',
           '  stop/halt/abort                stop moving (tracking/slewing)',
           '  park                           enter park state',
           '  unpark                         leave park state',
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
-          '  blinky on|off                  turn on or off blinky mode',
+          '  blinky on|off                  turn on or off blinky mode (SiTech only)',
+          '  motors on|off                  turn on or off the mount motors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

@@ -34,8 +34,8 @@ def get_best_focus_position(xval, yval, m_l, m_r, delta_x):
     return meeting_point
 
 
-def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image', uts=None,
-                  regions=None):
+def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus test image',
+                  uts=None, regions=None):
     """Take a set of images and measure the median half-flux diameters.
 
     Parameters
@@ -47,12 +47,14 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
         Image exposure time.
     filt : str, default='L'
        Filter to use for the exposures.
+    binning : int, default=1
+       Binning factor to use for the exposures.
     target_name : str, default='Focus test image'
         Name of the target being observed.
     uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
         UTs to measure focus for.
     regions : 2-tuple of slice or list of 2-tuple of slice or None, default=None
-        image region(s) to measure the focus within
+        image region(s) to measure the focus within, in UNBINNED pixels
         if None then use the default central region from
         `gtecs.control.analysis.extract_image_sources()`
 
@@ -81,11 +83,17 @@ def measure_focus(num_exp=1, exptime=30, filt='L', target_name='Focus test image
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
-        image_data = get_analysis_image(exptime, filt, target_name, 'FOCUS', glance=False, uts=uts)
+        image_data = get_analysis_image(exptime, filt, binning, target_name, 'FOCUS',
+                                        glance=False, uts=uts)
 
         # Measure the median HFDs in each image
         for ut in all_uts:
             for j, region in enumerate(regions):
+                # correct the region limits if binning
+                if region is not None:
+                    region = (slice(region[0].start // binning, region[0].stop // binning),
+                              slice(region[1].start // binning, region[1].stop // binning))
+
                 if ut in image_data:
                     # Measure focus within each given region
                     try:

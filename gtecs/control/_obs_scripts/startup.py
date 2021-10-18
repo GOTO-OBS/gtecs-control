@@ -21,16 +21,20 @@ def run():
     """Run startup tasks."""
     print('Running startup tasks')
 
-    # Make sure the power daemon is running
+    # Make sure the power daemon is running first
     execute_command('power start')
-
     time.sleep(5)
 
-    # Power on the UT hardware and mount box
+    # Power on the cams, focusers etc
     execute_command('power on cams,focs,filts,fans')
-    time.sleep(0.5)
-    execute_command('power on sitech')
+    time.sleep(5)
 
+    # Ensure the mount control computers are on
+    # Note we don't power them off during shutdown, we just double-check they are on here
+    if params.MOUNT_CLASS == 'SITECH':
+        execute_command('power on sitech')
+    elif params.MOUNT_CLASS == 'ASA':
+        execute_command('power on mount,tcu,asa_gateways')
     time.sleep(10)
 
     # Restart the UT interfaces
@@ -43,13 +47,15 @@ def run():
 
     # Make sure the interfaces are started before the other daemons
     execute_command('intf start')
-    time.sleep(4)
+    time.sleep(10)
+    execute_command('intf info')
 
     # Make all the other daemons are running
+    # Note we can't shutdown and restart, because the daemons will die when this script ends
     for daemon_id in list(params.DAEMONS):
         if daemon_id not in params.INTERFACES:
             execute_command('{} start'.format(daemon_id))
-            time.sleep(0.5)
+            time.sleep(1)
 
     time.sleep(4)
 
@@ -65,6 +71,9 @@ def run():
     # execute_command('mnt slew')
     # time.sleep(20)
     # execute_command('mnt info -f')
+    # But we can power on the motors
+    if params.MOUNT_CLASS == 'ASA':
+        execute_command('mnt motors on')
 
     # Clean up any persistent queue from previous night
     execute_command('exq clear')

@@ -11,8 +11,9 @@ from astroplan import (AltitudeConstraint, AtNightConstraint,
 from astroplan.constraints import _get_altaz
 
 from astropy import coordinates as coord, units as u
-from astropy._erfa import ErfaWarning
 from astropy.time import Time
+
+from erfa import ErfaWarning
 
 import numpy as np
 

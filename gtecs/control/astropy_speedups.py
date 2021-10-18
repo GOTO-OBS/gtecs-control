@@ -14,7 +14,6 @@ import numpy as np
 from astropy.time import Time
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy import _erfa as erfa
 from astropy.coordinates.baseframe import frame_transform_graph
 from astropy.coordinates.transformations import FunctionTransform
 from astropy.coordinates.representation import (SphericalRepresentation, CartesianRepresentation,
@@ -22,6 +21,8 @@ from astropy.coordinates.representation import (SphericalRepresentation, Cartesi
 from astropy.coordinates import (ICRS, GCRS, CIRS, HCRS, AltAz)
 from astropy.coordinates.builtin_frames.utils import (get_jd12, get_cip, prepare_earth_position_vel,
                                                       PIOVER2, get_polar_motion, get_dut1utc, aticq, atciqz)
+
+import erfa
 
 
 def get_astrom(frame, tcode, precision=600):

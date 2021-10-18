@@ -11,8 +11,8 @@ from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Conditions, Status
-from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier
-from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome
+from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier, DomeHeartbeat
+from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome, FakeHeartbeat
 from gtecs.control.observing import get_conditions
 from gtecs.control.slack import send_slack_msg
 
@@ -29,6 +29,7 @@ class DomeDaemon(BaseDaemon):
 
         # hardware
         self.dome = None
+        self.heartbeat = None
         self.dehumidifier = None
 
         # command flags
@@ -60,6 +61,8 @@ class DomeDaemon(BaseDaemon):
         self.autodehum_enabled = True
         self.autoclose_enabled = True
         self.autoshield_enabled = True
+
+        self.autoclose_timeout = None
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -156,7 +159,7 @@ class DomeDaemon(BaseDaemon):
                                 self.log.error('Failed to open dome')
                                 self.log.debug('', exc_info=True)
 
-                    if self.move_started and not self.dome.output_thread_running:
+                    elif self.move_started and not self.dome.output_thread_running:
                         # we've finished
                         # check if we timed out
                         if time.time() - self.move_start_time > self.dome_timeout:
@@ -229,7 +232,7 @@ class DomeDaemon(BaseDaemon):
                                 self.log.error('Failed to close dome')
                                 self.log.debug('', exc_info=True)
 
-                    if self.move_started and not self.dome.output_thread_running:
+                    elif self.move_started and not self.dome.output_thread_running:
                         # we've finished
                         # check if we timed out
                         if time.time() - self.move_start_time > self.dome_timeout:
@@ -291,10 +294,10 @@ class DomeDaemon(BaseDaemon):
                 try:
                     if self.heartbeat_enabled:
                         self.log.info('Enabling heartbeat')
-                        c = self.dome.set_heartbeat(True)
+                        c = self.heartbeat.enable()
                     else:
                         self.log.info('Disabling heartbeat')
-                        c = self.dome.set_heartbeat(False)
+                        c = self.heartbeat.disable()
                     if c:
                         self.log.info(c)
                 except Exception:
@@ -340,12 +343,13 @@ class DomeDaemon(BaseDaemon):
         # Connect to the dome
         if self.dome is None:
             if params.FAKE_DOME:
-                self.dome = FakeDome('/dev/fake', '/dev/fake2', self.log, params.DOME_DEBUG)
+                self.dome = FakeDome(self.log, params.DOME_DEBUG)
                 self.log.info('Connected to dome')
             else:
                 try:
                     self.dome = AstroHavenDome(params.DOME_LOCATION,
-                                               params.DOME_HEARTBEAT_LOCATION,
+                                               params.ARDUINO_LOCATION,
+                                               params.ROOMALERT_IP,
                                                self.log,
                                                params.DOME_DEBUG,
                                                )
@@ -361,23 +365,59 @@ class DomeDaemon(BaseDaemon):
                         self.log.error('Failed to connect to dome')
                         self.bad_hardware.add('dome')
 
-        # Check the connections within the dome
+        # Connect to the heartbeat monitor
+        if self.heartbeat is None:
+            if params.FAKE_DOME:
+                self.heartbeat = FakeHeartbeat()
+                self.log.info('Connected to heartbeat')
+            else:
+                try:
+                    self.heartbeat = DomeHeartbeat(params.DOME_HEARTBEAT_LOCATION,
+                                                   params.DOME_HEARTBEAT_PERIOD,
+                                                   self.log,
+                                                   params.DOME_DEBUG,
+                                                   )
+                    self.log.info('Connected to heartbeat')
+                    if 'heartbeat' in self.bad_hardware:
+                        self.bad_hardware.remove('heartbeat')
+                    # sleep briefly, to make sure the connection has started
+                    time.sleep(3)
+                except Exception:
+                    self.heartbeat.disconnect()
+                    self.heartbeat = None
+                    if 'heartbeat' not in self.bad_hardware:
+                        self.log.error('Failed to connect to heartbeat')
+                        self.bad_hardware.add('heartbeat')
+
+        # Check the device connections
         if self.dome is not None:
             if self.dome.plc_error:
                 self.log.error('Failed to connect to dome PLC')
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            elif self.dome.arduino_error:
-                self.log.error('Failed to connect to dome arduino')
+            if self.dome.switch_error:
+                self.log.error('Failed to connect to dome switches')
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            elif self.dome.heartbeat_error:
+            if ((not self.dome.status_thread_running) or
+                    (time.time() - self.dome.status_update_time) > params.DOME_CHECK_PERIOD):
+                self.log.error('Failed to check dome status')
+                if params.DOME_DEBUG:
+                    msg = '{} {} {}'.format(self.dome.status_thread_running,
+                                            (time.time() - self.dome.status_update_time),
+                                            params.DOME_CHECK_PERIOD)
+                    self.log.debug(msg)
+                self.dome.disconnect()
+                self.dome = None
+                self.bad_hardware.add('dome')
+        if self.heartbeat is not None:
+            if self.heartbeat.connection_error:
                 self.log.error('Failed to connect to dome heartbeat monitor')
-                self.dome.disconnect()
-                self.dome = None
-                self.bad_hardware.add('dome')
+                self.heartbeat.disconnect()
+                self.heartbeat = None
+                self.bad_hardware.add('heartbeat')
 
         # Connect to the dehumidifer
         if self.dehumidifier is None:
@@ -417,6 +457,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['north'] = dome_status['north']
             temp_info['south'] = dome_status['south']
             temp_info['hatch'] = dome_status['hatch']
+            temp_info['status_update_time'] = self.dome.status_update_time
 
             # general, backwards-compatible open/closed
             if ('open' in temp_info['north']) or ('open' in temp_info['south']):
@@ -426,7 +467,7 @@ class DomeDaemon(BaseDaemon):
             else:
                 temp_info['dome'] = 'ERROR'
 
-            heartbeat_status = self.dome.heartbeat_status
+            heartbeat_status = self.heartbeat.status
             temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
             self.log.error('Failed to get dome info')
@@ -459,7 +500,7 @@ class DomeDaemon(BaseDaemon):
         try:
             conditions = get_conditions(timeout=10)
             # Windspeed - take the maximum gust from all stations
-            windspeed = np.max([conditions[source]['windgust']
+            windspeed = np.max([conditions[source]['windmax']
                                 for source in conditions
                                 if conditions[source]['type'] == 'external'])
             # Internal - take mean of internal sensors
@@ -512,6 +553,10 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_time'] = status.emergency_shutdown_time
             temp_info['emergency_reasons'] = ', '.join(status.emergency_shutdown_reasons)
             temp_info['mode'] = status.mode
+            if self.info is not None and 'mode' in self.info:
+                temp_info['old_mode'] = self.info['mode']
+            else:
+                temp_info['old_mode'] = status.mode
         except Exception:
             self.log.error('Failed to get status info')
             self.log.debug('', exc_info=True)
@@ -519,6 +564,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['emergency_time'] = None
             temp_info['emergency_reasons'] = None
             temp_info['mode'] = None
+            temp_info['old_mode'] = None
 
         # Get other internal info
         temp_info['last_move_time'] = self.last_move_time
@@ -532,6 +578,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['autodehum_enabled'] = self.autodehum_enabled
         temp_info['autoclose_enabled'] = self.autoclose_enabled
         temp_info['autoshield_enabled'] = self.autoshield_enabled
+        temp_info['autoclose_timeout'] = self.autoclose_timeout
 
         # Write debug log line
         try:
@@ -565,16 +612,35 @@ class DomeDaemon(BaseDaemon):
             if not self.autoclose_enabled:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose_enabled = True
+                self.autoclose_timeout = None
             if not self.autoshield_enabled:
                 self.log.info('System is in robotic mode, enabling autoshield')
                 self.autoshield_enabled = True
 
         elif self.info['mode'] == 'manual':
-            # In manual mode the heartbeat should be enabled, everything else can be set
+            # In manual mode the heartbeat should always be enabled,
+            # everything else should turn on when manual mode is enabled
+            # but can then be turned off if desired
             if not self.heartbeat_enabled:
                 self.log.info('System is in manual mode, enabling heartbeat')
                 self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
+            if self.info['old_mode'] != 'manual':
+                # This will turn everything on when switching from engineering to manual
+                # (if we're switching from robotic they should all be on anyway!)
+                if not self.alarm_enabled:
+                    self.log.info('System is in manual mode, enabling alarm')
+                    self.alarm_enabled = True
+                if not self.autodehum_enabled:
+                    self.log.info('System is in manual mode, enabling autodehum')
+                    self.autodehum_enabled = True
+                if not self.autoclose_enabled:
+                    self.log.info('System is in manual mode, enabling autoclose')
+                    self.autoclose_enabled = True
+                    self.autoclose_timeout = None
+                if not self.autoshield_enabled:
+                    self.log.info('System is in manual mode, enabling autoshield')
+                    self.autoshield_enabled = True
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
@@ -591,6 +657,7 @@ class DomeDaemon(BaseDaemon):
             if self.autoclose_enabled:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose_enabled = False
+                self.autoclose_timeout = None
             if self.autoshield_enabled:
                 self.log.info('System is in engineering mode, disabling autoshield')
                 self.autoshield_enabled = False
@@ -632,6 +699,9 @@ class DomeDaemon(BaseDaemon):
                     self.log.warning('IGNORING Lockdown: {}'.format(', '.join(reasons)))
                     self.lockdown_reasons = reasons
                     self.ignoring_lockdown = True
+                if self.autoclose_timeout is not None:
+                    delta = self.autoclose_timeout - self.loop_time
+                    self.log.warning(f'Autoclose will reactivate in {delta:.1f} seconds')
         else:
             if self.lockdown or self.lockdown_reasons:
                 # Clear lockdown
@@ -648,7 +718,17 @@ class DomeDaemon(BaseDaemon):
 
         # Return if autoclose disabled
         if not self.autoclose_enabled:
-            return
+            # Check timeout (if set)
+            if self.autoclose_timeout is None:
+                return
+            else:
+                if self.loop_time < self.autoclose_timeout:
+                    # Return if a timeout is set and hasn't been exceeded yet
+                    return
+                else:
+                    self.log.warning('Autoclose timeout exceeded, turning autoclose on')
+                    self.autoclose_enabled = True
+                    self.autoclose_timeout = None
 
         # Decide if we need to autoclose
         if self.lockdown and self.info['dome'] != 'closed' and not self.close_flag:
@@ -951,11 +1031,13 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off':
             return 'Disabling autodehum, the dehumidifier will NOT turn on or off automatically'
 
-    def set_autoclose(self, command):
+    def set_autoclose(self, command, timeout=None):
         """Enable or disable the dome autoclosing in bad conditions."""
         # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
+        if timeout is not None and not isinstance(timeout, (int, float)):
+            raise ValueError("Timeout must be a number (time in seconds)")
 
         # Check current status
         self.wait_for_info()
@@ -967,21 +1049,33 @@ class DomeDaemon(BaseDaemon):
         else:
             if self.info['mode'] == 'robotic':
                 raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            elif not self.autoclose_enabled:
+            elif not self.autoclose_enabled and timeout == self.autoclose_timeout:
                 return 'Autoclose is already disabled'
 
         # Set flag
         if command == 'on':
             self.log.info('Enabling autoclose')
             self.autoclose_enabled = True
+            self.autoclose_timeout = None
         elif command == 'off':
-            self.log.info('Disabling autoclose')
+            msg = 'Disabling autoclose'
+            if timeout is not None:
+                msg += f' for {timeout / 60:.1f} minutes'
+            self.log.info(msg)
             self.autoclose_enabled = False
+            if timeout is not None:
+                self.autoclose_timeout = time.time() + timeout
+            else:
+                self.autoclose_timeout = None
 
         if command == 'on':
             return 'Enabling autoclose, dome will close in bad conditions'
         elif command == 'off':
-            return 'Disabling autoclose, dome will NOT close in bad conditions'
+            msg = 'Disabling autoclose'
+            if timeout is not None:
+                msg += f' for {timeout / 60:.1f} minutes'
+            msg += ', dome will NOT close in bad conditions'
+            return msg
 
     def set_alarm(self, command):
         """Enable or disable the dome alarm when moving."""

@@ -8,9 +8,12 @@ from astroplan import Observer
 from astroplan.moon import moon_illumination
 
 from astropy import units as u
-from astropy.coordinates import (AltAz, EarthLocation, GCRS, Longitude, SkyCoord,
+from astropy.coordinates import (AltAz, CIRS, EarthLocation, FK5, GCRS, Longitude, SkyCoord,
                                  get_moon, get_sun)
+from astropy.coordinates.builtin_frames.utils import get_jd12
 from astropy.time import Time
+
+from erfa import eo06a
 
 import numpy as np
 from numpy.polynomial.polynomial import polyval
@@ -155,6 +158,69 @@ def _rise_set_trig(time, target, location, prev_next, rise_set):
     lst = ha + target.ra
 
     return _astropy_time_from_lst(time, lst, location, prev_next)
+
+
+def j2000_to_apparent(ra, dec, jd=None):
+    """Find the apparent place for a star at J2000, FK5 coordinates.
+
+    This is equivalent to the 'JNow' coordinates used by SiTech.
+
+    Arguments
+    -----------
+    ra, dec: float
+        J2000, FK5 coordinates of star in decimal degrees
+
+    jd: float, default=None
+        Julian date to calculate apparent place
+        if None, `astropy.time.Time.now().jd` is used
+
+    Returns
+    --------
+    ra, dec: float
+         Apparent RA and Dec of star.
+
+    """
+    j2000 = SkyCoord(ra, dec, unit=u.deg, frame='fk5')
+    if jd is None:
+        now = Time.now().jd
+    else:
+        now = Time(jd, format='jd')
+    cirs = j2000.transform_to(CIRS(obstime=now))
+    # find the equation of the origins to transform CIRS to apparent place
+    eo = eo06a(*get_jd12(now, 'tt')) * u.rad
+    return (cirs.ra - eo).deg, cirs.dec.deg
+
+
+def apparent_to_j2000(ra, dec, jd):
+    """Find the J2000, FK5 coordinates of a star given the apparent place.
+
+    Apparent place is the same as the 'JNow' coordinates used by SiTech.
+
+    Arguments
+    -----------
+    ra, dec: float
+        Apparent RA and Dec of star in decimal degrees
+
+    jd: float, default=None
+        Julian date to calculate apparent place
+        if None, `astropy.time.Time.now().jd` is used
+
+    Returns
+    --------
+    ra, dec: float
+         J2000, FK5 RA and Dec of star.
+
+    """
+    if jd is None:
+        now = Time.now().jd
+    else:
+        now = Time(jd, format='jd')
+    # find the equation of the origins to transform apparent place to CIRS
+    eo = eo06a(*get_jd12(now, 'tt')) * u.rad
+    cirs = SkyCoord(ra + eo.to(u.deg).value, dec, unit=u.deg,
+                    frame=CIRS(obstime=now))
+    j2000 = cirs.transform_to(FK5())
+    return j2000.ra.deg, j2000.dec.deg
 
 
 def observatory_location():

@@ -39,12 +39,16 @@ if __name__ == '__main__':
 
         status.mode = 'manual'
         print('System now in Manual mode')
-        print('You are in control')
+        print('All automated systems are on, but can be disabled at your own risk')
         sys.exit()
 
     # ENGINEERING mode
     # this also asks for observer name
     if command in ['e', '-e', 'engineering', '--engineering']:
+        print('ATTENTION: Engineering mode should *only* be used when there are workers on-site')
+        print('           To disable the telescope remotely you can switch to manual mode and ')
+        print('           enable the conditions override to prevent the dome opening')
+
         username = input('Please enter your name for the record: ')
         if len(username) == 0:
             username = 'Unknown'
@@ -53,7 +57,7 @@ if __name__ == '__main__':
 
         status.mode = 'engineering'
         print('System now in Engineering mode')
-        print('All automated systems are disabled')
+        print('WARNING: All automated systems are now disabled, inclusing autoclose in bad weather')
         sys.exit()
 
     # Create EMERGENCY-SHUTDOWN file
