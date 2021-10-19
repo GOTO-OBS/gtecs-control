@@ -499,8 +499,6 @@ def get_moon_params(now):
         Dark is illumination below 25%
         Grey is illumination between 25% and 65%
         Bright is illumination above 65%
-        if `alt` is below the horizon then phase is given as 'D',
-            regardless of illumination
 
     """
     coords = get_moon(now)
@@ -513,8 +511,6 @@ def get_moon_params(now):
         phase = 'G'
     elif 0.65 <= illumination <= 1.00:
         phase = 'B'
-    if alt < params.DARK_MOON_ALT_LIMIT:
-        phase = 'D'
 
     return alt, illumination, phase
 

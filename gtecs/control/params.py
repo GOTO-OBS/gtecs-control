@@ -33,7 +33,6 @@ IMAGE_PATH = config['IMAGE_PATH']
 if config['IMAGE_PATH'] in ['path_not_set', '/path/goes/here/']:
     IMAGE_PATH = os.path.join(FILE_PATH, 'images')
 LOG_PATH = os.path.join(FILE_PATH, 'logs')
-QUEUE_PATH = os.path.join(FILE_PATH, 'queue')
 PID_PATH = os.path.join(FILE_PATH, '.pid')
 
 # General parameters
@@ -318,16 +317,6 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 SCHEDULER_CHECK_PERIOD = config['SCHEDULER_CHECK_PERIOD']
 HORIZON_FILE = os.path.join(FILE_PATH, 'horizon')
 HORIZON_SHIELDING_FILE = os.path.join(FILE_PATH, 'horizon_shielding')
-WEIGHTING_WEIGHT = config['WEIGHTING_WEIGHT']
-AIRMASS_WEIGHT = config['AIRMASS_WEIGHT']
-TTS_WEIGHT = config['TTS_WEIGHT']
-HARD_ALT_LIM = config['HARD_ALT_LIM']
-HARD_HA_LIM = config['HARD_HA_LIM']
-BRIGHT_MOON = config['BRIGHT_MOON']
-GREY_MOON = config['GREY_MOON']
-DARK_MOON = config['DARK_MOON']
-MOON_PHASES = {'B': BRIGHT_MOON, 'G': GREY_MOON, 'D': DARK_MOON}
-DARK_MOON_ALT_LIMIT = config['DARK_MOON_ALT_LIMIT']
 
 ############################################################
 # Sentinel parameters
