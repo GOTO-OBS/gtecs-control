@@ -10,7 +10,7 @@ from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.astronomy import above_horizon, get_horizon, observatory_location
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.scheduler import check_queue
+from gtecs.obs.scheduler import check_queue
 
 
 class SchedulerDaemon(BaseDaemon):
