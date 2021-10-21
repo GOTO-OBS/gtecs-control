@@ -184,8 +184,7 @@ class ExqDaemon(BaseDaemon):
             self.log.info('Need to home filter wheels')
             self._home_filter_wheels()
 
-        check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
-                 for ut in ut_list]
+        check = [filt_info[ut]['current_filter'] == new_filt for ut in ut_list]
         if all(check):
             return False
         else:
@@ -235,13 +234,11 @@ class ExqDaemon(BaseDaemon):
         time.sleep(3)
         with daemon_proxy('filt') as filt_daemon:
             filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
-                 for ut in ut_list]
+        check = [filt_info[ut]['current_filter'] == new_filt for ut in ut_list]
         while not all(check):
             with daemon_proxy('filt') as filt_daemon:
                 filt_info = filt_daemon.get_info()
-            check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
-                     for ut in ut_list]
+            check = [filt_info[ut]['current_filter'] == new_filt for ut in ut_list]
             time.sleep(0.5)
 
             # keep ping alive

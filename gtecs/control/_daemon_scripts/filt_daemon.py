@@ -142,6 +142,7 @@ class FiltDaemon(BaseDaemon):
                     ut_info['hw_class'] = interface.get_filter_class(ut)
                     ut_info['remaining'] = interface.get_filter_steps_remaining(ut)
                     ut_info['current_filter_num'] = interface.get_filter_number(ut)
+                    ut_info['current_filter'] = params.FILTER_LIST[ut_info['current_filter_num']]
                     ut_info['current_pos'] = interface.get_filter_position(ut)
                     ut_info['homed'] = interface.get_filter_homed(ut)
 

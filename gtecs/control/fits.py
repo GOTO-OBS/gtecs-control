@@ -747,8 +747,7 @@ def update_header(header, ut, all_info, log=None):
             if not info['homed']:
                 filt_filter = 'UNHOMED'
             else:
-                filt_filter_num = info['current_filter_num']
-                filt_filter = params.FILTER_LIST[filt_filter_num]
+                filt_filter = info['current_filter']
             filt_filters = ','.join(params.FILTER_LIST)
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
