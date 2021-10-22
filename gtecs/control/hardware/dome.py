@@ -428,14 +428,14 @@ class AstroHavenDome:
         if self.log and self.log_debug:
             self.log.debug('roomalert RECV:"{}"'.format(switches))
 
-        if 'Hatch' not in data or data['Hatch'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'North Limit' not in data or data['North Limit'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'South Limit' not in data or data['South Limit'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'Full Close' not in data or data['Full Close'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'Hatch' not in switches or switches['Hatch'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'North Limit' not in switches or switches['North Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'South Limit' not in switches or switches['South Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'Full Close' not in switches or switches['Full Close'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
 
         switch_dict = {'all_closed': bool(switches['Full Close']),
                        'north_open': bool(switches['North Limit']),
