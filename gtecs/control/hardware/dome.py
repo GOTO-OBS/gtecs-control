@@ -202,30 +202,19 @@ class FakeDome:
             ot.start()
             return
 
-    def open_side(self, side, frac=1, sound_alarm=True):
+    def open_side(self, side, frac=1):
         """Open one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1, sound_alarm=True):
+    def close_side(self, side, frac=1):
         """Close one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
     def halt(self):
         """Stop the dome moving."""
         self.output_thread_running = False
-
-    def sound_alarm(self, duration=params.DOME_ALARM_DURATION):
-        """Sound the dome alarm."""
-        # Note this is always blocking
-        bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
-        subprocess.getoutput(bell)
-        return
 
 
 class AstroHavenDome:
@@ -720,43 +709,19 @@ class AstroHavenDome:
             ot.start()
             return
 
-    def open_side(self, side, frac=1, sound_alarm=True):
+    def open_side(self, side, frac=1):
         """Open one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1, sound_alarm=True):
+    def close_side(self, side, frac=1):
         """Close one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
     def halt(self):
         """To stop the output thread."""
         self.output_thread_running = False
-
-    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
-        """Sound the dome alarm attached to the Arduino box.
-
-        duration : int [0-9]
-            The time to sound the alarm for (seconds)
-            default = 3
-
-        sleep : bool
-            Whether to sleep for the duration of the alarm
-            or return immediately
-            default = True
-        """
-        if not self.arduino_ip:
-            # Alarm is sounded through the heartbeat
-            return
-        subprocess.getoutput('curl -s {}?s{}'.format(self.arduino_ip, duration))
-        if sleep:
-            time.sleep(duration)
-        return
 
 
 class FakeHeartbeat:

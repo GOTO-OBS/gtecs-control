@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Daemon to control an AstroHaven dome."""
 
+import subprocess
 import threading
 import time
 
@@ -149,7 +150,9 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
-                                c = self.dome.open_side(side, self.move_frac, self.alarm_enabled)
+                                if self.alarm_enabled:
+                                    self._sound_alarm()
+                                c = self.dome.open_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -222,7 +225,9 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
-                                c = self.dome.close_side(side, self.move_frac, self.alarm_enabled)
+                                if self.alarm_enabled:
+                                    self._sound_alarm()
+                                c = self.dome.close_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -854,6 +859,19 @@ class DomeDaemon(BaseDaemon):
             self.open_flag = 1
             self.move_side = 'both'
             self.move_frac = 1
+
+    def _sound_alarm(self):
+        """Sound the dome siren."""
+        if params.ARDUINO_LOCATION is not None:
+            # Sound the alarm though the curl command
+            # We don't actually care about the output, the request triggers the siren
+            command = 'curl -s {}?s{}'.format(params.ARDUINO_LOCATION, params.DOME_ALARM_DURATION)
+            subprocess.getoutput(command)
+            time.sleep(params.DOME_ALARM_DURATION)
+        else:
+            # Sound the alarm through the heartbeat box
+            # Note the heartbeat siren always sounds for 5s
+            self.heartbeat.sound_alarm(sleep=True)
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
