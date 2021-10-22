@@ -919,7 +919,7 @@ class DomeHeartbeat:
 
         """
         if self.log:
-            self.log.debug('sounding alarm (status={})'.format(self.status))
+            self.log.warning('Sounding alarm (status={})'.format(self.status))
         v = 255
         self.serial.write(bytes([v]))
         if self.log and self.log_debug:
