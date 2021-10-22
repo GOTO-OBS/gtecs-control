@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Daemon to control an AstroHaven dome."""
 
+import subprocess
 import threading
 import time
 
@@ -18,7 +19,7 @@ from gtecs.control.slack import send_slack_msg
 
 import numpy as np
 
-import serial
+import serial  # noqa: I900
 
 
 class DomeDaemon(BaseDaemon):
@@ -149,7 +150,9 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
-                                c = self.dome.open_side(side, self.move_frac, self.alarm_enabled)
+                                if self.alarm_enabled:
+                                    self._sound_alarm()
+                                c = self.dome.open_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -222,7 +225,9 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
-                                c = self.dome.close_side(side, self.move_frac, self.alarm_enabled)
+                                if self.alarm_enabled:
+                                    self._sound_alarm()
+                                c = self.dome.close_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
                                 self.move_started = 1
@@ -855,6 +860,23 @@ class DomeDaemon(BaseDaemon):
             self.move_side = 'both'
             self.move_frac = 1
 
+    def _sound_alarm(self, sleep=True):
+        """Sound the dome siren."""
+        if not self.alarm_enabled:
+            return
+
+        if params.ARDUINO_LOCATION is not None:
+            # Sound the alarm though the curl command
+            # We don't actually care about the output, the request triggers the siren
+            command = 'curl -s {}?s{}'.format(params.ARDUINO_LOCATION, params.DOME_ALARM_DURATION)
+            subprocess.getoutput(command)
+            if sleep:
+                time.sleep(params.DOME_ALARM_DURATION)
+        else:
+            # Sound the alarm through the heartbeat box
+            # Note the heartbeat siren always sounds for 5s
+            self.heartbeat.sound_alarm(sleep)
+
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
         if not params.QUICK_CLOSE_BUTTON:
@@ -902,9 +924,9 @@ class DomeDaemon(BaseDaemon):
             if north_status == 'full_open' and south_status == 'full_open':
                 return 'The dome is already fully open'
             elif north_status == 'full_open' and south_status != 'full_open':
-                side == 'south'
+                side = 'south'
             elif north_status != 'full_open' and south_status == 'full_open':
-                side == 'north'
+                side = 'north'
 
         # Set values
         self.move_side = side
@@ -942,9 +964,9 @@ class DomeDaemon(BaseDaemon):
             if north_status == 'closed' and south_status == 'closed':
                 return 'The dome is already fully closed'
             elif north_status == 'closed' and south_status != 'closed':
-                side == 'south'
+                side = 'south'
             elif north_status != 'closed' and south_status == 'closed':
-                side == 'north'
+                side = 'north'
 
         # Set values
         self.move_side = side
@@ -1109,6 +1131,16 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off':
             return 'Disabling dome alarm'
 
+    def sound_alarm(self, sleep=True):
+        """Sound the dome alarm."""
+        # Check current status
+        self.wait_for_info()
+        if not self.alarm_enabled:
+            raise errors.HardwareStatusError('Alarm is disabled')
+
+        # Just call the internal command
+        self._sound_alarm(sleep)
+
     def set_heartbeat(self, command):
         """Enable or disable the dome heartbeat system."""
         # Check input
@@ -1122,7 +1154,7 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off' and self.info['mode'] == 'manual':
             raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
         elif command == 'off' and self.info['mode'] == 'robotic':
-            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
+            raise errors.HardwareStatusError('Cannot disable heartbeat in robotic mode')
 
         # Set flag
         if command == 'on':

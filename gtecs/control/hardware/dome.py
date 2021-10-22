@@ -8,13 +8,13 @@ import threading
 import time
 import urllib
 
-import serial
+import serial  # noqa: I900
 
 from .power import ETH002
 from .. import params
 
 
-class FakeDome(object):
+class FakeDome:
     """Fake AstroHaven dome class."""
 
     def __init__(self, log=None, log_debug=False):
@@ -28,8 +28,6 @@ class FakeDome(object):
 
         self.plc_error = False
         self.switch_error = False
-
-        self.move_timeout = 40.
 
         self.output_thread_running = False
         self.status_thread_running = True
@@ -61,7 +59,7 @@ class FakeDome(object):
                 string = f.read().strip()
                 if self.log and self.log_debug:
                     self.log.debug('RECV:"{}"'.format(string))
-                if not string == '':  # I don't know why or how that happens
+                if string != '':  # I don't know why or how that happens
                     self._status_arr = list(map(int, list(string)))
 
     def _write_temp(self):
@@ -83,6 +81,7 @@ class FakeDome(object):
         return time.time() - 2
 
     def disconnect(self):
+        """Shutdown the connection."""
         return
 
     def _check_status(self):
@@ -157,7 +156,7 @@ class FakeDome(object):
                     self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
-            elif running_time > self.move_timeout:
+            elif running_time > params.DOME_MOVE_TIMEOUT:
                 if self.log:
                     self.log.info('Dome moving timed out')
                 self.output_thread_running = False
@@ -203,17 +202,13 @@ class FakeDome(object):
             ot.start()
             return
 
-    def open_side(self, side, frac=1, sound_alarm=True):
+    def open_side(self, side, frac=1):
         """Open one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1, sound_alarm=True):
+    def close_side(self, side, frac=1):
         """Close one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
@@ -221,15 +216,8 @@ class FakeDome(object):
         """Stop the dome moving."""
         self.output_thread_running = False
 
-    def sound_alarm(self, duration=params.DOME_ALARM_DURATION):
-        """Sound the dome alarm."""
-        # Note this is always blocking
-        bell = 'play -qn --channels 1 synth {} sine 440 vol 0.1'.format(duration)
-        subprocess.getoutput(bell)
-        return
 
-
-class AstroHavenDome(object):
+class AstroHavenDome:
     """AstroHaven dome control class (based on Warwick 1m control).
 
     Parameters
@@ -249,6 +237,7 @@ class AstroHavenDome(object):
         default = False
 
     """
+
     def __init__(self, port, arduino_ip=None, roomalert_ip=None, log=None, log_debug=False):
         self.serial_port = port
         self.serial_baudrate = 9600
@@ -288,11 +277,10 @@ class AstroHavenDome(object):
 
         self.move_code = {'south': {'open': b'a', 'close': b'A'},
                           'north': {'open': b'b', 'close': b'B'}}
-        self.move_time = {'south': {'open': 36., 'close': 26.},     # TODO: should be in params
-                          'north': {'open': 24., 'close': 24.}}
-        self.move_timeout = 40.  # TODO: should be in params?
-        self.command_timestep = 0.5
-        self.stutter_timestep = 1.5
+        self.move_time = {'south': {'open': params.DOME_OPEN_SOUTH_TIME,
+                                    'close': params.DOME_CLOSE_SOUTH_TIME},
+                          'north': {'open': params.DOME_OPEN_NORTH_TIME,
+                                    'close': params.DOME_CLOSE_NORTH_TIME}}
 
         self.output_thread_running = False
         self.status_thread_running = False
@@ -312,7 +300,7 @@ class AstroHavenDome(object):
         self.disconnect()
 
     def disconnect(self):
-        """Shutdown the dome monitoring threads."""
+        """Shutdown the connection."""
         # Stop threads
         self.output_thread_running = False
         self.status_thread_running = False
@@ -416,10 +404,14 @@ class AstroHavenDome(object):
         if self.log and self.log_debug:
             self.log.debug('arduino RECV:"{}"'.format(data))
 
-        assert data['switch_a'] in [0, 1]
-        assert data['switch_b'] in [0, 1]
-        assert data['switch_c'] in [0, 1]
-        assert data['switch_d'] in [0, 1]
+        if 'switch_a' not in data or data['switch_a'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'switch_b' not in data or data['switch_b'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'switch_c' not in data or data['switch_c'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'switch_d' not in data or data['switch_d'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
 
         switch_dict = {'all_closed': bool(data['switch_a']),
                        'north_open': bool(data['switch_b']),
@@ -436,10 +428,14 @@ class AstroHavenDome(object):
         if self.log and self.log_debug:
             self.log.debug('roomalert RECV:"{}"'.format(switches))
 
-        assert 'Hatch' in switches and switches['Hatch'] in [0, 1]
-        assert 'North Limit' in switches and switches['North Limit'] in [0, 1]
-        assert 'South Limit' in switches and switches['South Limit'] in [0, 1]
-        assert 'Full Close' in switches and switches['Full Close'] in [0, 1]
+        if 'Hatch' not in switches or switches['Hatch'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'North Limit' not in switches or switches['North Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'South Limit' not in switches or switches['South Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'Full Close' not in switches or switches['Full Close'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(switches))
 
         switch_dict = {'all_closed': bool(switches['Full Close']),
                        'north_open': bool(switches['North Limit']),
@@ -541,7 +537,7 @@ class AstroHavenDome(object):
                             # and it's still going!!
                             if self.log:
                                 self.log.warning('Honeywell limit error, stopping!')
-                            self.switch_status[side] == 'full_open'
+                            self.switch_status[side] = 'full_open'
                             self.output_thread_running = False  # to be sure
                         else:
                             # It's moving back, clear the memory
@@ -668,7 +664,7 @@ class AstroHavenDome(object):
                     self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
-            elif running_time > self.move_timeout:
+            elif running_time > params.DOME_MOVE_TIMEOUT:
                 if self.log:
                     self.log.info('Dome moving timed out')
                 self.output_thread_running = False
@@ -686,14 +682,13 @@ class AstroHavenDome(object):
                     self.move_code[side][command].decode(), side, frac, command))
 
             if (side == 'south' and start_position == 'closed' and command == 'open' and
-                    running_time < 12.5):
+                    running_time < params.DOME_STUTTER_TIME):
                 # Used to "stutter step" the south side when opening,
                 # so that the top shutter doesn't jerk on the belts when it tips over.
                 # NEW: add start_position, so it doesn't stutter when already partially open
-                # TODO: running_time limit should be in params?
-                time.sleep(self.stutter_timestep)
+                time.sleep(params.DOME_STUTTER_TIMESTEP)
             else:
-                time.sleep(self.command_timestep)
+                time.sleep(params.DOME_MOVE_TIMESTEP)
 
         if self.log:
             self.log.debug('output thread finished')
@@ -714,17 +709,13 @@ class AstroHavenDome(object):
             ot.start()
             return
 
-    def open_side(self, side, frac=1, sound_alarm=True):
+    def open_side(self, side, frac=1):
         """Open one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'open', frac)
         return
 
-    def close_side(self, side, frac=1, sound_alarm=True):
+    def close_side(self, side, frac=1):
         """Close one side of the dome."""
-        if sound_alarm:
-            self.sound_alarm()
         self._move_dome(side, 'close', frac)
         return
 
@@ -732,51 +723,36 @@ class AstroHavenDome(object):
         """To stop the output thread."""
         self.output_thread_running = False
 
-    def sound_alarm(self, duration=params.DOME_ALARM_DURATION, sleep=True):
-        """Sound the dome alarm attached to the Arduino box.
 
-        duration : int [0-9]
-            The time to sound the alarm for (seconds)
-            default = 3
-
-        sleep : bool
-            Whether to sleep for the duration of the alarm
-            or return immediately
-            default = True
-        """
-        if not self.arduino_ip:
-            # Alarm is sounded through the heartbeat
-            return
-        subprocess.getoutput('curl -s {}?s{}'.format(self.arduino_ip, duration))
-        if sleep:
-            time.sleep(duration)
-        return
-
-
-class FakeHeartbeat(object):
+class FakeHeartbeat:
     """Fake dome heartbeat class."""
+
     def __init__(self):
         self.status = 'enabled'
         self.connection_error = False
 
     def disconnect(self):
+        """Shutdown the connection."""
         return
 
     def sound_alarm(self, sleep=True):
+        """Sound the dome alarm using the heartbeat."""
         # Note this is always blocking
         bell = 'play -qn --channels 1 synth 5 sine 440 vol 0.1'
         subprocess.getoutput(bell)
 
     def enable(self):
+        """Enable the heartbeat."""
         self.status = 'enabled'
         return 'Heartbeat enabled'
 
     def disable(self):
+        """Disable the heartbeat."""
         self.status = 'disabled'
         return 'Heartbeat disabled'
 
 
-class DomeHeartbeat(object):
+class DomeHeartbeat:
     """Dome heartbeat monitoring and control class.
 
     Parameters
@@ -797,6 +773,7 @@ class DomeHeartbeat(object):
         Default is False
 
     """
+
     def __init__(self, port, timeout=10, log=None, log_debug=False):
         self.serial_port = port
         self.serial_baudrate = 9600
@@ -838,7 +815,7 @@ class DomeHeartbeat(object):
         self.disconnect()
 
     def disconnect(self):
-        """Shutdown the thread."""
+        """Shutdown the connection."""
         # Stop thread
         self.thread_running = False
 
@@ -873,7 +850,7 @@ class DomeHeartbeat(object):
                 else:
                     # send the heartbeat time to the serial port
                     # NB the timeout param is in s, but the board takes .5 second intervals
-                    v = self.timeout * 2
+                    v = int(self.timeout * 2)
 
             self.serial.write(bytes([v]))
             if self.log and self.log_debug:
@@ -931,6 +908,7 @@ class DomeHeartbeat(object):
 
     def sound_alarm(self, sleep=True):
         """Sound the dome alarm using the heartbeat.
+
         The heartbeat siren always sounds for 5s.
 
         Parameters
@@ -938,9 +916,10 @@ class DomeHeartbeat(object):
         sleep : bool, optional
             Whether to sleep for the duration of the alarm or return immediately
             default = True
+
         """
         if self.log:
-            self.log.debug('sounding alarm (status={})'.format(self.status))
+            self.log.warning('Sounding alarm (status={})'.format(self.status))
         v = 255
         self.serial.write(bytes([v]))
         if self.log and self.log_debug:
@@ -966,7 +945,7 @@ class DomeHeartbeat(object):
             return 'Heartbeat disabled'
 
 
-class FakeDehumidifier(object):
+class FakeDehumidifier:
     """Fake dehumidifier class."""
 
     def __init__(self):
@@ -986,7 +965,7 @@ class FakeDehumidifier(object):
         return self._status
 
 
-class Dehumidifier(object):
+class Dehumidifier:
     """Dehumidifier class (using a ETH002 relay)."""
 
     def __init__(self, address, port):

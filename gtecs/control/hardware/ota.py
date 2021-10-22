@@ -3,7 +3,7 @@
 import threading
 import time
 
-import serial
+import serial  # noqa: I900
 
 
 class H400(object):

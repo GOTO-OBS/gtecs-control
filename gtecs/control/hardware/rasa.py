@@ -3,7 +3,7 @@
 import os
 import time
 
-import serial
+import serial  # noqa: I900
 
 
 class FocusLynx(object):
