@@ -850,7 +850,7 @@ class DomeHeartbeat:
                 else:
                     # send the heartbeat time to the serial port
                     # NB the timeout param is in s, but the board takes .5 second intervals
-                    v = self.timeout * 2
+                    v = int(self.timeout * 2)
 
             self.serial.write(bytes([v]))
             if self.log and self.log_debug:
