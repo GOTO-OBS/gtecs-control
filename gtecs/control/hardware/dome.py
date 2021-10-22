@@ -29,8 +29,6 @@ class FakeDome(object):
         self.plc_error = False
         self.switch_error = False
 
-        self.move_timeout = 40.
-
         self.output_thread_running = False
         self.status_thread_running = True
 
@@ -157,7 +155,7 @@ class FakeDome(object):
                     self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
-            elif running_time > self.move_timeout:
+            elif running_time > params.DOME_MOVE_TIMEOUT:
                 if self.log:
                     self.log.info('Dome moving timed out')
                 self.output_thread_running = False
@@ -288,11 +286,10 @@ class AstroHavenDome(object):
 
         self.move_code = {'south': {'open': b'a', 'close': b'A'},
                           'north': {'open': b'b', 'close': b'B'}}
-        self.move_time = {'south': {'open': 36., 'close': 26.},     # TODO: should be in params
-                          'north': {'open': 24., 'close': 24.}}
-        self.move_timeout = 40.  # TODO: should be in params?
-        self.command_timestep = 0.5
-        self.stutter_timestep = 1.5
+        self.move_time = {'south': {'open': params.DOME_OPEN_SOUTH_TIME,
+                                    'close': params.DOME_CLOSE_SOUTH_TIME},
+                          'north': {'open': params.DOME_OPEN_NORTH_TIME,
+                                    'close': params.DOME_CLOSE_NORTH_TIME}}
 
         self.output_thread_running = False
         self.status_thread_running = False
@@ -668,7 +665,7 @@ class AstroHavenDome(object):
                     self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
-            elif running_time > self.move_timeout:
+            elif running_time > params.DOME_MOVE_TIMEOUT:
                 if self.log:
                     self.log.info('Dome moving timed out')
                 self.output_thread_running = False
@@ -686,14 +683,13 @@ class AstroHavenDome(object):
                     self.move_code[side][command].decode(), side, frac, command))
 
             if (side == 'south' and start_position == 'closed' and command == 'open' and
-                    running_time < 12.5):
+                    running_time < params.DOME_STUTTER_TIME):
                 # Used to "stutter step" the south side when opening,
                 # so that the top shutter doesn't jerk on the belts when it tips over.
                 # NEW: add start_position, so it doesn't stutter when already partially open
-                # TODO: running_time limit should be in params?
-                time.sleep(self.stutter_timestep)
+                time.sleep(params.DOME_STUTTER_TIMESTEP)
             else:
-                time.sleep(self.command_timestep)
+                time.sleep(params.DOME_MOVE_TIMESTEP)
 
         if self.log:
             self.log.debug('output thread finished')
