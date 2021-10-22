@@ -902,9 +902,9 @@ class DomeDaemon(BaseDaemon):
             if north_status == 'full_open' and south_status == 'full_open':
                 return 'The dome is already fully open'
             elif north_status == 'full_open' and south_status != 'full_open':
-                side == 'south'
+                side = 'south'
             elif north_status != 'full_open' and south_status == 'full_open':
-                side == 'north'
+                side = 'north'
 
         # Set values
         self.move_side = side
@@ -942,9 +942,9 @@ class DomeDaemon(BaseDaemon):
             if north_status == 'closed' and south_status == 'closed':
                 return 'The dome is already fully closed'
             elif north_status == 'closed' and south_status != 'closed':
-                side == 'south'
+                side = 'south'
             elif north_status != 'closed' and south_status == 'closed':
-                side == 'north'
+                side = 'north'
 
         # Set values
         self.move_side = side
@@ -1122,7 +1122,7 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off' and self.info['mode'] == 'manual':
             raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
         elif command == 'off' and self.info['mode'] == 'robotic':
-            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
+            raise errors.HardwareStatusError('Cannot disable heartbeat in robotic mode')
 
         # Set flag
         if command == 'on':
