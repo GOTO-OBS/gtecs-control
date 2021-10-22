@@ -8,7 +8,7 @@ import threading
 import time
 import urllib
 
-import serial
+import serial  # noqa: I900
 
 from .power import ETH002
 from .. import params

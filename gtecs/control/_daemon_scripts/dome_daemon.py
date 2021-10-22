@@ -18,7 +18,7 @@ from gtecs.control.slack import send_slack_msg
 
 import numpy as np
 
-import serial
+import serial  # noqa: I900
 
 
 class DomeDaemon(BaseDaemon):
