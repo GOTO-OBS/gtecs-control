@@ -69,8 +69,8 @@ class ExqDaemon(BaseDaemon):
                 self._get_info()
 
             # exposure queue processes
-            # only do anything if we're not paused
-            if not self.paused:
+            # only do anything if we're not paused (and we're not in the middle of an exposure)
+            if (not self.paused) or (self.exposure_state != 'none'):
                 # If we're not currently doing anything and there are exposures in the
                 # queue then pop off the first one and make that the current
                 if self.current_exposure is None and len(self.exp_queue) > 0:
