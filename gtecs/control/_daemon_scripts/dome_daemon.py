@@ -512,7 +512,7 @@ class DomeDaemon(BaseDaemon):
             int_temperature = np.mean([conditions[source]['temperature']
                                        for source in conditions
                                        if conditions[source]['type'] == 'internal'])
-            int_humidity = np.mean([conditions[source]['temperature']
+            int_humidity = np.mean([conditions[source]['humidity']
                                     for source in conditions
                                     if conditions[source]['type'] == 'internal'])
             temp_info['windspeed'] = windspeed
