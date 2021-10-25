@@ -20,9 +20,9 @@ class ExqDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('exq')
 
-        # exq is dependent on all the interfaces, cam and filt
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
+        # exq is dependent on cam and filt
+        # those also depend on the interfaces, so logically exq does too,
+        # but it's a waste of time to check them here
         self.dependencies.add('cam')
         self.dependencies.add('filt')
 
