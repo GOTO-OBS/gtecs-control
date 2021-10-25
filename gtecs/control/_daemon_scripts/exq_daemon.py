@@ -88,7 +88,7 @@ class ExqDaemon(BaseDaemon):
                     else:
                         # Get the filter wheel info
                         with daemon_proxy('filt') as filt_daemon:
-                            filt_info = filt_daemon.get_info()
+                            filt_info = filt_daemon.get_info(force_update=False)
                         filt_uts = [ut for ut in self.current_exposure.ut_list
                                     if ut in params.UTS_WITH_FILTERWHEELS]
 
@@ -108,7 +108,7 @@ class ExqDaemon(BaseDaemon):
                 elif self.exposure_state == 'filters_homing':
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
-                        filt_info = filt_daemon.get_info()
+                        filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
 
@@ -120,7 +120,7 @@ class ExqDaemon(BaseDaemon):
                 elif self.exposure_state == 'filters_homed':
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
-                        filt_info = filt_daemon.get_info()
+                        filt_info = filt_daemon.get_info(force_update=False)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
 
@@ -143,7 +143,7 @@ class ExqDaemon(BaseDaemon):
                 elif self.exposure_state == 'filters_setting':
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
-                        filt_info = filt_daemon.get_info()
+                        filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
 
