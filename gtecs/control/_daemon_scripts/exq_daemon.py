@@ -105,7 +105,7 @@ class ExqDaemon(BaseDaemon):
                                 self.log.error('No response from filter wheel daemon')
                                 self.log.debug('', exc_info=True)
 
-                elif self.exposure_state == 'filters_homing':
+                if self.exposure_state == 'filters_homing':
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
@@ -117,7 +117,7 @@ class ExqDaemon(BaseDaemon):
                         self.log.info('Filter wheels homed')
                         self.exposure_state = 'filters_homed'
 
-                elif self.exposure_state == 'filters_homed':
+                if self.exposure_state == 'filters_homed':
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=False)
@@ -140,7 +140,7 @@ class ExqDaemon(BaseDaemon):
                             self.log.error('No response from filter wheel daemon')
                             self.log.debug('', exc_info=True)
 
-                elif self.exposure_state == 'filters_setting':
+                if self.exposure_state == 'filters_setting':
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
@@ -153,7 +153,7 @@ class ExqDaemon(BaseDaemon):
                         self.log.info('Filter wheels set')
                         self.exposure_state = 'filters_set'
 
-                elif self.exposure_state == 'filters_set':
+                if self.exposure_state == 'filters_set':
                     # Ready to take the exposure
                     if not self.current_exposure.glance:
                         self.log.info('Starting {:.0f}s exposure'.format(
@@ -169,7 +169,7 @@ class ExqDaemon(BaseDaemon):
                         self.log.error('No response from camera daemon')
                         self.log.debug('', exc_info=True)
 
-                elif self.exposure_state == 'cameras_exposing':
+                if self.exposure_state == 'cameras_exposing':
                     # Get the camera info
                     with daemon_proxy('cam') as cam_daemon:
                         cam_exposing = cam_daemon.is_exposing()
