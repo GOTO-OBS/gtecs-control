@@ -185,7 +185,7 @@ class ExqDaemon(BaseDaemon):
                             mnt_info = mnt_daemon.get_info(force_update=True)
 
                         # Check if the mount is tracking
-                        if mnt_info['status'] == 'tracking':
+                        if mnt_info['status'] == 'Tracking':
                             self.log.info('Mount tracking')
                             self.exposure_state = 'mount_tracking'
                     else:
