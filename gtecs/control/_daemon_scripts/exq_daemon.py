@@ -130,7 +130,7 @@ class ExqDaemon(BaseDaemon):
                 if self.exposure_state == 'filters_homing':
                     # STATE 3: Check if the filters have finished homing
                     # Get the filter wheel info
-                    with daemon_proxy('filt') as filt_daemon:
+                    with daemon_proxy('filt', timeout=10) as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
@@ -168,7 +168,7 @@ class ExqDaemon(BaseDaemon):
                 if self.exposure_state == 'filters_setting':
                     # STATE 5: Check if the filters have finished setting
                     # Get the filter wheel info
-                    with daemon_proxy('filt') as filt_daemon:
+                    with daemon_proxy('filt', timeout=10) as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
@@ -183,7 +183,7 @@ class ExqDaemon(BaseDaemon):
                     # STATE 6: Check if the mount has finished dithering
                     if params.EXQ_DITHERING:
                         # Get the mount info
-                        with daemon_proxy('mnt') as mnt_daemon:
+                        with daemon_proxy('mnt', timeout=10) as mnt_daemon:
                             mnt_info = mnt_daemon.get_info(force_update=True)
 
                         # Check if the mount is tracking, and the last move was after the
