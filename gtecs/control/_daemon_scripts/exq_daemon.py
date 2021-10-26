@@ -189,7 +189,8 @@ class ExqDaemon(BaseDaemon):
                         # Check if the mount is tracking, and the last move was after the
                         # dithering command (otherwise the status doesn't change fast enough)
                         if (mnt_info['status'] == 'Tracking' and
-                                mnt_info['last_move_time'] > self.dither_time):
+                                mnt_info['last_move_time'] > self.dither_time and
+                                self.loop_time > mnt_info['last_move_time'] + 1):
                             self.log.info('Mount tracking')
                             self.exposure_state = 'mount_tracking'
                     else:
