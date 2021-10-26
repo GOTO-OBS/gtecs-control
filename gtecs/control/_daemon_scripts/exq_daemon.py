@@ -84,7 +84,7 @@ class ExqDaemon(BaseDaemon):
                 # Exposure state machine
                 if self.exposure_state == 'init':
                     # STATE 1: Start the mount dithering (then move filters while settling)
-                    if params.EXQ_DITHERING:
+                    if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
                         # Offset the mount slightly
                         self.log.info('Offsetting the mount position')
                         try:
@@ -181,7 +181,7 @@ class ExqDaemon(BaseDaemon):
 
                 if self.exposure_state == 'filters_set':
                     # STATE 6: Check if the mount has finished dithering
-                    if params.EXQ_DITHERING:
+                    if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
                         # Get the mount info
                         with daemon_proxy('mnt', timeout=10) as mnt_daemon:
                             mnt_info = mnt_daemon.get_info(force_update=True)
