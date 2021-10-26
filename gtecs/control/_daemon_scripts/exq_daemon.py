@@ -104,7 +104,6 @@ class ExqDaemon(BaseDaemon):
                     # STATE 2: Check if we need to home the filters
                     if self.current_exposure.filt is None:
                         # Filter doesn't matter, e.g. dark, so skip to the exposures
-                        self.log.info('No need to move filter wheel')
                         self.exposure_state = 'filters_set'
                     else:
                         # Get the filter wheel info
