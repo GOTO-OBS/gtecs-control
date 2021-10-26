@@ -1549,6 +1549,18 @@ class ExqMonitor(BaseMonitor):
                 recovery_procedure[4] = ['filt start', 30]
                 # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
                 return ERROR_DEPENDENCY + 'filt', recovery_procedure
+            elif 'mnt' in self.bad_dependencies:
+                # PROBLEM: Mnt daemon is not responding or not returning info.
+                recovery_procedure = {}
+                # SOLUTION 1: Make sure it's started.
+                recovery_procedure[1] = ['mnt start', 30]
+                # SOLUTION 2: Try restarting it.
+                recovery_procedure[2] = ['mnt restart', 30]
+                # SOLUTION 3: Kill it, then start it again.
+                recovery_procedure[3] = ['mnt kill', 10]
+                recovery_procedure[4] = ['mnt start', 30]
+                # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
+                return ERROR_DEPENDENCY + 'mnt', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 

@@ -25,6 +25,8 @@ class ExqDaemon(BaseDaemon):
         # but it's a waste of time to check them here
         self.dependencies.add('cam')
         self.dependencies.add('filt')
+        # with dithering it's also dependent on mnt
+        self.dependencies.add('mnt')
 
         # exposure queue variables
         self.paused = True  # start paused
@@ -76,11 +78,28 @@ class ExqDaemon(BaseDaemon):
                 if self.current_exposure is None and len(self.exp_queue) > 0:
                     self.log.info('Starting new exposure')
                     self.current_exposure = self.exp_queue.pop(0)
-                    self.exposure_state = 'init'
+                    self.exposure_state = 'init'  # STATE 0, essentially
 
                 # Exposure state machine
                 if self.exposure_state == 'init':
-                    # First check if we need to change the filters
+                    # STATE 1: Start the mount dithering (then move filters while settling)
+                    if params.EXQ_DITHERING:
+                        # Offset the mount slightly
+                        self.log.info('Offsetting the mount position')
+                        try:
+                            with daemon_proxy('mnt') as mnt_daemon:
+                                mnt_daemon.offset(params.DITHERING_DIRECTION,
+                                                  params.DITHERING_DISTANCE)
+                                self.exposure_state = 'mount_dithering'
+                        except Exception:
+                            self.log.error('No response from mount daemon')
+                            self.log.debug('', exc_info=True)
+                    else:
+                        # No dithering, skip ahead
+                        self.exposure_state = 'mount_dithering'
+
+                if self.exposure_state == 'mount_dithering':
+                    # STATE 2: Check if we need to home the filters
                     if self.current_exposure.filt is None:
                         # Filter doesn't matter, e.g. dark, so skip to the exposures
                         self.log.info('No need to move filter wheel')
@@ -94,6 +113,7 @@ class ExqDaemon(BaseDaemon):
 
                         # Check if we need to home the filters
                         if all(filt_info[ut]['homed'] for ut in filt_uts):
+                            # Skip over checking homing state
                             self.exposure_state = 'filters_homed'
                         else:
                             self.log.info('Homing filter wheels')
@@ -106,18 +126,20 @@ class ExqDaemon(BaseDaemon):
                                 self.log.debug('', exc_info=True)
 
                 if self.exposure_state == 'filters_homing':
+                    # STATE 3: Check if the filters have finished homing
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
 
-                    # Check if the filters are homed
+                    # Continue when all the filters are homed
                     if all(filt_info[ut]['homed'] for ut in filt_uts):
                         self.log.info('Filter wheels homed')
                         self.exposure_state = 'filters_homed'
 
                 if self.exposure_state == 'filters_homed':
+                    # STATE 4: Check if we need to change the filters
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=False)
@@ -127,6 +149,7 @@ class ExqDaemon(BaseDaemon):
                     # Check if we need to change the filters
                     if all(filt_info[ut]['current_filter'] == self.current_exposure.filt
                            for ut in filt_uts):
+                        # Skip over checking filters state
                         self.exposure_state = 'filters_set'
                     else:
                         self.log.info('Setting filter wheels to {}'.format(
@@ -141,20 +164,36 @@ class ExqDaemon(BaseDaemon):
                             self.log.debug('', exc_info=True)
 
                 if self.exposure_state == 'filters_setting':
+                    # STATE 5: Check if the filters have finished setting
                     # Get the filter wheel info
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
                                 if ut in params.UTS_WITH_FILTERWHEELS]
 
-                    # Check if the filters are set
+                    # Continue when the filters are set
                     if all(filt_info[ut]['current_filter'] == self.current_exposure.filt
                            for ut in filt_uts):
                         self.log.info('Filter wheels set')
                         self.exposure_state = 'filters_set'
 
                 if self.exposure_state == 'filters_set':
-                    # Ready to take the exposure
+                    # STATE 6: Check if the mount has finished dithering
+                    if params.EXQ_DITHERING:
+                        # Get the mount info
+                        with daemon_proxy('mnt') as mnt_daemon:
+                            mnt_info = mnt_daemon.get_info(force_update=True)
+
+                        # Check if the mount is tracking
+                        if mnt_info['status'] == 'tracking':
+                            self.log.info('Mount tracking')
+                            self.exposure_state = 'mount_tracking'
+                    else:
+                        # No dithering, skip ahead
+                        self.exposure_state = 'mount_tracking'
+
+                if self.exposure_state == 'mount_tracking':
+                    # STATE 7: Ready to start the exposure
                     if not self.current_exposure.glance:
                         self.log.info('Starting {:.0f}s exposure'.format(
                             self.current_exposure.exptime))
@@ -170,6 +209,7 @@ class ExqDaemon(BaseDaemon):
                         self.log.debug('', exc_info=True)
 
                 if self.exposure_state == 'cameras_exposing':
+                    # STATE 8: Check if the exposure has finished
                     # Get the camera info
                     with daemon_proxy('cam') as cam_daemon:
                         cam_exposing = cam_daemon.is_exposing()

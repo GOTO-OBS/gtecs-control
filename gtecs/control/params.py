@@ -283,7 +283,9 @@ MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 
 ############################################################
 # Exposure Queue parameters
-QUEUE_PATH = FILE_PATH
+EXQ_DITHERING = config['EXQ_DITHERING']
+DITHERING_DIRECTION = config['DITHERING_DIRECTION']
+DITHERING_DISTANCE = config['DITHERING_DISTANCE']
 
 ############################################################
 # Power parameters
