@@ -33,6 +33,7 @@ class ExqDaemon(BaseDaemon):
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
         self.exposure_state = 'none'
+        self.dither_time = 0
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
         try:
@@ -90,6 +91,7 @@ class ExqDaemon(BaseDaemon):
                             with daemon_proxy('mnt') as mnt_daemon:
                                 mnt_daemon.offset(params.DITHERING_DIRECTION,
                                                   params.DITHERING_DISTANCE)
+                                self.dither_time = self.loop_time
                                 self.exposure_state = 'mount_dithering'
                         except Exception:
                             self.log.error('No response from mount daemon')
@@ -184,8 +186,10 @@ class ExqDaemon(BaseDaemon):
                         with daemon_proxy('mnt') as mnt_daemon:
                             mnt_info = mnt_daemon.get_info(force_update=True)
 
-                        # Check if the mount is tracking
-                        if mnt_info['status'] == 'Tracking':
+                        # Check if the mount is tracking, and the last move was after the
+                        # dithering command (otherwise the status doesn't change fast enough)
+                        if (mnt_info['status'] == 'Tracking' and
+                                mnt_info['last_move_time'] > self.dither_time):
                             self.log.info('Mount tracking')
                             self.exposure_state = 'mount_tracking'
                     else:
