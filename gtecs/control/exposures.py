@@ -93,7 +93,7 @@ class Exposure(object):
         set_num = int(ls[8]) if int(ls[8]) != -1 else None
         set_pos = int(ls[9])
         set_tot = int(ls[10])
-        db_id = int(ls[11]) if int(ls[8]) != -1 else None
+        db_id = int(ls[11]) if int(ls[11]) != -1 else None
 
         exposure = cls(ut_list,
                        exptime,
