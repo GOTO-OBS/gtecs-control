@@ -211,9 +211,6 @@ class ConditionsDaemon(BaseDaemon):
                                     'dt': -999,
                                     }
 
-                # Format source key
-                source = source.lower().split('-')[-1] + '_int'
-
                 try:
                     # Save a history of temperature so we can detect glitches
                     if (self.info and source in self.info['weather'] and
