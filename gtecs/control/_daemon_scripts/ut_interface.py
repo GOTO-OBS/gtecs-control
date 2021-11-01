@@ -568,7 +568,6 @@ class UTInterfaceDaemon(BaseDaemon):
         """Fetch the image data and save to a FITS file."""
         self.log.info('Camera {} fetching image'.format(ut))
         image_data = self.cameras[ut].fetch_image()
-        self.log.info('Camera {} saving image'.format(ut))
 
         exposure_info = all_info['cam']['current_exposure']
         if not exposure_info['glance']:
@@ -576,6 +575,7 @@ class UTInterfaceDaemon(BaseDaemon):
             filename = image_location(run_number, ut, all_info['params']['tel_number'])
         else:
             filename = glance_location(ut, all_info['params']['tel_number'])
+        self.log.info('Camera {} saving image to {}'.format(ut, filename))
 
         write_fits(image_data, filename, ut, all_info, compress, log=self.log, confirm=False)
         self.log.info('Camera {} saved image'.format(ut))
