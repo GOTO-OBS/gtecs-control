@@ -491,6 +491,9 @@ def get_all_info(cam_info, log=None, log_debug=False):
     params_info['tel_name'] = params.TELESCOPE_NAME
     params_info['tel_number'] = params.TELESCOPE_NUMBER
     params_info['ut_dict'] = params.UT_DICT
+    ut_mask = misc.ut_list_to_mask(all_info['cam']['current_exposure']['ut_list'])
+    params_info['ut_mask'] = ut_mask
+    params_info['ut_string'] = misc.ut_mask_to_string(ut_mask)
     params_info['uts_with_covers'] = params.UTS_WITH_COVERS
     params_info['uts_with_focusers'] = params.UTS_WITH_FOCUSERS
     params_info['uts_with_filterwheels'] = params.UTS_WITH_FILTERWHEELS
@@ -548,10 +551,8 @@ def update_header(header, ut, all_info, log=None):
         ut_hw_version = 'NA'
     header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
 
-    ut_mask = misc.ut_list_to_mask(exposure_info['ut_list'])
-    ut_string = misc.ut_mask_to_string(ut_mask)
-    header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
-    header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
+    header['UTMASK  '] = (params_info['ut_mask'], 'Run UT mask integer')
+    header['UTMASKBN'] = (params_info['ut_string'], 'Run UT mask binary string')
 
     interface_id = params_info['ut_dict'][ut]['INTERFACE']
     header['INTERFAC'] = (interface_id, 'System interface code')
