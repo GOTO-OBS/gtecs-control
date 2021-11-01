@@ -25,8 +25,9 @@ class ExqDaemon(BaseDaemon):
         # but it's a waste of time to check them here
         self.dependencies.add('cam')
         self.dependencies.add('filt')
-        # with dithering it's also dependent on mnt
-        self.dependencies.add('mnt')
+        if params.EXQ_DITHERING:
+            # with dithering it's also dependent on mnt
+            self.dependencies.add('mnt')
 
         # exposure queue variables
         self.paused = True  # start paused
