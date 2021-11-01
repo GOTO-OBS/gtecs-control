@@ -1207,6 +1207,8 @@ def update_header(header, ut, all_info, log=None):
                 ext_guststd = 'NA'
 
         int_source = params.INTERNAL_WEATHER_SOURCES[0]
+        if int_source in params.EXTERNAL_WEATHER_SOURCES:
+            int_source += '_int'
         int_weather = info['weather'][int_source]
 
         int_temp = int_weather['temperature']
