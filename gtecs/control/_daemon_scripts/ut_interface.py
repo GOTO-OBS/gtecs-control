@@ -552,6 +552,17 @@ class UTInterfaceDaemon(BaseDaemon):
         self.log.info('Camera {} fetching image'.format(ut))
         return self.cameras[ut].fetch_image()
 
+    def fetch_exposures(self):
+        """Fetch images from all cameras."""
+        images = {}
+        for ut in self.uts:
+            self.log.info('Camera {} fetching image'.format(ut))
+            try:
+                images[ut] = self.cameras[ut].fetch_image()
+            except IndexError:
+                images[ut] = None
+        return images
+
     def abort_exposure(self, ut):
         """Abort current exposure."""
         self.log.info('Camera {} aborting exposure'.format(ut))
