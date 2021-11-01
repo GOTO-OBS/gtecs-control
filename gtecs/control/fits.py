@@ -490,6 +490,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     params_info['site_alt'] = params.SITE_ALTITUDE
     params_info['tel_name'] = params.TELESCOPE_NAME
     params_info['tel_number'] = params.TELESCOPE_NUMBER
+
     params_info['ut_dict'] = params.UT_DICT
     ut_mask = misc.ut_list_to_mask(all_info['cam']['current_exposure']['ut_list'])
     params_info['ut_mask'] = ut_mask
@@ -497,6 +498,11 @@ def get_all_info(cam_info, log=None, log_debug=False):
     params_info['uts_with_covers'] = params.UTS_WITH_COVERS
     params_info['uts_with_focusers'] = params.UTS_WITH_FOCUSERS
     params_info['uts_with_filterwheels'] = params.UTS_WITH_FILTERWHEELS
+
+    status = Status()
+    params_info['system_mode'] = status.mode
+    params_info['observer'] = status.observer
+
     all_info['params'] = params_info
 
     return all_info
@@ -559,9 +565,8 @@ def update_header(header, ut, all_info, log=None):
 
     header['SWVN    '] = (params_info['version'], 'Software version number')
 
-    status = Status()
-    header['SYS-MODE'] = (status.mode, 'Current telescope system mode')
-    header['OBSERVER'] = (status.observer, 'Who started the exposure')
+    header['SYS-MODE'] = (params_info['system_mode'], 'Current telescope system mode')
+    header['OBSERVER'] = (params_info['observer'], 'Who started the exposure')
 
     header['OBJECT  '] = (exposure_info['target'], 'Observed object name')
 
