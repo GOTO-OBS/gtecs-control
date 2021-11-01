@@ -607,11 +607,14 @@ def update_header(header, ut, all_info, log=None):
             raise ValueError('No database info provided')
         info = all_info['db']
         from_db = info['from_db']
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write database info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write database info to header')
+            log.debug('', exc_info=True)
         from_db = False
 
     header['FROMDB  '] = (from_db, 'Exposure linked to database set?')
@@ -866,11 +869,14 @@ def update_header(header, ut, all_info, log=None):
                 cover_move_time = cover_move_time.isot
             else:
                 cover_move_time = 'NA'
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write OTA info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write OTA info to header')
+            log.debug('', exc_info=True)
         ota_serial = 'NA'
         ota_class = 'NA'
         cover_position = 'NA'
@@ -909,11 +915,14 @@ def update_header(header, ut, all_info, log=None):
                 foc_move_time = 'NA'
             foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
             foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write focuser info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write focuser info to header')
+            log.debug('', exc_info=True)
         foc_serial = 'NA'
         foc_class = 'NA'
         foc_pos = 'NA'
@@ -959,11 +968,14 @@ def update_header(header, ut, all_info, log=None):
                 filt_move_time = filt_move_time.isot
             else:
                 filt_move_time = 'NA'
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write filter wheel info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write filter wheel info to header')
+            log.debug('', exc_info=True)
         filt_serial = 'NA'
         filt_class = 'NA'
         filt_filter = 'NA'
@@ -1009,11 +1021,14 @@ def update_header(header, ut, all_info, log=None):
         else:
             dome_move_time = 'NA'
 
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write dome info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write dome info to header')
+            log.debug('', exc_info=True)
         dome_status = 'NA'
         dome_open = 'NA'
         dome_shielding = 'NA'
@@ -1134,11 +1149,14 @@ def update_header(header, ut, all_info, log=None):
         mnt_ra_deg = mnt_ra * 180 / 12.
         moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
 
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write mount info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write mount info to header')
+            log.debug('', exc_info=True)
         targ_ra_str = 'NA'
         targ_dec_str = 'NA'
         targ_dist = 'NA'
@@ -1267,11 +1285,14 @@ def update_header(header, ut, all_info, log=None):
         moon_phase = info['moon_phase']
 
         sun_alt = info['sun_alt']
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write astronomy info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write astronomy info to header')
+            log.debug('', exc_info=True)
         moon_alt = 'NA'
         moon_ill = 'NA'
         moon_phase = 'NA'
@@ -1344,11 +1365,14 @@ def update_header(header, ut, all_info, log=None):
         if int_hum == -999:
             int_hum = 'NA'
 
-    except Exception:
+    except Exception as err:
         if log is None:
             raise
-        log.error('Failed to write conditions info to header')
-        log.debug('', exc_info=True)
+        if 'info provided' in str(err):
+            log.warning(str(err))
+        else:
+            log.error('Failed to write conditions info to header')
+            log.debug('', exc_info=True)
         clouds = 'NA'
         seeing = 'NA'
         seeing_ing = 'NA'
