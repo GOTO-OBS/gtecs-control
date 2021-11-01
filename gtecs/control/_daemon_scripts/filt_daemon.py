@@ -30,6 +30,8 @@ class FiltDaemon(BaseDaemon):
         self.uts = params.UTS_WITH_FILTERWHEELS.copy()
         self.active_uts = []
         self.new_filter = {ut: '' for ut in self.uts}
+        # for now we assume UTs have the same filters in the same order
+        self.filters = {ut: params.FILTER_LIST.copy() for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
 
@@ -68,7 +70,7 @@ class FiltDaemon(BaseDaemon):
                 try:
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
-                        new_filter_num = params.FILTER_LIST.index(self.new_filter[ut])
+                        new_filter_num = self.filters[ut].index(self.new_filter[ut])
 
                         self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
                                       ut, interface_id, self.new_filter[ut], new_filter_num))
@@ -142,7 +144,7 @@ class FiltDaemon(BaseDaemon):
                     ut_info['hw_class'] = interface.get_filter_class(ut)
                     ut_info['remaining'] = interface.get_filter_steps_remaining(ut)
                     ut_info['current_filter_num'] = interface.get_filter_number(ut)
-                    ut_info['current_filter'] = params.FILTER_LIST[ut_info['current_filter_num']]
+                    ut_info['current_filter'] = self.filters[ut][ut_info['current_filter_num']]
                     ut_info['current_pos'] = interface.get_filter_position(ut)
                     ut_info['homed'] = interface.get_filter_homed(ut)
 
@@ -151,6 +153,7 @@ class FiltDaemon(BaseDaemon):
                 else:
                     ut_info['status'] = 'Ready'
 
+                ut_info['filters'] = self.filters[ut]
                 ut_info['last_move_time'] = self.last_move_time[ut]
 
                 temp_info[ut] = ut_info
@@ -207,8 +210,8 @@ class FiltDaemon(BaseDaemon):
                 continue
 
             # Check the new filter is in the filter list
-            if new_filt not in params.FILTER_LIST:
-                s = 'New filter "{}" not in list {}'.format(new_filt, params.FILTER_LIST)
+            if new_filt not in self.filters[ut]:
+                s = 'New filter "{}" not in list {}'.format(new_filt, self.filters[ut])
                 retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
                 continue
 

@@ -748,7 +748,7 @@ def update_header(header, ut, all_info, log=None):
                 filt_filter = 'UNHOMED'
             else:
                 filt_filter = info['current_filter']
-            filt_filters = ','.join(params.FILTER_LIST)
+            filt_filters = ','.join(info['filters'])
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
             filt_move_time = info['last_move_time']

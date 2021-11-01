@@ -136,7 +136,11 @@ def query(command, args, daemon_id):
 
     # Other functions
     elif command in ['list', 'ls']:
-        print(params.FILTER_LIST)
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'get_info', [False])
+        # print response
+        for ut in params.UTS_WITH_FILTERWHEELS:
+            print('UT{} filters: {}'.format(ut, ','.join(reply[ut]['filters'])))
 
     # Unrecognized function
     else:
