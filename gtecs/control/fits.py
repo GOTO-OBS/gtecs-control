@@ -91,7 +91,7 @@ def clear_glance_files(tel_number=None):
             os.remove(filename)
 
 
-def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
+def write_fits(image_data, filename, ut, all_info, compress=False, log=None, confirm=True):
     """Update an image's FITS header and save to a file."""
     # extract the hdu
     if compress:
@@ -141,13 +141,14 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
     else:
         os.rename(filename + '.tmp', filename)
 
-    # record image being saved
-    interface_id = params.UT_DICT[ut]['INTERFACE']
-    expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
-    if log:
-        log.info('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
-    else:
-        print('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
+    if confirm:
+        # record image being saved
+        interface_id = params.UT_DICT[ut]['INTERFACE']
+        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
+        if log:
+            log.info('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
+        else:
+            print('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
 
 
 def get_all_info(cam_info, log=None, log_debug=False):

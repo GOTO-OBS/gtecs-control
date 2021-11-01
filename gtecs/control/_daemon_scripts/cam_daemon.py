@@ -439,7 +439,6 @@ class CamDaemon(BaseDaemon):
                 time.sleep(0.01)
             else:
                 break
-        self.log.warning('carry on')
 
         # start fetching images from the interfaces in parallel
         future_images = {ut: None for ut in active_uts}
@@ -506,6 +505,71 @@ class CamDaemon(BaseDaemon):
                                 log=self.log)
 
                 self.image_saving[ut] = 0
+
+    def _exposure_saving_thread2(self, active_uts, cam_info):
+        """Thread to be started whenever an exposure is completed.
+
+        This version expects the FITS files to be written by the interfaces instead of fetching
+        and saving them here.
+        """
+        if len(active_uts) == 0:
+            # We must have aborted before we got to this stage
+            self.log.warning('Exposure saving thread aborted')
+            return
+
+        current_exposure = cam_info['current_exposure']
+        expstr = current_exposure['expstr'].capitalize()
+
+        # wait for the thread to loop, otherwise fetching delays the info check
+        while True:
+            if (self.info['time'] <= cam_info['time']) or (self.loop_time <= self.info['time']):
+                # This is a little dodgey...
+                # If the exposure queue is running we want it to send the next exposure to start
+                # before we start fetching the previous exposure.
+                # The loops are to be fair pretty slow, due to the dependency check.
+                # So we want to wait for 1 full loop, which will include an info check and the
+                # prepare and start steps of the new exposure.
+                # The first check is enough to ensure a new loop has started, but that isn't enough
+                # - we need to let the entire new loop run through. So the second check waits until
+                # the NEXT loop starts, which will update the loop time. Then this should break
+                # BEFORE the info updates, again due to the dependency check.
+                time.sleep(0.01)
+            else:
+                break
+
+        # Flag the UTs as saving, so we don't back up
+        for ut in active_uts:
+            self.image_saving[ut] = 1
+
+        # if taking glance images, clear all old glances (all, not just those in active UTs)
+        glance = current_exposure['glance']
+        if glance:
+            clear_glance_files(params.TELESCOPE_NUMBER)
+
+        # get daemon info (once, for all images)
+        # we need to include the cam info, from before we finished the current exposure
+        self.log.info('{}: Fetching info from other daemons'.format(expstr))
+        all_info = get_all_info(cam_info, self.log)
+        self.log.info('{}: Fetched info from other daemons'.format(expstr))
+
+        # tell the interface to save the images
+        for ut in active_uts:
+            interface_id = params.UT_DICT[ut]['INTERFACE']
+            self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
+            try:
+                with daemon_proxy(interface_id) as interface:
+                    c = interface.save_exposure(ut, all_info,
+                                                compress=params.COMPRESS_IMAGES)
+                    if c:
+                        self.log.info(c)
+                    self.log.info('{}: Saved exposure from camera {} ({})'.format(
+                                  expstr, ut, interface_id))
+                    self.image_saving[ut] = 0
+            except Exception:
+                self.log.error('No response from interface {}'.format(interface_id))
+                self.log.debug('', exc_info=True)
+
+        self.log.info('{}: Exposure thread finished'.format(expstr))
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):

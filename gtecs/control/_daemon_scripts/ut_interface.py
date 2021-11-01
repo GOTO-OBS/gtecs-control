@@ -12,9 +12,10 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.ota import FakeH400, H400
+from gtecs.control.fits import glance_location, image_location, write_fits
 from gtecs.control.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.control.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
+from gtecs.control.hardware.ota import FakeH400, H400
 from gtecs.control.hardware.rasa import FocusLynxHub
 
 
@@ -562,6 +563,22 @@ class UTInterfaceDaemon(BaseDaemon):
             except IndexError:
                 images[ut] = None
         return images
+
+    def save_exposure(self, ut, all_info, compress=False):
+        """Fetch the image data and save to a FITS file."""
+        self.log.info('Camera {} fetching image'.format(ut))
+        image_data = self.cameras[ut].fetch_image()
+        self.log.info('Camera {} saving image'.format(ut))
+
+        exposure_info = all_info['cam']['current_exposure']
+        if not exposure_info['glance']:
+            run_number = exposure_info['run_number']
+            filename = image_location(run_number, ut, all_info['params']['tel_number'])
+        else:
+            filename = glance_location(ut, all_info['params']['tel_number'])
+
+        write_fits(image_data, filename, ut, all_info, compress, log=self.log, confirm=False)
+        self.log.info('Camera {} saved image'.format(ut))
 
     def abort_exposure(self, ut):
         """Abort current exposure."""
