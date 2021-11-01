@@ -152,6 +152,7 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None):
 
 def get_all_info(cam_info, log=None, log_debug=False):
     """Get all info dicts from the running daemons, and other common info."""
+    info_time = Time.now()
     all_info = {}
 
     # Camera daemon
@@ -162,7 +163,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
         try:
             if log and log_debug:
                 log.debug(f'Fetching "{daemon_id}" info')
-            force_update = True if daemon_id != 'conditions' else False
+            force_update = bool(daemon_id != 'conditions')
             all_info[daemon_id] = daemon_info(daemon_id, force_update, timeout=60)
             if log and log_debug:
                 log.debug(f'Fetched "{daemon_id}" info')
@@ -179,6 +180,190 @@ def get_all_info(cam_info, log=None, log_debug=False):
         thread.start()
     for thread in threads:
         thread.join()
+
+    # Mount history
+    if all_info['mnt'] is not None:
+        try:
+            info = all_info['mnt']
+            exptime = cam_info['current_exposure']['exptime']
+
+            # Position error history
+            poserr_info = {}
+            poserr_info['hist_time'] = -999
+            poserr_info['ra_max'] = 'NA'
+            poserr_info['ra_mean'] = 'NA'
+            poserr_info['ra_std'] = 'NA'
+            poserr_info['dec_max'] = 'NA'
+            poserr_info['dec_mean'] = 'NA'
+            poserr_info['dec_std'] = 'NA'
+            if info['position_error_history'] is not None:
+                # Get lookback time
+                max_hist = info_time.unix - info['position_error_history'][0][0]
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                if hist_time > max_hist:
+                    hist_time = max_hist
+                poserr_info['hist_time'] = hist_time
+                # Get RA history values
+                ra_hist = [h[1]['ra'] for h in info['position_error_history']
+                           if info_time.unix - h[0] <= hist_time]
+                if len(ra_hist) > 0:
+                    poserr_info['ra_hist'] = ra_hist
+                    poserr_info['ra_max'] = np.max(ra_hist)
+                    poserr_info['ra_mean'] = np.mean(ra_hist)
+                    poserr_info['ra_std'] = np.std(ra_hist)
+                # Get Dec history values
+                dec_hist = [h[1]['dec'] for h in info['position_error_history']
+                            if info_time.unix - h[0] <= hist_time]
+                if len(dec_hist) > 0:
+                    poserr_info['dec_hist'] = dec_hist
+                    poserr_info['dec_max'] = np.max(dec_hist)
+                    poserr_info['dec_mean'] = np.mean(dec_hist)
+                    poserr_info['dec_std'] = np.std(dec_hist)
+            all_info['mnt']['position_error_info'] = poserr_info
+
+            # Tracking error history
+            trackerr_info = {}
+            trackerr_info['hist_time'] = -999
+            trackerr_info['ra_max'] = 'NA'
+            trackerr_info['ra_mean'] = 'NA'
+            trackerr_info['ra_std'] = 'NA'
+            trackerr_info['dec_max'] = 'NA'
+            trackerr_info['dec_mean'] = 'NA'
+            trackerr_info['dec_std'] = 'NA'
+            if info['tracking_error_history'] is not None:
+                # Get lookback time
+                max_hist = info_time.unix - info['tracking_error_history'][0][0]
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                if hist_time > max_hist:
+                    hist_time = max_hist
+                trackerr_info['hist_time'] = hist_time
+                # Get RA history values
+                ra_hist = [h[1]['ra'] for h in info['tracking_error_history']
+                           if info_time.unix - h[0] <= hist_time]
+                if len(ra_hist) > 0:
+                    trackerr_info['ra_hist'] = ra_hist
+                    trackerr_info['ra_max'] = np.max(ra_hist)
+                    trackerr_info['ra_mean'] = np.mean(ra_hist)
+                    trackerr_info['ra_std'] = np.std(ra_hist)
+                # Get Dec history values
+                dec_hist = [h[1]['dec'] for h in info['tracking_error_history']
+                            if info_time.unix - h[0] <= hist_time]
+                if len(dec_hist) > 0:
+                    trackerr_info['dec_hist'] = dec_hist
+                    trackerr_info['dec_max'] = np.max(dec_hist)
+                    trackerr_info['dec_mean'] = np.mean(dec_hist)
+                    trackerr_info['dec_std'] = np.std(dec_hist)
+            all_info['mnt']['tracking_error_info'] = trackerr_info
+
+            # Motor current histroy
+            current_info = {}
+            current_info['hist_time'] = -999
+            current_info['ra_max'] = 'NA'
+            current_info['ra_mean'] = 'NA'
+            current_info['ra_std'] = 'NA'
+            current_info['dec_max'] = 'NA'
+            current_info['dec_mean'] = 'NA'
+            current_info['dec_std'] = 'NA'
+            if info['motor_current_history'] is not None:
+                # Get lookback time
+                max_hist = info_time.unix - info['motor_current_history'][0][0]
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                if hist_time > max_hist:
+                    hist_time = max_hist
+                current_info['hist_time'] = hist_time
+                # Get RA history values
+                ra_hist = [h[1]['ra'] for h in info['motor_current_history']
+                           if info_time.unix - h[0] <= hist_time]
+                if len(ra_hist) > 0:
+                    current_info['ra_hist'] = ra_hist
+                    current_info['ra_max'] = np.max(ra_hist)
+                    current_info['ra_mean'] = np.mean(ra_hist)
+                    current_info['ra_std'] = np.std(ra_hist)
+                # Get Dec history values
+                dec_hist = [h[1]['dec'] for h in info['motor_current_history']
+                            if info_time.unix - h[0] <= hist_time]
+                if len(dec_hist) > 0:
+                    current_info['dec_hist'] = dec_hist
+                    current_info['dec_max'] = np.max(dec_hist)
+                    current_info['dec_mean'] = np.mean(dec_hist)
+                    current_info['dec_std'] = np.std(dec_hist)
+            all_info['mnt']['motor_current_info'] = current_info
+
+        except Exception:
+            if log is None:
+                raise
+            log.error('Failed to calculate mount history info')
+            log.debug('', exc_info=True)
+            all_info['mnt']['position_error_info'] = None
+            all_info['mnt']['tracking_error_info'] = None
+            all_info['mnt']['motor_current_info'] = None
+
+    # Conditions sources
+    if all_info['conditions'] is not None:
+        try:
+            # Select external source
+            ext_source = params.EXTERNAL_WEATHER_SOURCES[0]
+            ext_weather = all_info['conditions']['weather'][ext_source].copy()
+            all_info['conditions']['weather_ext'] = ext_weather
+
+            # Select internal source
+            int_source = params.INTERNAL_WEATHER_SOURCES[0]
+            if int_source in params.EXTERNAL_WEATHER_SOURCES:
+                int_source += '_int'
+            int_weather = all_info['conditions']['weather'][int_source].copy()
+            all_info['conditions']['weather_int'] = int_weather
+
+        except Exception:
+            if log is None:
+                raise
+            log.error('Failed to find conditions sources')
+            log.debug('', exc_info=True)
+            all_info['conditions']['weather_ext'] = None
+            all_info['conditions']['weather_int'] = None
+
+    # Conditions history
+    if all_info['conditions'] is not None and all_info['conditions']['weather_ext'] is not None:
+        try:
+            info = all_info['conditions']['weather_ext']
+            exptime = cam_info['current_exposure']['exptime']
+
+            # Wind gust history
+            hist_info = {}
+            hist_info['hist_time'] = -999
+            hist_info['max'] = 'NA'
+            hist_info['mean'] = 'NA'
+            hist_info['std'] = 'NA'
+            if info['windgust_history'] != -999:
+                # Get lookback time
+                max_hist = info_time.unix - info['windgust_history'][0][0]
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                if hist_time > max_hist:
+                    hist_time = max_hist
+                hist_info['hist_time'] = hist_time
+                # Get gust history values
+                gust_hist = [h[1] for h in info['windgust_history']
+                             if info_time.unix - h[0] <= hist_time]
+                if len(gust_hist) > 0:
+                    hist_info['hist'] = gust_hist
+                    hist_info['max'] = np.max(gust_hist)
+                    hist_info['mean'] = np.mean(gust_hist)
+                    hist_info['std'] = np.std(gust_hist)
+            all_info['conditions']['weather_ext']['windgust_history_info'] = hist_info
+
+        except Exception:
+            if log is None:
+                raise
+            log.error('Failed to calculate conditions history info')
+            log.debug('', exc_info=True)
+            all_info['conditions']['weather_ext']['windgust_history_info'] = None
 
     # Astronomy
     try:
@@ -294,6 +479,22 @@ def get_all_info(cam_info, log=None, log_debug=False):
 
     all_info['db'] = db_info
 
+    # Other params (do this here to ensure they're the same for all UTs)
+    params_info = {}
+    params_info['version'] = params.VERSION
+    params_info['org_name'] = params.ORG_NAME
+    params_info['site_name'] = params.SITE_NAME
+    params_info['site_lat'] = params.SITE_LATITUDE
+    params_info['site_lon'] = params.SITE_LONGITUDE
+    params_info['site_alt'] = params.SITE_ALTITUDE
+    params_info['tel_name'] = params.TELESCOPE_NAME
+    params_info['tel_number'] = params.TELESCOPE_NUMBER
+    params_info['ut_dict'] = params.UT_DICT
+    params_info['uts_with_covers'] = params.UTS_WITH_COVERS
+    params_info['uts_with_focusers'] = params.UTS_WITH_FOCUSERS
+    params_info['uts_with_filterwheels'] = params.UTS_WITH_FILTERWHEELS
+    all_info['params'] = params_info
+
     return all_info
 
 
@@ -310,6 +511,7 @@ def update_header(header, ut, all_info, log=None):
     # header.comments['BZERO   '] = 'Real = Pixel * BSCALE + BZERO'
 
     # Observation info
+    params_info = all_info['params']
     cam_info = all_info['cam']
     exposure_info = cam_info['current_exposure']
     cam_info = cam_info[ut]
@@ -326,21 +528,21 @@ def update_header(header, ut, all_info, log=None):
     write_time = Time.now()
     header['DATE    '] = (write_time.isot, 'Date HDU created')
 
-    header['ORIGIN  '] = (params.ORG_NAME, 'Origin organisation')
+    header['ORIGIN  '] = (params_info['org_name'], 'Origin organisation')
 
-    header['SITE    '] = (params.SITE_NAME, 'Site location')
-    header['SITE-LAT'] = (params.SITE_LATITUDE, 'Site latitude, degrees +N')
-    header['SITE-LON'] = (params.SITE_LONGITUDE, 'Site longitude, degrees +E')
-    header['SITE-ALT'] = (params.SITE_ALTITUDE, 'Site elevation, m above sea level')
+    header['SITE    '] = (params_info['site_name'], 'Site location')
+    header['SITE-LAT'] = (params_info['site_lat'], 'Site latitude, degrees +N')
+    header['SITE-LON'] = (params_info['site_lon'], 'Site longitude, degrees +E')
+    header['SITE-ALT'] = (params_info['site_alt'], 'Site elevation, m above sea level')
 
-    header['TELESCOP'] = (params.TELESCOPE_NAME, 'Origin telescope name')
-    header['TEL     '] = (params.TELESCOPE_NUMBER, 'Origin telescope ID number')
+    header['TELESCOP'] = (params_info['tel_name'], 'Origin telescope name')
+    header['TEL     '] = (params_info['tel_number'], 'Origin telescope ID number')
 
     header['INSTRUME'] = ('UT' + str(ut), 'Origin unit telescope')
     header['UT      '] = (ut, 'Integer UT number')
 
-    if 'HW_VERSION' in params.UT_DICT[ut]:
-        ut_hw_version = params.UT_DICT[ut]['HW_VERSION']
+    if 'HW_VERSION' in params_info['ut_dict'][ut]:
+        ut_hw_version = params_info['ut_dict'][ut]['HW_VERSION']
     else:
         ut_hw_version = 'NA'
     header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
@@ -350,10 +552,10 @@ def update_header(header, ut, all_info, log=None):
     header['UTMASK  '] = (ut_mask, 'Run UT mask integer')
     header['UTMASKBN'] = (ut_string, 'Run UT mask binary string')
 
-    interface_id = params.UT_DICT[ut]['INTERFACE']
+    interface_id = params_info['ut_dict'][ut]['INTERFACE']
     header['INTERFAC'] = (interface_id, 'System interface code')
 
-    header['SWVN    '] = (params.VERSION, 'Software version number')
+    header['SWVN    '] = (params_info['version'], 'Software version number')
 
     status = Status()
     header['SYS-MODE'] = (status.mode, 'Current telescope system mode')
@@ -651,7 +853,7 @@ def update_header(header, ut, all_info, log=None):
         info = all_info['ota'][ut]
         ota_serial = info['serial_number']
         ota_class = info['hw_class']
-        if ut not in params.UTS_WITH_COVERS:
+        if ut not in params_info['uts_with_covers']:
             cover_position = 'NA'
             cover_open = 'NA'
             cover_move_time = 'NA'
@@ -686,7 +888,7 @@ def update_header(header, ut, all_info, log=None):
         if all_info['foc'] is None:
             raise ValueError('No focuser info provided')
 
-        if ut not in params.UTS_WITH_FOCUSERS:
+        if ut not in params_info['uts_with_focusers']:
             foc_serial = 'None'
             foc_class = 'NA'
             foc_pos = 'NA'
@@ -731,7 +933,7 @@ def update_header(header, ut, all_info, log=None):
         if all_info['filt'] is None:
             raise ValueError('No filter wheel info provided')
 
-        if ut not in params.UTS_WITH_FILTERWHEELS:
+        if ut not in params_info['uts_with_filterwheels']:
             filt_serial = 'None'
             filt_class = 'NA'
             filt_filter = 'C'
@@ -874,7 +1076,7 @@ def update_header(header, ut, all_info, log=None):
         current_ra = info['motor_current']['ra']
         current_dec = info['motor_current']['dec']
 
-        if info['position_error_history'] is None:
+        if info['position_error_info'] is None:
             poserr_hist_time = -999
             poserr_ra_max = 'NA'
             poserr_ra_mean = 'NA'
@@ -883,34 +1085,15 @@ def update_header(header, ut, all_info, log=None):
             poserr_dec_mean = 'NA'
             poserr_dec_std = 'NA'
         else:
-            max_hist = write_time.unix - info['position_error_history'][0][0]
-            poserr_hist_time = params.MIN_HEADER_HIST_TIME
-            if exptime > poserr_hist_time:
-                poserr_hist_time = exptime
-            if poserr_hist_time > max_hist:
-                poserr_hist_time = max_hist
-            poserr_ra_hist = [h[1]['ra'] for h in info['position_error_history']
-                              if write_time.unix - h[0] <= poserr_hist_time]
-            if len(poserr_ra_hist) > 0:
-                poserr_ra_max = np.max(poserr_ra_hist)
-                poserr_ra_mean = np.mean(poserr_ra_hist)
-                poserr_ra_std = np.std(poserr_ra_hist)
-            else:
-                poserr_ra_max = 'NA'
-                poserr_ra_mean = 'NA'
-                poserr_ra_std = 'NA'
-            poserr_dec_hist = [h[1]['dec'] for h in info['position_error_history']
-                               if write_time.unix - h[0] <= poserr_hist_time]
-            if len(poserr_dec_hist) > 0:
-                poserr_dec_max = np.max(poserr_dec_hist)
-                poserr_dec_mean = np.mean(poserr_dec_hist)
-                poserr_dec_std = np.std(poserr_dec_hist)
-            else:
-                poserr_dec_max = 'NA'
-                poserr_dec_mean = 'NA'
-                poserr_dec_std = 'NA'
+            poserr_hist_time = info['position_error_info']['hist_time']
+            poserr_ra_max = info['position_error_info']['ra_max']
+            poserr_ra_mean = info['position_error_info']['ra_mean']
+            poserr_ra_std = info['position_error_info']['ra_std']
+            poserr_dec_max = info['position_error_info']['dec_max']
+            poserr_dec_mean = info['position_error_info']['dec_mean']
+            poserr_dec_std = info['position_error_info']['dec_std']
 
-        if info['tracking_error_history'] is None:
+        if info['tracking_error_info'] is None:
             trkerr_hist_time = -999
             trkerr_ra_max = 'NA'
             trkerr_ra_mean = 'NA'
@@ -919,34 +1102,15 @@ def update_header(header, ut, all_info, log=None):
             trkerr_dec_mean = 'NA'
             trkerr_dec_std = 'NA'
         else:
-            max_hist = write_time.unix - info['tracking_error_history'][0][0]
-            trkerr_hist_time = params.MIN_HEADER_HIST_TIME
-            if exptime > trkerr_hist_time:
-                trkerr_hist_time = exptime
-            if trkerr_hist_time > max_hist:
-                trkerr_hist_time = max_hist
-            trkerr_ra_hist = [h[1]['ra'] for h in info['tracking_error_history']
-                              if write_time.unix - h[0] <= trkerr_hist_time]
-            if len(poserr_dec_hist) > 0:
-                trkerr_ra_max = np.max(trkerr_ra_hist)
-                trkerr_ra_mean = np.mean(trkerr_ra_hist)
-                trkerr_ra_std = np.std(trkerr_ra_hist)
-            else:
-                trkerr_ra_max = 'NA'
-                trkerr_ra_mean = 'NA'
-                trkerr_ra_std = 'NA'
-            trkerr_dec_hist = [h[1]['dec'] for h in info['tracking_error_history']
-                               if write_time.unix - h[0] <= trkerr_hist_time]
-            if len(poserr_dec_hist) > 0:
-                trkerr_dec_max = np.max(trkerr_dec_hist)
-                trkerr_dec_mean = np.mean(trkerr_dec_hist)
-                trkerr_dec_std = np.std(trkerr_dec_hist)
-            else:
-                trkerr_dec_max = 'NA'
-                trkerr_dec_mean = 'NA'
-                trkerr_dec_std = 'NA'
+            trkerr_hist_time = info['tracking_error_info']['hist_time']
+            trkerr_ra_max = info['tracking_error_info']['ra_max']
+            trkerr_ra_mean = info['tracking_error_info']['ra_mean']
+            trkerr_ra_std = info['tracking_error_info']['ra_std']
+            trkerr_dec_max = info['tracking_error_info']['dec_max']
+            trkerr_dec_mean = info['tracking_error_info']['dec_mean']
+            trkerr_dec_std = info['tracking_error_info']['dec_std']
 
-        if info['motor_current_history'] is None:
+        if info['motor_current_info'] is None:
             current_hist_time = -999
             current_ra_max = 'NA'
             current_ra_mean = 'NA'
@@ -955,32 +1119,13 @@ def update_header(header, ut, all_info, log=None):
             current_dec_mean = 'NA'
             current_dec_std = 'NA'
         else:
-            max_hist = write_time.unix - info['motor_current_history'][0][0]
-            current_hist_time = params.MIN_HEADER_HIST_TIME
-            if exptime > current_hist_time:
-                current_hist_time = exptime
-            if current_hist_time > max_hist:
-                current_hist_time = max_hist
-            current_ra_hist = [h[1]['ra'] for h in info['motor_current_history']
-                               if write_time.unix - h[0] <= current_hist_time]
-            if len(poserr_dec_hist) > 0:
-                current_ra_max = np.max(current_ra_hist)
-                current_ra_mean = np.mean(current_ra_hist)
-                current_ra_std = np.std(current_ra_hist)
-            else:
-                current_ra_max = 'NA'
-                current_ra_mean = 'NA'
-                current_ra_std = 'NA'
-            current_dec_hist = [h[1]['dec'] for h in info['motor_current_history']
-                                if write_time.unix - h[0] <= current_hist_time]
-            if len(poserr_dec_hist) > 0:
-                current_dec_max = np.max(current_dec_hist)
-                current_dec_mean = np.mean(current_dec_hist)
-                current_dec_std = np.std(current_dec_hist)
-            else:
-                current_dec_max = 'NA'
-                current_dec_mean = 'NA'
-                current_dec_std = 'NA'
+            current_hist_time = info['motor_current_info']['hist_time']
+            current_ra_max = info['motor_current_info']['ra_max']
+            current_ra_mean = info['motor_current_info']['ra_mean']
+            current_ra_std = info['motor_current_info']['ra_std']
+            current_dec_max = info['motor_current_info']['dec_max']
+            current_dec_mean = info['motor_current_info']['dec_mean']
+            current_dec_std = info['motor_current_info']['dec_std']
 
         zen_dist = 90 - mnt_alt
         airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
@@ -1160,62 +1305,42 @@ def update_header(header, ut, all_info, log=None):
         if dust == -999:
             dust = 'NA'
 
-        ext_source = params.EXTERNAL_WEATHER_SOURCES[0]
-        ext_weather = info['weather'][ext_source]
-
-        ext_temp = ext_weather['temperature']
+        ext_temp = info['weather_ext']['temperature']
         if ext_temp == -999:
             ext_temp = 'NA'
 
-        ext_hum = ext_weather['humidity']
+        ext_hum = info['weather_ext']['humidity']
         if ext_hum == -999:
             ext_hum = 'NA'
 
-        ext_wind = ext_weather['windspeed']
+        ext_wind = info['weather_ext']['windspeed']
         if ext_wind == -999:
             ext_wind = 'NA'
 
-        ext_winddir = ext_weather['winddir']
+        ext_winddir = info['weather_ext']['winddir']
         if ext_winddir == -999:
             ext_winddir = 'NA'
 
-        ext_gust = ext_weather['windgust']
+        ext_gust = info['weather_ext']['windgust']
         if ext_gust == -999:
             ext_gust = 'NA'
 
-        if ext_weather['windgust_history'] == -999:
+        if info['weather_ext']['windgust_history_info'] is None:
             hist_time = -999
             ext_gustmax = 'NA'
             ext_gustmean = 'NA'
             ext_guststd = 'NA'
         else:
-            max_hist = write_time.unix - ext_weather['windgust_history'][0][0]
-            hist_time = params.MIN_HEADER_HIST_TIME
-            if exptime > hist_time:
-                hist_time = exptime
-            if hist_time > max_hist:
-                hist_time = max_hist
-            ext_gusthist = [h[1] for h in ext_weather['windgust_history']
-                            if write_time.unix - h[0] <= hist_time]
-            if len(ext_gusthist) > 0:
-                ext_gustmax = np.max(ext_gusthist)
-                ext_gustmean = np.mean(ext_gusthist)
-                ext_guststd = np.std(ext_gusthist)
-            else:
-                ext_gustmax = 'NA'
-                ext_gustmean = 'NA'
-                ext_guststd = 'NA'
+            hist_time = info['weather_ext']['windgust_history_info']['hist_time']
+            ext_gustmax = info['weather_ext']['windgust_history_info']['max']
+            ext_gustmean = info['weather_ext']['windgust_history_info']['mean']
+            ext_guststd = info['weather_ext']['windgust_history_info']['std']
 
-        int_source = params.INTERNAL_WEATHER_SOURCES[0]
-        if int_source in params.EXTERNAL_WEATHER_SOURCES:
-            int_source += '_int'
-        int_weather = info['weather'][int_source]
-
-        int_temp = int_weather['temperature']
+        int_temp = info['weather_int']['temperature']
         if int_temp == -999:
             int_temp = 'NA'
 
-        int_hum = int_weather['humidity']
+        int_hum = info['weather_int']['humidity']
         if int_hum == -999:
             int_hum = 'NA'
 
