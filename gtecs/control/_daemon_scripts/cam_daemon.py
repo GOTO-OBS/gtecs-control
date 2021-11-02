@@ -207,13 +207,30 @@ class CamDaemon(BaseDaemon):
                         all_info = get_all_info(self.info.copy(), self.log)
                         self.log.info('{}: Fetched info from other daemons'.format(expstr))
 
-                        # start saving thread when all exposures are complete
-                        # this means we can start a new exposure while saving the previous one
-                        t = threading.Thread(target=self._exposure_saving_thread,
-                                             args=[self.active_uts.copy(),
-                                                   all_info])
-                        t.daemon = True
-                        t.start()
+                        if params.SAVE_IMAGES_LOCALLY:
+                            # fetch image data from the interfaces and save them from the cam daemon
+                            # do this in a new thread when all exposures are complete,
+                            # so we can start a new exposure while saving the previous one
+                            t = threading.Thread(target=self._exposure_saving_thread,
+                                                 args=[self.active_uts.copy(), all_info])
+                            t.daemon = True
+                            t.start()
+                        else:
+                            # tell the interfaces to save the files themselves
+                            # this is usually pretty quick, so we don't need a separate thread
+
+                            self.log.info('{}: Saving started'.format(expstr))
+                            # if taking glance images, clear all old glances
+                            # (all, not just those in active UTs)
+                            if self.current_exposure.glance:
+                                clear_glance_files(params.TELESCOPE_NUMBER)
+
+                            # save images in parallel
+                            with ThreadPoolExecutor(max_workers=len(self.active_uts)) as executor:
+                                for ut in self.active_uts:
+                                    executor.submit(self._save_exposure, self, ut, all_info)
+
+                            self.log.info('{}: Saving finished'.format(expstr))
 
                         # clear tags, ready for next exposure
                         self.exposing = False
@@ -425,14 +442,15 @@ class CamDaemon(BaseDaemon):
         FITS files within this thread a new exposure can be started as soon as
         the previous one is finished.
         """
-        if len(active_uts) == 0:
-            # We must have aborted before we got to this stage
-            self.log.warning('Exposure saving thread aborted')
-            return
-
         cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
+
+        self.log.info('{}: Saving thread started'.format(expstr))
+        if len(active_uts) == 0:
+            # We must have aborted before we got to this stage
+            self.log.warning('{}: Saving thread aborted'.format(expstr))
+            return
 
         # wait for the thread to loop, otherwise fetching delays the info check
         while True:
@@ -507,35 +525,6 @@ class CamDaemon(BaseDaemon):
                                 log=self.log)
 
                 self.image_saving[ut] = 0
-
-    def _exposure_saving_thread2(self, active_uts, all_info):
-        """Thread to be started whenever an exposure is completed.
-
-        This version expects the FITS files to be written by the interfaces instead of fetching
-        and saving them here.
-        """
-        current_exposure = all_info['cam']['current_exposure']
-        expstr = current_exposure['expstr'].capitalize()
-
-        self.log.info('{}: Saving thread started'.format(expstr))
-        if len(active_uts) == 0:
-            # We must have aborted before we got to this stage
-            self.log.warning('{}: Saving thread aborted'.format(expstr))
-            return
-
-        # Flag the UTs as saving, so we don't back up
-        for ut in active_uts:
-            self.image_saving[ut] = 1
-
-        # if taking glance images, clear all old glances (all, not just those in active UTs)
-        glance = current_exposure['glance']
-        if glance:
-            clear_glance_files(params.TELESCOPE_NUMBER)
-
-        # save images in parallel
-        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
-            for ut in active_uts:
-                executor.submit(self._save_exposure, self, ut, all_info)
 
         self.log.info('{}: Saving thread finished'.format(expstr))
 
