@@ -533,8 +533,8 @@ class CamDaemon(BaseDaemon):
         if glance:
             clear_glance_files(params.TELESCOPE_NUMBER)
 
-        # tell the interface to save the images
-        for ut in active_uts:
+        def save_exposure(self, ut):
+            """Save exposures and log status."""
             interface_id = params.UT_DICT[ut]['INTERFACE']
             self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
             try:
@@ -549,6 +549,12 @@ class CamDaemon(BaseDaemon):
             except Exception:
                 self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
+
+        # save images in parallel
+        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+            for ut in active_uts:
+                # write the FITS file
+                executor.submit(save_exposure, self, ut)
 
         self.log.info('{}: Saving thread finished'.format(expstr))
 
