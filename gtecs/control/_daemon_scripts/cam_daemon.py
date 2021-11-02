@@ -524,23 +524,6 @@ class CamDaemon(BaseDaemon):
             self.log.warning('{}: Saving thread aborted'.format(expstr))
             return
 
-        # wait for the thread to loop, otherwise fetching delays the info check
-        while True:
-            if (self.info['time'] <= cam_info['time']) or (self.loop_time <= self.info['time']):
-                # This is a little dodgey...
-                # If the exposure queue is running we want it to send the next exposure to start
-                # before we start fetching the previous exposure.
-                # The loops are to be fair pretty slow, due to the dependency check.
-                # So we want to wait for 1 full loop, which will include an info check and the
-                # prepare and start steps of the new exposure.
-                # The first check is enough to ensure a new loop has started, but that isn't enough
-                # - we need to let the entire new loop run through. So the second check waits until
-                # the NEXT loop starts, which will update the loop time. Then this should break
-                # BEFORE the info updates, again due to the dependency check.
-                time.sleep(0.01)
-            else:
-                break
-
         # Flag the UTs as saving, so we don't back up
         for ut in active_uts:
             self.image_saving[ut] = 1
