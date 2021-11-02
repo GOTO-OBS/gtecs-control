@@ -486,7 +486,6 @@ class CamDaemon(BaseDaemon):
 
             # wait for images to be fetched
             images = {ut: None for ut in active_uts}
-            all_info = None
             while True:
                 time.sleep(0.001)
                 for ut in active_uts:
@@ -497,7 +496,7 @@ class CamDaemon(BaseDaemon):
                                       expstr, ut, interface_id))
 
                 # keep looping until all the images and info are fetched
-                if all(images[ut] is not None for ut in active_uts) and all_info is not None:
+                if all(images[ut] is not None for ut in active_uts):
                     break
 
         # if taking glance images, clear all old glances (all, not just those in active UTs)
