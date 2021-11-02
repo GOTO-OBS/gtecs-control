@@ -514,14 +514,15 @@ class CamDaemon(BaseDaemon):
         This version expects the FITS files to be written by the interfaces instead of fetching
         and saving them here.
         """
-        if len(active_uts) == 0:
-            # We must have aborted before we got to this stage
-            self.log.warning('Exposure saving thread aborted')
-            return
-
         cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
+
+        self.log.info('{}: Saving thread started'.format(expstr))
+        if len(active_uts) == 0:
+            # We must have aborted before we got to this stage
+            self.log.warning('{}: Saving thread aborted'.format(expstr))
+            return
 
         # wait for the thread to loop, otherwise fetching delays the info check
         while True:
@@ -566,7 +567,7 @@ class CamDaemon(BaseDaemon):
                 self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
 
-        self.log.info('{}: Exposure thread finished'.format(expstr))
+        self.log.info('{}: Saving thread finished'.format(expstr))
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
