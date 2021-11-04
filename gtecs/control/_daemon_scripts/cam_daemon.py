@@ -533,8 +533,6 @@ class CamDaemon(BaseDaemon):
             self.log.warning('{}: Saving thread aborted'.format(expstr))
             return
 
-        self.log.info('{}: Saving finished'.format(expstr))
-
         # if taking glance images, clear all old glances (all, not just those in active UTs)
         glance = current_exposure['glance']
         if glance:
