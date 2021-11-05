@@ -211,13 +211,13 @@ class CamDaemon(BaseDaemon):
                         # so we can start a new exposure while saving this one
                         if params.SAVE_IMAGES_LOCALLY:
                             # fetch image data from the interfaces and save them from the cam daemon
-                            t = threading.Thread(target=self._saving_thread_cam,
+                            t = threading.Thread(target=self._save_images_cam,
                                                  args=[self.active_uts.copy(), all_info])
                             t.daemon = True
                             t.start()
                         else:
                             # tell the interfaces to save the files themselves
-                            t = threading.Thread(target=self._saving_thread_intf,
+                            t = threading.Thread(target=self._save_images_intf,
                                                  args=[self.active_uts.copy(), all_info])
                             t.daemon = True
                             t.start()
@@ -425,7 +425,7 @@ class CamDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-    def _saving_thread_cam(self, active_uts, all_info):
+    def _save_images_cam(self, active_uts, all_info):
         """Thread to be started whenever an exposure is completed.
 
         By containing fetching images from the interfaces and saving them to
@@ -517,16 +517,11 @@ class CamDaemon(BaseDaemon):
 
         self.log.info('{}: Saving thread finished'.format(expstr))
 
-    def _saving_thread_intf(self, active_uts, all_info):
-        """Thread to be started whenever an exposure is completed.
-
-        This thread tells the interfaces to save the images themselves, rather than fetching them
-        and saving them locally to the cam daemon.
-        """
+    def _save_images_intf(self, active_uts, all_info):
+        """Save the images on the interfaces, rather than fetching and saving locally."""
         cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
-        self.log.info('{}: Saving thread started'.format(expstr))
 
         if len(active_uts) == 0:
             # We must have aborted before we got to this stage
@@ -538,29 +533,21 @@ class CamDaemon(BaseDaemon):
         if glance:
             clear_glance_files(params.TELESCOPE_NUMBER)
 
-        # save images in parallel
-        with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
-            for ut in active_uts:
-                executor.submit(self._save_exposure, ut, all_info)
+        # save images on the interfaces in turn
+        # no need for parallelisation here, they should return immediately as the interface
+        # creates new processes for each
+        for ut in active_uts:
+            self.image_saving[ut] = 1
+            interface_id = params.UT_DICT[ut]['INTERFACE']
 
-        self.log.info('{}: Saving thread finished'.format(expstr))
-
-    def _save_exposure(self, ut, all_info):
-        """Save exposures on the interfaces and log status."""
-        self.image_saving[ut] = 1
-        interface_id = params.UT_DICT[ut]['INTERFACE']
-        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
-
-        self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
-        try:
-            with daemon_proxy(interface_id) as interface:
-                interface.save_exposure(ut, all_info, compress=params.COMPRESS_IMAGES)
-                self.log.info('{}: Saved exposure from camera {} ({})'.format(
-                              expstr, ut, interface_id))
-        except Exception:
-            self.log.error('No response from interface {}'.format(interface_id))
-            self.log.debug('', exc_info=True)
-        self.image_saving[ut] = 0
+            self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
+            try:
+                with daemon_proxy(interface_id) as interface:
+                    interface.save_exposure(ut, all_info, compress=params.COMPRESS_IMAGES)
+            except Exception:
+                self.log.error('No response from interface {}'.format(interface_id))
+                self.log.debug('', exc_info=True)
+            self.image_saving[ut] = 0
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
