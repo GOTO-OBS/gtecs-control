@@ -219,7 +219,7 @@ class CamDaemon(BaseDaemon):
                             with daemon_proxy(interface_id) as interface:
                                 ready = interface.exposure_ready(ut)
                             if ready and not self.image_ready[ut]:
-                                self.log.info('{}: Finished exposure on camera {} ({})'.format(
+                                self.log.info('{}: Ready to save exposure on camera {} ({})'.format(
                                               expstr, ut, interface_id))
                                 self.image_ready[ut] = True
                         except Exception:
