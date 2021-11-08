@@ -86,6 +86,19 @@ class ExqDaemon(BaseDaemon):
                 if self.exposure_state == 'init':
                     # STATE 1: Start the mount dithering (then move filters while settling)
                     if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
+                        # Get the mount info
+                        try:
+                            with daemon_proxy('mnt', timeout=10) as mnt_daemon:
+                                mnt_info = mnt_daemon.get_info(force_update=True)
+                        except Exception:
+                            self.log.error('No response from mount daemon')
+                            self.log.debug('', exc_info=True)
+
+                        # Check if the mount is able to move
+                        if mnt_info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                            self.log.warning('Cannot move mount, skipping dither')
+                            self.exposure_state = 'mount_dithering'
+
                         # Offset the mount slightly
                         self.log.info('Offsetting the mount position')
                         try:
@@ -183,8 +196,12 @@ class ExqDaemon(BaseDaemon):
                     # STATE 6: Check if the mount has finished dithering
                     if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
                         # Get the mount info
-                        with daemon_proxy('mnt', timeout=10) as mnt_daemon:
-                            mnt_info = mnt_daemon.get_info(force_update=True)
+                        try:
+                            with daemon_proxy('mnt', timeout=10) as mnt_daemon:
+                                mnt_info = mnt_daemon.get_info(force_update=True)
+                        except Exception:
+                            self.log.error('No response from mount daemon')
+                            self.log.debug('', exc_info=True)
 
                         # Check if the mount is tracking, and the last move was after the
                         # dithering command (otherwise the status doesn't change fast enough)
