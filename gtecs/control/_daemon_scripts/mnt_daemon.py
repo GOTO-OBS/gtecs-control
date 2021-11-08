@@ -356,7 +356,7 @@ class MntDaemon(BaseDaemon):
                     self.log.error('Mount raises error: {}'.format(error_status))
                     temp_info['error_status'] = error_status
                     temp_info['error_status_time'] = self.loop_time
-                elif 'error_status' in self.info:
+                elif (self.info and 'error_status' in self.info):
                     # Keep old errors until a new one is raised
                     temp_info['error_status'] = self.info['error_status']
                     temp_info['error_status_time'] = self.info['error_status_time']
@@ -369,7 +369,7 @@ class MntDaemon(BaseDaemon):
                     self.log.warning('Mount raises warning: {}'.format(warning_status))
                     temp_info['warning_status'] = warning_status
                     temp_info['warning_status_time'] = self.loop_time
-                elif 'warning_status' in self.info:
+                elif (self.info and 'warning_status' in self.info):
                     # Keep old warnings until a new one is raised
                     temp_info['warning_status'] = self.info['warning_status']
                     temp_info['warning_status_time'] = self.info['warning_status_time']
