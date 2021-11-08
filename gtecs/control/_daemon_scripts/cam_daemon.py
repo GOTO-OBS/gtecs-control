@@ -378,6 +378,8 @@ class CamDaemon(BaseDaemon):
                         ut_info['status'] = 'Exposing'
                     elif self.exposure_state != 'none':
                         ut_info['status'] = 'Reading'
+                    else:
+                        ut_info['status'] = 'Ready'
                 else:
                     ut_info['status'] = 'Ready'
                 ut_info['exposure_start_time'] = self.exposure_start_time[ut]
