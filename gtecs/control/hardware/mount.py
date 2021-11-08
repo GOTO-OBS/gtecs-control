@@ -310,8 +310,12 @@ class DDM500(object):
 
     def error_check(self):
         """Check for any errors raised by the mount."""
-        return self.mount.error_raised()
+        error_raised = self.mount.error_raised()
+        if error_raised:
+            return error_raised
 
     def warning_check(self):
         """Check for any warnings raised by the mount."""
-        return self.mount.warning_raised()
+        warning_raised = self.mount.warning_raised()
+        if warning_raised:
+            return warning_raised
