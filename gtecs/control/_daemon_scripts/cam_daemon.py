@@ -174,15 +174,14 @@ class CamDaemon(BaseDaemon):
                     self.exposing_start_time = self.loop_time
                     self.exposure_state = 'exposing'
 
-                if self.exposure_state == 'exposing':
+                if (self.exposure_state == 'exposing' and
+                        self.loop_time > self.exposing_start_time):
                     # STATE 2: Wait for exposures to finish
-                    if self.info['time'] <= self.exposing_start_time:
-                        # We need to wait for at least a single loop to update the info dict,
-                        # and to give time for the exposure to start
-                        continue
+                    # Note we need to wait for at least a single loop to update the info dict,
+                    # and to give time for the exposures to start.
 
-                    # check if exposures are complete
-                    # NB this won't mean the images are ready to save, since they need to be
+                    # Check if exposures are complete
+                    # This won't mean the images are ready to save, since they need to be
                     # read out of the cameras first: that usually takes ~5s, and is done by a
                     # thread within the interfaces (actually within fliapi.USBCamera)
                     for ut in self.active_uts:
@@ -199,7 +198,6 @@ class CamDaemon(BaseDaemon):
                             self.log.debug('', exc_info=True)
 
                     if all(self.exposure_finished[ut] for ut in self.active_uts):
-                        self.exposing_start_time = 0
                         self.exposure_state = 'reading_out'
 
                 if self.exposure_state == 'reading_out':
@@ -229,12 +227,12 @@ class CamDaemon(BaseDaemon):
                     if all(self.image_ready[ut] for ut in self.active_uts):
                         self.exposure_state = 'images_ready'
 
-                if self.exposure_state == 'images_ready':
+                if (self.exposure_state == 'images_ready' and
+                        all(self.image_saving[ut] is False for ut in self.active_uts) and
+                        self.loop_time > self.exposing_start_time + params.MIN_EXPOSURE_DELAY):
                     # STATE 4: Begin fetching/saving the images
-                    if any(self.image_saving[ut] for ut in self.active_uts):
-                        # The image thread is currently running, probably for a previous exposure
-                        # We need to wait for it to finish before we start saving again.
-                        continue
+                    # Note we need to ensure that the image thread isn't currently running,
+                    # and we also enforce a minimum 10s exposure time to stop saving too often.
 
                     if params.SAVE_IMAGES_LOCALLY:
                         # fetch image data from the interfaces and save them from the cam daemon
@@ -247,9 +245,10 @@ class CamDaemon(BaseDaemon):
                     t.daemon = True
                     t.start()
 
-                    # clear tags, ready for next exposure
+                    # Clear tags, ready for next exposure
                     self.exposure_state = 'none'
                     self.current_exposure = None
+                    self.exposing_start_time = 0
                     self.exposure_start_time = {ut: 0 for ut in self.uts}
                     self.exposure_finished = {ut: False for ut in self.uts}
                     self.image_ready = {ut: False for ut in self.uts}
@@ -489,7 +488,7 @@ class CamDaemon(BaseDaemon):
         future_images = {ut: None for ut in active_uts}
         with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
             for ut in active_uts:
-                self.image_saving[ut] = 1
+                self.image_saving[ut] = True
                 interface_id = params.UT_DICT[ut]['INTERFACE']
                 interface = daemon_proxy(interface_id, timeout=99)
                 try:
@@ -539,7 +538,7 @@ class CamDaemon(BaseDaemon):
                                 compress=params.COMPRESS_IMAGES,
                                 log=self.log)
 
-                self.image_saving[ut] = 0
+                self.image_saving[ut] = False
 
         self.log.info('{}: Saving thread finished'.format(expstr))
 
@@ -563,7 +562,7 @@ class CamDaemon(BaseDaemon):
         # no need for parallelisation here, they should return immediately as the interface
         # creates new processes for each
         for ut in active_uts:
-            self.image_saving[ut] = 1
+            self.image_saving[ut] = True
             interface_id = params.UT_DICT[ut]['INTERFACE']
 
             self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
@@ -573,7 +572,7 @@ class CamDaemon(BaseDaemon):
             except Exception:
                 self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
-            self.image_saving[ut] = 0
+            self.image_saving[ut] = False
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
