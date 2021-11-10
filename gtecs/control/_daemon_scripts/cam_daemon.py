@@ -175,10 +175,10 @@ class CamDaemon(BaseDaemon):
                     self.exposure_state = 'exposing'
 
                 if (self.exposure_state == 'exposing' and
-                        self.loop_time > self.exposing_start_time):
+                        self.info['time'] > self.exposing_start_time):
                     # STATE 2: Wait for exposures to finish
-                    # Note we need to wait for at least a single loop to update the info dict,
-                    # and to give time for the exposures to start.
+                    # Note we need to wait for the info dict to be updated with the current exposure
+                    # details, which also gives time for the exposures to start.
 
                     # Check if exposures are complete
                     # This won't mean the images are ready to save, since they need to be
