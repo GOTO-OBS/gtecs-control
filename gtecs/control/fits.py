@@ -158,6 +158,8 @@ def get_all_info(cam_info, log=None, log_debug=False):
 
     # Camera daemon
     all_info['cam'] = cam_info
+    if 'current_exposure' not in cam_info or cam_info['current_exposure'] is None:
+        raise ValueError('No current exposure details in camera info dict')
 
     # Get the info from the other daemons in parallel to save time
     def daemon_info_thread(daemon_id, log=None, log_debug=False):
