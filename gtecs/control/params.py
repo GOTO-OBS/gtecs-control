@@ -275,6 +275,8 @@ FOCUS_COMPENSATION_VERBOSE = config['FOCUS_COMPENSATION_VERBOSE']
 
 ############################################################
 # Camera parameters
+MIN_EXPOSURE_DELAY = config['MIN_EXPOSURE_DELAY']
+SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
 COMPRESS_IMAGES = config['COMPRESS_IMAGES']
@@ -283,7 +285,9 @@ MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 
 ############################################################
 # Exposure Queue parameters
-QUEUE_PATH = FILE_PATH
+EXQ_DITHERING = config['EXQ_DITHERING']
+DITHERING_DIRECTION = config['DITHERING_DIRECTION']
+DITHERING_DISTANCE = config['DITHERING_DISTANCE']
 
 ############################################################
 # Power parameters

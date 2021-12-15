@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import multiprocessing as mp
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -12,9 +13,10 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.ota import FakeH400, H400
+from gtecs.control.fits import glance_location, image_location, write_fits
 from gtecs.control.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.control.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
+from gtecs.control.hardware.ota import FakeH400, H400
 from gtecs.control.hardware.rasa import FocusLynxHub
 
 
@@ -551,6 +553,48 @@ class UTInterfaceDaemon(BaseDaemon):
         """Fetch the image."""
         self.log.info('Camera {} fetching image'.format(ut))
         return self.cameras[ut].fetch_image()
+
+    def fetch_exposures(self):
+        """Fetch images from all cameras."""
+        images = {}
+        for ut in self.uts:
+            self.log.info('Camera {} fetching image'.format(ut))
+            try:
+                images[ut] = self.cameras[ut].fetch_image()
+            except IndexError:
+                images[ut] = None
+        return images
+
+    def _write_fits(self, image_data, ut, all_info, compress=False):
+        """Write image data to a FITS file."""
+        exposure_info = all_info['cam']['current_exposure']
+        if not exposure_info['glance']:
+            run_number = exposure_info['run_number']
+            filename = image_location(run_number, ut, all_info['params']['tel_number'])
+        else:
+            filename = glance_location(ut, all_info['params']['tel_number'])
+
+        self.log.info('Camera {} saving image to {}'.format(ut, filename))
+        write_fits(image_data, filename, ut, all_info, compress, log=self.log, confirm=False)
+        self.log.info('Camera {} saved image'.format(ut))
+
+    def save_exposure(self, ut, all_info, compress=False, method='proc'):
+        """Fetch the image data and save to a FITS file."""
+        self.log.info('Camera {} fetching image'.format(ut))
+        image_data = self.cameras[ut].fetch_image()
+
+        if method == 'proc':
+            # Start image saving in a new process
+            p = mp.Process(target=self._write_fits, args=[image_data, ut, all_info, compress])
+            p.start()
+        elif method == 'thread':
+            # Start image saving in a new thread
+            t = threading.Thread(target=self._write_fits, args=[image_data, ut, all_info, compress])
+            t.daemon = True
+            t.start()
+        else:
+            # Just save directly here
+            self._write_fits(image_data, ut, all_info, compress)
 
     def abort_exposure(self, ut):
         """Abort current exposure."""

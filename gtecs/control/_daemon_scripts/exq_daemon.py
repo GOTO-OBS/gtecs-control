@@ -20,15 +20,21 @@ class ExqDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('exq')
 
-        # exq is dependent on all the interfaces, cam and filt
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
+        # exq is dependent on cam and filt
+        # those also depend on the interfaces, so logically exq does too,
+        # but it's a waste of time to check them here
         self.dependencies.add('cam')
         self.dependencies.add('filt')
+        if params.EXQ_DITHERING:
+            # with dithering it's also dependent on mnt
+            self.dependencies.add('mnt')
 
         # exposure queue variables
+        self.paused = True  # start paused
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
+        self.exposure_state = 'none'
+        self.dither_time = 0
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
         try:
@@ -36,9 +42,6 @@ class ExqDaemon(BaseDaemon):
                 self.latest_set_number = int(f.read())
         except Exception:
             self.latest_set_number = 0
-
-        self.working = 0
-        self.paused = 1  # start paused
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -70,41 +73,175 @@ class ExqDaemon(BaseDaemon):
                 self._get_info()
 
             # exposure queue processes
-            # check the queue, take off the first entry (if not paused)
-            queue_len = len(self.exp_queue)
-            if (queue_len > 0) and not self.paused and not self.working:
-                # OK - time to add a new exposure
-                self.log.info('Taking exposure')
-                self.working = 1
-                self.current_exposure = self.exp_queue.pop(0)
+            # only do anything if we're not paused (and we're not in the middle of an exposure)
+            if (not self.paused) or (self.exposure_state != 'none'):
+                # If we're not currently doing anything and there are exposures in the
+                # queue then pop off the first one and make that the current
+                if self.current_exposure is None and len(self.exp_queue) > 0:
+                    self.log.info('Starting new exposure')
+                    self.current_exposure = self.exp_queue.pop(0)
+                    self.exposure_state = 'init'  # STATE 0, essentially
 
-                # set the filter, if needed
-                if self._need_to_change_filter():
+                # Exposure state machine
+                if self.exposure_state == 'init':
+                    # STATE 1: Start the mount dithering (then move filters while settling)
+                    if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
+                        # Get the mount info
+                        try:
+                            with daemon_proxy('mnt', timeout=10) as mnt_daemon:
+                                mnt_info = mnt_daemon.get_info(force_update=True)
+                        except Exception:
+                            self.log.error('No response from mount daemon')
+                            self.log.debug('', exc_info=True)
+
+                        # Check if the mount is able to move
+                        if mnt_info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                            self.log.warning('Cannot move mount, skipping dither')
+                            self.exposure_state = 'mount_dithering'
+
+                        # Offset the mount slightly
+                        self.log.info('Offsetting the mount position')
+                        try:
+                            with daemon_proxy('mnt') as mnt_daemon:
+                                mnt_daemon.offset(params.DITHERING_DIRECTION,
+                                                  params.DITHERING_DISTANCE)
+                                self.dither_time = self.loop_time
+                                self.exposure_state = 'mount_dithering'
+                        except Exception:
+                            self.log.error('No response from mount daemon')
+                            self.log.debug('', exc_info=True)
+                    else:
+                        # No dithering, skip ahead
+                        self.exposure_state = 'mount_dithering'
+
+                if self.exposure_state == 'mount_dithering':
+                    # STATE 2: Check if we need to home the filters
+                    if self.current_exposure.filt is None:
+                        # Filter doesn't matter, e.g. dark, so skip to the exposures
+                        self.exposure_state = 'filters_set'
+                    else:
+                        # Get the filter wheel info
+                        with daemon_proxy('filt') as filt_daemon:
+                            filt_info = filt_daemon.get_info(force_update=False)
+                        filt_uts = [ut for ut in self.current_exposure.ut_list
+                                    if ut in params.UTS_WITH_FILTERWHEELS]
+
+                        # Check if we need to home the filters
+                        if all(filt_info[ut]['homed'] for ut in filt_uts):
+                            # Skip over checking homing state
+                            self.exposure_state = 'filters_homed'
+                        else:
+                            self.log.info('Homing filter wheels')
+                            try:
+                                with daemon_proxy('filt') as filt_daemon:
+                                    filt_daemon.home_filters(filt_uts)
+                                    self.exposure_state = 'filters_homing'
+                            except Exception:
+                                self.log.error('No response from filter wheel daemon')
+                                self.log.debug('', exc_info=True)
+
+                if self.exposure_state == 'filters_homing':
+                    # STATE 3: Check if the filters have finished homing
+                    # Get the filter wheel info
+                    with daemon_proxy('filt', timeout=10) as filt_daemon:
+                        filt_info = filt_daemon.get_info(force_update=True)
+                    filt_uts = [ut for ut in self.current_exposure.ut_list
+                                if ut in params.UTS_WITH_FILTERWHEELS]
+
+                    # Continue when all the filters are homed
+                    if all(filt_info[ut]['homed'] for ut in filt_uts):
+                        self.log.info('Filter wheels homed')
+                        self.exposure_state = 'filters_homed'
+
+                if self.exposure_state == 'filters_homed':
+                    # STATE 4: Check if we need to change the filters
+                    # Get the filter wheel info
+                    with daemon_proxy('filt') as filt_daemon:
+                        filt_info = filt_daemon.get_info(force_update=False)
+                    filt_uts = [ut for ut in self.current_exposure.ut_list
+                                if ut in params.UTS_WITH_FILTERWHEELS]
+
+                    # Check if we need to change the filters
+                    if all(filt_info[ut]['current_filter'] == self.current_exposure.filt
+                           for ut in filt_uts):
+                        # Skip over checking filters state
+                        self.exposure_state = 'filters_set'
+                    else:
+                        self.log.info('Setting filter wheels to {}'.format(
+                                      self.current_exposure.filt))
+                        try:
+                            with daemon_proxy('filt') as filt_daemon:
+                                filt_dict = {ut: self.current_exposure.filt for ut in filt_uts}
+                                filt_daemon.set_filters(filt_dict)
+                                self.exposure_state = 'filters_setting'
+                        except Exception:
+                            self.log.error('No response from filter wheel daemon')
+                            self.log.debug('', exc_info=True)
+
+                if self.exposure_state == 'filters_setting':
+                    # STATE 5: Check if the filters have finished setting
+                    # Get the filter wheel info
+                    with daemon_proxy('filt', timeout=10) as filt_daemon:
+                        filt_info = filt_daemon.get_info(force_update=True)
+                    filt_uts = [ut for ut in self.current_exposure.ut_list
+                                if ut in params.UTS_WITH_FILTERWHEELS]
+
+                    # Continue when the filters are set
+                    if all(filt_info[ut]['current_filter'] == self.current_exposure.filt
+                           for ut in filt_uts):
+                        self.log.info('Filter wheels set')
+                        self.exposure_state = 'filters_set'
+
+                if self.exposure_state == 'filters_set':
+                    # STATE 6: Check if the mount has finished dithering
+                    if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
+                        # Get the mount info
+                        try:
+                            with daemon_proxy('mnt', timeout=10) as mnt_daemon:
+                                mnt_info = mnt_daemon.get_info(force_update=True)
+                        except Exception:
+                            self.log.error('No response from mount daemon')
+                            self.log.debug('', exc_info=True)
+
+                        # Check if the mount is tracking, and the last move was after the
+                        # dithering command (otherwise the status doesn't change fast enough)
+                        if (mnt_info['status'] == 'Tracking' and
+                                mnt_info['last_move_time'] > self.dither_time and
+                                self.loop_time > mnt_info['last_move_time'] + 1):
+                            self.log.info('Mount tracking')
+                            self.exposure_state = 'mount_tracking'
+                    else:
+                        # No dithering, skip ahead
+                        self.exposure_state = 'mount_tracking'
+
+                if self.exposure_state == 'mount_tracking':
+                    # STATE 7: Ready to start the exposure
+                    if not self.current_exposure.glance:
+                        self.log.info('Starting {:.0f}s exposure'.format(
+                            self.current_exposure.exptime))
+                    else:
+                        self.log.info('Starting {:.0f}s glance'.format(
+                            self.current_exposure.exptime))
                     try:
-                        self._set_filter()
+                        with daemon_proxy('cam') as cam_daemon:
+                            cam_daemon.take_exposure(self.current_exposure)
+                            self.exposure_state = 'cameras_exposing'
                     except Exception:
-                        self.log.error('set_filter command failed')
+                        self.log.error('No response from camera daemon')
                         self.log.debug('', exc_info=True)
-                    # sleep briefly, to make sure the filter wheel has stopped
-                    time.sleep(0.5)
-                else:
-                    self.log.info('No need to move filter wheel')
 
-                # take the image
-                try:
-                    self._take_image()
-                except Exception:
-                    self.log.error('take_image command failed')
-                    self.log.debug('', exc_info=True)
+                if self.exposure_state == 'cameras_exposing':
+                    # STATE 8: Check if the exposure has finished
+                    # Get the camera info
+                    with daemon_proxy('cam') as cam_daemon:
+                        cam_exposing = cam_daemon.is_exposing()
 
-                # done!
-                self.working = 0
-                self.current_exposure = None
-                self.force_check_flag = True
-
-            elif queue_len == 0 or self.paused:
-                # either we are paused, or nothing in the queue
-                time.sleep(1.0)
+                    # Check if the exposure has finished
+                    if not cam_exposing:
+                        self.log.info('Exposure complete')
+                        self.current_exposure = None
+                        self.exposure_state = 'none'
+                        self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -125,7 +262,7 @@ class ExqDaemon(BaseDaemon):
         # Get internal info
         if self.paused:
             temp_info['status'] = 'Paused'
-        elif self.working:
+        elif self.current_exposure is not None:
             temp_info['status'] = 'Working'
         else:
             temp_info['status'] = 'Ready'
@@ -168,120 +305,6 @@ class ExqDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-    def _need_to_change_filter(self):
-        new_filt = self.current_exposure.filt
-        if new_filt is None:
-            # filter doesn't matter, e.g. dark
-            return False
-
-        ut_list = [ut for ut in self.current_exposure.ut_list
-                   if ut in params.UTS_WITH_FILTERWHEELS]
-        with daemon_proxy('filt') as filt_daemon:
-            filt_info = filt_daemon.get_info()
-        homed_check = [filt_info[ut]['homed'] for ut in ut_list]
-        if not all(homed_check):
-            self.log.info('Need to home filter wheels')
-            self._home_filter_wheels()
-
-        check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
-                 for ut in ut_list]
-        if all(check):
-            return False
-        else:
-            return True
-
-    def _home_filter_wheels(self):
-        self.log.info('Homing filter wheels')
-        ut_list = [ut for ut in self.current_exposure.ut_list
-                   if ut in params.UTS_WITH_FILTERWHEELS]
-        try:
-            with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.home_filters(ut_list)
-        except Exception:
-            self.log.error('No response from filter wheel daemon')
-            self.log.debug('', exc_info=True)
-
-        self._get_info()
-        time.sleep(3)
-        with daemon_proxy('filt') as filt_daemon:
-            filt_info = filt_daemon.get_info()
-        homed_check = [filt_info[ut]['homed'] for ut in ut_list]
-        while not all(homed_check):
-            with daemon_proxy('filt') as filt_daemon:
-                filt_info = filt_daemon.get_info()
-            homed_check = [filt_info[ut]['homed'] for ut in ut_list]
-            time.sleep(0.5)
-
-            # keep ping alive
-            self.loop_time = time.time()
-            self._get_info()
-        self.log.info('Filter wheels homed')
-
-    def _set_filter(self):
-        new_filt = self.current_exposure.filt
-        ut_list = [ut for ut in self.current_exposure.ut_list
-                   if ut in params.UTS_WITH_FILTERWHEELS]
-        self.log.info('Setting filter to {} on {!r}'.format(new_filt, ut_list))
-        filt_dict = {ut: new_filt for ut in ut_list}
-        try:
-            with daemon_proxy('filt') as filt_daemon:
-                filt_daemon.set_filters(filt_dict)
-        except Exception:
-            self.log.error('No response from filter wheel daemon')
-            self.log.debug('', exc_info=True)
-
-        self._get_info()
-        time.sleep(3)
-        with daemon_proxy('filt') as filt_daemon:
-            filt_info = filt_daemon.get_info()
-        check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
-                 for ut in ut_list]
-        while not all(check):
-            with daemon_proxy('filt') as filt_daemon:
-                filt_info = filt_daemon.get_info()
-            check = [params.FILTER_LIST[filt_info[ut]['current_filter_num']] == new_filt
-                     for ut in ut_list]
-            time.sleep(0.5)
-
-            # keep ping alive
-            self.loop_time = time.time()
-            self._get_info()
-        self.log.info('Filter wheel move complete, now at {}'.format(new_filt))
-
-    def _take_image(self):
-        exptime = self.current_exposure.exptime
-        binning = self.current_exposure.binning
-        frametype = self.current_exposure.frametype
-        ut_list = [ut for ut in self.current_exposure.ut_list
-                   if ut in params.UTS_WITH_CAMERAS]
-        glance = self.current_exposure.glance
-        if not glance:
-            self.log.info('Taking exposure ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
-                          exptime, binning, binning, frametype, ut_list))
-        else:
-            self.log.info('Taking glance ({:.0f}s, {:.0f}x{:.0f}, {}) on {!r}'.format(
-                          exptime, binning, binning, frametype, ut_list))
-        try:
-            with daemon_proxy('cam') as cam_daemon:
-                cam_daemon.take_exposure(self.current_exposure)
-        except Exception:
-            self.log.error('No response from camera daemon')
-            self.log.debug('', exc_info=True)
-
-        self._get_info()
-        time.sleep(3)
-        with daemon_proxy('cam') as cam_daemon:
-            cam_exposing = cam_daemon.is_exposing()
-        while cam_exposing:
-            with daemon_proxy('cam') as cam_daemon:
-                cam_exposing = cam_daemon.is_exposing()
-
-            time.sleep(0.5)
-            # keep main thread alive
-            self.loop_time = time.time()
-            self._get_info()
-        self.log.info('Camera exposure complete')
 
     # Control functions
     def add(self, ut_list, exptime, nexp=1,
@@ -397,7 +420,7 @@ class ExqDaemon(BaseDaemon):
             return 'Queue already paused'
 
         # Set values
-        self.paused = 1
+        self.paused = True
 
         self.log.info('Queue paused')
         return 'Queue paused'
@@ -413,7 +436,7 @@ class ExqDaemon(BaseDaemon):
             return 'Queue already resumed'
 
         # Set values
-        self.paused = 0
+        self.paused = False
 
         self.log.info('Queue resumed')
         return 'Queue resumed'

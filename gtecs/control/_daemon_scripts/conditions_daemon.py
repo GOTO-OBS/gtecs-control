@@ -211,8 +211,9 @@ class ConditionsDaemon(BaseDaemon):
                                     'dt': -999,
                                     }
 
-                # Format source key
-                source = source.lower().split('-')[-1] + '_int'
+                # Format source key if it's the same as an external one
+                if source in params.EXTERNAL_WEATHER_SOURCES:
+                    source += '_int'
 
                 try:
                     # Save a history of temperature so we can detect glitches

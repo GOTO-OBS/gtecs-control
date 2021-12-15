@@ -136,7 +136,11 @@ def query(command, args, daemon_id):
 
     # Other functions
     elif command in ['list', 'ls']:
-        print(params.FILTER_LIST)
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'get_info', [False])
+        # print response
+        for ut in params.UTS_WITH_FILTERWHEELS:
+            print('UT{} filters: {}'.format(ut, ','.join(reply[ut]['filters'])))
 
     # Unrecognized function
     else:
@@ -153,9 +157,7 @@ def print_info(info):
             if not info[ut]['homed']:
                 print('Current filter: UNHOMED')
             else:
-                current_filter_num = info[ut]['current_filter_num']
-                current_filter = params.FILTER_LIST[current_filter_num]
-                print('Current filter:     {}'.format(current_filter))
+                print('Current filter:     {}'.format(info[ut]['current_filter']))
         else:
             print('Status: {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
             print('Current filter:     N/A')
@@ -177,9 +179,7 @@ def print_info_s(info):
             if not info[ut]['homed']:
                 print('Current filter: UNHOMED', end=' ')
             else:
-                current_filter_num = info[ut]['current_filter_num']
-                current_filter = params.FILTER_LIST[current_filter_num]
-                print('  Current filter: {}'.format(current_filter), end=' ')
+                print('  Current filter: {}'.format(info[ut]['current_filter']), end=' ')
                 print('({})'.format(info[ut]['current_filter_num']), end=' ')
             print('  [{}]'.format(info[ut]['status']))
         else:

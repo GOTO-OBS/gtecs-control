@@ -250,9 +250,10 @@ def get_daemon_status(daemon_id):
 
 
 def daemon_is_alive(daemon_id):
-    """Check if a daemon is running and reports no errors."""
+    """Quickly check if a daemon is running and reports no errors."""
     try:
-        return bool(get_daemon_status(daemon_id) == 'running')
+        with daemon_proxy(daemon_id) as daemon:
+            return bool(daemon.get_status() == 'running')
     except Exception:
         return False
 

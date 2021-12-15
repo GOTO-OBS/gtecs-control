@@ -350,6 +350,33 @@ class MntDaemon(BaseDaemon):
                 temp_info['tracking_error_history'] = t_error_history
                 temp_info['motor_current_history'] = current_history
 
+                # Log any errors or warnings from the mount, along with the time of occurrence
+                error_status = self.mount.error_check()
+                if error_status is not None:
+                    self.log.error('Mount raises error: {}'.format(error_status))
+                    temp_info['error_status'] = error_status
+                    temp_info['error_status_time'] = self.loop_time
+                elif (self.info and 'error_status' in self.info):
+                    # Keep old errors until a new one is raised
+                    temp_info['error_status'] = self.info['error_status']
+                    temp_info['error_status_time'] = self.info['error_status_time']
+                else:
+                    temp_info['error_status'] = None
+                    temp_info['error_status_time'] = None
+
+                warning_status = self.mount.warning_check()
+                if warning_status is not None:
+                    self.log.warning('Mount raises warning: {}'.format(warning_status))
+                    temp_info['warning_status'] = warning_status
+                    temp_info['warning_status_time'] = self.loop_time
+                elif (self.info and 'warning_status' in self.info):
+                    # Keep old warnings until a new one is raised
+                    temp_info['warning_status'] = self.info['warning_status']
+                    temp_info['warning_status_time'] = self.info['warning_status_time']
+                else:
+                    temp_info['warning_status'] = None
+                    temp_info['warning_status_time'] = None
+
         except Exception:
             self.log.error('Failed to get mount info')
             self.log.debug('', exc_info=True)

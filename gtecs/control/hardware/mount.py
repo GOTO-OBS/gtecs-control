@@ -309,7 +309,13 @@ class DDM500(object):
         self.slew_to_radec(new_coord.ra.hourangle, new_coord.dec.deg, set_target=False)
 
     def error_check(self):
-        """Check for any errors logged by the mount."""
-        error_status = self.mount.error_raised()
-        if error_status:
-            raise ValueError(error_status)
+        """Check for any errors raised by the mount."""
+        error_raised = self.mount.error_raised()
+        if error_raised:
+            return error_raised
+
+    def warning_check(self):
+        """Check for any warnings raised by the mount."""
+        warning_raised = self.mount.warning_raised()
+        if warning_raised:
+            return warning_raised

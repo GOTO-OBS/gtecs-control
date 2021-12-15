@@ -12,6 +12,7 @@ from gtecs.control import daemons
 from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
+from gtecs.control import style
 
 
 DAEMON_ID = os.path.basename(__file__)
@@ -378,6 +379,12 @@ def print_info(info):
         print('LST:              {:.2f}'.format(info['lst']))
         print('Hour Angle:       {:.2f}'.format(info['ha']))
     elif info['class'] == 'ASA':
+        if info['error_status'] is not None:
+            t = Time(info['error_status_time'], format='unix', precision=0)
+            print(style.rtxt('ERROR: {} ({})'.format(info['error_status'], t)))
+        if info['warning_status'] is not None:
+            t = Time(info['warning_status_time'], format='unix', precision=0)
+            print(style.ytxt('WARNING: {} ({})'.format(info['warning_status'], t)))
         print('RA track rate:    {:>6.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
         print('Dec track rate:   {:>6.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
         print('RA tracking err:   {:+.4f} arcsec'.format(info['tracking_error']['ra']))
@@ -413,6 +420,12 @@ def print_info_s(info):
 
     print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
     print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
+    if info['error_status'] is not None:
+        t = Time(info['error_status_time'], format='unix', precision=0)
+        print(style.rtxt('ERROR: {} ({})'.format(info['error_status'], t)))
+    if info['warning_status'] is not None:
+        t = Time(info['warning_status_time'], format='unix', precision=0)
+        print(style.ytxt('WARNING: {} ({})'.format(info['warning_status'], t)))
 
 
 def print_instructions():
