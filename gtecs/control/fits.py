@@ -1462,7 +1462,7 @@ def read_fits(filepath, dtype='int32'):
     return data
 
 
-def get_image_data(run_number=None, direc=None, uts=None):
+def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
     """Open the most recent images and return the data.
 
     Parameters
@@ -1476,6 +1476,8 @@ def get_image_data(run_number=None, direc=None, uts=None):
     uts : list of ints, default=None
         the UTs to read the files of
         if None, open files from all UTs
+    timeout : float, default=None
+        time in seconds after which to timeout. None to wait forever
 
     Returns
     -------
@@ -1498,8 +1500,28 @@ def get_image_data(run_number=None, direc=None, uts=None):
     filenames = {ut: image_filename(params.TELESCOPE_NUMBER, run_number, ut) for ut in uts}
     filepaths = {ut: os.path.join(path, filenames[ut]) for ut in filenames}
 
-    # limit it to only existing files
-    filepaths = {ut: filepaths[ut] for ut in filepaths if os.path.exists(filepaths[ut])}
+    # wait until the images exist, if they don't already
+    start_time = time.time()
+    files_exist = False
+    timed_out = False
+    while not files_exist and not timed_out:
+        time.sleep(0.2)
+
+        try:
+            done = [os.path.exists(filepaths[ut]) for ut in filepaths]
+            print(done)
+            if np.all(done):
+                files_exist = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Image fetching timed out')
+    filepaths = {ut: filepaths[ut] for ut in filepaths}
+
     print('Loading run r{:07d}: {} images'.format(run_number, len(filepaths)))
 
     # read the files
