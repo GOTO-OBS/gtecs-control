@@ -696,6 +696,9 @@ class ConditionsDaemon(BaseDaemon):
         # ~~~~~~~~~~~~~~
         # Trigger Slack alerts for critical flags
         for flag in self.critical_flag_names:
+            if flag in self.ignored_flags:
+                # If we're ignoring the flag (e.g. hatch in non-robo) don't send an alert
+                continue
             if old_flags[flag] == 0 and self.flags[flag] == 1:
                 # The flag has been set to bad
                 self.log.warning('Critical flag {} set to bad'.format(flag))
