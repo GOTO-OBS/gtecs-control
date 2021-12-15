@@ -50,13 +50,18 @@ SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 
-# use colour and fancy formatting in output?
-FANCY_OUTPUT = config['FANCY_OUTPUT']
-
-# Email alerts
+# People to email in emergency
 EMAIL_LIST = config['EMAIL_LIST']
+
+# Email account to send emails from
 EMAIL_ADDRESS = config['EMAIL_ADDRESS']
 EMAIL_SERVER = config['EMAIL_SERVER']
+
+# Use colour and fancy formatting in output?
+FANCY_OUTPUT = config['FANCY_OUTPUT']
+
+# Debug - print commands?
+COMMAND_DEBUG = config['COMMAND_DEBUG']
 
 ############################################################
 # Daemon parameters

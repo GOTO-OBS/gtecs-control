@@ -43,6 +43,8 @@ def kill_process(pidname, host='127.0.0.1'):
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     subprocess.getoutput(command_string)
 
     clear_pid(pidname, host)
@@ -58,6 +60,8 @@ def python_command(filename, command, host='127.0.0.1',
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     if not in_background:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
         output = proc.communicate()[0]
@@ -170,6 +174,8 @@ def get_pid(pidname, host=None):
         # NOTE this assumes the pid path is the same on the remote machine
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     output = subprocess.getoutput(command_string)
 
     if 'No such file or directory' in output:
@@ -188,6 +194,8 @@ def clear_pid(pidname, host='127.0.0.1'):
         # NOTE this assumes the pid path is the same on the remote machine
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     output = subprocess.getoutput(command_string)
 
     if not output or 'No such file or directory' in output:
