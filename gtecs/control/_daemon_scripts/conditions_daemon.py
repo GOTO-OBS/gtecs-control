@@ -158,10 +158,14 @@ class ConditionsDaemon(BaseDaemon):
                         windgust_history = self.info['weather'][source]['windgust_history']
                     else:
                         windgust_history = []
-                    # remove old values and add the latest value
+                    # remove old readings (limit to params.WINDGUST_PERIOD) and any invalid values
                     windgust_history = [hist for hist in windgust_history
-                                        if hist[0] > self.loop_time - params.WINDGUST_PERIOD]
-                    windgust_history.append((self.loop_time, weather_dict['windgust']))
+                                        if (hist[0] > self.loop_time - params.WINDGUST_PERIOD and
+                                            hist[1] != -999)]
+                    if weather_dict['windgust'] != -999:
+                        # add the latest value
+                        windgust_history.append((self.loop_time, weather_dict['windgust']))
+                    # save the history
                     weather_dict['windgust_history'] = windgust_history
                     # store maximum (windmax)
                     if len(windgust_history) > 1:
@@ -215,61 +219,66 @@ class ConditionsDaemon(BaseDaemon):
                 if source in params.EXTERNAL_WEATHER_SOURCES:
                     source += '_int'
 
+                # Save a history of temperature readings so we can detect glitches
                 try:
-                    # Save a history of temperature so we can detect glitches
                     if (self.info and source in self.info['weather'] and
                             'temperature_history' in self.info['weather'][source] and
                             self.info['weather'][source]['temperature_history'] != -999):
                         temperature_history = self.info['weather'][source]['temperature_history']
                     else:
                         temperature_history = []
-                    # remove old values and add the latest value (limit to 5 mins)
+                    # remove old readings (limit to 5 mins) and any invalid values
                     temperature_history = [hist for hist in temperature_history
-                                           if hist[0] > self.loop_time - 300]
-                    temperature_history.append((self.loop_time, weather_dict['temperature']))
-                    weather_dict['temperature_history'] = temperature_history
+                                           if (hist[0] > self.loop_time - 300 and hist[1] != -999)]
                     # compare to the most recent readings
                     median = np.median([hist[1] for hist in temperature_history])
-                    if abs(weather_dict['temperature'] - median) > 1:
+                    if (abs(weather_dict['temperature'] - median) > 1 or
+                            weather_dict['humidity'] == -999):
                         # It's very unlikely to have changed by more than 1 degree that quickly...
-                        self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['temperature'],
-                                                                      median,
-                                                                      temperature_history))
-                        # Just keep the last good value (if there is one)
+                        self.log.debug('Temperature glitch: {} vs {} ({})'.format(
+                            weather_dict['temperature'], median, temperature_history))
+                        # Just keep the previous value, if there is one
                         if (self.info and source in self.info['weather'] and
                                 'temperature' in self.info['weather'][source]):
                             old_temperature = self.info['weather'][source]['temperature']
                             weather_dict['temperature'] = old_temperature
+                    else:
+                        # add the new reading to the history
+                        temperature_history.append((self.loop_time, weather_dict['temperature']))
+                    # save the history
+                    weather_dict['temperature_history'] = temperature_history
                 except Exception:
                     self.log.error('Error checking temperature for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
 
+                # Save a history of humidity readings so we can detect glitches
                 try:
-                    # Save a history of humidity so we can detect glitches
                     if (self.info and source in self.info['weather'] and
                             'humidity_history' in self.info['weather'][source] and
                             self.info['weather'][source]['humidity_history'] != -999):
                         humidity_history = self.info['weather'][source]['humidity_history']
                     else:
                         humidity_history = []
-                    # remove old values and add the latest value (limit to 5 mins)
+                    # remove old readings (limit to 5 mins) and any invalid values
                     humidity_history = [hist for hist in humidity_history
-                                        if hist[0] > self.loop_time - 300]
-                    humidity_history.append((self.loop_time, weather_dict['humidity']))
-                    weather_dict['humidity_history'] = humidity_history
+                                        if (hist[0] > self.loop_time - 300 and hist[1] != -999)]
                     # compare to the most recent readings
                     median = np.median([hist[1] for hist in humidity_history])
-                    if abs(weather_dict['humidity'] - median) > 20:
+                    if (abs(weather_dict['humidity'] - median) > 20 or
+                            weather_dict['humidity'] == -999):
                         # It's very unlikely to have changed by more than 20% that quickly...
-                        self.log.debug('Glitch: {} vs {} ({})'.format(weather_dict['humidity'],
-                                                                      median,
-                                                                      humidity_history))
+                        self.log.debug('Humidity glitch: {} vs {} ({})'.format(
+                            weather_dict['humidity'], median, humidity_history))
                         # Just keep the previous value, if there is one
                         if (self.info and source in self.info['weather'] and
                                 'humidity' in self.info['weather'][source]):
                             old_humidity = self.info['weather'][source]['humidity']
                             weather_dict['humidity'] = old_humidity
-
+                    else:
+                        # add the new reading to the history
+                        humidity_history.append((self.loop_time, weather_dict['humidity']))
+                    # save the history
+                    weather_dict['humidity_history'] = humidity_history
                 except Exception:
                     self.log.error('Error checking humidity for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
