@@ -1509,7 +1509,6 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
 
         try:
             done = [os.path.exists(filepaths[ut]) for ut in filepaths]
-            print(done)
             if np.all(done):
                 files_exist = True
         except Exception:
