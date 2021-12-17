@@ -55,6 +55,8 @@ class DomeDaemon(BaseDaemon):
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
 
+        self.hatch_open_time = 0
+
         self.alarm_enabled = True
         self.heartbeat_enabled = True
         self.windshield_enabled = False
@@ -472,6 +474,11 @@ class DomeDaemon(BaseDaemon):
             else:
                 temp_info['dome'] = 'ERROR'
 
+            # hatch info
+            temp_info['hatch_closed'] = temp_info['hatch'] == 'closed'
+            temp_info['hatch_open_time'] = self.hatch_open_time
+
+            # heartbeat info
             heartbeat_status = self.heartbeat.status
             temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
@@ -481,6 +488,8 @@ class DomeDaemon(BaseDaemon):
             temp_info['south'] = None
             temp_info['hatch'] = None
             temp_info['dome'] = None
+            temp_info['hatch_closed'] = None
+            temp_info['hatch_open_time'] = None
             temp_info['heartbeat_status'] = None
             # Report the connection as failed
             self.dome.disconnect()
@@ -675,8 +684,25 @@ class DomeDaemon(BaseDaemon):
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
             lockdown = True
-            reasons.append('quick-close button pressed')
-            send_slack_msg('Dome quick-close button has been pressed')
+            reason = 'quick-close button pressed'
+            reasons.append(reason)
+            if reason not in self.lockdown_reasons:
+                send_slack_msg('Dome quick-close button has been pressed!')
+
+        # Check if the hatch is open in robotic mode
+        if not self.info['hatch_closed']:
+            if self.hatch_open_time == 0:
+                self.hatch_open_time = self.loop_time
+            if (self.info['mode'] == 'robotic' and
+                    (self.loop_time - self.hatch_opened_time) > params.HATCH_OPEN_DELAY):
+                lockdown = True
+                reason = 'hatch open in robotic mode'
+                reasons.append(reason)
+                if reason not in self.lockdown_reasons:
+                    send_slack_msg('Dome hatch is open in robotic mode!')
+        else:
+            if self.hatch_open_time != 0:
+                self.hatch_open_time = 0
 
         # Check if the emergency shutdown file has been created
         if self.info['emergency']:

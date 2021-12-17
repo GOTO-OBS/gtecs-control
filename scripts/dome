@@ -248,9 +248,15 @@ def print_info(info):
     print('######## DOME INFO ########')
     print('North:        {}'.format(info['north'].capitalize()))
     print('South:        {}'.format(info['south'].capitalize()))
-    print('Hatch:        {}'.format(info['hatch'].capitalize()))
-    print('Dehumidifier: {}'.format(style.gtxt('On') if info['dehumidifier_on'] else 'Off'))
-    print('Windshield:   {}'.format(style.gtxt('On') if info['windshield_enabled'] else 'Off'))
+    print('Hatch:        {}'.format(style.rtxt(info['hatch'].capitalize())
+                                    if info['hatch_closed'] is not True
+                                    else 'Closed'))
+    print('Dehumidifier: {}'.format(style.gtxt('On')
+                                    if info['dehumidifier_on']
+                                    else 'Off'))
+    print('Windshield:   {}'.format(style.gtxt('On')
+                                    if info['windshield_enabled']
+                                    else 'Off'))
     print('Autodehum:    {}'.format(style.rtxt('Disabled')
                                     if not info['autodehum_enabled']
                                     else 'Enabled'))
@@ -287,7 +293,9 @@ def print_info_s(info):
         print(style.rtxt('                    LOCKDOWN ACTIVE'))
     elif info['shielding']:
         print(style.ytxt('                    WINDSHIELD ACTIVE'))
-    print('   Hatch:           [{}]'.format(info['hatch'].capitalize()))
+    print('   Hatch:           [{}]'.format(style.rtxt(info['hatch'].capitalize())
+                                            if info['hatch_closed'] is not True
+                                            else 'Closed'))
     print('   Dehumidifier:    [{}]'.format(style.gtxt('On')
                                             if info['dehumidifier_on']
                                             else 'Off'))

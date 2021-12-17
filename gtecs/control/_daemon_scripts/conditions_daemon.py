@@ -42,7 +42,6 @@ class ConditionsDaemon(BaseDaemon):
         self.critical_flag_names = ['ups',
                                     'link',
                                     'diskspace',
-                                    'hatch',
                                     'internal',
                                     'ice',
                                     'override',
@@ -104,9 +103,6 @@ class ConditionsDaemon(BaseDaemon):
                 if status.mode == 'robotic':
                     # Can't ignore flags in robotic mode
                     self.ignored_flags = []
-                elif status.mode != 'robotic' and 'hatch' not in self.ignored_flags:
-                    # Ignore the hatch in manual and engineering modes
-                    self.ignored_flags.append('hatch')
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -378,15 +374,6 @@ class ConditionsDaemon(BaseDaemon):
             temp_info['ups_percent'] = -999
             temp_info['ups_status'] = -999
 
-        # Get info from the dome hatch
-        try:
-            hatch_closed = conditions.hatch_closed()
-            temp_info['hatch_closed'] = hatch_closed
-        except Exception:
-            self.log.error('Failed to get hatch info')
-            self.log.debug('', exc_info=True)
-            temp_info['hatch_closed'] = -999
-
         # Get info from the link ping check
         try:
             pings = [conditions.check_ping(url) for url in params.LINK_URLS]
@@ -499,10 +486,6 @@ class ConditionsDaemon(BaseDaemon):
         ups_percent = ups_percent[ups_percent != -999]
         ups_status = ups_status[ups_status != -999]
 
-        # Hatch
-        hatch_closed = np.array(self.info['hatch_closed'])
-        hatch_closed = hatch_closed[hatch_closed != -999]
-
         # Link
         pings = np.array(self.info['pings'])
         pings = pings[pings != -999]
@@ -600,12 +583,6 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['ups'] = params.UPS_GOODDELAY
         bad_delay['ups'] = params.UPS_BADDELAY
 
-        # hatch flag
-        good['hatch'] = np.all(hatch_closed == 1)
-        valid['hatch'] = len(hatch_closed) >= 1
-        good_delay['hatch'] = params.HATCH_GOODDELAY
-        bad_delay['hatch'] = params.HATCH_BADDELAY
-
         # link flag
         good['link'] = np.all(pings == 1)
         valid['link'] = len(pings) >= 1
@@ -697,7 +674,7 @@ class ConditionsDaemon(BaseDaemon):
         # Trigger Slack alerts for critical flags
         for flag in self.critical_flag_names:
             if flag in self.ignored_flags:
-                # If we're ignoring the flag (e.g. hatch in non-robo) don't send an alert
+                # If we're ignoring the flag then don't send an alert
                 continue
             if old_flags[flag] == 0 and self.flags[flag] == 1:
                 # The flag has been set to bad
@@ -739,9 +716,6 @@ class ConditionsDaemon(BaseDaemon):
             elif flag == 'override':
                 retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
                 continue
-            elif flag == 'hatch':
-                retstrs.append('"{}" flag is always ignored in non-robotic modes'.format(flag))
-                continue
 
             # Set flag
             self.ignored_flags.append(flag)
@@ -768,9 +742,6 @@ class ConditionsDaemon(BaseDaemon):
                 continue
             elif flag == 'override':
                 retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
-                continue
-            elif flag == 'hatch':
-                retstrs.append('"{}" flag is always ignored in non-robotic modes'.format(flag))
                 continue
 
             # Set flag
