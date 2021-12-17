@@ -50,7 +50,7 @@ def take_sky(exptime, current_filter, name, glance=False):
     return sky_mean
 
 
-def run(eve, alt, late=False):
+def run(eve, alt, late=False, start_now=False):
     """Take flats just after sunset or just after start of twilight."""
     # make sure hardware is ready
     prepare_for_images()
@@ -58,20 +58,21 @@ def run(eve, alt, late=False):
     print('Starting flats')
 
     # Wait until we reach correct sunAlt
-    today = night_startdate()
-    start_time = sunalt_time(today, alt, eve)
+    if start_now is False:
+        today = night_startdate()
+        start_time = sunalt_time(today, alt, eve)
 
-    time_to_go = start_time - Time.now()
-    if time_to_go < -10 * u.min and not late:
-        raise Exception('Too late for flats!')
-
-    print('Flats starting at {}'.format(str(start_time.datetime.time())[:8]))
-    while True:
         time_to_go = start_time - Time.now()
-        print('Flats starting in {:.1f}'.format(time_to_go.to(u.min)))
-        if time_to_go.value < 0:
-            break
-        time.sleep(30)
+        if time_to_go < -10 * u.min and not late:
+            raise Exception('Too late for flats!')
+
+        print('Flats starting at {}'.format(str(start_time.datetime.time())[:8]))
+        while True:
+            time_to_go = start_time - Time.now()
+            print('Flats starting in {:.1f}'.format(time_to_go.to(u.min)))
+            if time_to_go.value < 0:
+                break
+            time.sleep(30)
     print('Ready to start flats')
 
     # Ready to go
@@ -181,6 +182,9 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--late', action='store_true',
                         help=('ignore the expected twilight time')
                         )
+    parser.add_argument('-n', '--now', action='store_true',
+                        help=('start taking flats NOW, regardless of sun altitude')
+                        )
     args = parser.parse_args()
 
     if args.time == 'EVE':
@@ -190,5 +194,8 @@ if __name__ == '__main__':
         eve = False
         alt = -10 * u.deg
     late = args.late
+    now = args.now
+    if now and late:
+        print('Conflicting options detected: --now flag will override --late flag')
 
-    run(eve, alt, late)
+    run(eve, alt, late, start_now=now)
