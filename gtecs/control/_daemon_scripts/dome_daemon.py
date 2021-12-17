@@ -793,7 +793,6 @@ class DomeDaemon(BaseDaemon):
             send_slack_msg('Autoclose complete')
             self.autoclosing = False
 
-
     def _autodehum_check(self):
         """Check the current internal conditions, then turn on the dehumidifer if needed."""
         if not self.dehumidifier:
