@@ -54,6 +54,7 @@ class DomeDaemon(BaseDaemon):
         self.lockdown = False
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
+        self.autoclosing = False
 
         self.hatch_open_time = 0
 
@@ -586,6 +587,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
+        temp_info['autoclosing'] = self.autoclosing
         temp_info['alarm_enabled'] = self.alarm_enabled
         temp_info['heartbeat_enabled'] = self.heartbeat_enabled
         temp_info['windshield_enabled'] = self.windshield_enabled
@@ -764,17 +766,33 @@ class DomeDaemon(BaseDaemon):
         # Decide if we need to autoclose
         if self.lockdown and self.info['dome'] != 'closed' and not self.close_flag:
             self.log.warning('Autoclosing dome due to lockdown')
-            send_slack_msg('Dome is autoclosing')
             # Stop any opening
             if self.open_flag:
-                self.halt_flag = 1
-                time.sleep(2)
+                self.log.warning('Stopping opening')
+                # We can't use the halt flag since that would clear our close flag!
+                try:
+                    self.dome.halt()
+                except Exception:
+                    self.log.error('Failed to halt dome')
+                    self.log.debug('', exc_info=True)
+                self.open_flag = 0
             # Make sure the alarm sounds, since we're moving automatically
             self.alarm_enabled = True
             # Close the dome
+            self.log.warning('Closing the dome')
             self.close_flag = 1
             self.move_side = 'both'
             self.move_frac = 1
+            self.autoclosing = True
+            # Now send message to Slack, at the end so we don't delay anything
+            send_slack_msg('Dome is autoclosing: {}'.format('; '.join(self.lockdown_reasons)))
+
+        # Check if autoclose has finished
+        if self.autoclosing and self.info['dome'] == 'closed':
+            self.log.warning('Autoclose complete')
+            send_slack_msg('Autoclose complete')
+            self.autoclosing = False
+
 
     def _autodehum_check(self):
         """Check the current internal conditions, then turn on the dehumidifer if needed."""
