@@ -45,7 +45,9 @@ def kill_process(pidname, host='127.0.0.1'):
 
     if params.COMMAND_DEBUG:
         print(command_string)
-    subprocess.getoutput(command_string)
+    output = subprocess.getoutput(command_string)
+    if 'No route to host' in output:
+        raise ConnectionError('Cannot connect to host {}'.format(host))
 
     clear_pid(pidname, host)
 
@@ -64,8 +66,10 @@ def python_command(filename, command, host='127.0.0.1',
         print(command_string)
     if not in_background:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
-        output = proc.communicate()[0]
-        return output.decode()
+        output = proc.communicate()[0].decode()
+        if 'No route to host' in output:
+            raise ConnectionError('Cannot connect to host {}'.format(host))
+        return output
     else:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
         return ''
@@ -177,6 +181,8 @@ def get_pid(pidname, host=None):
     if params.COMMAND_DEBUG:
         print(command_string)
     output = subprocess.getoutput(command_string)
+    if 'No route to host' in output:
+        raise ConnectionError('Cannot connect to host {}'.format(host))
 
     if 'No such file or directory' in output:
         return None
@@ -197,6 +203,8 @@ def clear_pid(pidname, host='127.0.0.1'):
     if params.COMMAND_DEBUG:
         print(command_string)
     output = subprocess.getoutput(command_string)
+    if 'No route to host' in output:
+        raise ConnectionError('Cannot connect to host {}'.format(host))
 
     if not output or 'No such file or directory' in output:
         return 0
