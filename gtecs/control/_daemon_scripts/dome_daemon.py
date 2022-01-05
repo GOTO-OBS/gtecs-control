@@ -153,8 +153,13 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
+                                if params.DOME_HAS_BUMPERGUARD:
+                                    self.dome.reset_bumperguard()
                                 if self.alarm_enabled:
                                     self._sound_alarm()
+                                if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
+                                    time.sleep(5)
+
                                 c = self.dome.open_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
@@ -228,8 +233,13 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
+                                if params.DOME_HAS_BUMPERGUARD:
+                                    self.dome.reset_bumperguard()
                                 if self.alarm_enabled:
                                     self._sound_alarm()
+                                if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
+                                    time.sleep(5)
+
                                 c = self.dome.close_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
@@ -903,7 +913,7 @@ class DomeDaemon(BaseDaemon):
             self.move_side = 'both'
             self.move_frac = 1
 
-    def _sound_alarm(self, sleep=True):
+    def _sound_alarm(self):
         """Sound the dome siren."""
         if not self.alarm_enabled:
             return
@@ -911,14 +921,12 @@ class DomeDaemon(BaseDaemon):
         if params.ARDUINO_LOCATION is not None:
             # Sound the alarm though the curl command
             # We don't actually care about the output, the request triggers the siren
-            command = 'curl -s {}?s{}'.format(params.ARDUINO_LOCATION, params.DOME_ALARM_DURATION)
+            command = 'curl -s {}?s5'.format(params.ARDUINO_LOCATION)
             subprocess.getoutput(command)
-            if sleep:
-                time.sleep(params.DOME_ALARM_DURATION)
         else:
             # Sound the alarm through the heartbeat box
             # Note the heartbeat siren always sounds for 5s
-            self.heartbeat.sound_alarm(sleep)
+            self.heartbeat.sound_alarm()
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
@@ -1174,7 +1182,7 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off':
             return 'Disabling dome alarm'
 
-    def sound_alarm(self, sleep=True):
+    def sound_alarm(self):
         """Sound the dome alarm."""
         # Check current status
         self.wait_for_info()
@@ -1182,7 +1190,14 @@ class DomeDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Alarm is disabled')
 
         # Just call the internal command
-        self._sound_alarm(sleep)
+        self._sound_alarm()
+
+    def reset_bumperguard(self):
+        """Reset the dome bumper guard."""
+        if not params.DOME_HAS_BUMPERGUARD:
+            raise errors.HardwareStatusError('Dome does not have a bumper guard to reset')
+
+        self.dome.reset_bumperguard()
 
     def set_heartbeat(self, command):
         """Enable or disable the dome heartbeat system."""

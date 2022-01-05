@@ -277,6 +277,8 @@ class AstroHavenDome:
 
         self.move_code = {'south': {'open': b'a', 'close': b'A'},
                           'north': {'open': b'b', 'close': b'B'}}
+        self.reset_code = b'R'
+
         self.move_time = {'south': {'open': params.DOME_OPEN_SOUTH_TIME,
                                     'close': params.DOME_CLOSE_SOUTH_TIME},
                           'north': {'open': params.DOME_OPEN_NORTH_TIME,
@@ -395,6 +397,11 @@ class AstroHavenDome:
         elif status_character == 'Y':
             self.plc_status['north'] = 'closed'
             self.full_open['north'] = False
+        # Other return commands
+        elif status_character == 'R':
+            # We just sent an 'R' to reset the bumper guards
+            # I don't have anything to do here, but it's good to know (and we already logged it)
+            pass
         else:
             raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
@@ -720,8 +727,14 @@ class AstroHavenDome:
         return
 
     def halt(self):
-        """To stop the output thread."""
+        """Stop the output thread."""
         self.output_thread_running = False
+
+    def reset_bumperguard(self):
+        """Reset the bumper guard sensor."""
+        self.dome_serial.write(self.reset_code)
+        if self.log and self.log_debug:
+            self.log.debug('plc SEND:"{}" ({})'.format(self.reset_code, 'reset'))
 
 
 class FakeHeartbeat:
@@ -735,7 +748,7 @@ class FakeHeartbeat:
         """Shutdown the connection."""
         return
 
-    def sound_alarm(self, sleep=True):
+    def sound_alarm(self):
         """Sound the dome alarm using the heartbeat."""
         # Note this is always blocking
         bell = 'play -qn --channels 1 synth 5 sine 440 vol 0.1'
@@ -906,27 +919,14 @@ class DomeHeartbeat:
                 status_character))
         return
 
-    def sound_alarm(self, sleep=True):
-        """Sound the dome alarm using the heartbeat.
-
-        The heartbeat siren always sounds for 5s.
-
-        Parameters
-        ----------
-        sleep : bool, optional
-            Whether to sleep for the duration of the alarm or return immediately
-            default = True
-
-        """
+    def sound_alarm(self):
+        """Sound the dome alarm using the heartbeat (always sounds for 5s)."""
         if self.log:
             self.log.warning('Sounding alarm (status={})'.format(self.status))
         v = 255
         self.serial.write(bytes([v]))
         if self.log and self.log_debug:
             self.log.debug('heartbeat SEND:"{}" (status={})'.format(v, self.status))
-        if sleep:
-            time.sleep(5)
-        return
 
     def enable(self):
         """Enable the heartbeat."""

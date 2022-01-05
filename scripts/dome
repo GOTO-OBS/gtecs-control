@@ -148,6 +148,11 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'halt_dome')
         print(reply)
 
+    elif command == 'reset':
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'reset_bumperguard')
+        print(reply)
+
     elif command in ['dehumidifier', 'dehumid', 'dehum']:
         # parse arguments
         if len(args) == 1:
@@ -341,6 +346,7 @@ def print_instructions():
           '  open north|south [frac]        open the dome (optional frac 0-1)',
           '  close north|south [frac]       close the dome (optional frac 0-1)',
           '  stop/halt/abort                stop the dome moving',
+          '  reset                          reset the bumper guard sensor',
           '  autoclose [on|off] [timeout]   automatically close in bad weather? (timeout in min)',
           '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
           '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
