@@ -401,7 +401,7 @@ class AstroHavenDome:
         elif status_character == 'R':
             # We just sent an 'R' to reset the bumper guards
             # I don't have anything to do here, but it's good to know (and we already logged it)
-            pass
+            self.log.info('Bumper guard reset')
         else:
             raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
