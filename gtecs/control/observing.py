@@ -11,7 +11,7 @@ from gtecs.obs.database import get_pointing_by_id, open_session
 from . import params
 from .astronomy import above_elevation_limit, radec_from_altaz
 from .daemons import daemon_function, daemon_info
-from .fits import get_glance_data, get_image_data
+from .fits import clear_glance_files, get_glance_data, get_image_data
 from .misc import execute_command
 
 
@@ -577,6 +577,10 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
                                                            binning,
                                                            name,
                                                            imgtype if not glance else '')
+
+    # Remove old glance files (so we know what to wait for)
+    if glance:
+        clear_glance_files()
 
     # Send the command
     execute_command(exq_command)

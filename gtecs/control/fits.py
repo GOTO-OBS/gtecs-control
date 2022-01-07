@@ -75,6 +75,7 @@ def glance_location(ut_number, tel_number=None):
 
 
 def clear_glance_files(tel_number=None):
+    """Delete any existing glance files."""
     # Use the default tel number if not given
     if tel_number is None:
         tel_number = params.TELESCOPE_NUMBER
@@ -1528,7 +1529,7 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
     return data
 
 
-def get_glance_data(uts=None):
+def get_glance_data(uts=None, timeout=None):
     """Open the most recent glance images and return the data.
 
     Parameters
@@ -1536,6 +1537,8 @@ def get_glance_data(uts=None):
     uts : list of ints, default=None
         the UTs to read the files of
         if None, open files from all UTs
+    timeout : float, default=None
+        time in seconds after which to timeout. None to wait forever
 
     Returns
     -------
@@ -1549,8 +1552,29 @@ def get_glance_data(uts=None):
     filenames = {ut: glance_filename(params.TELESCOPE_NUMBER, ut) for ut in uts}
     filepaths = {ut: os.path.join(params.IMAGE_PATH, filenames[ut]) for ut in filenames}
 
-    # limit it to only existing files
-    filepaths = {ut: filepaths[ut] for ut in filepaths if os.path.exists(filepaths[ut])}
+    # wait until the images exist, if they don't already
+    # NOTE this can be an issue since glance files get overwritten, so best to call
+    #      `clear_glance_files` first to be sure.
+    start_time = time.time()
+    files_exist = False
+    timed_out = False
+    while not files_exist and not timed_out:
+        time.sleep(0.2)
+
+        try:
+            done = [os.path.exists(filepaths[ut]) for ut in filepaths]
+            if np.all(done):
+                files_exist = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Image fetching timed out')
+    filepaths = {ut: filepaths[ut] for ut in filepaths}
+
     print('Loading glances: {} images'.format(len(filepaths)))
 
     # read the files
