@@ -50,7 +50,7 @@ def take_sky(exptime, current_filter, name, glance=False):
     return sky_mean
 
 
-def run(eve, alt, late=False, start_now=False):
+def run(eve, alt, late=False, start_now=False, no_slew=False):
     """Take flats just after sunset or just after start of twilight."""
     # make sure hardware is ready
     prepare_for_images()
@@ -74,20 +74,17 @@ def run(eve, alt, late=False, start_now=False):
                 break
             time.sleep(30)
     print('Ready to start flats')
-
-    # Ready to go
-    # Find flat field target
     now = Time.now()
-    skyflat = antisun_flat(now)
-    print('Found target', skyflat)
 
-    ### WHAT ABOUT THE MOON? We do it for the autofocus in `catalogs.gliese.focus_star`
-
-    # Slew to target
-    print('Slewing to target')
-    field_name = skyflat.name
-    coordinate = skyflat.coord
-    slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+    # Slew to a flat field
+    if not no_slew:
+        skyflat = antisun_flat(now)
+        print('Slewing to target {}...'.format(skyflat))
+        target_name = skyflat.name
+        coordinate = skyflat.coord
+        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+    else:
+        target_name = 'Sky flats'
 
     # Set exposure order and check for sky brightness
     if int(now.mjd) % 2:
@@ -110,7 +107,7 @@ def run(eve, alt, late=False, start_now=False):
     current_filter = filt_list.pop(0)
     while True:
         time.sleep(1)
-        sky_mean = take_sky(start_exptime, current_filter, field_name, glance=True)
+        sky_mean = take_sky(start_exptime, current_filter, target_name, glance=True)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
         if eve:
             if sky_mean > sky_mean_target:
@@ -136,7 +133,7 @@ def run(eve, alt, late=False, start_now=False):
             print('Limiting exposure time to {:.1f}'.format(params.FLATS_MAXEXPTIME))
             exptime = params.FLATS_MAXEXPTIME
 
-        sky_mean = take_sky(exptime, current_filter, field_name)
+        sky_mean = take_sky(exptime, current_filter, target_name)
         print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
 
     # Run through the rest of the filter list
@@ -151,7 +148,7 @@ def run(eve, alt, late=False, start_now=False):
 
         # See if it was a good guess
         print('Taking {} test exposure to find new exposure time'.format(current_filter))
-        sky_mean = take_sky(exptime, current_filter, field_name, glance=True)
+        sky_mean = take_sky(exptime, current_filter, target_name, glance=True)
         scaling_factor = sky_mean_target / sky_mean
         start_exptime = exptime * scaling_factor
         print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, start_exptime))
@@ -169,7 +166,7 @@ def run(eve, alt, late=False, start_now=False):
                 print('Limiting exposure time to {:.1f}'.format(params.FLATS_MAXEXPTIME))
                 exptime = params.FLATS_MAXEXPTIME
 
-            sky_mean = take_sky(exptime, current_filter, field_name)
+            sky_mean = take_sky(exptime, current_filter, target_name)
             print('{} image sky mean: {:.1f} counts'.format(current_filter, sky_mean))
 
     print('Done')
@@ -185,6 +182,9 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--now', action='store_true',
                         help=('start taking flats NOW, regardless of sun altitude')
                         )
+    parser.add_argument('--no-slew', action='store_true',
+                        help=('do not slew to a focus star (stay at current position)')
+                        )
     args = parser.parse_args()
 
     if args.time == 'EVE':
@@ -194,8 +194,9 @@ if __name__ == '__main__':
         eve = False
         alt = -10 * u.deg
     late = args.late
-    now = args.now
+    start_now = args.now
+    no_slew = args.no_slew
     if now and late:
         print('Conflicting options detected: --now flag will override --late flag')
 
-    run(eve, alt, late, start_now=now)
+    run(eve, alt, late, start_now, no_slew)

@@ -98,6 +98,8 @@ def best_flat(time):
 
 def antisun_flat(time):
     """Get the anti-Sun flat position."""
+    # TODO: What about the Moon?
+    #       We do it for the autofocus in `catalogs.gliese.focus_star`
     sun = get_sun(time)
     loc = ast.observatory_location()
     altaz_frame = AltAz(obstime=time, location=loc)
