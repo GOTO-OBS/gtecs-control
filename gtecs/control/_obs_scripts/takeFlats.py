@@ -196,7 +196,7 @@ if __name__ == '__main__':
     late = args.late
     start_now = args.now
     no_slew = args.no_slew
-    if now and late:
+    if start_now and late:
         print('Conflicting options detected: --now flag will override --late flag')
 
     run(eve, alt, late, start_now, no_slew)
