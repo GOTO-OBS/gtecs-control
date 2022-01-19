@@ -430,24 +430,23 @@ class AstroHavenDome:
     def _read_roomalert(self):
         with urllib.request.urlopen(self.roomalert_ip + '/getData.json') as r:
             data = json.loads(r.read())
-
-        switches = {d['lab']: d['stat'] for d in data['s_sen'] if 'Switch Sen' not in d['lab']}
+        data = {d['lab']: d['stat'] for d in data['s_sen'] if 'Switch Sen' not in d['lab']}
         if self.log and self.log_debug:
-            self.log.debug('roomalert RECV:"{}"'.format(switches))
+            self.log.debug('roomalert RECV:"{}"'.format(data))
 
-        if 'Hatch' not in switches or switches['Hatch'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
-        if 'North Limit' not in switches or switches['North Limit'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
-        if 'South Limit' not in switches or switches['South Limit'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
-        if 'Full Close' not in switches or switches['Full Close'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'Hatch' not in data or data['Hatch'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'North Limit' not in data or data['North Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'South Limit' not in data or data['South Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'Full Close' not in data or data['Full Close'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
 
-        switch_dict = {'all_closed': bool(switches['Full Close']),
-                       'north_open': bool(switches['North Limit']),
-                       'south_open': bool(switches['South Limit']),
-                       'hatch_closed': bool(switches['Hatch']),
+        switch_dict = {'all_closed': bool(data['Full Close']),
+                       'north_open': bool(data['North Limit']),
+                       'south_open': bool(data['South Limit']),
+                       'hatch_closed': bool(data['Hatch']),
                        }
         return switch_dict
 
@@ -475,10 +474,8 @@ class AstroHavenDome:
                 else:
                     if self.log:
                         self.log.error('Could not communicate with the switches')
+                    self._parse_switch_status(None)
                     self.switch_error = True
-                    self.switch_status['north'] = 'ERROR'
-                    self.switch_status['south'] = 'ERROR'
-                    self.switch_status['hatch'] = 'ERROR'
 
     def _parse_switch_status(self, switch_dict):
         # save previous status

@@ -414,7 +414,7 @@ class DomeDaemon(BaseDaemon):
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            if self.dome.switch_error:
+            if self.dome.switch_error and not params.DOME_IGNORE_SWITCH_ERRORS:
                 self.log.error('Failed to connect to dome switches')
                 self.dome.disconnect()
                 self.dome = None
