@@ -423,9 +423,10 @@ class DomeDaemon(BaseDaemon):
                     (time.time() - self.dome.status_update_time) > params.DOME_CHECK_PERIOD):
                 self.log.error('Failed to check dome status')
                 if params.DOME_DEBUG:
-                    msg = '{} {} {}'.format(self.dome.status_thread_running,
-                                            (time.time() - self.dome.status_update_time),
-                                            params.DOME_CHECK_PERIOD)
+                    msg = 'running={}, delta={}/{}'.format(
+                        self.dome.status_thread_running,
+                        (time.time() - self.dome.status_update_time),
+                        params.DOME_CHECK_PERIOD)
                     self.log.debug(msg)
                 self.dome.disconnect()
                 self.dome = None
