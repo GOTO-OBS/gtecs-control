@@ -10,24 +10,23 @@ import time
 from six import byte2int, indexbytes, int2byte
 
 
-class FakePDU(object):
-    """Fake PDU power class (8 ports)."""
+class FakePDU:
+    """Fake PDU power class."""
 
-    def __init__(self, address):
+    def __init__(self, address, outlets=8):
         self.unit_type = 'PDU'
         self.address = address
-        self.count = 8
-        self.outlets = list(range(1, self.count + 1))
+        self.outlets = list(range(1, outlets + 1))
         self.off_value = 0
         self.on_value = 1
         # fake stuff
         self._temp_file = '/tmp/pdu_' + self.address
-        self._outlet_status = [self.off_value] * self.count
+        self._outlet_status = [self.off_value] * len(self.outlets)
         self._read_temp()
 
     def _read_temp(self):
         if not os.path.exists(self._temp_file):
-            self._outlet_status = [self.off_value] * self.count
+            self._outlet_status = [self.off_value] * len(self.outlets)
             self._write_temp()
         else:
             f = open(self._temp_file, 'r')
@@ -47,7 +46,7 @@ class FakePDU(object):
     def on(self, outlet):
         """Turn on the given outlet."""
         if outlet == 0:  # all
-            self._outlet_status = [self.on_value] * self.count
+            self._outlet_status = [self.on_value] * len(self.outlets)
         else:
             self._outlet_status[outlet - 1] = self.on_value
         self._write_temp()
@@ -55,7 +54,7 @@ class FakePDU(object):
     def off(self, outlet):
         """Turn off the given outlet."""
         if outlet == 0:  # all
-            self._outlet_status = [self.off_value] * self.count
+            self._outlet_status = [self.off_value] * len(self.outlets)
         else:
             self._outlet_status[outlet - 1] = self.off_value
         self._write_temp()
@@ -71,25 +70,24 @@ class FakePDU(object):
         self.on(outlet)
 
 
-class FakeUPS(object):
+class FakeUPS:
     """Fake UPS power class."""
 
-    def __init__(self, address):
+    def __init__(self, address, outlets=3):
         self.unit_type = 'UPS'
         self.address = address
         self.statuses = {'1': 'UNKNOWN', '2': 'Normal', '3': 'LOW'}
-        self.count = 3
-        self.outlets = list(range(1, self.count + 1))
+        self.outlets = list(range(1, outlets + 1))
         self.on_value = 1
         self.off_value = 0
         # fake stuff
         self._temp_file = '/tmp/ups_' + self.address
-        self._outlet_status = [self.off_value] * self.count
+        self._outlet_status = [self.off_value] * len(self.outlets)
         self._read_temp()
 
     def _read_temp(self):
         if not os.path.exists(self._temp_file):
-            self._outlet_status = [self.off_value] * self.count
+            self._outlet_status = [self.off_value] * len(self.outlets)
             self._write_temp()
         else:
             f = open(self._temp_file, 'r')
@@ -129,7 +127,7 @@ class FakeUPS(object):
     def on(self, outlet):
         """Turn on the given outlet."""
         if outlet == 0:  # all
-            self._outlet_status = [self.on_value] * self.count
+            self._outlet_status = [self.on_value] * len(self.outlets)
         else:
             self._outlet_status[outlet - 1] = self.on_value
         self._write_temp()
@@ -137,7 +135,7 @@ class FakeUPS(object):
     def off(self, outlet):
         """Turn off the given outlet."""
         if outlet == 0:  # all
-            self._outlet_status = [self.off_value] * self.count
+            self._outlet_status = [self.off_value] * len(self.outlets)
         else:
             self._outlet_status[outlet - 1] = self.off_value
         self._write_temp()
@@ -153,15 +151,14 @@ class FakeUPS(object):
         self.on(outlet)
 
 
-class APCPDU(object):
-    """APC PDU power class (for AP7921, 8 ports)."""
+class APCPDU:
+    """APC PDU power class."""
 
-    def __init__(self, address):
+    def __init__(self, address, outlets=8):
         self.unit_type = 'PDU'
         self.address = address
         self.commands = {'ON': '1', 'OFF': '2', 'REBOOT': '3'}
-        self.count = 8
-        self.outlets = list(range(1, self.count + 1))
+        self.outlets = list(range(1, outlets + 1))
         self.on_value = 1
         self.off_value = 2
 
@@ -231,10 +228,10 @@ class APCPDU(object):
         return out
 
 
-class APCUPS(object):
-    """APC UPS power class (for Smart-UPS X 3000)."""
+class APCUPS:
+    """APC UPS power class."""
 
-    def __init__(self, address):
+    def __init__(self, address, outlets=3):
         self.unit_type = 'UPS'
         self.address = address
         self.command_oids = {'STATUS': '4.1.1.0',
@@ -258,8 +255,7 @@ class APCUPS(object):
                          '13': 'ecoMode',
                          '14': 'hotStandby',
                          '15': 'onBatteryTest'}
-        self.count = 3
-        self.outlets = list(range(1, self.count + 1))
+        self.outlets = list(range(1, outlets + 1))
         self.on_value = 1
         self.off_value = 2
 
@@ -360,8 +356,8 @@ class APCUPS(object):
         return out
 
 
-class APCATS(object):
-    """APC ATS power class (for AP4421 Rack Automatic Transfer Switch)."""
+class APCATS:
+    """APC Automatic Transfer Switch class."""
 
     def __init__(self, address):
         self.unit_type = 'ATS'
@@ -424,15 +420,14 @@ class APCATS(object):
         return source
 
 
-class EPCPDU(object):
-    """Expert Power Control PDU power class (for EPC-8211, 8 ports)."""
+class EPCPDU:
+    """Expert Power Control PDU power class."""
 
-    def __init__(self, address):
+    def __init__(self, address, outlets=8):
         self.unit_type = 'PDU'
         self.address = address
         self.commands = {'ON': '1', 'OFF': '0'}
-        self.count = 8
-        self.outlets = list(range(1, self.count + 1))
+        self.outlets = list(range(1, outlets + 1))
         self.on_value = 1
         self.off_value = 0
 
@@ -502,10 +497,10 @@ class EPCPDU(object):
         self.on(outlet)
 
 
-class ETH8020(object):
-    """Ethernet relay power class (for ETH8020, 20 ports)."""
+class ETHPDU:
+    """Robot Electronics ethernet relay power class."""
 
-    def __init__(self, address, port, normally_closed=False):
+    def __init__(self, address, port, outlets=20, normally_closed=False):
         self.unit_type = 'PDU'
         self.address = address
         self.port = port
@@ -517,8 +512,7 @@ class ETH8020(object):
             self.commands = {'ON': b'\x21', 'OFF': b'\x20', 'ALL': b'\x23', 'STATUS': b'\x24'}
             self.on_value = 0
             self.off_value = 1
-        self.count = 20
-        self.outlets = list(range(1, self.count + 1))
+        self.outlets = list(range(1, outlets + 1))
         self.reboot_time = 5  # seconds
         self.buffer_size = 1024
 
@@ -547,90 +541,8 @@ class ETH8020(object):
         """Return the current status of the outlets."""
         out = self._tcp_command(self.commands['STATUS'])
         status_ints = [indexbytes(out, x) for x in range(len(out))]
-        status_strings = [str(bin(i))[2::] for i in status_ints]
-        status_strings[0] = status_strings[0].zfill(8)[::-1]
-        status_strings[1] = status_strings[1].zfill(8)[::-1]
-        status_strings[2] = status_strings[2].zfill(4)[::-1]
-        status_string = ''.join(status_strings)
-        return status_string
-
-    def on(self, outlet):
-        """Turn on the given outlet."""
-        if outlet == 0:
-            command = self.commands['ALL'] + b'\xff' + b'\xff' + b'\xff'
-        else:
-            command = self.commands['ON'] + int2byte(outlet) + b'\x00'
-        out = byte2int(self._tcp_command(command))
-        return out
-
-    def off(self, outlet):
-        """Turn off the given outlet."""
-        if outlet == 0:
-            command = self.commands['ALL'] + b'\x00' + b'\x00' + b'\x00'
-        else:
-            command = self.commands['OFF'] + int2byte(outlet) + b'\x00'
-        out = byte2int(self._tcp_command(command))
-        return out
-
-    def reboot(self, outlet):
-        """Reboot the given outlet."""
-        reboot_time = int(self.reboot_time * 10)  # relay takes 0.1s intervals
-        if outlet == 0:
-            cmd_arr = [self.commands['OFF'] + int2byte(n) + int2byte(reboot_time)
-                       for n in self.outlets]
-            command = b''.join(cmd_arr)
-        else:
-            command = self.commands['OFF'] + int2byte(outlet) + int2byte(reboot_time)
-        out = byte2int(self._tcp_command(command))
-        return out
-
-
-class ETH002(object):
-    """Ethernet relay power class (for ETH002, 2 ports)."""
-
-    def __init__(self, address, port, normally_closed=False):
-        self.address = address
-        self.port = port
-        if not normally_closed:
-            self.commands = {'ON': b'\x20', 'OFF': b'\x21', 'ALL': b'\x23', 'STATUS': b'\x24'}
-            self.on_value = 1
-            self.off_value = 0
-        else:
-            self.commands = {'ON': b'\x21', 'OFF': b'\x20', 'ALL': b'\x23', 'STATUS': b'\x24'}
-            self.on_value = 0
-            self.off_value = 1
-        self.count = 2
-        self.outlets = list(range(1, self.count + 1))
-        self.reboot_time = 5  # seconds
-        self.buffer_size = 1024
-
-        # Create one persistent socket
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.settimeout(5)
-        self.socket.connect((self.address, self.port))
-
-    def __del__(self):
-        try:
-            self.socket.shutdown(socket.SHUT_RDWR)
-            self.socket.close()
-        except OSError:
-            pass
-
-    def _tcp_command(self, command_bytes):
-        """Send command bytes to the device, then fetch the reply bytes and return them."""
-        try:
-            self.socket.send(command_bytes)
-            reply = self.socket.recv(self.buffer_size)
-            return reply
-        except Exception as error:
-            return 'Socket error: {}'.format(error)
-
-    def status(self):
-        """Return the current status of the outlets."""
-        out = self._tcp_command(self.commands['STATUS'])
-        i = byte2int(out)
-        status_string = str(bin(i))[2::]
-        status_string = status_string.zfill(2)[::-1]
+        status_strings = [str(bin(i))[2::].zfill(8)[::-1] for i in status_ints]
+        status_string = ''.join(status_strings)[:len(self.outlets)]
         return status_string
 
     def on(self, outlet):

@@ -10,7 +10,7 @@ import urllib
 
 import serial  # noqa: I900
 
-from .power import ETH002
+from .power import ETHPDU
 from .. import params
 
 
@@ -971,7 +971,7 @@ class Dehumidifier:
     def __init__(self, address, port):
         self.address = address
         self.port = port
-        self.power = ETH002(self.address, self.port)
+        self.power = ETHPDU(self.address, self.port, outlets=2, normally_closed=False)
 
     def on(self):
         """Turn on the dehumidifier."""
