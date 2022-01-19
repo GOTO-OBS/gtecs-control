@@ -9,7 +9,7 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.power import APCPDU, APCUPS, APCATS, EPCPDU, ETHPDU
+from gtecs.control.hardware.power import APCATS, APCPDU, APCUPS, EPCPDU, ETHPDU
 from gtecs.control.hardware.power import FakePDU, FakeUPS
 
 
@@ -312,7 +312,7 @@ class PowerDaemon(BaseDaemon):
         with the latter being only unit numbers not names.
         This function will parse the input names and return those lists.
 
-        Example
+        Example:
         -------
         "power on foc1,filt1,leds"
         - First 'leds' is a group, which is expanded to 'led1' and 'led2'
@@ -322,6 +322,7 @@ class PowerDaemon(BaseDaemon):
           outlets = ['EAST','EAST','PDU1','PDU2']
           units = ['filt1','foc1','led1','led2']
           Note they will be sorted in the order of outlet then unit.
+
         """
         if unit in params.POWER_UNITS:
             # A specific unit was given, all the outlets should be numbers from that unit.
