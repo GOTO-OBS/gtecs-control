@@ -14,7 +14,6 @@ REQUIRES = ['Pyro4',
             'pyudev',
             'pyserial',
             'opencv-python',
-            'pygcn',
             ]
 
 setup(name='gtecs-control',
