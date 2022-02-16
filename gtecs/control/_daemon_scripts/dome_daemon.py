@@ -105,20 +105,23 @@ class DomeDaemon(BaseDaemon):
                 # Check if the system mode has changed
                 self._mode_check()
 
-                # Check if we need to trigger a lockdown due to conditions
-                self._lockdown_check()
+                # Only run checks if not in engineering mode
+                if self.info['mode'] != 'engineering':
 
-                # Check if we need to close due to lockdown
-                self._autoclose_check()
+                    # Check if we need to trigger a lockdown due to conditions
+                    self._lockdown_check()
 
-                # Check if we need to turn on/off the dehumidifier
-                self._autodehum_check()
+                    # Check if we need to close due to lockdown
+                    self._autoclose_check()
 
-                # Check if we should enable shielding due to high wind
-                self._autoshield_check()
+                    # Check if we need to turn on/off the dehumidifier
+                    self._autodehum_check()
 
-                # Check if we need to raise the shields
-                self._windshield_check()
+                    # Check if we should enable shielding due to high wind
+                    self._autoshield_check()
+
+                    # Check if we need to raise the shields
+                    self._windshield_check()
 
             # control functions
             # open dome
@@ -671,28 +674,33 @@ class DomeDaemon(BaseDaemon):
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
-            if self.alarm_enabled:
-                self.log.info('System is in engineering mode, disabling alarm')
-                self.alarm_enabled = False
-            if self.heartbeat_enabled:
-                self.log.info('System is in engineering mode, disabling heartbeat')
-                self.heartbeat_enabled = False
-                self.heartbeat_set_flag = 1
-            if self.autodehum_enabled:
-                self.log.info('System is in engineering mode, disabling autodehum')
-                self.autodehum_enabled = False
-            if self.autoclose_enabled:
-                self.log.info('System is in engineering mode, disabling autoclose')
-                self.autoclose_enabled = False
-                self.autoclose_timeout = None
-            if self.autoshield_enabled:
-                self.log.info('System is in engineering mode, disabling autoshield')
-                self.autoshield_enabled = False
+            self.log.info('System is in engineering mode, disabling alarm')
+            self.alarm_enabled = False
+
+            self.log.info('System is in engineering mode, disabling heartbeat')
+            self.heartbeat_enabled = False
+            self.heartbeat_set_flag = 1
+
+            self.log.info('System is in engineering mode, disabling autodehum')
+            self.autodehum_enabled = False
+
+            self.log.info('System is in engineering mode, disabling autoclose')
+            self.autoclose_enabled = False
+            self.autoclose_timeout = None
+
+            self.log.info('System is in engineering mode, disabling windshielding')
+            self.windshield_enabled = False
+            self.autoshield_enabled = False
+            self.shielding = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
         lockdown = False
         reasons = []
+
+        # Safety check: ignore lockdowns in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
 
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
@@ -760,6 +768,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Autoclose disabled while no connection to dome')
             return
 
+        # Safety check: never move in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Return if autoclose disabled
         if not self.autoclose_enabled:
             # Check timeout (if set)
@@ -816,6 +828,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('No internal conditions readings: auto humidity control unavailable')
             return
 
+        # Safety check: never switch automatically in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Return if autodehum disabled
         if not self.autodehum_enabled:
             return
@@ -857,6 +873,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('No windspeed reading: auto windshield control unavailable')
             return
 
+        # Safety check: never move in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Return if autoshield disabled
         if not self.autoshield_enabled:
             return
@@ -877,6 +897,10 @@ class DomeDaemon(BaseDaemon):
         """Check if the dome is open and needs to raise shields."""
         if not self.dome:
             self.log.warning('Shielding disabled while no connection to dome')
+            return
+
+        # Safety check: never move in engineering mode
+        if self.info['mode'] == 'engineering':
             return
 
         # Check if we are currently shielding
@@ -1236,6 +1260,8 @@ class DomeDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise errors.HardwareStatusError('Cannot enable windshielding in engineering mode')
         windshield_enabled = self.info['windshield_enabled']
         if command == 'on' and windshield_enabled:
             return 'Windshielding is already enabled'
