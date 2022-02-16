@@ -674,24 +674,29 @@ class DomeDaemon(BaseDaemon):
 
         elif self.info['mode'] == 'engineering':
             # In engineering mode everything should always be disabled
-            self.log.info('System is in engineering mode, disabling alarm')
-            self.alarm_enabled = False
+            if self.alarm_enabled:
+                self.log.info('System is in engineering mode, disabling alarm')
+                self.alarm_enabled = False
 
-            self.log.info('System is in engineering mode, disabling heartbeat')
-            self.heartbeat_enabled = False
-            self.heartbeat_set_flag = 1
+            if self.heartbeat_enabled:
+                self.log.info('System is in engineering mode, disabling heartbeat')
+                self.heartbeat_enabled = False
+                self.heartbeat_set_flag = 1
 
-            self.log.info('System is in engineering mode, disabling autodehum')
-            self.autodehum_enabled = False
+            if self.autodehum_enabled:
+                self.log.info('System is in engineering mode, disabling autodehum')
+                self.autodehum_enabled = False
 
-            self.log.info('System is in engineering mode, disabling autoclose')
-            self.autoclose_enabled = False
-            self.autoclose_timeout = None
+            if self.autoclose_enabled:
+                self.log.info('System is in engineering mode, disabling autoclose')
+                self.autoclose_enabled = False
+                self.autoclose_timeout = None
 
-            self.log.info('System is in engineering mode, disabling windshielding')
-            self.windshield_enabled = False
-            self.autoshield_enabled = False
-            self.shielding = False
+            if self.windshield_enabled or self.autoshield_enabled or self.shielding:
+                self.log.info('System is in engineering mode, disabling windshielding')
+                self.windshield_enabled = False
+                self.autoshield_enabled = False
+                self.shielding = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
