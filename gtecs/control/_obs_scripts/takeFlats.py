@@ -71,6 +71,9 @@ def run(eve, alt, late=False, start_now=False, no_slew=False):
             if time_to_go.value < 0:
                 break
             time.sleep(30)
+    else:
+        today = Time.now().strftime('%Y-%m-%d')
+
     print('Ready to start flats')
     now = Time.now()
 
