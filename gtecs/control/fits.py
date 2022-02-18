@@ -3,8 +3,8 @@
 import glob
 import math
 import os
-import time
 import threading
+import time
 import warnings
 
 import astropy.units as u
@@ -92,15 +92,15 @@ def clear_glance_files(tel_number=None):
             os.remove(filename)
 
 
-def write_fits(image_data, filename, ut, all_info, compress=False, log=None, confirm=True):
-    """Update an image's FITS header and save to a file."""
-    # extract the hdu
+def make_fits(image_data, ut, all_info, compress=False, log=None):
+    """Format and update a FITS HDU for the image."""
+    # Create the hdu
     if compress:
         hdu = fits.CompImageHDU(image_data)
     else:
         hdu = fits.PrimaryHDU(image_data)
 
-    # update the image header
+    # Update the image header with info from the daemons
     try:
         update_header(hdu.header, ut, all_info, log)
     except Exception:
@@ -109,29 +109,24 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None, con
         log.error('Failed to update FITS header')
         log.debug('', exc_info=True)
 
-    # write the image log to the database
-    if params.WRITE_IMAGE_LOG and not all_info['cam']['current_exposure']['glance']:
-        try:
-            write_image_log(filename, hdu.header)
-        except Exception:
-            if log is None:
-                raise
-            log.error('Failed to add entry to image log')
-            log.debug('', exc_info=True)
+    return hdu
 
-    # create the hdulist
-    if not isinstance(hdu, fits.PrimaryHDU):
-        hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
-    else:
-        hdulist = fits.HDUList([hdu])
 
-    # remove any existing file
+def save_fits(hdu, filename, log=None, confirm=True):
+    """Save a FITS HDU to a file."""
+    # Remove any existing file
     try:
         os.remove(filename)
     except FileNotFoundError:
         pass
 
-    # write to a tmp file, then move it once it's finished (removes the need for .done files)
+    # Create the hdulist
+    if not isinstance(hdu, fits.PrimaryHDU):
+        hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
+    else:
+        hdulist = fits.HDUList([hdu])
+
+    # Write to a tmp file, then move it once it's finished (removes the need for .done files)
     try:
         hdulist.writeto(filename + '.tmp')
     except Exception:
@@ -142,10 +137,24 @@ def write_fits(image_data, filename, ut, all_info, compress=False, log=None, con
     else:
         os.rename(filename + '.tmp', filename)
 
+    if params.WRITE_IMAGE_LOG and not hdu.header['GLANCE  ']:
+        # Write the image log to the database
+        try:
+            write_image_log(filename, hdu.header)
+        except Exception:
+            if log is None:
+                raise
+            log.error('Failed to add entry to image log')
+            log.debug('', exc_info=True)
+
     if confirm:
-        # record image being saved
+        # Log image being saved
+        ut = hdu.header['UT      ']
         interface_id = params.UT_DICT[ut]['INTERFACE']
-        expstr = all_info['cam']['current_exposure']['expstr'].capitalize()
+        if not hdu.header['GLANCE  ']:
+            expstr = 'Exposure r{:07d}'.format(int(hdu.header['RUN     ']))
+        else:
+            expstr = 'Glance'
         if log:
             log.info('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
         else:

@@ -13,7 +13,7 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.fits import glance_location, image_location, write_fits
+from gtecs.control.fits import glance_location, image_location, make_fits, save_fits
 from gtecs.control.hardware.fli import FLICamera, FLIFilterWheel, FLIFocuser
 from gtecs.control.hardware.fli import FakeCamera, FakeFilterWheel, FakeFocuser
 from gtecs.control.hardware.ota import FakeH400, H400
@@ -565,36 +565,41 @@ class UTInterfaceDaemon(BaseDaemon):
                 images[ut] = None
         return images
 
-    def _write_fits(self, image_data, ut, all_info, compress=False):
-        """Write image data to a FITS file."""
-        exposure_info = all_info['cam']['current_exposure']
-        if not exposure_info['glance']:
-            run_number = exposure_info['run_number']
-            filename = image_location(run_number, ut, all_info['params']['tel_number'])
+    def _write_fits(self, hdu):
+        """Write image HDU to a FITS file."""
+        ut = hdu.header['UT      ']
+        run_number = hdu.header['RUN     ']
+        tel_number = hdu.header['TEL     ']
+        if not hdu.header['GLANCE  ']:
+            filename = image_location(run_number, ut, tel_number)
         else:
-            filename = glance_location(ut, all_info['params']['tel_number'])
+            filename = glance_location(ut, tel_number)
 
         self.log.info('Camera {} saving image to {}'.format(ut, filename))
-        write_fits(image_data, filename, ut, all_info, compress, log=self.log, confirm=False)
+        save_fits(hdu, filename, log=self.log, confirm=False)
         self.log.info('Camera {} saved image'.format(ut))
 
     def save_exposure(self, ut, all_info, compress=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
         self.log.info('Camera {} fetching image'.format(ut))
         image_data = self.cameras[ut].fetch_image()
+        hdu = make_fits(image_data, ut, all_info, compress, log=self.log)
 
         if method == 'proc':
             # Start image saving in a new process
-            p = mp.Process(target=self._write_fits, args=[image_data, ut, all_info, compress])
+            p = mp.Process(target=self._write_fits, args=[hdu])
             p.start()
         elif method == 'thread':
             # Start image saving in a new thread
-            t = threading.Thread(target=self._write_fits, args=[image_data, ut, all_info, compress])
+            t = threading.Thread(target=self._write_fits, args=[hdu])
             t.daemon = True
             t.start()
         else:
             # Just save directly here
-            self._write_fits(image_data, ut, all_info, compress)
+            self._write_fits(hdu)
+
+        # return the image header
+        return hdu.header
 
     def abort_exposure(self, ut):
         """Abort current exposure."""

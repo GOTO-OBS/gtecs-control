@@ -14,7 +14,7 @@ from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
 from gtecs.control.exposures import Exposure
 from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
-                                image_location, write_fits)
+                                image_location, make_fits, save_fits)
 
 
 class CamDaemon(BaseDaemon):
@@ -45,6 +45,7 @@ class CamDaemon(BaseDaemon):
         except Exception:
             self.latest_run_number = 0
         self.num_taken = 0
+        self.latest_headers = {ut: None for ut in self.uts}
 
         self.queues_cleared = {ut: False for ut in self.uts}
 
@@ -520,6 +521,7 @@ class CamDaemon(BaseDaemon):
 
         # save images in parallel
         with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
+            headers = {ut: None for ut in self.uts}
             for ut in active_uts:
                 # get image data and filename
                 image_data = images[ut]
@@ -529,14 +531,17 @@ class CamDaemon(BaseDaemon):
                 else:
                     filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
+                # create and fill the FITS HDU
+                hdu = make_fits(image_data, ut, all_info, compress=False, log=None)
+                headers[ut] = hdu.header
+
                 # write the FITS file
                 interface_id = params.UT_DICT[ut]['INTERFACE']
                 self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
                               expstr, ut, interface_id, filename))
-                executor.submit(write_fits, image_data, filename, ut, all_info,
-                                compress=params.COMPRESS_IMAGES,
-                                log=self.log)
+                executor.submit(save_fits, hdu, filename, log=self.log, confirm=True)
 
+        self.latest_headers = headers
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
@@ -546,6 +551,7 @@ class CamDaemon(BaseDaemon):
         cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
+        self.log.info('{}: Saving thread started'.format(expstr))
 
         if len(active_uts) == 0:
             # We must have aborted before we got to this stage
@@ -560,18 +566,22 @@ class CamDaemon(BaseDaemon):
         # save images on the interfaces in turn
         # no need for parallelisation here, they should return immediately as the interface
         # creates new processes for each
+        headers = {ut: None for ut in self.uts}
         for ut in active_uts:
             interface_id = params.UT_DICT[ut]['INTERFACE']
 
             self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
             try:
                 with daemon_proxy(interface_id) as interface:
-                    interface.save_exposure(ut, all_info, compress=params.COMPRESS_IMAGES)
+                    headers[ut] = interface.save_exposure(ut, all_info,
+                                                          compress=params.COMPRESS_IMAGES)
             except Exception:
                 self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
 
+        self.latest_headers = headers
         self.saving_thread_running = False
+        self.log.info('{}: Saving thread finished'.format(expstr))
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
@@ -690,6 +700,10 @@ class CamDaemon(BaseDaemon):
             else:
                 s += 'Aborting exposure on camera {}'.format(ut)
         return s
+
+    def get_latest_headers(self):
+        """Get the headers for the last completed exposure."""
+        return self.latest_headers
 
     def set_window(self, x, y, dx, dy, ut_list):
         """Set the camera's image window area."""
