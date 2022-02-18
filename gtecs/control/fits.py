@@ -19,6 +19,7 @@ import numpy as np
 from . import astronomy
 from . import misc
 from . import params
+from .analysis import measure_image_hfd
 from .daemons import daemon_info
 from .flags import Status
 
@@ -92,7 +93,9 @@ def clear_glance_files(tel_number=None):
             os.remove(filename)
 
 
-def make_fits(image_data, ut, all_info, compress=False, log=None):
+def make_fits(image_data, ut, all_info, compress=False,
+              include_stats=True, measure_hfds=False, hfd_regions=None,
+              log=None):
     """Format and update a FITS HDU for the image."""
     # Create the hdu
     if compress:
@@ -108,6 +111,22 @@ def make_fits(image_data, ut, all_info, compress=False, log=None):
             raise
         log.error('Failed to update FITS header')
         log.debug('', exc_info=True)
+
+    if include_stats:
+        hdu.header['MEANCNTS'] = (np.mean(image_data), 'Mean image counts')
+        hdu.header['MEDCNTS '] = (np.median(image_data), 'Median image counts')
+        hdu.header['STDCNTS '] = (np.std(image_data), 'Std of image counts')
+
+    if measure_hfds:
+        if hfd_regions is None:
+            hfd_regions = [None]
+        for i, region in enumerate(hfd_regions):
+            hfd, hfd_std = measure_image_hfd(image_data,
+                                             filter_width=15,
+                                             region=region,
+                                             verbose=False)
+            hdu.header['MEDHFD{}'.format(i)] = hfd
+            hdu.header['STDHFD{}'.format(i)] = hfd_std
 
     return hdu
 
