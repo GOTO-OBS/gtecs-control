@@ -645,22 +645,23 @@ class AstroHavenDome:
             self.log.debug('output thread started')
         self.output_thread_running = True
 
+        # get the starting position
+        # (used for stepping so it doesn't stutter when already partially open)
+        start_position = self.status[side]
+
         while self.output_thread_running:
             # store running time for timeout
             running_time = time.time() - start_time
 
-            # get the starting position
-            start_position = self.status[side]
-
             # check reasons to break out and stop the thread
             if command == 'open' and self.status[side] == 'full_open':
                 if self.log:
-                    self.log.info('Dome at limit')
+                    self.log.info('Dome at limit (full_open)')
                 self.output_thread_running = False
                 break
             elif command == 'close' and self.status[side] == 'closed':
                 if self.log:
-                    self.log.info('Dome at limit')
+                    self.log.info('Dome at limit (closed)')
                 self.output_thread_running = False
                 break
             elif (frac != 1 and running_time > self.move_time[side][command] * frac):
@@ -689,7 +690,6 @@ class AstroHavenDome:
                     running_time < params.DOME_STUTTER_TIME):
                 # Used to "stutter step" the south side when opening,
                 # so that the top shutter doesn't jerk on the belts when it tips over.
-                # NEW: add start_position, so it doesn't stutter when already partially open
                 time.sleep(params.DOME_STUTTER_TIMESTEP)
             else:
                 time.sleep(params.DOME_MOVE_TIMESTEP)
