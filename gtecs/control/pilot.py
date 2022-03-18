@@ -246,7 +246,6 @@ class Pilot(object):
                          'foc': monitors.FocMonitor(log=self.log),
                          'exq': monitors.ExqMonitor(log=self.log),
                          'conditions': monitors.ConditionsMonitor(log=self.log),
-                         'scheduler': monitors.SchedulerMonitor(log=self.log),
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 
