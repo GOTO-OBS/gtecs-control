@@ -340,12 +340,6 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
 EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
-########################################################################
-# Scheduler parameters
-SCHEDULER_CHECK_PERIOD = config['SCHEDULER_CHECK_PERIOD']
-HORIZON_FILE = os.path.join(FILE_PATH, 'horizon')
-HORIZON_SHIELDING_FILE = os.path.join(FILE_PATH, 'horizon_shielding')
-
 ############################################################
 # Obs script parameters
 FLATS_SKYMEANTARGET_EVEN = config['FLATS_SKYMEANTARGET_EVEN']
