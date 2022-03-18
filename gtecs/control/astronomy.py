@@ -12,10 +12,6 @@ from astropy.time import Time
 
 from erfa import eo06a
 
-import numpy as np
-
-from scipy import interpolate
-
 # from . import astropy_speedups  # noqa: F401 to ignore unused module
 from . import params
 
@@ -100,59 +96,6 @@ def observatory_location():
     return EarthLocation(lon=params.SITE_LONGITUDE,
                          lat=params.SITE_LATITUDE,
                          height=params.SITE_ALTITUDE)
-
-
-def get_horizon(filepath=None):
-    """Get the artificial horizon of the observatory.
-
-    The horizon should be defined in file in the G-TeCS config directory, with columns matching
-    the azimuth and altitude limit at that azimuth.
-
-    Note you will need to interpolate between alts (e.g. with `scipy.interpolate.interp1d`) to
-    find the horizon at any intermediate points.
-
-    Parameters
-    ----------
-    filepath : str, default=params.HORIZON_FILE
-        horizon file to use
-
-    Returns:
-    --------
-    az, alt : tuple of list
-        altitude limit at defined azimuths
-
-    """
-    if filepath is None:
-        filepath = params.HORIZON_FILE
-    az, alt = np.loadtxt(filepath, usecols=(0, 1)).T
-    return (az, alt)
-
-
-def above_horizon(ra_deg, dec_deg, now=None, horizon=30):
-    """Check if the given coordinates are above the artificial horizon.
-
-    Parameters
-    ----------
-    ra_deg : float or numpy.ndarray
-        right ascension in degrees
-    dec_deg : float or numpy.ndarray
-        declination in degrees
-    now : `~astropy.time.Time`, optional
-        time(s) to calculate at
-        default is `Time.now()`
-    horizon : float or tuple of (azs, alts), optional
-        artificial horizon, either a flat value or varying with azimuth.
-        default is a flat horizon of 30 deg
-    """
-    alt, az = altaz_from_radec(ra_deg, dec_deg, now)
-
-    if isinstance(horizon, (int, float)):
-        horizon = ([0, 90, 180, 270, 360], [horizon, horizon, horizon, horizon, horizon])
-    get_alt_limit = interpolate.interp1d(*horizon,
-                                         bounds_error=False,
-                                         fill_value='extrapolate')
-    alt_limit = get_alt_limit(az)
-    return alt > alt_limit
 
 
 def altaz_from_radec(ra_deg, dec_deg, time=None, location=None):
@@ -448,7 +391,7 @@ def above_elevation_limit(ra_deg, dec_deg, time=None):
 
     Returns
     -------
-    above_horizon : bool
+    above_limit : bool
         True if the target is above params.MIN_ELEVATION, False if below
 
     """
