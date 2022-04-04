@@ -99,11 +99,6 @@ def query(command, args, daemon_id):
 
     # Daemon functions
     elif command in ['on', 'off', 'reboot']:
-        # sneaky alias for dehumidifier, which is powered from the dome daemon
-        if len(args) == 1 and args[0] in ['dehumidifier', 'dehumid', 'dehum']:
-            reply = daemons.daemon_function('dome', 'override_dehumidifier', [command])
-            print(reply)
-            return
         # parse arguments
         if len(args) == 1:
             unit = None

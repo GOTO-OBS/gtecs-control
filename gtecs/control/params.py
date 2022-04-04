@@ -50,13 +50,18 @@ SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
 
-# use colour and fancy formatting in output?
-FANCY_OUTPUT = config['FANCY_OUTPUT']
-
-# Email alerts
+# People to email in emergency
 EMAIL_LIST = config['EMAIL_LIST']
+
+# Email account to send emails from
 EMAIL_ADDRESS = config['EMAIL_ADDRESS']
 EMAIL_SERVER = config['EMAIL_SERVER']
+
+# Use colour and fancy formatting in output?
+FANCY_OUTPUT = config['FANCY_OUTPUT']
+
+# Debug - print commands?
+COMMAND_DEBUG = config['COMMAND_DEBUG']
 
 ############################################################
 # Daemon parameters
@@ -191,10 +196,6 @@ LINK_URLS = config['LINK_URLS']
 LINK_BADDELAY = config['LINK_BADDELAY']
 LINK_GOODDELAY = config['LINK_GOODDELAY']
 
-# Hatch
-HATCH_BADDELAY = config['HATCH_BADDELAY']
-HATCH_GOODDELAY = config['HATCH_GOODDELAY']
-
 # Diskspace - free space measured in %
 MIN_DISKSPACE = config['MIN_DISKSPACE']
 
@@ -309,14 +310,15 @@ DOME_LOCATION = config['DOME_LOCATION']
 ARDUINO_LOCATION = config['ARDUINO_LOCATION']
 if ARDUINO_LOCATION == 'unknown':
     ARDUINO_LOCATION = None
+DOME_IGNORE_SWITCH_ERRORS = config['DOME_IGNORE_SWITCH_ERRORS']
 
 DOME_HEARTBEAT_LOCATION = config['DOME_HEARTBEAT_LOCATION']
 DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
 
+HATCH_OPEN_DELAY = config['HATCH_OPEN_DELAY']
+
 QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
 QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
-
-DOME_ALARM_DURATION = config['DOME_ALARM_DURATION']
 
 DOME_OPEN_NORTH_TIME = config['DOME_OPEN_NORTH_TIME']
 DOME_OPEN_SOUTH_TIME = config['DOME_OPEN_SOUTH_TIME']
@@ -327,6 +329,8 @@ DOME_MOVE_TIMESTEP = config['DOME_MOVE_TIMESTEP']
 
 DOME_STUTTER_TIME = config['DOME_STUTTER_TIME']
 DOME_STUTTER_TIMESTEP = config['DOME_STUTTER_TIMESTEP']
+
+DOME_HAS_BUMPERGUARD = config['DOME_HAS_BUMPERGUARD']
 
 DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
 DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']

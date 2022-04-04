@@ -43,7 +43,11 @@ def kill_process(pidname, host='127.0.0.1'):
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = "ssh {} '{}'".format(host, command_string)
 
-    subprocess.getoutput(command_string)
+    if params.COMMAND_DEBUG:
+        print(command_string)
+    output = subprocess.getoutput(command_string)
+    if 'No route to host' in output:
+        raise ConnectionError('Cannot connect to host {}'.format(host))
 
     clear_pid(pidname, host)
 
@@ -58,10 +62,14 @@ def python_command(filename, command, host='127.0.0.1',
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     if not in_background:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
-        output = proc.communicate()[0]
-        return output.decode()
+        output = proc.communicate()[0].decode()
+        if 'No route to host' in output:
+            raise ConnectionError('Cannot connect to host {}'.format(host))
+        return output
     else:
         proc = subprocess.Popen(command_string, shell=True, stdout=stdout, stderr=stderr)
         return ''
@@ -144,6 +152,21 @@ class NeatCloser(object, metaclass=abc.ABCMeta):
         return
 
 
+def get_host_ip():
+    """Get the current host IP (https://stackoverflow.com/a/28950776)."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
+
 def get_pid(pidname, host=None):
     """Check if a pid file exists with the given name.
 
@@ -170,7 +193,11 @@ def get_pid(pidname, host=None):
         # NOTE this assumes the pid path is the same on the remote machine
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     output = subprocess.getoutput(command_string)
+    if 'No route to host' in output:
+        raise ConnectionError('Cannot connect to host {}'.format(host))
 
     if 'No such file or directory' in output:
         return None
@@ -188,7 +215,11 @@ def clear_pid(pidname, host='127.0.0.1'):
         # NOTE this assumes the pid path is the same on the remote machine
         command_string = "ssh {} '{}'".format(host, command_string)
 
+    if params.COMMAND_DEBUG:
+        print(command_string)
     output = subprocess.getoutput(command_string)
+    if 'No route to host' in output:
+        raise ConnectionError('Cannot connect to host {}'.format(host))
 
     if not output or 'No such file or directory' in output:
         return 0

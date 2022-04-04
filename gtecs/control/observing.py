@@ -11,7 +11,7 @@ from gtecs.obs.database import get_pointing_by_id, open_session
 from . import params
 from .astronomy import above_elevation_limit, radec_from_altaz
 from .daemons import daemon_function, daemon_info
-from .fits import get_glance_data, get_image_data
+from .fits import clear_glance_files, get_glance_data, get_image_data
 from .misc import execute_command
 
 
@@ -527,7 +527,8 @@ def offset(direction, distance):
     time.sleep(2)
 
 
-def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None):
+def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None,
+                       get_headers=False):
     """Take a single exposure set, then open the images and return the image data.
 
     Parameters
@@ -547,11 +548,13 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     uts : list of ints, default=`None`
         if given, the UTs to take the exposures with
         uts=`None` (the default) will take images on all UTs
+    get_headers : bool, default=False
+        return the image headers instead of the full data arrays (much faster)
 
     Returns
     -------
     data : dict
-        a dictionary of the image data, with the UT numbers as keys
+        a dictionary of the image data or headers, with the UT numbers as keys
 
     """
     # Find the current image count, so we know what to wait for
@@ -578,6 +581,10 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
                                                            name,
                                                            imgtype if not glance else '')
 
+    # Remove old glance files (so we know what to wait for)
+    if glance:
+        clear_glance_files()
+
     # Send the command
     execute_command(exq_command)
     execute_command('exq resume')
@@ -585,6 +592,9 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     # Wait for the camera daemon to finish saving the images
     wait_for_images(img_num + 1, exptime + 60)
     time.sleep(2)
+
+    if get_headers:
+        return daemon_function('cam', 'get_latest_headers')
 
     # Fetch the data
     if not glance:

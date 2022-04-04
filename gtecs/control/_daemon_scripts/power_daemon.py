@@ -9,7 +9,7 @@ from astropy.time import Time
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.power import APCPDU, APCUPS, APCATS, EPCPDU, ETH8020
+from gtecs.control.hardware.power import APCATS, APCPDU, APCUPS, EPCPDU, ETHPDU
 from gtecs.control.hardware.power import FakePDU, FakeUPS
 
 
@@ -154,7 +154,8 @@ class PowerDaemon(BaseDaemon):
 
                 elif unit_class == 'APCPDU':
                     try:
-                        self.power_units[unit_name] = APCPDU(unit_ip)
+                        unit_outlets = len(unit_params['NAMES'])
+                        self.power_units[unit_name] = APCPDU(unit_ip, unit_outlets)
                         self.log.info('Connected to {}'.format(unit_name))
                         if unit_name in self.bad_hardware:
                             self.bad_hardware.remove(unit_name)
@@ -190,7 +191,8 @@ class PowerDaemon(BaseDaemon):
 
                 elif unit_class == 'EPCPDU':
                     try:
-                        self.power_units[unit_name] = EPCPDU(unit_ip)
+                        unit_outlets = len(unit_params['NAMES'])
+                        self.power_units[unit_name] = EPCPDU(unit_ip, unit_outlets)
                         self.log.info('Connected to {}'.format(unit_name))
                         if unit_name in self.bad_hardware:
                             self.bad_hardware.remove(unit_name)
@@ -200,11 +202,13 @@ class PowerDaemon(BaseDaemon):
                             self.log.error('Failed to connect to {}'.format(unit_name))
                             self.bad_hardware.add(unit_name)
 
-                elif unit_class == 'ETH8020':
+                elif unit_class == 'ETHPDU':
                     try:
                         unit_port = int(unit_params['PORT'])
-                        unit_nc = unit_params['NC'] if 'NC' in unit_params else 0
-                        self.power_units[unit_name] = ETH8020(unit_ip, unit_port, unit_nc)
+                        unit_outlets = len(unit_params['NAMES'])
+                        unit_nc = bool(unit_params['NC']) if 'NC' in unit_params else False
+                        self.power_units[unit_name] = ETHPDU(unit_ip, unit_port,
+                                                             unit_outlets, unit_nc)
                         self.log.info('Connected to {}'.format(unit_name))
                         if unit_name in self.bad_hardware:
                             self.bad_hardware.remove(unit_name)
@@ -308,7 +312,7 @@ class PowerDaemon(BaseDaemon):
         with the latter being only unit numbers not names.
         This function will parse the input names and return those lists.
 
-        Example
+        Example:
         -------
         "power on foc1,filt1,leds"
         - First 'leds' is a group, which is expanded to 'led1' and 'led2'
@@ -318,6 +322,7 @@ class PowerDaemon(BaseDaemon):
           outlets = ['EAST','EAST','PDU1','PDU2']
           units = ['filt1','foc1','led1','led2']
           Note they will be sorted in the order of outlet then unit.
+
         """
         if unit in params.POWER_UNITS:
             # A specific unit was given, all the outlets should be numbers from that unit.

@@ -277,6 +277,10 @@ class MntDaemon(BaseDaemon):
                                         self.log,
                                         params.MOUNT_DEBUG,
                                         )
+                    # try resetting the device connetion to clear any errors
+                    self.mount.disconnect()
+                    time.sleep(0.5)
+                    self.mount.connect()
                 else:
                     raise ValueError('Unknown mount class')
                 self.log.info('Connected to mount')

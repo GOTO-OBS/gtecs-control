@@ -381,10 +381,10 @@ def print_info(info):
     elif info['class'] == 'ASA':
         if info['error_status'] is not None:
             t = Time(info['error_status_time'], format='unix', precision=0)
-            print(style.rtxt('ERROR: {} ({})'.format(info['error_status'], t)))
+            print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
         if info['warning_status'] is not None:
             t = Time(info['warning_status_time'], format='unix', precision=0)
-            print(style.ytxt('WARNING: {} ({})'.format(info['warning_status'], t)))
+            print(style.ytxt('WARNING: "{}" (at {})'.format(info['warning_status'], t.iso)))
         print('RA track rate:    {:>6.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
         print('Dec track rate:   {:>6.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
         print('RA tracking err:   {:+.4f} arcsec'.format(info['tracking_error']['ra']))
@@ -422,10 +422,10 @@ def print_info_s(info):
     print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
     if info['error_status'] is not None:
         t = Time(info['error_status_time'], format='unix', precision=0)
-        print(style.rtxt('ERROR: {} ({})'.format(info['error_status'], t)))
+        print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
     if info['warning_status'] is not None:
         t = Time(info['warning_status_time'], format='unix', precision=0)
-        print(style.ytxt('WARNING: {} ({})'.format(info['warning_status'], t)))
+        print(style.ytxt('WARNING: "{}" (at {})'.format(info['warning_status'], t.iso)))
 
 
 def print_instructions():

@@ -54,6 +54,9 @@ class DomeDaemon(BaseDaemon):
         self.lockdown = False
         self.lockdown_reasons = []
         self.ignoring_lockdown = False
+        self.autoclosing = False
+
+        self.hatch_open_time = 0
 
         self.alarm_enabled = True
         self.heartbeat_enabled = True
@@ -102,20 +105,23 @@ class DomeDaemon(BaseDaemon):
                 # Check if the system mode has changed
                 self._mode_check()
 
-                # Check if we need to trigger a lockdown due to conditions
-                self._lockdown_check()
+                # Only run checks if not in engineering mode
+                if self.info['mode'] != 'engineering':
 
-                # Check if we need to close due to lockdown
-                self._autoclose_check()
+                    # Check if we need to trigger a lockdown due to conditions
+                    self._lockdown_check()
 
-                # Check if we need to turn on/off the dehumidifier
-                self._autodehum_check()
+                    # Check if we need to close due to lockdown
+                    self._autoclose_check()
 
-                # Check if we should enable shielding due to high wind
-                self._autoshield_check()
+                    # Check if we need to turn on/off the dehumidifier
+                    self._autodehum_check()
 
-                # Check if we need to raise the shields
-                self._windshield_check()
+                    # Check if we should enable shielding due to high wind
+                    self._autoshield_check()
+
+                    # Check if we need to raise the shields
+                    self._windshield_check()
 
             # control functions
             # open dome
@@ -150,8 +156,13 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Opening {} side of dome'.format(side))
+                                if params.DOME_HAS_BUMPERGUARD:
+                                    self.dome.reset_bumperguard()
                                 if self.alarm_enabled:
                                     self._sound_alarm()
+                                if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
+                                    time.sleep(5)
+
                                 c = self.dome.open_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
@@ -225,8 +236,13 @@ class DomeDaemon(BaseDaemon):
                         else:
                             try:
                                 self.log.info('Closing {} side of dome'.format(side))
+                                if params.DOME_HAS_BUMPERGUARD:
+                                    self.dome.reset_bumperguard()
                                 if self.alarm_enabled:
                                     self._sound_alarm()
+                                if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
+                                    time.sleep(5)
+
                                 c = self.dome.close_side(side, self.move_frac)
                                 if c:
                                     self.log.info(c)
@@ -401,7 +417,7 @@ class DomeDaemon(BaseDaemon):
                 self.dome.disconnect()
                 self.dome = None
                 self.bad_hardware.add('dome')
-            if self.dome.switch_error:
+            if self.dome.switch_error and not params.DOME_IGNORE_SWITCH_ERRORS:
                 self.log.error('Failed to connect to dome switches')
                 self.dome.disconnect()
                 self.dome = None
@@ -410,9 +426,10 @@ class DomeDaemon(BaseDaemon):
                     (time.time() - self.dome.status_update_time) > params.DOME_CHECK_PERIOD):
                 self.log.error('Failed to check dome status')
                 if params.DOME_DEBUG:
-                    msg = '{} {} {}'.format(self.dome.status_thread_running,
-                                            (time.time() - self.dome.status_update_time),
-                                            params.DOME_CHECK_PERIOD)
+                    msg = 'running={}, delta={}/{}'.format(
+                        self.dome.status_thread_running,
+                        (time.time() - self.dome.status_update_time),
+                        params.DOME_CHECK_PERIOD)
                     self.log.debug(msg)
                 self.dome.disconnect()
                 self.dome = None
@@ -472,6 +489,11 @@ class DomeDaemon(BaseDaemon):
             else:
                 temp_info['dome'] = 'ERROR'
 
+            # hatch info
+            temp_info['hatch_closed'] = temp_info['hatch'] == 'closed'
+            temp_info['hatch_open_time'] = self.hatch_open_time
+
+            # heartbeat info
             heartbeat_status = self.heartbeat.status
             temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
@@ -481,6 +503,8 @@ class DomeDaemon(BaseDaemon):
             temp_info['south'] = None
             temp_info['hatch'] = None
             temp_info['dome'] = None
+            temp_info['hatch_closed'] = None
+            temp_info['hatch_open_time'] = None
             temp_info['heartbeat_status'] = None
             # Report the connection as failed
             self.dome.disconnect()
@@ -577,6 +601,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['lockdown'] = self.lockdown
         temp_info['lockdown_reasons'] = self.lockdown_reasons
         temp_info['ignoring_lockdown'] = self.ignoring_lockdown
+        temp_info['autoclosing'] = self.autoclosing
         temp_info['alarm_enabled'] = self.alarm_enabled
         temp_info['heartbeat_enabled'] = self.heartbeat_enabled
         temp_info['windshield_enabled'] = self.windshield_enabled
@@ -652,31 +677,58 @@ class DomeDaemon(BaseDaemon):
             if self.alarm_enabled:
                 self.log.info('System is in engineering mode, disabling alarm')
                 self.alarm_enabled = False
+
             if self.heartbeat_enabled:
                 self.log.info('System is in engineering mode, disabling heartbeat')
                 self.heartbeat_enabled = False
                 self.heartbeat_set_flag = 1
+
             if self.autodehum_enabled:
                 self.log.info('System is in engineering mode, disabling autodehum')
                 self.autodehum_enabled = False
+
             if self.autoclose_enabled:
                 self.log.info('System is in engineering mode, disabling autoclose')
                 self.autoclose_enabled = False
                 self.autoclose_timeout = None
-            if self.autoshield_enabled:
-                self.log.info('System is in engineering mode, disabling autoshield')
+
+            if self.windshield_enabled or self.autoshield_enabled or self.shielding:
+                self.log.info('System is in engineering mode, disabling windshielding')
+                self.windshield_enabled = False
                 self.autoshield_enabled = False
+                self.shielding = False
 
     def _lockdown_check(self):
         """Check the current conditions and set or clear the lockdown flag."""
         lockdown = False
         reasons = []
 
+        # Safety check: ignore lockdowns in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
             lockdown = True
-            reasons.append('quick-close button pressed')
-            send_slack_msg('Dome quick-close button has been pressed')
+            reason = 'quick-close button pressed'
+            reasons.append(reason)
+            if reason not in self.lockdown_reasons:
+                send_slack_msg('Dome quick-close button has been pressed!')
+
+        # Check if the hatch is open in robotic mode
+        if not self.info['hatch_closed']:
+            if self.hatch_open_time == 0:
+                self.hatch_open_time = self.loop_time
+            if (self.info['mode'] == 'robotic' and
+                    (self.loop_time - self.hatch_opened_time) > params.HATCH_OPEN_DELAY):
+                lockdown = True
+                reason = 'hatch open in robotic mode'
+                reasons.append(reason)
+                if reason not in self.lockdown_reasons:
+                    send_slack_msg('Dome hatch is open in robotic mode!')
+        else:
+            if self.hatch_open_time != 0:
+                self.hatch_open_time = 0
 
         # Check if the emergency shutdown file has been created
         if self.info['emergency']:
@@ -721,6 +773,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Autoclose disabled while no connection to dome')
             return
 
+        # Safety check: never move in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Return if autoclose disabled
         if not self.autoclose_enabled:
             # Check timeout (if set)
@@ -738,17 +794,32 @@ class DomeDaemon(BaseDaemon):
         # Decide if we need to autoclose
         if self.lockdown and self.info['dome'] != 'closed' and not self.close_flag:
             self.log.warning('Autoclosing dome due to lockdown')
-            send_slack_msg('Dome is autoclosing')
             # Stop any opening
             if self.open_flag:
-                self.halt_flag = 1
-                time.sleep(2)
+                self.log.warning('Stopping opening')
+                # We can't use the halt flag since that would clear our close flag!
+                try:
+                    self.dome.halt()
+                except Exception:
+                    self.log.error('Failed to halt dome')
+                    self.log.debug('', exc_info=True)
+                self.open_flag = 0
             # Make sure the alarm sounds, since we're moving automatically
             self.alarm_enabled = True
             # Close the dome
+            self.log.warning('Closing the dome')
             self.close_flag = 1
             self.move_side = 'both'
             self.move_frac = 1
+            self.autoclosing = True
+            # Now send message to Slack, at the end so we don't delay anything
+            send_slack_msg('Dome is autoclosing: {}'.format('; '.join(self.lockdown_reasons)))
+
+        # Check if autoclose has finished
+        if self.autoclosing and self.info['dome'] == 'closed':
+            self.log.warning('Autoclose complete')
+            send_slack_msg('Autoclose complete')
+            self.autoclosing = False
 
     def _autodehum_check(self):
         """Check the current internal conditions, then turn on the dehumidifer if needed."""
@@ -760,6 +831,10 @@ class DomeDaemon(BaseDaemon):
                 (self.info.get('humidity') is None or self.info.get('temperature') is None)):
             # Note dict.get() returns None if it is not in the dictionary
             self.log.warning('No internal conditions readings: auto humidity control unavailable')
+            return
+
+        # Safety check: never switch automatically in engineering mode
+        if self.info['mode'] == 'engineering':
             return
 
         # Return if autodehum disabled
@@ -803,6 +878,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('No windspeed reading: auto windshield control unavailable')
             return
 
+        # Safety check: never move in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
         # Return if autoshield disabled
         if not self.autoshield_enabled:
             return
@@ -823,6 +902,10 @@ class DomeDaemon(BaseDaemon):
         """Check if the dome is open and needs to raise shields."""
         if not self.dome:
             self.log.warning('Shielding disabled while no connection to dome')
+            return
+
+        # Safety check: never move in engineering mode
+        if self.info['mode'] == 'engineering':
             return
 
         # Check if we are currently shielding
@@ -860,7 +943,7 @@ class DomeDaemon(BaseDaemon):
             self.move_side = 'both'
             self.move_frac = 1
 
-    def _sound_alarm(self, sleep=True):
+    def _sound_alarm(self):
         """Sound the dome siren."""
         if not self.alarm_enabled:
             return
@@ -868,14 +951,12 @@ class DomeDaemon(BaseDaemon):
         if params.ARDUINO_LOCATION is not None:
             # Sound the alarm though the curl command
             # We don't actually care about the output, the request triggers the siren
-            command = 'curl -s {}?s{}'.format(params.ARDUINO_LOCATION, params.DOME_ALARM_DURATION)
+            command = 'curl -s {}?s5'.format(params.ARDUINO_LOCATION)
             subprocess.getoutput(command)
-            if sleep:
-                time.sleep(params.DOME_ALARM_DURATION)
         else:
             # Sound the alarm through the heartbeat box
             # Note the heartbeat siren always sounds for 5s
-            self.heartbeat.sound_alarm(sleep)
+            self.heartbeat.sound_alarm()
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
@@ -1131,7 +1212,7 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off':
             return 'Disabling dome alarm'
 
-    def sound_alarm(self, sleep=True):
+    def sound_alarm(self):
         """Sound the dome alarm."""
         # Check current status
         self.wait_for_info()
@@ -1139,7 +1220,14 @@ class DomeDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Alarm is disabled')
 
         # Just call the internal command
-        self._sound_alarm(sleep)
+        self._sound_alarm()
+
+    def reset_bumperguard(self):
+        """Reset the dome bumper guard."""
+        if not params.DOME_HAS_BUMPERGUARD:
+            raise errors.HardwareStatusError('Dome does not have a bumper guard to reset')
+
+        self.dome.reset_bumperguard()
 
     def set_heartbeat(self, command):
         """Enable or disable the dome heartbeat system."""
@@ -1177,6 +1265,8 @@ class DomeDaemon(BaseDaemon):
 
         # Check current status
         self.wait_for_info()
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise errors.HardwareStatusError('Cannot enable windshielding in engineering mode')
         windshield_enabled = self.info['windshield_enabled']
         if command == 'on' and windshield_enabled:
             return 'Windshielding is already enabled'

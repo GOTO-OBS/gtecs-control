@@ -11,7 +11,6 @@ REQUIRES = ['Pyro4',
             'sep',
             'pid',
             'requests',
-            'pyudev',
             'pyserial',
             'opencv-python',
             ]

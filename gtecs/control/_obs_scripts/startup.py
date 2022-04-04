@@ -59,6 +59,14 @@ def run():
 
     time.sleep(4)
 
+    # Restart the mount daemon, to reconnect to the mount, and power on the motors
+    execute_command('mnt restart')
+    time.sleep(10)
+    execute_command('mnt info')
+    time.sleep(1)
+    if params.MOUNT_CLASS == 'ASA':
+        execute_command('mnt motors on')
+
     # Don't unpark the mount or set a target, we want to stay parked while opening
     # execute_command('mnt unpark')
     # print('Setting target to Zenith')
@@ -71,9 +79,6 @@ def run():
     # execute_command('mnt slew')
     # time.sleep(20)
     # execute_command('mnt info -f')
-    # But we can power on the motors
-    if params.MOUNT_CLASS == 'ASA':
-        execute_command('mnt motors on')
 
     # Clean up any persistent queue from previous night
     execute_command('exq clear')

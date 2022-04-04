@@ -10,7 +10,7 @@ import urllib
 
 import serial  # noqa: I900
 
-from .power import ETH002
+from .power import ETHPDU
 from .. import params
 
 
@@ -277,6 +277,8 @@ class AstroHavenDome:
 
         self.move_code = {'south': {'open': b'a', 'close': b'A'},
                           'north': {'open': b'b', 'close': b'B'}}
+        self.reset_code = b'R'
+
         self.move_time = {'south': {'open': params.DOME_OPEN_SOUTH_TIME,
                                     'close': params.DOME_CLOSE_SOUTH_TIME},
                           'north': {'open': params.DOME_OPEN_NORTH_TIME,
@@ -395,6 +397,11 @@ class AstroHavenDome:
         elif status_character == 'Y':
             self.plc_status['north'] = 'closed'
             self.full_open['north'] = False
+        # Other return commands
+        elif status_character == 'R':
+            # We just sent an 'R' to reset the bumper guards
+            # I don't have anything to do here, but it's good to know (and we already logged it)
+            self.log.info('Bumper guard reset')
         else:
             raise ValueError('Unable to parse reply from the PLC: {}'.format(status_character))
 
@@ -423,24 +430,23 @@ class AstroHavenDome:
     def _read_roomalert(self):
         with urllib.request.urlopen(self.roomalert_ip + '/getData.json') as r:
             data = json.loads(r.read())
-
-        switches = {d['lab']: d['stat'] for d in data['s_sen'] if 'Switch Sen' not in d['lab']}
+        data = {d['lab']: d['stat'] for d in data['s_sen'] if 'Switch Sen' not in d['lab']}
         if self.log and self.log_debug:
-            self.log.debug('roomalert RECV:"{}"'.format(switches))
+            self.log.debug('roomalert RECV:"{}"'.format(data))
 
-        if 'Hatch' not in switches or switches['Hatch'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
-        if 'North Limit' not in switches or switches['North Limit'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
-        if 'South Limit' not in switches or switches['South Limit'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
-        if 'Full Close' not in switches or switches['Full Close'] not in [0, 1]:
-            raise ValueError('Unexpected switch status: {}'.format(switches))
+        if 'Hatch' not in data or data['Hatch'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'North Limit' not in data or data['North Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'South Limit' not in data or data['South Limit'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'Full Close' not in data or data['Full Close'] not in [0, 1]:
+            raise ValueError('Unexpected switch status: {}'.format(data))
 
-        switch_dict = {'all_closed': bool(switches['Full Close']),
-                       'north_open': bool(switches['North Limit']),
-                       'south_open': bool(switches['South Limit']),
-                       'hatch_closed': bool(switches['Hatch']),
+        switch_dict = {'all_closed': bool(data['Full Close']),
+                       'north_open': bool(data['North Limit']),
+                       'south_open': bool(data['South Limit']),
+                       'hatch_closed': bool(data['Hatch']),
                        }
         return switch_dict
 
@@ -468,10 +474,8 @@ class AstroHavenDome:
                 else:
                     if self.log:
                         self.log.error('Could not communicate with the switches')
+                    self._parse_switch_status(None)
                     self.switch_error = True
-                    self.switch_status['north'] = 'ERROR'
-                    self.switch_status['south'] = 'ERROR'
-                    self.switch_status['hatch'] = 'ERROR'
 
     def _parse_switch_status(self, switch_dict):
         # save previous status
@@ -641,22 +645,23 @@ class AstroHavenDome:
             self.log.debug('output thread started')
         self.output_thread_running = True
 
+        # get the starting position
+        # (used for stepping so it doesn't stutter when already partially open)
+        start_position = self.status[side]
+
         while self.output_thread_running:
             # store running time for timeout
             running_time = time.time() - start_time
 
-            # get the starting position
-            start_position = self.status[side]
-
             # check reasons to break out and stop the thread
             if command == 'open' and self.status[side] == 'full_open':
                 if self.log:
-                    self.log.info('Dome at limit')
+                    self.log.info('Dome at limit (full_open)')
                 self.output_thread_running = False
                 break
             elif command == 'close' and self.status[side] == 'closed':
                 if self.log:
-                    self.log.info('Dome at limit')
+                    self.log.info('Dome at limit (closed)')
                 self.output_thread_running = False
                 break
             elif (frac != 1 and running_time > self.move_time[side][command] * frac):
@@ -685,7 +690,6 @@ class AstroHavenDome:
                     running_time < params.DOME_STUTTER_TIME):
                 # Used to "stutter step" the south side when opening,
                 # so that the top shutter doesn't jerk on the belts when it tips over.
-                # NEW: add start_position, so it doesn't stutter when already partially open
                 time.sleep(params.DOME_STUTTER_TIMESTEP)
             else:
                 time.sleep(params.DOME_MOVE_TIMESTEP)
@@ -720,8 +724,14 @@ class AstroHavenDome:
         return
 
     def halt(self):
-        """To stop the output thread."""
+        """Stop the output thread."""
         self.output_thread_running = False
+
+    def reset_bumperguard(self):
+        """Reset the bumper guard sensor."""
+        self.dome_serial.write(self.reset_code)
+        if self.log and self.log_debug:
+            self.log.debug('plc SEND:"{}" ({})'.format(self.reset_code, 'reset'))
 
 
 class FakeHeartbeat:
@@ -735,7 +745,7 @@ class FakeHeartbeat:
         """Shutdown the connection."""
         return
 
-    def sound_alarm(self, sleep=True):
+    def sound_alarm(self):
         """Sound the dome alarm using the heartbeat."""
         # Note this is always blocking
         bell = 'play -qn --channels 1 synth 5 sine 440 vol 0.1'
@@ -906,27 +916,14 @@ class DomeHeartbeat:
                 status_character))
         return
 
-    def sound_alarm(self, sleep=True):
-        """Sound the dome alarm using the heartbeat.
-
-        The heartbeat siren always sounds for 5s.
-
-        Parameters
-        ----------
-        sleep : bool, optional
-            Whether to sleep for the duration of the alarm or return immediately
-            default = True
-
-        """
+    def sound_alarm(self):
+        """Sound the dome alarm using the heartbeat (always sounds for 5s)."""
         if self.log:
             self.log.warning('Sounding alarm (status={})'.format(self.status))
         v = 255
         self.serial.write(bytes([v]))
         if self.log and self.log_debug:
             self.log.debug('heartbeat SEND:"{}" (status={})'.format(v, self.status))
-        if sleep:
-            time.sleep(5)
-        return
 
     def enable(self):
         """Enable the heartbeat."""
@@ -971,7 +968,7 @@ class Dehumidifier:
     def __init__(self, address, port):
         self.address = address
         self.port = port
-        self.power = ETH002(self.address, self.port)
+        self.power = ETHPDU(self.address, self.port, outlets=2, normally_closed=False)
 
     def on(self):
         """Turn on the dehumidifier."""
