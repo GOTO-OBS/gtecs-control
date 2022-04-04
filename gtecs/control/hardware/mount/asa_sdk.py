@@ -12,10 +12,8 @@ from astropy.time import Time
 from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
-class DDM500(object):
-    """ASA mount control class using TCP/IP commands.
-
-    This class is based on the ASASDK C++ package.
+class DDM500:
+    """ASA mount control class using the ASASDK C++ package.
 
     Parameters
     ----------
@@ -30,6 +28,7 @@ class DDM500(object):
     log_debug : bool, optional
         log debug strings?
         default = False
+
     """
 
     def __init__(self, address, port, log=None, log_debug=False):
