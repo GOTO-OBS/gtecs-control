@@ -7,10 +7,10 @@ import time
 from enum import Enum
 
 from astropy import units as u
-from astropy.time import Time
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
-from ..astronomy import apparent_to_j2000, j2000_to_apparent
+from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
 class Commands(Enum):

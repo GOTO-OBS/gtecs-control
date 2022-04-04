@@ -14,8 +14,7 @@ from gtecs.control import params
 from gtecs.control.astronomy import (altaz_from_radec, above_elevation_limit, get_ha,
                                      observatory_location, radec_from_altaz)
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.mount import DDM500
-from gtecs.control.hardware.sitech import SiTech
+from gtecs.control.hardware.mount import DDM500, SiTech
 
 
 class MntDaemon(BaseDaemon):

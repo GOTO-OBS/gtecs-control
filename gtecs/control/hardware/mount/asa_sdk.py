@@ -6,10 +6,10 @@ import time
 from asa import ASAMount
 
 from astropy import units as u
-from astropy.time import Time
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
-from gtecs.control.astronomy import apparent_to_j2000, j2000_to_apparent
+from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
 class DDM500(object):

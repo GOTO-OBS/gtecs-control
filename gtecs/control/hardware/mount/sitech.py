@@ -6,8 +6,8 @@ import time
 
 from astropy.time import Time
 
-from .. import params
-from ..astronomy import apparent_to_j2000, j2000_to_apparent
+from ... import params
+from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
 class SiTech(object):
