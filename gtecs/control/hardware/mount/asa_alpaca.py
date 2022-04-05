@@ -166,7 +166,7 @@ class DDM500:
             self._tracking = self._http_get('tracking')
             self._guiding = self._http_get('ispulseguiding')
             self._parked = self._http_get('atpark')
-            self._motors_on = self._http_get('motstat')
+            self._motors_on = self._http_put('commandstring', {'Command': 'MotStat', 'Raw': False})
 
             # Most of these are not yet implemented
             self._position_error = {'ra': None,
@@ -333,11 +333,11 @@ class DDM500:
 
     def start_motors(self):
         """Start the mount motors."""
-        return self._http_put('telescope:motoron')
+        return self._http_put('action', {'Action': 'MotStat', 'Parameters': 'on'})
 
     def stop_motors(self):
         """Stop the mount motors."""
-        return self._http_put('telescope:motoroff')
+        return self._http_put('action', {'Action': 'MotStat', 'Parameters': 'off'})
 
     def set_motor_power(self, activate):
         """Turn the mount motors on or off."""
@@ -359,7 +359,8 @@ class DDM500:
 
     def error_check(self):
         """Check for any errors raised by the mount."""
-        error_raised = self._http_put('telescope:errorstring')
+        error_raised = self._http_put('action',
+                                      {'Action': 'telescope:errorstring', 'Parameters': ''})
         if error_raised:
             return error_raised
 
