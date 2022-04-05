@@ -314,12 +314,12 @@ class DDM500:
                 ra, dec, ra_jnow, dec_jnow))
 
         data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
-        return self._http_put('slewtocoordinatesasync', data_dict)
+        self._http_put('slewtocoordinatesasync', data_dict)
 
     def slew_to_altaz(self, alt, az):
         """Slew mount to given Alt/Az."""
         data_dict = {'Azimuth': az, 'Altitude': alt}
-        return self._http_put('slewtoaltazasync', data_dict)
+        self._http_put('slewtoaltazasync', data_dict)
 
     def sync_radec(self, ra, dec):
         """Set current pointing to given RA and Dec coordinates (in J2000)."""
@@ -333,41 +333,39 @@ class DDM500:
                 ra, dec, ra_jnow, dec_jnow))
 
         data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
-        return self._http_put('synctocoordinates', data_dict)
+        self._http_put('synctocoordinates', data_dict)
 
     def track(self):
         """Start tracking at the siderial rate."""
-        return self._http_put('tracking', {'Tracking': True})
+        self._http_put('tracking', {'Tracking': True})
 
     def park(self):
         """Move mount to park position."""
-        return self._http_put('park')
+        self._http_put('park')
 
     def unpark(self):
         """Unpark the mount so it can accept slew commands."""
-        return self._http_put('unpark')
+        self._http_put('unpark')
 
     def halt(self):
         """Abort slew (if slewing) and stop tracking (if tracking)."""
-        if self.status == 'Slewing':
-            return self._http_put('abortslew')
-        elif self.status == 'Tracking':
-            return self._http_put('tracking', {'Tracking': False})
+        self._http_put('abortslew')
+        self._http_put('tracking', {'Tracking': False})
 
     def start_motors(self):
         """Start the mount motors."""
-        return self._http_put('action', {'Action': 'MotStat', 'Parameters': 'on'})
+        self._http_put('action', {'Action': 'MotStat', 'Parameters': 'on'})
 
     def stop_motors(self):
         """Stop the mount motors."""
-        return self._http_put('action', {'Action': 'MotStat', 'Parameters': 'off'})
+        self._http_put('action', {'Action': 'MotStat', 'Parameters': 'off'})
 
     def set_motor_power(self, activate):
         """Turn the mount motors on or off."""
         if activate:
-            return self.start_motors()
+            self.start_motors()
         else:
-            return self.stop_motors()
+            self.stop_motors()
 
     def offset(self, direction, distance):
         """Set offset in the given direction by the given distance (in arcsec)."""
@@ -389,7 +387,7 @@ class DDM500:
 
     def clear_error(self):
         """Clear for any errors raised by the mount."""
-        return self._http_put('action', {'Action': 'telescope:clearerror', 'Parameters': ''})
+        self._http_put('action', {'Action': 'telescope:clearerror', 'Parameters': ''})
 
     # def warning_check(self):
     #     """Check for any warnings raised by the mount."""
