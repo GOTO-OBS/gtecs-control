@@ -62,7 +62,10 @@ class DDM500:
         # Connect to the mount
         self.connect()
 
-        # Update status when starting
+        # Get mount info (this shouldn't change, so just get once when starting)
+        self.info = self._get_info()
+
+        # Update status
         self._update_status()
 
     def _http_request(self, cmd, command_str, data=None):
@@ -144,6 +147,37 @@ class DDM500:
     def disconnect(self):
         """Disconnect from the mount device."""
         self._http_put('connected', {'Connected': False})
+
+    def _get_info(self):
+        """Get basic mount properties."""
+        info = {}
+        # Mount params
+        info['equatorialsystem'] = self._http_get('equatorialsystem')
+        info['doesrefraction'] = self._http_get('doesrefraction')
+        info['trackingrates'] = self._http_get('trackingrates')
+        # ASCOM params
+        info['name'] = self._http_get('name')
+        info['description'] = self._http_get('description')
+        info['driverinfo'] = self._http_get('driverinfo')
+        info['driverversion'] = self._http_get('driverversion')
+        info['interfaceversion'] = self._http_get('interfaceversion')
+        # AutoSlew params
+        info['mounttype'] = self._http_put('action',
+                                           {'Action': 'telescope:reportmounttype',
+                                            'Parameters': ''})
+        info['maxspeed'] = self._http_put('commandstring',
+                                          {'Command': 'MaxSpeed',
+                                           'Raw': False})
+        info['corrections'] = self._http_put('commandstring',
+                                             {'Command': 'GetCorrections',
+                                              'Raw': False})
+        info['mountname'] = self._http_put('commandstring',
+                                           {'Command': 'GetMountName',
+                                            'Raw': False})
+        info['autoslewversion'] = self._http_put('commandstring',
+                                                 {'Command': 'GetVersion',
+                                                  'Raw': False})
+        return info
 
     def _update_status(self):
         """Read and store status values."""
