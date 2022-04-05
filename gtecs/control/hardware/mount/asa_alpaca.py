@@ -203,6 +203,12 @@ class DDM500:
         return self._slewing
 
     @property
+    def guiding(self):
+        """Return if the mount is currently pulse guiding."""
+        self._update_status()
+        return self._guiding
+
+    @property
     def parked(self):
         """Return if the mount is currently parked."""
         self._update_status()
