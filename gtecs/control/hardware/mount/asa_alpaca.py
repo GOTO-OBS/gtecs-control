@@ -154,10 +154,6 @@ class DDM500:
 
             self._ra_jnow = self._http_get('rightascension')
             self._dec_jnow = self._http_get('declination')
-            self._targ_ra_jnow = self._http_get('targetrightascension')
-            self._targ_dec_jnow = self._http_get('targetdeclination')
-
-            # Need to "uncook" from apparent to J2000
             ra_j2000, dec_j2000 = apparent_to_j2000(self._ra_jnow * 360 / 24,
                                                     self._dec_jnow,
                                                     self._jd)
@@ -165,13 +161,16 @@ class DDM500:
             if self._ra >= 24:
                 self._ra -= 24
             self._dec = dec_j2000
-            targ_ra_j2000, targ_dec_j2000 = apparent_to_j2000(self._targ_ra_jnow * 360 / 24,
-                                                              self._targ_dec_jnow,
-                                                              self._jd)
-            self._targ_ra = targ_ra_j2000 * 24 / 360
-            if self._targ_ra >= 24:
-                self._targ_ra -= 24
-            self._targ_dec = targ_dec_j2000
+
+            # self._targ_ra_jnow = self._http_get('targetrightascension')
+            # self._targ_dec_jnow = self._http_get('targetdeclination')
+            # targ_ra_j2000, targ_dec_j2000 = apparent_to_j2000(self._targ_ra_jnow * 360 / 24,
+            #                                                   self._targ_dec_jnow,
+            #                                                   self._jd)
+            # self._targ_ra = targ_ra_j2000 * 24 / 360
+            # if self._targ_ra >= 24:
+            #     self._targ_ra -= 24
+            # self._targ_dec = targ_dec_j2000
 
             self._az = self._http_get('azimuth')
             self._alt = self._http_get('altitude')
