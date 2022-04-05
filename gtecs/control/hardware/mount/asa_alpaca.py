@@ -169,16 +169,16 @@ class DDM500:
             self._motors_on = self._http_put('commandstring', {'Command': 'MotStat', 'Raw': False})
 
             # Most of these are not yet implemented
-            self._position_error = {'ra': None,
-                                    'dec': None}
-            self._tracking_error = {'ra': None,
-                                    'dec': None}
-            self._velocity = {'ra': None,
-                              'dec': None}
-            self._acceleration = {'ra': None,
-                                  'dec': None}
-            self._current = {'ra': None,
-                             'dec': None}
+            self._position_error = {'ra': -999,
+                                    'dec': -999}
+            self._tracking_error = {'ra': -999,
+                                    'dec': -999}
+            self._velocity = {'ra': -999,
+                              'dec': -999}
+            self._acceleration = {'ra': -999,
+                                  'dec': -999}
+            self._current = {'ra': -999,
+                             'dec': -999}
             self._tracking_rate = {'ra': self._http_get('rightascensionrate'),
                                    'dec': self._http_get('declinationrate')}
 
