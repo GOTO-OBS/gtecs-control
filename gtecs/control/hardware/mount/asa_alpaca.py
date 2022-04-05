@@ -2,6 +2,7 @@
 
 import json
 import logging
+import random
 import time
 
 from astropy import units as u
@@ -45,6 +46,8 @@ class DDM500:
         self.api_version = api_version
         self.device_number = device_number
         self.base_url = f'http://{address}:{port}/api/v{api_version}/telescope/{device_number}/'
+        self.client_id = random.randint(0, 2**32)
+        self.transaction_count = 0
 
         self._status_update_time = 0
 
@@ -62,18 +65,39 @@ class DDM500:
         # Update status when starting
         self._update_status()
 
-    def _http_request(self, cmd, command_str, data):
+    def _http_request(self, cmd, command_str, data=None):
         """Send a request to the device, then parse and return the reply."""
         try:
+            if data is None:
+                data = {}
+
+            # Add recommended IDs
+            data['ClientID'] = self.client_id
+            count = self.transaction_count + 1
+            data['ClientTransactionID'] = count
+            self.transaction_count = count
+
             url = self.base_url + command_str
             if self.log and self.log_debug:
                 self.log.debug(f'{cmd}:"{url}":{data}')
-            r = requests.request(cmd, url, data=data)
+
+            if cmd == 'GET':
+                # GET commands require params in the URL (no body)
+                r = requests.get(url, params=data)
+            elif cmd == 'PUT':
+                # PUT commands require params in the message body
+                r = requests.put(url, data=data)
+
             reply_str = r.content.decode(r.encoding)
+            if self.log and self.log_debug:
+                self.log.debug(f'RCV:"{reply_str}"')
+
             if r.status_code != 200:
                 raise ValueError(f'HTTP error {r.status_code}: {reply_str}')
-            if self.log and self.log_debug:
-                self.log.debug(f'RECV:"{reply_str}"')
+            if ('ClientTransactionID' in reply_str and
+                    json.loads(reply_str)['ClientTransactionID'] != count):
+                raise ValueError(f'Transaction ID ({count}) mismatch: {reply_str}')
+
             return self._parse_http_reply(reply_str)
         except Exception:
             self.log.error('Failed to communicate with mount')
