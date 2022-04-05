@@ -62,14 +62,14 @@ class DDM500:
         # Update status when starting
         self._update_status()
 
-    def _http_get(self, command_str):
-        """Send a GET command to the device, then parse and return the reply."""
+    def _http_request(self, cmd, command_str, data):
+        """Send a request to the device, then parse and return the reply."""
         try:
             url = self.base_url + command_str
             if self.log and self.log_debug:
-                self.log.debug(f'GET:"{url}"')
-            r = requests.get(url)
-            reply_str = r.content.decode('utf-8')
+                self.log.debug(f'{cmd}:"{url}":{data}')
+            r = requests.request(cmd, url, data=data)
+            reply_str = r.content.decode(r.encoding)
             if r.status_code != 200:
                 raise ValueError(f'HTTP error {r.status_code}: {reply_str}')
             if self.log and self.log_debug:
@@ -80,23 +80,13 @@ class DDM500:
             self.log.debug('', exc_info=True)
             raise
 
-    def _http_put(self, command_str, data_dict=None):
-        """Send a PUT command to the device, then parse the reply."""
-        try:
-            url = self.base_url + command_str
-            if self.log and self.log_debug:
-                self.log.debug(f'PUT:"{url}":{data_dict}')
-            r = requests.put(url, data=data_dict)
-            reply_str = r.content.decode('utf-8')
-            if r.status_code != 200:
-                raise ValueError(f'HTTP error {r.status_code}: {reply_str}')
-            if self.log and self.log_debug:
-                self.log.debug(f'RECV:"{reply_str}"')
-            return self._parse_http_reply(reply_str)
-        except Exception:
-            self.log.error('Failed to communicate with mount')
-            self.log.debug('', exc_info=True)
-            raise
+    def _http_get(self, command_str, params=None):
+        """Send a GET command to the device."""
+        return self._http_request('GET', command_str, params)
+
+    def _http_put(self, command_str, params=None):
+        """Send a PUT command to the device."""
+        return self._http_request('PUT', command_str, params)
 
     def _parse_http_reply(self, reply_str):
         """Parse the return string from an Alpaca command."""
