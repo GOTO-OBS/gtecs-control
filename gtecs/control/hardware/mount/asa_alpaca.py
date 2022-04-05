@@ -349,7 +349,10 @@ class DDM500:
 
     def halt(self):
         """Abort slew (if slewing) and stop tracking (if tracking)."""
-        return self._http_put('abortslew')
+        if self.status == 'Slewing':
+            return self._http_put('abortslew')
+        elif self.status == 'Tracking':
+            return self._http_put('tracking', {'Tracking': False})
 
     def start_motors(self):
         """Start the mount motors."""
