@@ -166,7 +166,8 @@ class DDM500:
             self._tracking = self._http_get('tracking')
             self._guiding = self._http_get('ispulseguiding')
             self._parked = self._http_get('atpark')
-            self._motors_on = self._http_put('commandstring', {'Command': 'MotStat', 'Raw': False})
+            self._motors_on = self._http_put('commandstring',
+                                             {'Command': 'MotStat', 'Raw': False}) == 'true'
 
             # Most of these are not yet implemented
             self._position_error = {'ra': -999,
