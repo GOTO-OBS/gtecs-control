@@ -486,7 +486,7 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -520,7 +520,7 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif isinstance(self.mount, SiTech) and self.info['status'] == 'Parked':
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
