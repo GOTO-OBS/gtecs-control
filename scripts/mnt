@@ -395,9 +395,9 @@ def print_info(info):
         print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
 
     print('~~~~~~~')
-    print('Sun alt:           {:.2f} deg'.format(info['sun_alt']))
-    print('Moon alt:          {:.2f} deg'.format(info['moon_alt']))
-    print('Moon phase:        {}'.format(info['moon_phase']))
+    print('Sun alt:          {:+.2f} deg'.format(info['sun_alt']))
+    print('Moon alt:         {:+.2f} deg'.format(info['moon_alt']))
+    print('Moon phase:        {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
     print('Moon distance:     {:.2f} deg'.format(info['moon_dist']))
 
     print('~~~~~~~')
