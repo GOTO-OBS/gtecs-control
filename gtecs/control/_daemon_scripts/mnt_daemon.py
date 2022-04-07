@@ -267,14 +267,14 @@ class MntDaemon(BaseDaemon):
                 if params.MOUNT_CLASS == 'SITECH':
                     self.mount = SiTech(params.MOUNT_HOST,
                                         params.MOUNT_PORT,
-                                        self.log,
-                                        params.MOUNT_DEBUG,
+                                        log=self.log,
+                                        log_debug=params.MOUNT_DEBUG,
                                         )
                 elif params.MOUNT_CLASS == 'ASA':
                     self.mount = DDM500(params.MOUNT_HOST,
                                         params.MOUNT_PORT,
-                                        self.log,
-                                        params.MOUNT_DEBUG,
+                                        log=self.log,
+                                        log_debug=params.MOUNT_DEBUG,
                                         )
                     # try resetting the device connetion to clear any errors
                     self.mount.disconnect()
