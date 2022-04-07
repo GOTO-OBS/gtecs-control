@@ -397,24 +397,6 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.debug('', exc_info=True)
             all_info['conditions']['weather_ext']['windgust_history_info'] = None
 
-    # Astronomy
-    try:
-        if log and log_debug:
-            log.debug('Fetching astronomy info')
-        now = Time.now()
-        astro = {}
-        astro['moon_alt'], astro['moon_ill'], astro['moon_phase'] = astronomy.get_moon_params(now)
-        astro['sun_alt'] = astronomy.get_sunalt(Time.now())
-        all_info['astro'] = astro
-        if log and log_debug:
-            log.debug('Fetched astronomy info')
-    except Exception:
-        if log is None:
-            raise
-        log.error('Failed to fetch astronomy info')
-        log.debug('', exc_info=True)
-        all_info['astro'] = None
-
     # Database
     db_info = {}
     if not cam_info['current_exposure']['from_db']:
@@ -1184,8 +1166,12 @@ def update_header(header, ut, all_info, log=None):
         airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
         equinox = 2000
 
-        mnt_ra_deg = mnt_ra * 180 / 12.
-        moon_dist = astronomy.get_moon_distance(mnt_ra_deg, mnt_dec, Time.now())
+        sun_alt = info['sun_alt']
+
+        moon_alt = info['moon_alt']
+        moon_ill = info['moon_ill'] * 100
+        moon_phase = info['moon_phase']
+        moon_dist = info['moon_dist']
 
     except Exception as err:
         if log is None:
@@ -1238,6 +1224,10 @@ def update_header(header, ut, all_info, log=None):
         zen_dist = 'NA'
         airmass = 'NA'
         equinox = 'NA'
+        sun_alt = 'NA'
+        moon_alt = 'NA'
+        moon_ill = 'NA'
+        moon_phase = 'NA'
         moon_dist = 'NA'
 
     header['RA-TARG '] = (targ_ra_str, 'Requested pointing RA')
@@ -1309,37 +1299,12 @@ def update_header(header, ut, all_info, log=None):
 
     header['ZENDIST '] = (zen_dist, 'Distance from zenith, degrees')
 
-    header['MOONDIST'] = (moon_dist, 'Distance from Moon, degrees')
-
-    # Astronomy info
-    try:
-        if all_info['astro'] is None:
-            raise ValueError('No astronomy info provided')
-
-        info = all_info['astro']
-
-        moon_alt = info['moon_alt']
-        moon_ill = info['moon_ill'] * 100
-        moon_phase = info['moon_phase']
-
-        sun_alt = info['sun_alt']
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write astronomy info to header')
-            log.debug('', exc_info=True)
-        moon_alt = 'NA'
-        moon_ill = 'NA'
-        moon_phase = 'NA'
-        sun_alt = 'NA'
+    header['SUNALT  '] = (sun_alt, 'Current Sun altitude, degrees')
 
     header['MOONALT '] = (moon_alt, 'Current Moon altitude, degrees')
     header['MOONILL '] = (moon_ill, 'Current Moon illumination, percent')
     header['MOONPHAS'] = (moon_phase, 'Current Moon phase, [DGB]')
-    header['SUNALT  '] = (sun_alt, 'Current Sun altitude, degrees')
+    header['MOONDIST'] = (moon_dist, 'Distance from Moon, degrees')
 
     # Conditions info
     try:

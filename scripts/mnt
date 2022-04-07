@@ -393,6 +393,13 @@ def print_info(info):
         print('Dec position err:  {:+.4f} arcsec'.format(info['position_error']['dec']))
         print('RA current:         {:.1f} A'.format(info['motor_current']['ra']))
         print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
+
+    print('~~~~~~~')
+    print('Sun alt:           {:.2f} deg'.format(info['sun_alt']))
+    print('Moon alt:          {:.2f} deg'.format(info['moon_alt']))
+    print('Moon phase:        {}'.format(info['moon_phase']))
+    print('Moon distance:     {:.2f} deg'.format(info['moon_dist']))
+
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -420,6 +427,8 @@ def print_info_s(info):
 
     print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
     print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
+    if info['moon_dist'] <= 30:
+        print(style.ytxt('  Moon dist: {:.2} deg'.format(info['moon_dist'])))
     if info['error_status'] is not None:
         t = Time(info['error_status_time'], format='unix', precision=0)
         print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))

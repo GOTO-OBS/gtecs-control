@@ -12,6 +12,7 @@ from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.astronomy import (altaz_from_radec, above_elevation_limit, get_ha,
+                                     get_moon_distance, get_moon_params, get_sunalt,
                                      observatory_location, radec_from_altaz)
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.hardware.mount import DDM500, SiTech
@@ -407,6 +408,28 @@ class MntDaemon(BaseDaemon):
             self.mount = None
             if 'mount' not in self.bad_hardware:
                 self.bad_hardware.add('mount')
+
+        # Get astronomy info
+        try:
+            now = Time(temp_info['time'], format='unix')
+            sun_alt = get_sunalt(now)
+            temp_info['sun_alt'] = sun_alt
+
+            moon_alt, moon_ill, moon_phase = get_moon_params(now)
+            temp_info['moon_alt'] = moon_alt
+            temp_info['moon_ill'] = moon_ill
+            temp_info['moon_phase'] = moon_phase
+
+            moon_dist = get_moon_distance(self.mount.ra * 180 / 12., self.mount.dec, now)
+            temp_info['moon_dist'] = moon_dist
+        except Exception:
+            self.log.error('Failed to get astronomy info')
+            self.log.debug('', exc_info=True)
+            temp_info['sun_alt'] = None
+            temp_info['moon_alt'] = None
+            temp_info['moon_ill'] = None
+            temp_info['moon_phase'] = None
+            temp_info['moon_dist'] = None
 
         # Get other internal info
         temp_info['target_ra'] = self.target_ra
