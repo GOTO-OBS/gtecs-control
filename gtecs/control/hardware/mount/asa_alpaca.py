@@ -423,8 +423,10 @@ class DDM500:
         """Clear for any errors raised by the mount."""
         self._http_put('action', {'Action': 'telescope:clearerror', 'Parameters': ''})
 
-    # def warning_check(self):
-    #     """Check for any warnings raised by the mount."""
-    #     warning_raised = self.mount.warning_raised()
-    #     if warning_raised:
-    #         return warning_raised
+    def warning_check(self):
+        """Check for any warnings raised by the mount."""
+        return None
+        # Not implemented yet
+        # warning_raised = self.mount.warning_raised()
+        # if warning_raised:
+        #     return warning_raised
