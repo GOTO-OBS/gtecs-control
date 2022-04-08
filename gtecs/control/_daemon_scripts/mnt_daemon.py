@@ -11,7 +11,7 @@ from astropy.time import Time
 from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
-from gtecs.control.astronomy import (altaz_from_radec, above_elevation_limit, get_ha,
+from gtecs.control.astronomy import (above_elevation_limit, altaz_from_radec, get_ha,
                                      get_moon_distance, get_moon_params, get_sunalt,
                                      observatory_location, radec_from_altaz)
 from gtecs.control.daemons import BaseDaemon
