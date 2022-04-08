@@ -428,7 +428,7 @@ def print_info_s(info):
     print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
     print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
     if info['moon_dist'] <= 30:
-        print(style.ytxt('  Moon dist: {:.2} deg'.format(info['moon_dist'])))
+        print(style.ytxt('  Moon dist < 30 deg ({:.2f})'.format(info['moon_dist'])))
     if info['error_status'] is not None:
         t = Time(info['error_status_time'], format='unix', precision=0)
         print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
