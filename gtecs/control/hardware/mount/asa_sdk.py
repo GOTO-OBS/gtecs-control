@@ -87,6 +87,7 @@ class DDM500:
             status_dict = self.mount.get_status()
             self._status_dict = status_dict
             self._jd = status_dict['UTC'][0]
+            self._sidereal_time = status_dict['LAST'][0]
             self._ra_jnow = status_dict['RightAscension']
             self._dec_jnow = status_dict['Declination']
             # Need to "uncook" from apparent to J2000
@@ -122,6 +123,18 @@ class DDM500:
 
             # store update time
             self._status_update_time = time.time()
+
+    @property
+    def jd(self):
+        """Return current Julian Date."""
+        self._update_status()
+        return self._jd
+
+    @property
+    def sidereal_time(self):
+        """Return the current sidereal time."""
+        self._update_status()
+        return self._sidereal_time
 
     @property
     def status(self):

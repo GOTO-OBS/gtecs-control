@@ -1090,7 +1090,7 @@ def update_header(header, ut, all_info, log=None):
 
         mnt_alt = info['mount_alt']
         mnt_az = info['mount_az']
-        ha = astronomy.get_ha(info['mount_ra'], lst.hour)  # LST is found under exposure data
+        ha = info['ha']
 
         mnt_move_time = info['last_move_time']
         if mnt_move_time is not None:

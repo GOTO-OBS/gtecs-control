@@ -185,6 +185,7 @@ class DDM500:
         if (time.time() - self._status_update_time) > 0.5:
             self._utc = Time(self._http_get('utcdate'))
             self._jd = self._utc.jd
+            self._sidereal_time = self._http_get('siderealtime')
 
             self._ra_jnow = self._http_get('rightascension')
             self._dec_jnow = self._http_get('declination')
@@ -232,6 +233,18 @@ class DDM500:
 
             # store update time
             self._status_update_time = time.time()
+
+    @property
+    def jd(self):
+        """Return current Julian Date."""
+        self._update_status()
+        return self._jd
+
+    @property
+    def sidereal_time(self):
+        """Return the current sidereal time."""
+        self._update_status()
+        return self._sidereal_time
 
     @property
     def tracking(self):
