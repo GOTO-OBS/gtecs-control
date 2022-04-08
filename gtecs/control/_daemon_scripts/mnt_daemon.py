@@ -15,7 +15,7 @@ from gtecs.control.astronomy import (altaz_from_radec, above_elevation_limit, ge
                                      get_moon_distance, get_moon_params, get_sunalt,
                                      observatory_location, radec_from_altaz)
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.mount import DDM500, SiTech
+from gtecs.control.hardware.mount import DDM500, DDM500SDK, SiTech
 
 
 class MntDaemon(BaseDaemon):
@@ -277,6 +277,12 @@ class MntDaemon(BaseDaemon):
                                         log=self.log,
                                         log_debug=params.MOUNT_DEBUG,
                                         )
+                elif params.MOUNT_CLASS == 'ASASDK':
+                    self.mount = DDM500SDK(params.MOUNT_HOST,
+                                           params.MOUNT_PORT,
+                                           log=self.log,
+                                           log_debug=params.MOUNT_DEBUG,
+                                           )
                     # try resetting the device connetion to clear any errors
                     self.mount.disconnect()
                     time.sleep(0.5)
@@ -317,7 +323,7 @@ class MntDaemon(BaseDaemon):
                 # temp_info['nonsidereal'] = self.mount.nonsidereal
                 temp_info['lst'] = self.mount.sidereal_time
                 temp_info['ha'] = get_ha(temp_info['mount_ra'], temp_info['lst'])
-            elif isinstance(self.mount, DDM500):
+            elif isinstance(self.mount, (DDM500, DDM500SDK)):
                 temp_info['class'] = 'ASA'
                 temp_info['position_error'] = self.mount.position_error
                 temp_info['tracking_error'] = self.mount.tracking_error
@@ -394,7 +400,7 @@ class MntDaemon(BaseDaemon):
                 temp_info['nonsidereal'] = None
                 temp_info['lst'] = None
                 temp_info['ha'] = None
-            elif isinstance(self.mount, DDM500):
+            elif isinstance(self.mount, (DDM500, DDM500SDK)):
                 temp_info['class'] = 'ASA'
                 temp_info['position_error'] = None
                 temp_info['tracking_error'] = None
@@ -509,7 +515,8 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
+        elif self.info['status'] == 'Parked' and not isinstance(self.mount, DDM500SDK):
+            # SDK doesn't need to unpark before slewing
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -543,7 +550,8 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked':
+        elif self.info['status'] == 'Parked' and not isinstance(self.mount, DDM500SDK):
+            # SDK doesn't need to unpark before slewing
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -564,12 +572,18 @@ class MntDaemon(BaseDaemon):
         return 'Slewing to alt/az ({:.2f} deg)'.format(self._get_target_distance())
 
     def slew_to_altaz_sidereal(self, alt, az):
-        """Slew to specified alt/az but track sidereally when we get there."""
+        """Slew to specified alt/az by targeting the RA/Dec coordinates."""
         # Check input
         if not (0 <= alt < 90):
             raise ValueError('Alt in degrees must be between 0 and 90')
         if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
+
+        # ASA SDK count Az=0 from south, which is different from Astropy
+        if isinstance(self.mount, DDM500SDK):
+            az -= 180
+            if az < 0:
+                az += 360
 
         # Convert to RA/Dec and use that function instead.
         ra, dec = radec_from_altaz(alt, az, Time.now())
@@ -619,7 +633,7 @@ class MntDaemon(BaseDaemon):
 
     def set_trackrate(self, ra_rate=0, dec_rate=0):
         """Set tracking rate in RA and Dec in arcseconds per second (0=default)."""
-        if isinstance(self.mount, DDM500):
+        if isinstance(self.mount, (DDM500, DDM500SDK)):
             raise NotImplementedError('Mount trackrate command is not implemented')
 
         # Set values
@@ -663,7 +677,7 @@ class MntDaemon(BaseDaemon):
 
     def power_motors(self, activate):
         """Turn on or off the mount motors."""
-        if not isinstance(self.mount, DDM500):
+        if not isinstance(self.mount, (DDM500, DDM500SDK)):
             raise NotImplementedError('Only ASA mounts allow motors to be powered')
 
         # Check current status
@@ -722,7 +736,7 @@ class MntDaemon(BaseDaemon):
             if isinstance(self.mount, SiTech):
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 1
-            elif isinstance(self.mount, DDM500):
+            elif isinstance(self.mount, (DDM500, DDM500SDK)):
                 self.set_motor_power = True
                 self.set_motor_power_flag = 1
             time.sleep(0.2)
