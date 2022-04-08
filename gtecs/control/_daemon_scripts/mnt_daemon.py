@@ -91,6 +91,9 @@ class MntDaemon(BaseDaemon):
                 if self.hardware_error:
                     continue
 
+                # Check if the mount has passed the limits and should stop
+                self._limit_check()
+
             # control functions
             # slew to target
             if self.slew_target_flag:
@@ -464,6 +467,17 @@ class MntDaemon(BaseDaemon):
 
         # Finally check if we need to report an error
         self._check_errors()
+
+    def _limit_check(self):
+        """Check if the mount position is past the valid limits."""
+        if not within_mount_limits(self.info['mount_ra'] * 360. / 24.,
+                                   self.info['mount_dec'],
+                                   Time.now()):
+            self.log.error('Mount is outside of limits')
+            if self.info['status'] in ['Tracking', 'Slewing']:
+                self.log.error('Stopping mount')
+                self.force_check_flag = True
+                self.full_stop_flag = 1
 
     def _get_target_distance(self):
         """Return the distance to the current target."""
