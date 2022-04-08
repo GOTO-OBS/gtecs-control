@@ -11,9 +11,10 @@ from astropy.time import Time
 from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
-from gtecs.control.astronomy import (above_elevation_limit, altaz_from_radec, get_ha,
+from gtecs.control.astronomy import (altaz_from_radec, get_ha,
                                      get_moon_distance, get_moon_params, get_sunalt,
-                                     observatory_location, radec_from_altaz)
+                                     observatory_location, radec_from_altaz,
+                                     within_mount_limits)
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.hardware.mount import DDM500, DDM500SDK, SiTech
 
@@ -508,8 +509,8 @@ class MntDaemon(BaseDaemon):
             raise ValueError('RA in hours must be between 0 and 24')
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
-        if not above_elevation_limit(ra * 360. / 24., dec, Time.now()):
-            raise ValueError('Target is below {} alt, cannot slew'.format(params.MIN_ELEVATION))
+        if not within_mount_limits(ra * 360. / 24., dec, Time.now()):
+            raise ValueError('Target is outside of mount limits, cannot slew')
 
         # Check current status
         self.wait_for_info()
@@ -604,11 +605,10 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
             raise errors.HardwareStatusError('Mount motors are powered off')
-        if not above_elevation_limit(self.info['mount_ra'] * 360. / 24.,
-                                     self.info['mount_dec'],
-                                     Time.now()):
-            raise errors.HardwareStatusError('Mount is is below {} alt, cannot slew'.format(
-                                             params.MIN_ELEVATION))
+        if not within_mount_limits(self.info['mount_ra'] * 360. / 24.,
+                                   self.info['mount_dec'],
+                                   Time.now()):
+            raise errors.HardwareStatusError('Mount is past limits, cannot track')
 
         # Set flag
         self.force_check_flag = True

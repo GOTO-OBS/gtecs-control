@@ -215,12 +215,15 @@ SEEING_TIMEOUT = config['SEEING_TIMEOUT']
 
 ############################################################
 # Mount parameters
-MIN_ELEVATION = config['MIN_ELEVATION']
 MOUNT_CLASS = config['MOUNT_CLASS']
 MOUNT_HOST = config['MOUNT_HOST']
 MOUNT_PORT = config['MOUNT_PORT']
 MOUNT_DEBUG = config['MOUNT_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
+
+MIN_ELEVATION = config['MIN_ELEVATION']
+MAX_HOURANGLE = config['MAX_HOURANGLE']
+
 MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 ############################################################

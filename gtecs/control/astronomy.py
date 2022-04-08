@@ -421,7 +421,7 @@ def above_elevation_limit(targ_ra, targ_dec, now):
     targ_dec : float or np.ndarray
         J2000 Declination in degrees
     now : `~astropy.time.Time`
-        time to check altitude
+        time to check
 
     Returns
     -------
@@ -431,6 +431,48 @@ def above_elevation_limit(targ_ra, targ_dec, now):
     """
     targ_alt, _ = altaz_from_radec(targ_ra, targ_dec, now)
     return targ_alt > params.MIN_ELEVATION
+
+
+def within_hourangle_limit(targ_ra, now):
+    """Check if target is within the mount hour angle limit at the given time.
+
+    Parameters
+    ----------
+    targ_ra : float or np.ndarray
+        J2000 RA in degrees
+    now : `~astropy.time.Time`
+        time to check
+
+    Returns
+    -------
+    within_limit : bool
+        True if the target is within |params.MAX_HOURANGLE| of zenith, False if outside
+
+    """
+    lst = get_lst(now).hour
+    ha = get_ha(targ_ra * 12 / 180, lst)
+    return abs(ha) < params.MAX_HOURANGLE
+
+
+def within_mount_limits(targ_ra, targ_dec, now):
+    """Check if target is within the mount limits (altitude and hour angle) at the given time.
+
+    Parameters
+    ----------
+    targ_ra : float or np.ndarray
+        J2000 RA in degrees
+    targ_dec : float or np.ndarray
+        J2000 Declination in degrees
+    now : `~astropy.time.Time`
+        time to check
+
+    Returns
+    -------
+    within_limits : bool
+        True if the target is within the mount limits, False if outside
+
+    """
+    return above_elevation_limit(targ_ra, targ_dec, now) and within_hourangle_limit(targ_ra, now)
 
 
 def ang_sep(ra_1, dec_1, ra_2, dec_2):
