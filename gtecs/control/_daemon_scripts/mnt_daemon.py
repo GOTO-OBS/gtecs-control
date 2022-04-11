@@ -323,7 +323,9 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_ra'] = self.mount.ra
             temp_info['mount_dec'] = self.mount.dec
             temp_info['lst'] = self.mount.sidereal_time
-            temp_info['ha'] = get_ha(temp_info['mount_ra'], temp_info['lst'])
+            temp_info['ha'] = get_ha(temp_info['mount_ra'] * 360 / 24,
+                                     temp_info['mount_dec'],
+                                     Time(temp_info['time'], format='unix'))
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 # temp_info['nonsidereal'] = self.mount.nonsidereal
@@ -430,7 +432,7 @@ class MntDaemon(BaseDaemon):
             temp_info['moon_ill'] = moon_ill
             temp_info['moon_phase'] = moon_phase
 
-            moon_dist = get_moon_distance(self.mount.ra * 180 / 12., self.mount.dec, now)
+            moon_dist = get_moon_distance(self.mount.ra * 360 / 24, self.mount.dec, now)
             temp_info['moon_dist'] = moon_dist
         except Exception:
             self.log.error('Failed to get astronomy info')
@@ -470,7 +472,7 @@ class MntDaemon(BaseDaemon):
 
     def _limit_check(self):
         """Check if the mount position is past the valid limits."""
-        if not within_mount_limits(self.info['mount_ra'] * 360. / 24.,
+        if not within_mount_limits(self.info['mount_ra'] * 360 / 24,
                                    self.info['mount_dec'],
                                    Time.now()):
             self.log.error('Mount is outside of limits')
@@ -523,7 +525,7 @@ class MntDaemon(BaseDaemon):
             raise ValueError('RA in hours must be between 0 and 24')
         if not (-90 <= dec <= 90):
             raise ValueError('Dec in degrees must be between -90 and +90')
-        if not within_mount_limits(ra * 360. / 24., dec, Time.now()):
+        if not within_mount_limits(ra * 360 / 24, dec, Time.now()):
             raise ValueError('Target is outside of mount limits, cannot slew')
 
         # Check current status
@@ -602,7 +604,7 @@ class MntDaemon(BaseDaemon):
 
         # Convert to RA/Dec and use that function instead.
         ra, dec = radec_from_altaz(alt, az, Time.now())
-        ra = ra * 24. / 360.
+        ra = ra * 24 / 360
         return self.slew_to_radec(ra, dec)
 
     def start_tracking(self):
@@ -619,7 +621,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
             raise errors.HardwareStatusError('Mount motors are powered off')
-        if not within_mount_limits(self.info['mount_ra'] * 360. / 24.,
+        if not within_mount_limits(self.info['mount_ra'] * 360 / 24,
                                    self.info['mount_dec'],
                                    Time.now()):
             raise errors.HardwareStatusError('Mount is past limits, cannot track')

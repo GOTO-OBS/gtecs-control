@@ -113,7 +113,7 @@ def query(command, args, daemon_id):
             ra_deg = float(args[0])
             dec_deg = float(args[1])
             assert 0 <= ra_deg < 360
-            ra_hrs = ra_deg * 24. / 360.
+            ra_hrs = ra_deg * 24 / 360
             assert 0 <= ra_hrs < 24
             assert -90 <= dec_deg <= 90
             # slew to given target
@@ -168,7 +168,7 @@ def query(command, args, daemon_id):
             # decimal
             ra_deg = float(args[0])
             assert 0 <= ra_deg < 360
-            ra_hrs = ra_deg * 24. / 360.
+            ra_hrs = ra_deg * 24 / 360
             assert 0 <= ra_hrs < 24
         elif len(args) == 3:
             # h m s
@@ -336,7 +336,7 @@ def print_info(info):
     ra, dec = info['mount_ra'], info['mount_dec']
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 180 / 12))
+    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
     print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
 
     if not info['targeting'] == 'altaz':
@@ -344,7 +344,7 @@ def print_info(info):
         if info['target_ra'] is not None:
             ra = info['target_ra']
             ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-            print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra * 180 / 12))
+            print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
         else:
             print('Target RA:        NOT SET')
         if info['target_dec'] is not None:
@@ -427,7 +427,7 @@ def print_info_s(info):
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
-    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
+    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 360 / 24, alt))
     print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
     if info['moon_dist'] <= 30:
         print(style.ytxt('  WARNING: Moon dist < 30 deg ({:.2f})'.format(info['moon_dist'])))

@@ -8,13 +8,13 @@ except ImportError:
     import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, get_moon
 from astropy.table import Table
 from astropy.time import Time
 
 import numpy as np
 
-from .. import astronomy as ast
+from ..astronomy import altaz_from_radec
 
 
 class GlieseStar(object):
@@ -64,7 +64,7 @@ def focus_star(time):
         gliese_table = Table.read(path)
 
     coords = SkyCoord(gliese_table['RAJ2000'], gliese_table['DEJ2000'], unit=(u.hour, u.deg))
-    alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
+    alt, _ = altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     jmag = gliese_table['Jmag']
 
     # filter on magnitudes
@@ -73,7 +73,7 @@ def focus_star(time):
         mag_mask = np.fabs(jmag - 10) < 2
 
     # filter on moon distance
-    moon = ast.get_moon(time)
+    moon = get_moon(time)
 
     # NOTE - the order matters
     # moon.separation(target) is NOT the same as target.separation(moon)

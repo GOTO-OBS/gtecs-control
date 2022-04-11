@@ -16,10 +16,10 @@ from gtecs.obs import database as db
 
 import numpy as np
 
-from . import astronomy
 from . import misc
 from . import params
 from .analysis import measure_image_hfd
+from .astronomy import get_lst, night_startdate
 from .daemons import daemon_info
 from .flags import Status
 
@@ -49,7 +49,7 @@ def image_location(run_number, ut_number, tel_number=None):
         tel_number = params.TELESCOPE_NUMBER
 
     # Find the directory, using the date the observing night began
-    night = astronomy.night_startdate()
+    night = night_startdate()
     direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):
         os.mkdir(direc)
@@ -602,7 +602,7 @@ def update_header(header, ut, all_info, log=None):
     mid_jd = mid_time.jd
     header['JD      '] = (mid_jd, 'Exposure midpoint, Julian Date')
 
-    lst = astronomy.get_lst(mid_time)
+    lst = get_lst(mid_time)
     mid_lst = '{:02.0f}:{:02.0f}:{:06.3f}'.format(*lst.hms)
     header['LST     '] = (mid_lst, 'Exposure midpoint, Local Sidereal Time')
 
@@ -1480,7 +1480,7 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
 
     """
     if direc is None:
-        direc = astronomy.night_startdate()
+        direc = night_startdate()
     path = os.path.join(params.IMAGE_PATH, direc)
 
     if uts is None:

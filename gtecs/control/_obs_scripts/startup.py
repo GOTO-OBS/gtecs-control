@@ -70,13 +70,7 @@ def run():
     # Don't unpark the mount or set a target, we want to stay parked while opening
     # execute_command('mnt unpark')
     # print('Setting target to Zenith')
-    # lst = get_lst(Time.now())
-    # obs = observatory_location()
-    # ra = lst.to(u.deg)
-    # dec = obs.lat.value
-    # execute_command('mnt ra {}'.format(ra))
-    # execute_command('mnt dec {}'.format(dec))
-    # execute_command('mnt slew')
+    # execute_command('mnt slew_altaz 89 0')
     # time.sleep(20)
     # execute_command('mnt info -f')
 
