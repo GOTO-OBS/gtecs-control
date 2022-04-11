@@ -397,8 +397,8 @@ def print_info(info):
     print('~~~~~~~')
     print('Sun alt:          {:+6.2f} deg'.format(info['sun_alt']))
     print('Moon alt:         {:+6.2f} deg'.format(info['moon_alt']))
-    print('Moon phase:        {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
-    print('Moon distance:     {:.2f} deg'.format(info['moon_dist']))
+    print('Moon phase:         {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
+    print('Moon distance:    {:6.2f} deg'.format(info['moon_dist']))
 
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
