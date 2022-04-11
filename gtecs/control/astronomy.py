@@ -375,7 +375,7 @@ def get_ha(ra_hrs, lst):
     """Return Hour Angle of given RA.
 
     Parameters
-    -----------
+    ----------
     ra_hrs : float
         J2000 Right Ascension, in hours
     lst : float
@@ -388,6 +388,8 @@ def get_ha(ra_hrs, lst):
 
     """
     ha_hrs = lst - ra_hrs
+    if ha_hrs < -12:
+        ha_hrs += 24
     return ha_hrs
 
 
