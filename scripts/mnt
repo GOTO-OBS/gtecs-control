@@ -366,8 +366,8 @@ def print_info(info):
     else:
         print('Target distance:  NO TARGET')
 
-    print('LST:              {:.2f}'.format(info['lst']))
-    print('Hour Angle:       {:.2f}'.format(info['ha']))
+    print('LST:              {:7.3f}'.format(info['lst']))
+    print('Hour Angle:       {:7.3f}'.format(info['ha']))
 
     print('~~~~~~~')
     if info['class'] == 'SITECH':
