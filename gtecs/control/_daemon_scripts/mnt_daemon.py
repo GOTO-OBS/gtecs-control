@@ -399,11 +399,11 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_az'] = None
             temp_info['mount_ra'] = None
             temp_info['mount_dec'] = None
+            temp_info['lst'] = None
+            temp_info['ha'] = None
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 temp_info['nonsidereal'] = None
-                temp_info['lst'] = None
-                temp_info['ha'] = None
             elif isinstance(self.mount, (DDM500, DDM500SDK)):
                 temp_info['class'] = 'ASA'
                 temp_info['position_error'] = None

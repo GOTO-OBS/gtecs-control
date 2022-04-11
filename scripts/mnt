@@ -366,6 +366,9 @@ def print_info(info):
     else:
         print('Target distance:  NO TARGET')
 
+    print('LST:              {:.2f}'.format(info['lst']))
+    print('Hour Angle:       {:.2f}'.format(info['ha']))
+
     print('~~~~~~~')
     if info['class'] == 'SITECH':
         if info['trackrate_ra'] == 0:
@@ -376,8 +379,6 @@ def print_info(info):
             print('Dec track rate:   SIDEREAL')
         else:
             print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
-        print('LST:              {:.2f}'.format(info['lst']))
-        print('Hour Angle:       {:.2f}'.format(info['ha']))
     elif info['class'] == 'ASA':
         if info['error_status'] is not None:
             t = Time(info['error_status_time'], format='unix', precision=0)
