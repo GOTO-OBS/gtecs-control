@@ -225,7 +225,7 @@ def radec_from_altaz(alt_deg, az_deg, time=None, location=None):
     if location is None:
         location = observatory_location()
 
-    altaz_frame = AltAz(az=az_deg, alt=alt_deg, unit=u.deg, obstime=time, location=location)
+    altaz_frame = AltAz(az=az_deg * u.deg, alt=alt_deg * u.deg, obstime=time, location=location)
     altaz_coords = SkyCoord(altaz_frame)
     radec_coords = altaz_coords.transform_to('icrs')  # ICRS J2000
     return (radec_coords.ra.degree, radec_coords.dec.degree)
