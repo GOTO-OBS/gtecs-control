@@ -479,7 +479,7 @@ def within_hourangle_limit(ra_deg, dec_deg, time=None):
         True if the target is within |params.MAX_HOURANGLE| of zenith, False if outside
 
     """
-    if time is None():
+    if time is None:
         time = Time.now()
 
     ha = get_ha(ra_deg, dec_deg, time)
@@ -506,7 +506,7 @@ def within_mount_limits(ra_deg, dec_deg, time=None):
         True if the target is within the mount limits, False if outside
 
     """
-    if time is None():
+    if time is None:
         time = Time.now()
 
     return (above_elevation_limit(ra_deg, dec_deg, time) and
@@ -539,7 +539,7 @@ def get_moon_params(time=None):
         Bright is illumination above 65%
 
     """
-    if time is None():
+    if time is None:
         time = Time.now()
 
     coords = get_moon(time)
@@ -576,7 +576,7 @@ def get_moon_distance(ra_deg, dec_deg, time):
         angular seperations in degrees
 
     """
-    if time is None():
+    if time is None:
         time = Time.now()
 
     target = SkyCoord(ra_deg, dec_deg, unit=u.deg)
