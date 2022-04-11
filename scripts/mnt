@@ -366,10 +366,6 @@ def print_info(info):
     else:
         print('Target distance:  NO TARGET')
 
-    lst_str = Angle(info['lst'] * u.hour).to_string(sep=':', precision=1)
-    print('Sidereal Time:    {:>11}'.format(lst_str))
-    print('Hour Angle:       {:7.3f} deg'.format(info['ha']))
-
     print('~~~~~~~')
     if info['class'] == 'SITECH':
         if info['trackrate_ra'] == 0:
@@ -397,6 +393,10 @@ def print_info(info):
         print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
 
     print('~~~~~~~')
+    lst_str = Angle(info['lst'] * u.hour).to_string(sep=':', precision=1)
+    print('Sidereal Time:    {:>11}'.format(lst_str))
+    print('Hour Angle:       {:7.3f} deg'.format(info['ha']))
+
     print('Sun alt:          {:+6.2f} deg'.format(info['sun_alt']))
     print('Moon alt:         {:+6.2f} deg'.format(info['moon_alt']))
     print('Moon phase:         {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
