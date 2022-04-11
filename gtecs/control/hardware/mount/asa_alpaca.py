@@ -161,6 +161,7 @@ class DDM500:
         info['driverinfo'] = self._http_get('driverinfo')
         info['driverversion'] = self._http_get('driverversion')
         info['interfaceversion'] = self._http_get('interfaceversion')
+        info['sideofpier'] = self._http_get('sideofpier')  # Should stay fixed
         # AutoSlew params
         info['mounttype'] = self._http_put('action',
                                            {'Action': 'telescope:reportmounttype',
@@ -360,11 +361,19 @@ class DDM500:
             self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                 ra, dec, ra_jnow, dec_jnow))
 
+        # Force pier side to not change
+        self._http_put('action', {'Action': 'forcenextpierside',
+                                  'Parameters': self.info['sideofpier']})
+
         data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
         self._http_put('slewtocoordinatesasync', data_dict)
 
     def slew_to_altaz(self, alt, az):
         """Slew mount to given Alt/Az."""
+        # Force pier side to not change
+        self._http_put('action', {'Action': 'forcenextpierside',
+                                  'Parameters': self.info['sideofpier']})
+
         data_dict = {'Azimuth': az, 'Altitude': alt}
         self._http_put('slewtoaltazasync', data_dict)
 
