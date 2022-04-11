@@ -4,7 +4,7 @@ import glob
 from setuptools import setup, find_namespace_packages
 
 REQUIRES = ['Pyro4',
-            'astropy>=4',
+            'astropy>=5',
             'astroplan>=0.6',
             'numpy',
             'scipy',
