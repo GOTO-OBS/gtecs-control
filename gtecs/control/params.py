@@ -284,7 +284,6 @@ SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
 COMPRESS_IMAGES = config['COMPRESS_IMAGES']
-WRITE_IMAGE_LOG = config['WRITE_IMAGE_LOG']
 MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 
 ############################################################

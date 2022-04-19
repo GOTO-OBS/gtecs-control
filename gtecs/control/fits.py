@@ -156,16 +156,6 @@ def save_fits(hdu, filename, log=None, confirm=True):
     else:
         os.rename(filename + '.tmp', filename)
 
-    if params.WRITE_IMAGE_LOG and not hdu.header['GLANCE  ']:
-        # Write the image log to the database
-        try:
-            write_image_log(filename, hdu.header)
-        except Exception:
-            if log is None:
-                raise
-            log.error('Failed to add entry to image log')
-            log.debug('', exc_info=True)
-
     if confirm:
         # Log image being saved
         ut = hdu.header['UT      ']
@@ -1408,38 +1398,6 @@ def update_header(header, ut, all_info, log=None):
 
     header['INT-TEMP'] = (int_temp, 'Internal temperature, Celsius (dome)')
     header['INT-HUM '] = (int_hum, 'Internal humidity, percent (dome)')
-
-
-def write_image_log(filename, header):
-    """Add an image log to the database for this frame."""
-    filename = filename.split('/')[-1]
-    run_number = int(header['RUN     '])
-    ut = int(header['UT      '])
-    ut_mask = int(header['UTMASK  '])
-    start_time = Time(header['DATE-OBS'])
-    write_time = Time(header['DATE    '])
-    set_pos = int(header['SET-POS '])
-    set_tot = int(header['SET-TOT '])
-
-    expset_id = None
-    pointing_id = None
-    mpointing_id = None
-
-    if header['DB-EXPS '] != 'NA':
-        expset_id = header['DB-EXPS ']
-    if header['DB-PNT  '] != 'NA':
-        pointing_id = header['DB-PNT  ']
-    if header['DB-MPNT '] != 'NA':
-        mpointing_id = header['DB-MPNT ']
-
-    log = db.ImageLog(filename=filename, run_number=run_number, ut=ut,
-                      ut_mask=ut_mask, start_time=start_time, write_time=write_time,
-                      set_position=set_pos, set_total=set_tot,
-                      exposure_set_id=expset_id, pointing_id=pointing_id, mpointing_id=mpointing_id)
-
-    with db.open_session() as session:
-        session.add(log)
-        session.commit()
 
 
 def read_fits(filepath, dtype='int32'):
