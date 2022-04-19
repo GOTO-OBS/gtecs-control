@@ -15,7 +15,6 @@ from astropy import units as u
 from astropy.time import Time
 
 from gtecs.common.logging import get_logger
-from gtecs.obs.database import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 from . import monitors
 from . import params
@@ -23,7 +22,7 @@ from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
-from .observing import check_schedule, get_pointing_status
+from .observing import check_schedule, mark_pointing
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
@@ -200,13 +199,6 @@ class Pilot:
         # flag for daytime testing
         self.testing = testing
 
-        # current and next pointing from scheduler
-        self.current_id = None
-        self.current_mintime = None
-        self.current_start_time = None
-        self.new_id = None
-        self.new_mintime = None
-
         # store the name of the running script (if any)
         self.running_script = None
         # for communicating with the external process
@@ -235,6 +227,11 @@ class Pilot:
         self.mount_is_tracking = False   # should the mount be tracking?
         self.dome_is_open = False        # should the dome be open?
         self.shutdown_now = False
+
+        # pointing details from the scheduler
+        self.current_pointing = None
+        self.current_start_time = None
+        self.new_pointing = None
 
         # hardware to keep track of and fix if necessary
         self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
@@ -265,16 +262,17 @@ class Pilot:
         self.close_command_time = 0.
 
         # scheduler check flags
+        self.schedule_check_period = 10  # TODO: could be in params?
         self.force_scheduler_check = False
         self.scheduler_check_time = 0
 
     # Check routines
     @task_handler
     async def check_scheduler(self):
-        """Check scheduler and update current pointing every 10 seconds."""
+        """Check scheduler and update current pointing every few seconds."""
         self.log.info('scheduler check routine initialised')
 
-        sleep_time = 10
+        sleep_time = self.schedule_check_period
         while True:
             now = time.time()
             if self.force_scheduler_check or (now - self.scheduler_check_time) > sleep_time:
@@ -286,15 +284,22 @@ class Pilot:
                     # check scheduler daemon
                     self.log.debug('checking scheduler')
 
-                    check_results = check_schedule()
-                    self.new_id, self.new_mintime = check_results
+                    try:
+                        self.new_pointing = check_schedule()
 
-                    if self.new_id != self.current_id:
-                        self.log.info('scheduler returns {} (NEW)'.format(self.new_id))
-                    else:
-                        self.log.debug('scheduler returns {}'.format(self.current_id))
+                        msg = 'scheduler returns {}'.format(self.new_pointing['id'])
+                        if self.new_pointing['id'] != self.current_pointing['id']:
+                            msg += ' (NEW)'
+                            self.log.info(msg)
+                        else:
+                            self.log.debug(msg)
 
-                    self.initial_scheduler_check_complete = True
+                        self.initial_scheduler_check_complete = True
+
+                    except Exception as error:
+                        self.log.warning('{} checking scheduler: {}'.format(
+                            type(error).__name__, error))
+                        self.new_pointing = None
 
                 self.scheduler_check_time = now
                 self.force_scheduler_check = False
@@ -650,6 +655,10 @@ class Pilot:
             proc = loop.subprocess_exec(factory, params.PYTHON_EXE, '-u', *cmd,
                                         stdin=None)
 
+        # if we're observing, mark the pointing as running on this telescope
+        if name == 'OBS':
+            mark_pointing(self.current_pointing['id'], 'running')
+
         # start the process and get transport and protocol for control of it
         self.log.info('starting {}'.format(name))
         self.running_script = name
@@ -670,22 +679,49 @@ class Pilot:
                 msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 
-            # if we were observing, make sure the pointing is marked as aborted
-            # (the observe.py closer should do this anyway, but best to be sure)
-            if name == 'OBS' and self.current_id is not None:
-                mark_aborted(self.current_id)
-                self.log.debug('pointing {} was aborted'.format(self.current_id))
+        # if we were observing, need to mark the pointing status as completed or interrupted
+        if name == 'OBS':
+            if retcode == 0:
+                # The observations completed successfully
+                mark_pointing(self.current_pointing['id'], 'completed')
+                self.log.debug('pointing {} was completed'.format(self.current_pointing['id']))
+            else:
+                # The observations finished early
+                # Find the elapsed time, accounting for any time lost due to being paused
+                # TODO: do we still pause during pointings?
+                elapsed = time.time() - self.current_start_time - self.time_lost
+                self.log.debug('time elapsed = {:.0f}'.format(elapsed))
+
+                # It might be okay to mark as completed if it has a mintime and we passed it
+                if self.current_pointing['mintime'] is not None:
+                    mintime = self.current_pointing['mintime']
+                    if elapsed > mintime:
+                        # We observed enough, mark the pointing as completed
+                        self.log.debug('passed mintime = {:.0f}'.format(mintime))
+                        mark_pointing(self.current_pointing['id'], 'completed')
+                        self.log.debug('pointing {} was completed'.format(
+                            self.current_pointing['id']))
+                    else:
+                        # We didn't observe enough, mark the pointing as interrupted
+                        self.log.debug('did not pass mintime = {:.0f}'.format(mintime))
+                        mark_pointing(self.current_pointing['id'], 'interrupted')
+                        self.log.debug('pointing {} was interrupted'.format(
+                            self.current_pointing['id']))
+                else:
+                    # Mark the pointing as interrupted
+                    mark_pointing(self.current_pointing['id'], 'interrupted')
+                    self.log.debug('pointing {} was interrupted'.format(
+                        self.current_pointing['id']))
 
         self.log.info('finished {}'.format(name))
         self.running_script = None
 
-        # if it was an observation that just finished (aborted or not) force a scheduler check
         if name == 'OBS':
+            # if it was an observation that just finished then force a scheduler check
             self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
-
-        # if BADCOND has just finished and we're still paused then park the mount again
-        if name == 'BADCOND':
+        elif name == 'BADCOND':
+            # if BADCOND has just finished and we're still paused then park the mount again
             if (self.paused and not self.whypause['hardware'] and not self.whypause['manual'] and
                     self.mount_is_tracking):
                 self.park_mount()
@@ -957,113 +993,93 @@ class Pilot:
                     # end observing
                     break
 
-            # See if a new target has arrived and mark the pointing appropriately
+            # See if a new pointing has arrived and react appropriately
             # There are 6 options (technically 5, bottom left & bottom right
             # are the same...):
-            #               | | new_id is  |    new_id is    |   new_id   |
-            #               | |  same as   |  different to   |     is     |
-            #               | | current_id |   current_id    |    None    |
-            #  -------------+-+------------+-----------------+------------+
-            #  -------------+-+------------+-----------------+------------+
-            #    current_id | |  carry on  | stop current_id |    park    |
-            #   is not None | | current_id | & start new_id  |            |
-            #  -------------+-+------------+-----------------+------------+
-            #    current_id | |    stay    |      start      |    stay    |
-            #      is None  | |   parked   |      new_id     |   parked   |
+            #               | |  NEW is    |    NEW is    |     NEW      |
+            #               | |  same as   | different to |     is       |
+            #               | |  CURRENT   |   CURRENT    |     None     |
+            #  -------------+-+------------+--------------+--------------+
+            #  -------------+-+------------+--------------+--------------+
+            #     CURRENT   | |  continue  | stop CURRENT | stop CURRENT |
+            #   is not None | |  CURRENT   | & start NEW  |    & park    |
+            #  -------------+-+------------+--------------+--------------+
+            #     CURRENT   | |    stay    |  unpark &    |     stay     |
+            #     is None   | |   parked   |  start NEW   |    parked    |
+            #  -------------+-+------------+--------------+--------------+
 
-            if self.new_id == self.current_id:
-                if self.current_id is not None:
-                    now = time.time()
-                    elapsed = now - self.current_start_time
-                    self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
-                                   self.current_id, elapsed, self.current_mintime))
+            if self.new_pointing is not None:
+                # We have something to do!
+                if self.new_pointing['id'] == self.current_pointing['id']:
+                    # We're already observing it, so carry on
+                    elapsed = time.time() - self.current_start_time
+                    mintime = self.current_pointing['mintime']
+                    # TODO: it would be nice to estimate OBS time if there's no mintime
+                    #       we do it in observe.py to know how long to wait,
+                    #       just need to predefine it in the scheduler, which it already does...
+                    if mintime is None:
+                        self.log.debug('still observing {} ({:.0f})'.format(
+                                       self.current_pointing['id'], elapsed))
+                    else:
+                        self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
+                                       self.current_pointing['id'], elapsed, mintime))
+
                 else:
-                    # We should already be parked
+                    # We have a new Pointing to start
+                    self.log.info('got new pointing from scheduler {}'.format(
+                        self.new_pointing['id']))
+
+                    if self.current_pointing is not None:
+                        # We're already observing something, so we have to interrupt it
+                        # This will mark the pointing as interrupted, unless it reached the mintime
+                        await self.cancel_running_script(why='new pointing')
+                    else:
+                        # We weren't doing anything, which implies we were parked
+                        await self.unpark_mount()
+
+                    # Start the new pointing
+                    # This will mark the pointing as running
+                    self.log.debug('starting pointing {}'.format(self.new_pointing['id']))
+                    # TODO: pass all info to the script
+                    asyncio.ensure_future(self.start_script('OBS',
+                                                            'observe.py',
+                                                            args=[str(self.new_pointing['id'])]))
+
+                    self.current_start_time = time.time()
+                    self.current_pointing = self.new_pointing
+                    self.time_lost = 0
+
+            else:
+                # Nothing to do!
+                if self.current_pointing is not None:
+                    # Stop what we're doing, park the mount
+                    self.log.info('nothing to do, parking mount')
+                    if not self.testing:
+                        send_slack_msg('Pilot has nothing to do, parking mount')
+                    self.park_mount()
+                    execute_command('exq clear')
+                    execute_command('cam abort')
+                    self.current_pointing = None
+                    # If we've interrupted a pointing it needs to be cancelled,
+                    # this should mark it as interrupted
+                    await self.cancel_running_script('obs parking')
+                else:
+                    # We're not observing anything, and should already be parked
                     self.log.warning('nothing to observe!')
                     if not self.testing:
                         send_slack_msg('Pilot has nothing to observe!')
 
-            elif self.new_id is not None:
-                if self.current_id is not None:
-                    self.log.info('got new pointing from scheduler {}'.format(self.new_id))
-
-                    # Get current pointing status
-                    current_status = get_pointing_status(self.current_id)
-                    self.log.debug('current pointing {} status = {}'.format(
-                                   self.current_id, current_status))
-
-                    # Check if there is currently an observation running
-                    if self.running_script == 'OBS':
-                        # Cancel the script
-                        # NOTE this will mark the pointing as aborted
-                        await self.cancel_running_script(why='new pointing')
-
-                        # Find the elapsed time, accounting for time lost due to being paused
-                        elapsed = time.time() - self.current_start_time - self.time_lost
-                        self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
-                                       self.current_mintime, elapsed))
-
-                        if elapsed > self.current_mintime:
-                            # We observed enough, mark the pointing as completed
-                            mark_completed(self.current_id)
-                            self.log.debug('pointing {} was completed'.format(self.current_id))
-                        elif current_status == 'completed':
-                            # We killed the script just as it was finishing,
-                            # (after it marked the pointing as completed, but before it returned),
-                            # so we need to re-mark the pointing as completed here.
-                            mark_completed(self.current_id)
-                            self.log.debug('pointing {} was completed'.format(self.current_id))
-                        else:
-                            # Mark the pointing as interrupted
-                            mark_interrupted(self.current_id)
-                            self.log.debug('pointing {} was interrupted'.format(self.current_id))
-
-                else:
-                    self.log.info('got pointing from scheduler {}'.format(self.new_id))
-                    # we weren't doing anything, which implies we were parked
-                    await self.unpark_mount()
-
-                # start the new pointing (the script will mark it as running too, but best to do it
-                # ASAP so the scheduler recognises it)
-                self.log.debug('starting pointing {}'.format(self.new_id))
-                mark_running(self.new_id)
-
-                asyncio.ensure_future(self.start_script('OBS',
-                                                        'observe.py',
-                                                        args=[str(self.new_id)]))
-
-                self.current_start_time = time.time()
-                self.current_id = self.new_id
-                self.current_mintime = self.new_mintime
-                self.time_lost = 0
-
-            else:
-                self.log.info('nothing to do, parking mount')
-                if not self.testing:
-                    send_slack_msg('Pilot has nothing to do, parking mount')
-                self.park_mount()
-                execute_command('exq clear')
-                execute_command('cam abort')
-                self.current_id = None
-                self.current_mintime = None
-                # If we've interrupted a pointing it needs to be cancelled,
-                # this will mark it as aborted
-                await self.cancel_running_script('obs parking')
-
             await asyncio.sleep(sleep_time)
 
+        # the loop has broken, so we've reached sunrise
         self.log.info('observing completed!')
         self.observing = False
 
-        # finish observing
+        # finish observing, in case we're interrupting a pointing
         execute_command('exq clear')
         execute_command('cam abort')
-
-        # If we've interrupted a pointing it needs to be cancelled,
-        # this will mark it as aborted
         await self.cancel_running_script('obs finished')
-        self.current_id = None
-        self.current_mintime = None
+        self.current_pointing = None
 
     # Pausing
     @property

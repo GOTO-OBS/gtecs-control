@@ -6,31 +6,11 @@ from astropy.time import Time
 
 import numpy as np
 
-from gtecs.obs.database import get_pointing_by_id, open_session
-
 from . import params
 from .astronomy import radec_from_altaz, within_mount_limits
-from .daemons import daemon_function, daemon_info
+from .daemons import daemon_function, daemon_info, daemon_proxy
 from .fits import clear_glance_files, get_glance_data, get_image_data
 from .misc import execute_command
-
-
-def check_schedule():
-    """Check the schedule."""
-    # Get the dome status for the correct horizon
-    dome_info = daemon_info('dome', force_update=False)
-    horizon = 'high' if dome_info['shielding'] else 'low'
-
-    # Get the pointing data from the scheduler
-    try:
-        new_pointing = daemon_function('scheduler', 'check_queue', args=[horizon])
-        if new_pointing is not None:
-            return new_pointing.db_id, new_pointing.mintime
-        else:
-            return None, None
-    except Exception as error:
-        print('{} checking scheduler: {}'.format(type(error).__name__, error))
-        return None, None
 
 
 def check_dome_closed():
@@ -72,6 +52,12 @@ def wait_for_dome(target_position, timeout=None):
 
     if timed_out:
         raise TimeoutError('Dome timed out')
+
+
+def dome_is_shielding():
+    """Check if the dome is in windshield mode."""
+    dome_info = daemon_info('dome')
+    return dome_info['shielding']
 
 
 def prepare_for_images(open_covers=True):
@@ -762,21 +748,6 @@ def wait_for_images(target_image_number, timeout=None):
         raise TimeoutError('Cameras timed out')
 
 
-def get_pointing_status(db_id):
-    """Get the status of a paticular pointing.
-
-    Parameters
-    ----------
-    db_id : int
-        database ID of the pointing
-
-    """
-    with open_session() as session:
-        pointing = get_pointing_by_id(session, db_id)
-        status = pointing.status
-    return status
-
-
 def get_conditions(timeout=30):
     """Get the current conditions values."""
     conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
@@ -796,3 +767,36 @@ def get_internal_conditions(timeout=30):
     int_temperature = np.mean([weather[source]['temperature'] for source in int_sources])
     int_humidity = np.mean([weather[source]['humidity'] for source in int_sources])
     return {'temperature': int_temperature, 'humidity': int_humidity}
+
+
+def check_schedule():
+    """Check the scheduler for the highest priority Pointing to observe."""
+    # Get the dome status for the correct horizon
+    # TODO: The pilot should get this from the hardware monitor, then it should be an argument
+    horizon = 1 if dome_is_shielding() else 0
+
+    # Get the pointing data from the scheduler
+    with daemon_proxy('scheduler') as scheduler:
+        # Get the highest priority Pointing to observe
+        pointing_info = scheduler.check_queue(params.TELESCOPE_NUMBER, horizon)
+    return pointing_info
+
+
+def get_pointing_info(pointing_id):
+    """Get the info dict for the given Pointing from the scheduler."""
+    with daemon_proxy('scheduler') as scheduler:
+        pointing_info = scheduler.get_pointing_info(pointing_id)
+    return pointing_info
+
+
+def mark_pointing(pointing_id, status):
+    """Update a Pointing's status through the scheduler."""
+    with daemon_proxy('scheduler') as scheduler:
+        if status == 'running':
+            scheduler.mark_pointing_running(pointing_id, params.TELESCOPE_NUMBER)
+        elif status == 'completed':
+            scheduler.mark_pointing_completed(pointing_id)
+        elif status == 'interrupted':
+            scheduler.mark_pointing_interrupted(pointing_id)
+        else:
+            raise ValueError('Invalid status: {}'.format(status))
