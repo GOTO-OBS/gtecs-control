@@ -50,7 +50,7 @@ class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         """Create the protocol.
 
         Parameters
-        -----------
+        ----------
         name : str
             A name for this task. Will be prepended to output.
         done : `~asyncio.Future`
@@ -145,7 +145,7 @@ class LoggedProtocol(TaskProtocol):
 
 
 def task_handler(func):
-    """Wrapper to handle exceptions within the main pilot coroutines."""
+    """Handle exceptions within the main pilot coroutines."""
     async def wrapper(pilot, *args, **kwargs):
         try:
             pilot.log.debug('starting {} routine'.format(func.__name__))
@@ -162,13 +162,13 @@ def task_handler(func):
             try:
                 pilot.log.debug('finished {} routine'.format(func.__name__))
             except NameError:
-                # An interupt has already killed the logger
+                # An interrupt has already killed the logger
                 # See https://stackoverflow.com/questions/64679139/
                 print('finished {} routine'.format(func.__name__))
     return wrapper
 
 
-class Pilot(object):
+class Pilot:
     """Run the scheduler and telescope.
 
     The Pilot uses asyncio to run several tasks concurrently,
@@ -858,7 +858,7 @@ class Pilot(object):
             if given, return False if the sun is already past the given altitude
 
         Returns
-        --------
+        -------
         OK : bool
             True if you are safe to go, False if we think you are too late
 
@@ -877,15 +877,11 @@ class Pilot(object):
             too_late = False
 
             # check if we're on the wrong side of midnight
-            if not rising and now > self.midnight:
-                too_late = True
-            elif rising and now < self.midnight:
+            if (not rising and now > self.midnight) or (rising and now < self.midnight):
                 too_late = True
 
             # check if we've missed the late sunalt
-            if not rising and sunalt_now < late_sunalt:
-                too_late = True
-            elif rising and sunalt_now > late_sunalt:
+            if (not rising and sunalt_now < late_sunalt) or (rising and sunalt_now > late_sunalt):
                 too_late = True
 
             if too_late:
@@ -907,9 +903,7 @@ class Pilot(object):
                 self.log.debug(msg)
 
             # has our watch ended?
-            if rising and sunalt_now > sunalt:
-                break
-            elif not rising and sunalt_now < sunalt:
+            if (rising and sunalt_now > sunalt) or (not rising and sunalt_now < sunalt):
                 break
 
             await asyncio.sleep(sleep_time)
@@ -1401,7 +1395,7 @@ class Pilot(object):
         self.hardware['mnt'].mode = 'tracking'  # skip stopped and go straight to tracking
         await asyncio.sleep(5)
         mount_status = self.hardware['mnt'].get_hardware_status()
-        if not mount_status == 'tracking':
+        if mount_status != 'tracking':
             # slew to above horizon, to stop errors
             execute_command('mnt slew_altaz 50 0')
             # wait for mount to slew
