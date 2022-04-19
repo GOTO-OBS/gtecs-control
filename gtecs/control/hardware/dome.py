@@ -185,7 +185,7 @@ class FakeDome:
             self.log.debug('output thread finished')
 
     def _move_dome(self, side, command, frac):
-        # Don't interupt!
+        # Don't interrupt!
         if self.status[side] in ['opening', 'closing']:
             return
 
@@ -699,7 +699,7 @@ class AstroHavenDome:
 
     def _move_dome(self, side, command, frac):
         """Move the dome until it reaches its limit."""
-        # Don't interupt!
+        # Don't interrupt!
         if self.status[side] in ['opening', 'closing']:
             return
 
