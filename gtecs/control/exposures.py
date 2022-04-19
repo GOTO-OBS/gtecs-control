@@ -8,7 +8,7 @@ from . import misc
 from . import params
 
 
-class Exposure(object):
+class Exposure:
     """A class to represent a single exposure.
 
     Parameters
@@ -41,14 +41,17 @@ class Exposure(object):
     set_tot : int, default=1
         Total number of exposures in this set
 
-    db_id : int or None, default=None
-        The ExposureSet ID, if this exposure comes from the ObsDB
+    set_id : int or None, default=None
+        The ExposureSet ID, if this exposure comes from the database
+    pointing_id : int or None, default=None
+        The pointing ID, if this exposure comes from the database
 
     """
 
     def __init__(self, ut_list, exptime,
                  filt=None, binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
-                 glance=False, set_num=None, set_pos=1, set_tot=1, db_id=None):
+                 glance=False, set_num=None, set_pos=1, set_tot=1,
+                 set_id=None, pointing_id=None):
         # Required arguments
         self.ut_list = ut_list
         self.ut_mask = misc.ut_list_to_mask(ut_list)
@@ -69,7 +72,8 @@ class Exposure(object):
         self.set_tot = set_tot
 
         # Database arguments
-        self.db_id = db_id
+        self.set_id = set_id
+        self.pointing_id = pointing_id
 
         # Store creation time
         self.creation_time = time.gmtime()
@@ -80,7 +84,7 @@ class Exposure(object):
     @classmethod
     def from_line(cls, line):
         """Create an Exposure object from a formatted string."""
-        # eg '1011;20;R;2;normal;NA;SCIENCE;0;1000;1;3;126598'
+        # eg '1011;20;R;2;normal;NA;SCIENCE;0;1000;1;3;-1;-1'
         ls = line.split(';')
         ut_list = misc.ut_string_to_list(ls[0])
         exptime = float(ls[1])
@@ -93,7 +97,8 @@ class Exposure(object):
         set_num = int(ls[8]) if int(ls[8]) != -1 else None
         set_pos = int(ls[9])
         set_tot = int(ls[10])
-        db_id = int(ls[11]) if int(ls[11]) != -1 else None
+        set_id = int(ls[11]) if int(ls[11]) != -1 else None
+        pointing_id = int(ls[12]) if int(ls[12]) != -1 else None
 
         exposure = cls(ut_list,
                        exptime,
@@ -106,13 +111,14 @@ class Exposure(object):
                        set_num,
                        set_pos,
                        set_tot,
-                       db_id,
+                       set_id,
+                       pointing_id,
                        )
         return exposure
 
     def as_line(self):
         """Give the line representation of this Exposure."""
-        line = '{};{:.1f};{};{:d};{};{};{};{};{:d};{:d};{:d};{:d}\n'.format(
+        line = '{};{:.1f};{};{:d};{};{};{};{};{:d};{:d};{:d};{:d};{:d}\n'.format(
             self.ut_string,
             self.exptime,
             self.filt if self.filt is not None else 'X',
@@ -124,7 +130,8 @@ class Exposure(object):
             self.set_num if self.set_num is not None else -1,
             self.set_pos,
             self.set_tot,
-            self.db_id if self.db_id is not None else -1,
+            self.set_id if self.set_id is not None else -1,
+            self.pointing_id if self.pointing_id is not None else -1,
         )
         return line
 
@@ -143,8 +150,9 @@ class Exposure(object):
         if self.in_set:
             s += '  Set number: {}\n'.format(self.set_num)
             s += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
-        if self.from_db:
-            s += '  Set database ID: {}\n'.format(self.db_id)
+        if self.from_database:
+            s += '  ExposureSet database ID: {}\n'.format(self.set_id)
+            s += '  Pointing database ID: {}\n'.format(self.pointing_id)
         return s
 
     @property
@@ -153,9 +161,9 @@ class Exposure(object):
         return self.set_num is not None
 
     @property
-    def from_db(self):
-        """Return True if this exposure is from the ObsDB."""
-        return self.db_id is not None
+    def from_database(self):
+        """Return True if this exposure is from the database."""
+        return self.set_id is not None
 
 
 class ExposureQueue(MutableSequence):
@@ -174,9 +182,9 @@ class ExposureQueue(MutableSequence):
         self.queue_file = os.path.join(params.FILE_PATH, 'exposure_queue')
 
         if not os.path.exists(self.queue_file):
-            f = open(self.queue_file, 'w')
-            f.write('#\n')
-            f.close()
+            with open(self.queue_file, 'w') as f:
+                f.write('#\n')
+                f.close()
 
         with open(self.queue_file) as f:
             lines = f.read().splitlines()

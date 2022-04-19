@@ -423,8 +423,8 @@ class CamDaemon(BaseDaemon):
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
             current_info['set_tot'] = self.current_exposure.set_tot
-            current_info['from_db'] = self.current_exposure.from_db
-            current_info['db_id'] = self.current_exposure.db_id
+            current_info['set_id'] = self.current_exposure.set_id
+            current_info['pointing_id'] = self.current_exposure.pointing_id
             temp_info['current_exposure'] = current_info
         else:
             temp_info['current_exposure'] = None
