@@ -15,7 +15,7 @@ from gtecs.control.daemons import daemon_info
 from gtecs.control.flags import Status
 from gtecs.control.misc import execute_command, get_pid, make_pid_file
 from gtecs.control.observing import wait_for_dome
-from gtecs.control.slack import send_slack_msg, send_dome_report, send_observation_report
+from gtecs.control.slack import send_dome_report, send_slack_msg
 
 import numpy as np
 
@@ -113,12 +113,6 @@ def run(test=False):
     execute_command('power off poe')
     time.sleep(5)
     execute_command('power on poe')
-
-    # Send last night's observing report to Slack
-    log.info('Sending coverage plots to Slack')
-    n_obs, n_obs_allsky = send_observation_report(date)
-    log.info('Last night we observed {} tiles'.format(n_obs))
-    log.info('Last night we observed {} all-sky survey tiles'.format(n_obs_allsky))
 
     log.info('Done')
 

@@ -24,7 +24,7 @@ from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
 from .observing import check_schedule, get_pointing_status
-from .slack import send_slack_msg, send_startup_report, send_database_report, send_timing_report
+from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
 class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
@@ -524,7 +524,6 @@ class Pilot(object):
                                obs_stop_sunalt=self.obs_stop_sunalt,
                                close_sunalt=self.close_sunalt,
                                )
-            send_database_report()
 
         # Wait for first flag check
         while not self.initial_flags_check_complete:
