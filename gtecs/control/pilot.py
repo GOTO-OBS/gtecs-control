@@ -982,16 +982,13 @@ class Pilot:
 
                     if self.current_pointing is not None:
                         # We're already observing something, so we have to interrupt it
-                        # This will mark the pointing as interrupted, unless it reached the mintime
                         await self.cancel_running_script(why='new pointing')
                     else:
                         # We weren't doing anything, which implies we were parked
                         await self.unpark_mount()
 
                     # Start the new pointing
-                    # This will mark the pointing as running
                     self.log.debug('starting pointing {}'.format(self.new_pointing['id']))
-                    # TODO: pass all info to the script
                     asyncio.ensure_future(self.start_script('OBS',
                                                             'observe.py',
                                                             args=[str(self.new_pointing['id'])]))
@@ -1006,13 +1003,9 @@ class Pilot:
                     self.log.info('nothing to do, parking mount')
                     if not self.testing:
                         send_slack_msg('Pilot has nothing to do, parking mount')
-                    self.park_mount()
-                    execute_command('exq clear')
-                    execute_command('cam abort')
-                    self.current_pointing = None
-                    # If we've interrupted a pointing it needs to be cancelled,
-                    # this should mark it as interrupted
                     await self.cancel_running_script('obs parking')
+                    self.park_mount()
+                    self.current_pointing = None
                 else:
                     # We're not observing anything, and should already be parked
                     self.log.warning('nothing to observe!')
@@ -1026,8 +1019,6 @@ class Pilot:
         self.observing = False
 
         # finish observing, in case we're interrupting a pointing
-        execute_command('exq clear')
-        execute_command('cam abort')
         await self.cancel_running_script('obs finished')
         self.current_pointing = None
 
@@ -1063,8 +1054,6 @@ class Pilot:
                 if self.dome_is_open:
                     # only need to stop scripts if the dome is open
                     # (this way we don't kill darks if the weather goes bad)
-                    execute_command('exq pause')
-                    execute_command('cam abort')
                     await self.cancel_running_script('bad conditions')
 
                 # always make sure we're closed and parked
@@ -1085,22 +1074,18 @@ class Pilot:
                     pass
 
                 # stop current actions
+                await self.cancel_running_script('hardware fault')
                 if self.mount_is_tracking:
                     self.stop_mount()
-                execute_command('exq clear')
-                execute_command('cam abort')
-                await self.cancel_running_script('hardware fault')
 
             elif reason == 'manual':
                 self.log.warning('Pausing (system in manual mode)')
                 send_slack_msg('Pilot is pausing (system in manual mode)')
 
                 # kill the current script, we usually do it manually anyway
+                await self.cancel_running_script('system to manual mode')
                 if self.mount_is_tracking:
                     self.stop_mount()
-                execute_command('exq clear')
-                execute_command('cam abort')
-                await self.cancel_running_script('system to manual mode')
 
         if not pause:
             if self.time_paused[reason] > 0:
