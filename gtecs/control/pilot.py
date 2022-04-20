@@ -970,17 +970,10 @@ class Pilot:
                 # We have something to do!
                 if self.new_pointing['id'] == self.current_pointing['id']:
                     # We're already observing it, so carry on
-                    elapsed = time.time() - self.current_start_time
-                    mintime = self.current_pointing['mintime']
-                    # TODO: it would be nice to estimate OBS time if there's no mintime
-                    #       we do it in observe.py to know how long to wait,
-                    #       just need to predefine it in the scheduler, which it already does...
-                    if mintime is None:
-                        self.log.debug('still observing {} ({:.0f})'.format(
-                                       self.current_pointing['id'], elapsed))
-                    else:
-                        self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
-                                       self.current_pointing['id'], elapsed, mintime))
+                    elapsed_time = time.time() - self.current_start_time
+                    obs_time = self.current_pointing['obstime']
+                    self.log.debug('still observing {} ({:.0f}s/~{:.0f}s)'.format(
+                                   self.current_pointing['id'], elapsed_time, obs_time))
 
                 else:
                     # We have a new Pointing to start
