@@ -769,15 +769,12 @@ def get_internal_conditions(timeout=30):
     return {'temperature': int_temperature, 'humidity': int_humidity}
 
 
-def check_schedule():
+def check_schedule(shielding=False):
     """Check the scheduler for the highest priority Pointing to observe."""
-    # Get the dome status for the correct horizon
-    # TODO: The pilot should get this from the hardware monitor, then it should be an argument
-    horizon = 1 if dome_is_shielding() else 0
-
     # Get the pointing data from the scheduler
     with daemon_proxy('scheduler') as scheduler:
         # Get the highest priority Pointing to observe
+        horizon = 1 if shielding else 0
         pointing_info = scheduler.check_queue(params.TELESCOPE_NUMBER, horizon)
     return pointing_info
 

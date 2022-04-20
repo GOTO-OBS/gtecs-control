@@ -449,6 +449,8 @@ class DomeMonitor(BaseMonitor):
         north = info['north']
         south = info['south']
         shielding = info['shielding']
+        # store shielding status on the monitor for the pilot
+        self.shielding_active = shielding
 
         if north == 'closed' and south == 'closed':
             hardware_status = STATUS_DOME_CLOSED

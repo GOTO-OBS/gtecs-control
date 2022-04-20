@@ -284,8 +284,15 @@ class Pilot:
                     self.log.debug('checking scheduler')
 
                     try:
-                        self.new_pointing = check_schedule()
+                        # find if the dome is in shielding mode (higher horizon)
+                        try:
+                            dome_shielding = self.hardware['dome'].shielding_active
+                        except Exception:
+                            self.log.warning('Could not find dome shielding status')
+                            dome_shielding = False
 
+                        # get the new pointing from the scheduler
+                        self.new_pointing = check_schedule(dome_shielding)
                         msg = 'scheduler returns {}'.format(self.new_pointing['id'])
                         if self.new_pointing['id'] != self.current_pointing['id']:
                             msg += ' (NEW)'
