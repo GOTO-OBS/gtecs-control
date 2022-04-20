@@ -2,6 +2,7 @@
 """Script to control observing a single pointing."""
 
 import sys
+import time
 from argparse import ArgumentParser
 
 from gtecs.control import params
@@ -16,15 +17,34 @@ from gtecs.control.observing import (prepare_for_images, slew_to_radec,
 class InterruptedPointingCloser(NeatCloser):
     """A class to neatly handle shutdown requests."""
 
-    def __init__(self, pointing_id):
+    def __init__(self, pointing_id, min_time=None):
         super().__init__(taskname='Script')
         self.pointing_id = pointing_id
+        self.min_time = min_time
+        self.start_time = time.time()
 
     def tidy_up(self):
         """Mark the pointing as interrupted."""
         print('Interrupt caught')
-        mark_pointing(self.pointing_id, 'interrupted')
-        print('Pointing {} marked as interrupted'.format(self.pointing_id))
+
+        elapsed_time = time.time() - self.start_time
+        print('Elapsed time: {:.0f}s'.format(elapsed_time))
+
+        if self.min_time is None:
+            # Mark the pointing as interrupted
+            mark_pointing(self.pointing_id, 'interrupted')
+            print('Pointing {} marked as interrupted'.format(self.pointing_id))
+        else:
+            if elapsed_time > self.min_time:
+                # We observed enough, mark the pointing as completed
+                print('Passed mintime ({:.0f}s)'.format(self.min_time))
+                mark_pointing(self.pointing_id, 'completed')
+                print('Pointing {} marked as completed'.format(self.pointing_id))
+            else:
+                # We didn't observe enough, mark the pointing as interrupted
+                print('Did not pass mintime ({:.0f}s)'.format(self.min_time))
+                mark_pointing(self.pointing_id, 'interrupted')
+                print('Pointing {} marked as interrupted'.format(self.pointing_id))
 
 
 def run(pointing_id):
@@ -33,14 +53,6 @@ def run(pointing_id):
     prepare_for_images()
     refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
 
-    # Mark the Pointing as running
-    print('Observing pointing ID: ', pointing_id)
-    mark_pointing(pointing_id, 'running')
-    print('Pointing {} marked as running'.format(pointing_id))
-
-    # Catch any interrupts from now (only after we've marked the pointing as running)
-    InterruptedPointingCloser(pointing_id)
-
     # Clear & pause queue to make sure
     execute_command('exq clear')
     execute_command('exq pause')
@@ -48,6 +60,15 @@ def run(pointing_id):
 
     # Get the Pointing infomation from the scheduler
     pointing_info = get_pointing_info(pointing_id)
+
+    # Mark the Pointing as running
+    print('Observing pointing ID: ', pointing_id)
+    mark_pointing(pointing_id, 'running')
+    print('Pointing {} marked as running'.format(pointing_id))
+
+    # Catch any interrupts from now (only after we've marked the pointing as running)
+    # This also tracks the elapsed time for tracking any mintime
+    InterruptedPointingCloser(pointing_id, min_time=pointing_info['mintime'])
 
     # Start slew
     print('Moving to target')

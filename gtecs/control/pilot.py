@@ -22,7 +22,7 @@ from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
-from .observing import check_schedule, mark_pointing
+from .observing import check_schedule
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
@@ -252,7 +252,6 @@ class Pilot:
         # reasons to pause and timers
         self.whypause = {'hardware': False, 'conditions': False, 'manual': False}
         self.time_paused = {'hardware': 0, 'conditions': 0, 'manual': 0}
-        self.time_lost = 0
         self.bad_conditions_tasks_timer = 0
         self.bad_hardware = None
         self.bad_flags = None
@@ -467,9 +466,6 @@ class Pilot:
                 self.log.info('pilot paused ({})'.format(', '.join(reasons)))
                 self.log.debug('pause times: {}'.format(self.time_paused))
 
-                # track the observing time lost (this is reset whenever a new observation starts)
-                self.time_lost += sleep_time
-
                 # track the time paused for each reason (this is reset whenever the system unpauses)
                 for reason in reasons:
                     self.time_paused[reason] += sleep_time
@@ -655,10 +651,6 @@ class Pilot:
             proc = loop.subprocess_exec(factory, params.PYTHON_EXE, '-u', *cmd,
                                         stdin=None)
 
-        # if we're observing, mark the pointing as running on this telescope
-        if name == 'OBS':
-            mark_pointing(self.current_pointing['id'], 'running')
-
         # start the process and get transport and protocol for control of it
         self.log.info('starting {}'.format(name))
         self.running_script = name
@@ -678,40 +670,6 @@ class Pilot:
                 # It's not uncommon for OBS and BADCOND to be canceled early
                 msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
-
-        # if we were observing, need to mark the pointing status as completed or interrupted
-        if name == 'OBS':
-            if retcode == 0:
-                # The observations completed successfully
-                mark_pointing(self.current_pointing['id'], 'completed')
-                self.log.debug('pointing {} was completed'.format(self.current_pointing['id']))
-            else:
-                # The observations finished early
-                # Find the elapsed time, accounting for any time lost due to being paused
-                # TODO: do we still pause during pointings?
-                elapsed = time.time() - self.current_start_time - self.time_lost
-                self.log.debug('time elapsed = {:.0f}'.format(elapsed))
-
-                # It might be okay to mark as completed if it has a mintime and we passed it
-                if self.current_pointing['mintime'] is not None:
-                    mintime = self.current_pointing['mintime']
-                    if elapsed > mintime:
-                        # We observed enough, mark the pointing as completed
-                        self.log.debug('passed mintime = {:.0f}'.format(mintime))
-                        mark_pointing(self.current_pointing['id'], 'completed')
-                        self.log.debug('pointing {} was completed'.format(
-                            self.current_pointing['id']))
-                    else:
-                        # We didn't observe enough, mark the pointing as interrupted
-                        self.log.debug('did not pass mintime = {:.0f}'.format(mintime))
-                        mark_pointing(self.current_pointing['id'], 'interrupted')
-                        self.log.debug('pointing {} was interrupted'.format(
-                            self.current_pointing['id']))
-                else:
-                    # Mark the pointing as interrupted
-                    mark_pointing(self.current_pointing['id'], 'interrupted')
-                    self.log.debug('pointing {} was interrupted'.format(
-                        self.current_pointing['id']))
 
         self.log.info('finished {}'.format(name))
         self.running_script = None
@@ -1047,7 +1005,6 @@ class Pilot:
 
                     self.current_start_time = time.time()
                     self.current_pointing = self.new_pointing
-                    self.time_lost = 0
 
             else:
                 # Nothing to do!
