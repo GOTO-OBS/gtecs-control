@@ -961,17 +961,19 @@ class Pilot:
             # See if a new pointing has arrived and react appropriately
             # There are 6 options (technically 5, bottom left & bottom right
             # are the same...):
-            #               | |  NEW is    |    NEW is    |     NEW      |
-            #               | |  same as   | different to |     is       |
-            #               | |  CURRENT   |   CURRENT    |     None     |
-            #  -------------+-+------------+--------------+--------------+
-            #  -------------+-+------------+--------------+--------------+
-            #     CURRENT   | |  continue  | stop CURRENT | stop CURRENT |
-            #   is not None | |  CURRENT   | & start NEW  |    & park    |
-            #  -------------+-+------------+--------------+--------------+
-            #     CURRENT   | |    stay    |  unpark &    |     stay     |
-            #     is None   | |   parked   |  start NEW   |    parked    |
-            #  -------------+-+------------+--------------+--------------+
+            #               | |    NEW is    |    NEW is    |    NEW is    |
+            #               | |   same as    | different to |     None     |
+            #               | |   CURRENT    |   CURRENT    |              |
+            #  -------------+-+--------------+--------------+--------------+
+            #  -------------+-+--------------+--------------+--------------+
+            #     CURRENT   | |   continue   | stop CURRENT | stop CURRENT |
+            #   is not None | |   CURRENT    |     then     |     then     |
+            #   (observing) | |              |   start NEW  |     park     |
+            #  -------------+-+--------------+--------------+--------------+
+            #     CURRENT   | |     stay     |    unpark    |     stay     |
+            #     is None   | |    parked    |     then     |    parked    |
+            #     (parked)  | |              |   start NEW  |              |
+            #  -------------+-+--------------+--------------+--------------+
 
             if self.new_pointing is not None:
                 # We have something to do!
