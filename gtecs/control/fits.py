@@ -20,7 +20,7 @@ from .analysis import measure_image_hfd
 from .astronomy import get_lst, night_startdate
 from .daemons import daemon_info
 from .flags import Status
-from .observing import get_pointing_info
+from .scheduling import get_pointing_info
 
 
 def fits_filename(tel_number, run_number, ut_number):

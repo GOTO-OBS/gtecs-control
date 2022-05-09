@@ -22,7 +22,7 @@ from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .misc import execute_command, send_email
-from .observing import check_schedule
+from .scheduling import check_schedule
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
