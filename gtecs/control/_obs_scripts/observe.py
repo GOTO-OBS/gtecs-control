@@ -37,12 +37,12 @@ class InterruptedPointingCloser(NeatCloser):
         else:
             if elapsed_time > self.min_time:
                 # We observed enough, mark the pointing as completed
-                print('Passed mintime ({:.0f}s)'.format(self.min_time))
+                print('Passed min time ({:.0f}s)'.format(self.min_time))
                 mark_pointing(self.pointing_id, 'completed')
                 print('Pointing {} marked as completed'.format(self.pointing_id))
             else:
                 # We didn't observe enough, mark the pointing as interrupted
-                print('Did not pass mintime ({:.0f}s)'.format(self.min_time))
+                print('Did not pass min time ({:.0f}s)'.format(self.min_time))
                 mark_pointing(self.pointing_id, 'interrupted')
                 print('Pointing {} marked as interrupted'.format(self.pointing_id))
 
@@ -67,8 +67,8 @@ def run(pointing_id):
     print('Pointing {} marked as running'.format(pointing_id))
 
     # Catch any interrupts from now (only after we've marked the pointing as running)
-    # This also tracks the elapsed time for tracking any mintime
-    InterruptedPointingCloser(pointing_id, min_time=pointing_info['mintime'])
+    # This also tracks the elapsed time for tracking any min time
+    InterruptedPointingCloser(pointing_id, min_time=pointing_info['min_time'])
 
     # Start slew
     print('Moving to target')
