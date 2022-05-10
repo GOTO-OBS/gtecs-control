@@ -350,6 +350,11 @@ FLATS_STEPSIZE = config['FLATS_STEPSIZE']
 IERS_A_URL = config['IERS_A_URL']
 IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
 
+########################################################################
+# Scheduler parameters
+SCHEDULER_HOST = config['SCHEDULER_HOST']
+SCHEDULER_PORT = config['SCHEDULER_PORT']
+
 ############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']

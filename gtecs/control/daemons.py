@@ -225,10 +225,13 @@ def daemon_is_running(daemon_id):
     return misc.get_pid(daemon_id) is not None
 
 
-def daemon_proxy(daemon_id, timeout=params.PYRO_TIMEOUT):
+def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEOUT):
     """Get a proxy connection to the given daemon."""
-    host = params.DAEMONS[daemon_id]['HOST']
-    port = params.DAEMONS[daemon_id]['PORT']
+    if daemon_id in params.DAEMONS:
+        host = params.DAEMONS[daemon_id]['HOST']
+        port = params.DAEMONS[daemon_id]['PORT']
+    if host is None or port is None:
+        raise ValueError('Daemon "{}" not found, no host/port given'.format(daemon_id))
     address = 'PYRO:{}@{}:{}'.format(daemon_id, host, port)
     proxy = Pyro4.Proxy(address)
     proxy._pyroTimeout = timeout
@@ -292,7 +295,7 @@ def daemon_function(daemon_id, function_name, args=None, timeout=30):
     """Run a given function on a daemon."""
     check_daemon(daemon_id)  # Will raise an error if one occurs
 
-    with daemon_proxy(daemon_id, timeout) as daemon:
+    with daemon_proxy(daemon_id, timeout=timeout) as daemon:
         try:
             function = getattr(daemon, function_name)
         except AttributeError:
