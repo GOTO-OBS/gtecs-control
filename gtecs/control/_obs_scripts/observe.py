@@ -94,7 +94,7 @@ def run(pointing_id):
                 ut_string = ut_mask_to_string(expset_info['ut_mask'])
                 ut_list = ut_string_to_list(ut_string)
             else:
-                ut_list = []
+                ut_list = params.UTS_WITH_CAMERAS
 
             # Add to queue
             # Use the daemon_function to include database IDs
