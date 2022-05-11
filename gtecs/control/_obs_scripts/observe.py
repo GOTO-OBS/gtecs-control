@@ -20,6 +20,10 @@ def handle_interrupt(pointing_id, start_time, min_time):
 
     elapsed_time = time.time() - start_time
     print('Elapsed time: {:.0f}s'.format(elapsed_time))
+    if elapsed_time < 2:
+        # Since time in the database doesn't have milliseconds, it gets upset
+        # if the times are too close - so sleep for a sec to ensure they aren't
+        time.sleep(1)
 
     if min_time is None:
         # Mark the pointing as interrupted
