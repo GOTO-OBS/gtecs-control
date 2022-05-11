@@ -97,7 +97,7 @@ def run(pointing_id):
                 ut_list = params.UTS_WITH_CAMERAS
 
             # Add to queue
-            # Use the daemon_function to include database IDs
+            # Use the daemon_function to include database IDs, rather than execute_command()
             args = [ut_list,
                     expset_info['exptime'],
                     expset_info['num_exp'],
@@ -111,6 +111,16 @@ def run(pointing_id):
                     pointing_info['id'],
                     ]
             daemon_function('exq', 'add', args=args)
+
+            # Print like execute_command()
+            print('exq add', ' '.join([str(a) for a in args]) + ':')
+            msg = '> Added {}{:.0f}s {} exposure{}'.format(
+                '{}x '.format(expset_info['num_exp']) if expset_info['num_exp'] > 1 else '',
+                expset_info['exptime'],
+                expset_info['filt'].upper() if expset_info['filt'] else 'X',
+                's' if expset_info['num_exp'] > 1 else '',
+            )
+            print(msg)
 
             # Add to time estimate
             time_estimate += (expset_info['exptime'] + 30) * expset_info['num_exp']
