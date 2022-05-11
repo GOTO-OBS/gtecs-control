@@ -4,11 +4,11 @@ from . import params
 from .daemons import daemon_proxy
 
 
-def check_schedule(shielding=False):
+def check_schedule(shielding=False, asynchronous=False):
     """Check the scheduler for the highest priority Pointing to observe."""
-    # Get the pointing data from the scheduler
     with daemon_proxy('scheduler', params.SCHEDULER_HOST, params.SCHEDULER_PORT) as scheduler:
-        # Get the highest priority Pointing to observe
+        if asynchronous:
+            scheduler._pyroAsync()  # result will be a Pyro.Future
         horizon = 1 if shielding else 0
         pointing_info = scheduler.check_queue(params.TELESCOPE_NUMBER, horizon)
     return pointing_info

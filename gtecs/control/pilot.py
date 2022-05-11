@@ -291,8 +291,12 @@ class Pilot:
                             self.log.warning('Could not find dome shielding status')
                             dome_shielding = False
 
-                        # get the new pointing from the scheduler
-                        self.new_pointing = check_schedule(dome_shielding)
+                        # get the new pointing from the scheduler, asynchronously
+                        future_pointing = check_schedule(dome_shielding, asynchronous=True)
+                        while not future_pointing.ready:
+                            await asyncio.sleep(0.2)
+                        self.new_pointing = future_pointing.value
+
                         msg = 'scheduler returns {}'.format(self.new_pointing['id'])
                         if self.new_pointing['id'] != self.current_pointing['id']:
                             msg += ' (NEW)'
