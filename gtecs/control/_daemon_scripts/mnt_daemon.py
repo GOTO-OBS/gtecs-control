@@ -42,6 +42,7 @@ class MntDaemon(BaseDaemon):
         self.set_target_dec_flag = 0
         self.set_target_flag = 0
         self.offset_flag = 0
+        self.guide_flag = 0
 
         # mount variables
         self.target_ra = None
@@ -54,6 +55,8 @@ class MntDaemon(BaseDaemon):
         self.set_motor_power = True
         self.offset_direction = None
         self.offset_distance = None
+        self.guide_direction = None
+        self.guide_duration = None
         self.trackrate_ra = 0
         self.trackrate_dec = 0
 
@@ -256,6 +259,24 @@ class MntDaemon(BaseDaemon):
                 self.offset_flag = 0
                 self.offset_direction = None
                 self.offset_distance = None
+                self.force_check_flag = True
+
+            # pulse guide
+            if self.guide_flag:
+                try:
+                    self.log.info('Pulse guiding {} for {} ms'.format(
+                        self.guide_direction, self.guide_duration))
+                    self.log.debug('pos = {}'.format(self._pos_str()))
+                    c = self.mount.pulse_guide(self.guide_direction, self.guide_duration)
+                    if c:
+                        self.log.info(c)
+                    self.last_move_time = self.loop_time
+                except Exception:
+                    self.log.error('pulse_guide command failed')
+                    self.log.debug('', exc_info=True)
+                self.guide_flag = 0
+                self.guide_direction = None
+                self.guide_duration = None
                 self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
@@ -868,6 +889,33 @@ class MntDaemon(BaseDaemon):
         self.offset_flag = 1
 
         return 'Slewing to offset coordinates'
+
+    def pulse_guide(self, direction, duration):
+        """Pulse guide in a specified (cardinal) direction for the given time."""
+        # Check input
+        if direction.upper() not in ['N', 'E', 'S', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+
+        # Check current status
+        self.wait_for_info()
+        if self.info['status'] == 'Slewing':
+            raise errors.HardwareStatusError('Already slewing')
+        elif self.info['status'] == 'Parked':
+            raise errors.HardwareStatusError('Mount is parked')
+        elif self.info['status'] == 'IN BLINKY MODE':
+            raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
+        elif self.info['status'] == 'MOTORS OFF':
+            raise errors.HardwareStatusError('Mount motors are powered off')
+
+        # Set values
+        self.guide_direction = direction
+        self.guide_duration = duration
+
+        # Set flag
+        self.force_check_flag = True
+        self.guide_flag = 1
+
+        return 'Pulse guiding'
 
 
 if __name__ == '__main__':

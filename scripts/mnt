@@ -236,6 +236,17 @@ def query(command, args, daemon_id):
         reply = daemons.daemon_function(daemon_id, 'offset', [direction, distance])
         print(reply)
 
+    elif command in ['pulseguide', 'pulse_guide', 'guide']:
+        # parse arguments
+        if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
+            direction = args[0].upper()
+            duration = float(args[1])
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'pulse_guide', [direction, duration])
+        print(reply)
+
     elif command == 'target':
         # parse arguments
         if len(args) == 1:
@@ -440,6 +451,7 @@ def print_instructions():
           '  unpark                         leave park state',
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
+          '  guide [N|E|S|W duration]       pulse guide in direction for duration (in ms)',
           '  blinky on|off                  turn on or off blinky mode (SiTech only)',
           '  motors on|off                  turn on or off the mount motors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
