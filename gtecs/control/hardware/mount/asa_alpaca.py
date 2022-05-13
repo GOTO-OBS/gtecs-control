@@ -231,6 +231,8 @@ class DDM500:
                              'dec': -999}
             self._tracking_rate = {'ra': self._http_get('rightascensionrate'),
                                    'dec': self._http_get('declinationrate')}
+            self._guide_rate = {'ra': self._http_get('guideraterightascension'),
+                                'dec': self._http_get('guideratedeclination')}
 
             # store update time
             self._status_update_time = time.time()
@@ -346,9 +348,15 @@ class DDM500:
 
     @property
     def tracking_rate(self):
-        """Return the current tracking rate."""
+        """Return the current tracking rate (arcsec/sec)."""
         self._update_status()
         return self._tracking_rate
+
+    @property
+    def guide_rate(self):
+        """Return the current pulse guiding rate (degrees/sec)."""
+        self._update_status()
+        return self._guide_rate
 
     def slew_to_radec(self, ra, dec):
         """Slew to given RA and Dec coordinates (J2000)."""
@@ -433,6 +441,17 @@ class DDM500:
         old_coord = SkyCoord(self.ra * u.hourangle, self.dec * u.deg)
         new_coord = old_coord.directional_offset_by(angle[direction] * u.deg, distance * u.arcsec)
         self.slew_to_radec(new_coord.ra.hourangle, new_coord.dec.deg)
+
+    def pulse_guide(self, direction, duration):
+        """Move the scope in the given direction for the given duration (in ms)."""
+        if direction.upper() not in ['N', 'S', 'E', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        if not self.tracking:
+            raise ValueError('Can only pulse guide when tracking')
+
+        direction = ['N', 'S', 'E', 'W'].index(direction.upper())
+        data_dict = {'Direction': direction, 'Duration': duration}
+        self._http_put('pulseguide', data_dict)
 
     def error_check(self):
         """Check for any errors raised by the mount."""
