@@ -450,7 +450,7 @@ class DDM500:
             raise ValueError('Can only pulse guide when tracking')
 
         direction = ['N', 'S', 'E', 'W'].index(direction.upper())
-        data_dict = {'Direction': direction, 'Duration': duration}
+        data_dict = {'Direction': direction, 'Duration': int(duration)}
         self._http_put('pulseguide', data_dict)
 
     def error_check(self):
