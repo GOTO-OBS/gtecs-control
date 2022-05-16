@@ -25,6 +25,7 @@ class FocDaemon(BaseDaemon):
 
         # command flags
         self.move_focuser_flag = 0
+        self.set_focuser_flag = 0
         self.home_focuser_flag = 0
         self.stop_focuser_flag = 0
         self.sync_focuser_flag = 0
@@ -33,6 +34,7 @@ class FocDaemon(BaseDaemon):
         self.uts = params.UTS_WITH_FOCUSERS.copy()
         self.active_uts = []
         self.move_steps = {ut: 0 for ut in self.uts}
+        self.set_position = {ut: 0 for ut in self.uts}
         self.sync_position = {ut: 0 for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
@@ -81,7 +83,7 @@ class FocDaemon(BaseDaemon):
 
                         try:
                             with daemon_proxy(interface_id) as interface:
-                                c = interface.step_focuser_motor(move_steps, ut)
+                                c = interface.move_focuser(move_steps, ut)
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
@@ -95,6 +97,40 @@ class FocDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                 self.active_uts = []
                 self.move_focuser_flag = 0
+                self.force_check_flag = True
+
+            # set the focuser
+            if self.set_focuser_flag:
+                try:
+                    for ut in self.active_uts:
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
+                        new_pos = self.set_position[ut]
+                        move_steps = self.info[ut]['current_pos'] - new_pos
+
+                        self.log.info('Moving focuser {} ({}) by {} to {}'.format(
+                                      ut, interface_id, move_steps, new_pos))
+
+                        try:
+                            with daemon_proxy(interface_id) as interface:
+                                # Only the ASA focusers have explicit set commands,
+                                # the others we just do moves
+                                if self.info[ut]['can_set']:
+                                    c = interface.set_focuser(new_pos, ut)
+                                else:
+                                    c = interface.move_focuser(move_steps, ut)
+                                if c:
+                                    self.log.info(c)
+                            self.last_move_time[ut] = self.loop_time
+                            self.last_move_temp[ut] = self.info[ut]['current_temp']
+
+                        except Exception:
+                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.debug('', exc_info=True)
+                except Exception:
+                    self.log.error('set_focuser command failed')
+                    self.log.debug('', exc_info=True)
+                self.active_uts = []
+                self.set_focuser_flag = 0
                 self.force_check_flag = True
 
             # home the focuser
@@ -224,6 +260,7 @@ class FocDaemon(BaseDaemon):
                     ut_info['hw_class'] = interface.get_focuser_class(ut)
                     ut_info['current_pos'] = interface.get_focuser_position(ut)
                     ut_info['limit'] = interface.get_focuser_limit(ut)
+                    ut_info['can_set'] = interface.focuser_can_set(ut)
                     ut_info['can_stop'] = interface.focuser_can_stop(ut)
                     ut_info['can_sync'] = interface.focuser_can_sync(ut)
                     try:
@@ -329,13 +366,13 @@ class FocDaemon(BaseDaemon):
 
             # Set values
             self.active_uts += [ut]
-            self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
-            s = 'Focuser {}: Moving {} steps from {} to {}'.format(
-                ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
+            self.set_position[ut] = new_pos
+            s = 'Focuser {}: Moving from {} to {}'.format(
+                ut, self.info[ut]['current_pos'], self.set_position[ut])
             retstrs.append(s)
 
         # Set flag
-        self.move_focuser_flag = 1
+        self.set_focuser_flag = 1
 
         # Format return string
         return '\n'.join(retstrs)

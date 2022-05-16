@@ -364,14 +364,30 @@ class UTInterfaceDaemon(BaseDaemon):
         return self.ota_params[ut]['CLASS']
 
     # Focuser control functions
-    def step_focuser_motor(self, steps, ut):
+    def move_focuser(self, steps, ut):
         """Move focuser by given number of steps."""
         self.log.info('Focuser {} moving by {}'.format(ut, steps))
         if isinstance(self.focusers[ut], FocusLynxHub):
             dev_number = self.foc_params[ut]['DEV_NUMBER']
-            self.focusers[ut].step_motor(dev_number, steps, blocking=False)
+            self.focusers[ut].move_focuser(dev_number, steps, blocking=False)
+        elif isinstance(self.focusers[ut], (FakeH400, H400)):
+            self.focusers[ut].move_focuser(steps, blocking=False)
         else:
             self.focusers[ut].step_motor(steps, blocking=False)
+
+    def set_focuser(self, position, ut):
+        """Move focuser to given position."""
+        self.log.info('Focuser {} moving to {}'.format(ut, position))
+        if isinstance(self.focusers[ut], (FakeH400, H400)):
+            self.focusers[ut].set_focuser(position, blocking=False)
+        else:
+            raise NotImplementedError("Focuser doesn't have a set function")
+
+    def focuser_can_set(self, ut):
+        """Check if the focuser has a set command."""
+        if isinstance(self.focusers[ut], (FakeH400, H400)):
+            return True
+        return False
 
     def home_focuser(self, ut):
         """Move focuser to the home position."""
