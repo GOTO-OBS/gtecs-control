@@ -892,6 +892,9 @@ class MntDaemon(BaseDaemon):
 
     def pulse_guide(self, direction, duration):
         """Pulse guide in a specified (cardinal) direction for the given time."""
+        if not isinstance(self.mount, (DDM500, DDM500SDK)):
+            raise NotImplementedError('Only ASA mounts mounts have pulse guiding implemented')
+
         # Check input
         if direction.upper() not in ['N', 'E', 'S', 'W']:
             raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
