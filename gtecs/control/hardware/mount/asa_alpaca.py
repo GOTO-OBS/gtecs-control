@@ -3,6 +3,7 @@
 import json
 import logging
 import random
+import threading
 import time
 
 from astropy import units as u
@@ -11,6 +12,7 @@ from astropy.time import Time
 
 import requests
 
+from ...astronomy import altaz_from_radec, get_lst, radec_from_altaz
 from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
@@ -471,3 +473,312 @@ class DDM500:
         # warning_raised = self.mount.warning_raised()
         # if warning_raised:
         #     return warning_raised
+
+
+class FakeDDM500:
+    """Fake ASA mount control class, for testing.
+
+    Parameters
+    ----------
+    address : str
+        Mount server IP
+    port : int
+        Mount server port
+
+    api_version : int, optional
+        Alpaca API version number
+        default = 1
+    device_number : int, optional
+        Alpaca device number
+        default = 0
+
+    log : logger, optional
+        logger to log to
+        default = None
+    log_debug : bool, optional
+        log debug strings?
+        default = False
+
+    """
+
+    def __init__(self, address, port, api_version=1, device_number=0, log=None, log_debug=False):
+        self.address = address
+        self.port = port
+        self.api_version = api_version
+        self.device_number = device_number
+
+        self._status_update_time = 0
+        self.connected = True
+        self.info = self._get_info()
+
+        # Create a logger if one isn't given
+        if log is None:
+            logging.basicConfig(level=logging.INFO)
+            log = logging.getLogger('mount')
+            log.setLevel(level=logging.DEBUG)
+        self.log = log
+        self.log_debug = log_debug
+
+        # Fake position and statuses (starting from parked position)
+        self._park_alt, self._park_az = 70, 0
+        self._ra, self._dec = radec_from_altaz(self._park_alt, self._park_az)
+        self.tracking = False
+        self.slewing = False
+        self.guiding = False
+        self.parked = True
+        self.motors_on = False
+        self.position_error = {'ra': 0, 'dec': 0}
+        self.tracking_error = {'ra': 0, 'dec': 0}
+        self.velocity = {'ra': 0, 'dec': 0}
+        self.acceleration = {'ra': 0, 'dec': 0}
+        self.motor_current = {'ra': 0, 'dec': 0}
+        self.tracking_rate = {'ra': 0, 'dec': 0}
+        self.guide_rate = {'ra': 0, 'dec': 0}
+
+        self._slewing_thread_running = False
+        self._slew_speed = 10  # deg/sec
+
+    def connect(self):
+        """Connect to the mount device."""
+        self.connected = True
+
+    def disconnect(self):
+        """Disconnect from the mount device."""
+        self.connected = False
+
+    def _get_info(self):
+        """Get basic mount properties."""
+        info = {}
+        # Mount params
+        info['equatorialsystem'] = 1
+        info['doesrefraction'] = True
+        info['trackingrates'] = self.connected = True
+        # ASCOM params
+        info['name'] = 'Fake ASA'
+        info['description'] = 'Fake ASA mount class'
+        info['driverinfo'] = 'Fake class'
+        info['driverversion'] = '0.0'
+        info['interfaceversion'] = 0
+        info['sideofpier'] = 1
+        # AutoSlew params
+        info['mounttype'] = '2'
+        info['maxspeed'] = '12'
+        info['corrections'] = '0#0'
+        info['mountname'] = 'Fake mount'
+        info['autoslewversion'] = '0.0'
+        return info
+
+    @property
+    def jd(self):
+        """Return current Julian Date."""
+        return Time.now().jd
+
+    @property
+    def sidereal_time(self):
+        """Return the current sidereal time."""
+        return get_lst()
+
+    @property
+    def nonsidereal(self):
+        """Return if the mount has a non-sidereal tracking rate set."""
+        return self.tracking_rate['ra'] != 0 or self.tracking_rate['dec'] != 0
+
+    @property
+    def status(self):
+        """Return the current mount status."""
+        if not self.connected:
+            status = 'CONNECTION ERROR'
+        elif not self.motors_on:
+            status = 'MOTORS OFF'
+        elif self.parked:
+            status = 'Parked'
+        elif self.guiding:
+            status = 'Guiding'
+        elif self.slewing:
+            status = 'Slewing'
+        elif self.tracking:
+            status = 'Tracking'
+        else:
+            status = 'Stopped'
+        return status
+
+    @property
+    def ra(self):
+        """Return the current pointing RA."""
+        return self._ra * 24 / 360  # In hours
+
+    @property
+    def dec(self):
+        """Return the current pointing Dec."""
+        return self._dec
+
+    @property
+    def alt(self):
+        """Return the current altitude."""
+        alt, _ = altaz_from_radec(self._ra, self._dec)
+        return alt
+
+    @property
+    def az(self):
+        """Return the current azimuth."""
+        _, az = altaz_from_radec(self._ra, self._dec)
+        return az
+
+    def _slewing_thread(self, target_ra, target_dec, parking=False):
+        """Simulate slewing from one position to another (very basic!)."""
+        self.tracking = False
+        self.parked = False
+        self.guiding = False
+        self.slewing = True
+
+        while self.slewing:
+            if self.log and self.log_debug:
+                self.log.debug('Slewing: {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
+                    self._ra, self._dec, target_ra, target_dec))
+
+            # Check if we're close enough to finish
+            if abs(self._ra - target_ra) < self._slew_speed / 10:
+                self._ra = target_ra
+            if abs(self._dec - target_dec) < self._slew_speed / 10:
+                self._dec = target_dec
+            if self._ra == target_ra and self._dec == target_dec:
+                break
+
+            # Update the current position
+            if self._ra < target_ra:
+                self._ra += self._slew_speed / 10
+            elif self._ra > target_ra:
+                self._ra -= self._slew_speed / 10
+            if self._dec < target_dec:
+                self._dec += self._slew_speed / 10
+            elif self._dec > target_dec:
+                self._dec -= self._slew_speed / 10
+
+            time.sleep(0.1)
+
+        self.slewing = False
+        if not parking:
+            self.tracking = True
+        else:
+            self.parked = True
+
+    def slew_to_radec(self, ra, dec):
+        """Slew to given RA and Dec coordinates (J2000)."""
+        t = threading.Thread(target=self._slewing_thread, args=[ra * 360 / 24, dec])
+        t.daemon = True
+        t.start()
+        return
+
+    def slew_to_altaz(self, alt, az):
+        """Slew mount to given Alt/Az."""
+        ra, dec = radec_from_altaz(alt, az)
+        self.slew_to_radec(ra, dec)
+
+    def sync_radec(self, ra, dec):
+        """Set current pointing to given RA and Dec coordinates (in J2000)."""
+        self._ra = ra * 360 / 24
+        self._dec = dec
+
+    def track(self):
+        """Start tracking at the siderial rate."""
+        self.tracking = True
+
+    def park(self):
+        """Move mount to park position."""
+        ra, dec = radec_from_altaz(self._park_alt, self._park_az)
+        t = threading.Thread(target=self._slewing_thread, args=[ra, dec, True])
+        t.daemon = True
+        t.start()
+        return
+
+    def unpark(self):
+        """Unpark the mount so it can accept slew commands."""
+        self.parked = False
+
+    def halt(self):
+        """Abort slew (if slewing) and stop tracking (if tracking)."""
+        self.slewing = False
+
+    def start_motors(self):
+        """Start the mount motors."""
+        self.motors_on = True
+
+    def stop_motors(self):
+        """Stop the mount motors."""
+        self.motors_on = False
+
+    def set_motor_power(self, activate):
+        """Turn the mount motors on or off."""
+        if activate:
+            self.start_motors()
+        else:
+            self.stop_motors()
+
+    def offset(self, direction, distance):
+        """Set offset in the given direction by the given distance (in arcsec)."""
+        if direction.upper() not in ['N', 'E', 'S', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        if not self.tracking:
+            raise ValueError('Can only offset when tracking')
+        angle = {'N': 0, 'E': 90, 'S': 180, 'W': 270}
+        old_coord = SkyCoord(self.ra * u.hourangle, self.dec * u.deg)
+        new_coord = old_coord.directional_offset_by(angle[direction] * u.deg, distance * u.arcsec)
+        self.slew_to_radec(new_coord.ra.hourangle, new_coord.dec.deg)
+
+    def _guiding_thread(self, direction, duration):
+        """Simulate guiding in some direction (very basic!)."""
+        self.tracking = False
+        self.parked = False
+        self.slewing = False
+        self.guiding = True
+
+        guide_start_time = time.time()
+        while self.guiding:
+            if self.log and self.log_debug:
+                self.log.debug('Guiding: {:.6f}/{:.6f} for {:.1f}/{:.1f}'.format(
+                    self._ra, self._dec, time.time() - guide_start_time, duration))
+
+            # Check if it's been long enough to finish
+            if (time.time() - guide_start_time) > duration:
+                break
+
+            # Update the current position
+            if direction == 'E':
+                self._ra += self._slew_speed / 10
+            elif direction == 'W':
+                self._ra -= self._slew_speed / 10
+            elif direction == 'N':
+                self.dec += self._slew_speed / 10
+            elif direction == 'S':
+                self.dec -= self._slew_speed / 10
+            else:
+                raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+
+            time.sleep(0.1)
+
+        self.guiding = False
+        self.tracking = True
+
+    def pulse_guide(self, direction, duration):
+        """Move the scope in the given direction for the given duration (in ms)."""
+        if direction.upper() not in ['N', 'S', 'E', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        if not self.tracking:
+            raise ValueError('Can only pulse guide when tracking')
+
+        t = threading.Thread(target=self._guiding_thread, args=[direction.upper(), duration * 1000])
+        t.daemon = True
+        t.start()
+        return
+
+    def error_check(self):
+        """Check for any errors raised by the mount."""
+        return None
+
+    def clear_error(self):
+        """Clear for any errors raised by the mount."""
+        return
+
+    def warning_check(self):
+        """Check for any warnings raised by the mount."""
+        return None
