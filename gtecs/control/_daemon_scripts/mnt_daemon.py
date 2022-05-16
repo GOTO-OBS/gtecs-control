@@ -453,7 +453,13 @@ class MntDaemon(BaseDaemon):
             temp_info['moon_ill'] = moon_ill
             temp_info['moon_phase'] = moon_phase
 
-            moon_dist = get_moon_distance(self.mount.ra * 360 / 24, self.mount.dec, now)
+            if temp_info['mount_ra'] is not None and temp_info['mount_dec'] is not None:
+                moon_dist = get_moon_distance(temp_info['mount_ra'] * 360 / 24,
+                                              temp_info['mount_dec'],
+                                              now,
+                                              )
+            else:
+                moon_dist = None
             temp_info['moon_dist'] = moon_dist
         except Exception:
             self.log.error('Failed to get astronomy info')
