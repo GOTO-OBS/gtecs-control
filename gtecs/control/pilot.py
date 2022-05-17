@@ -297,18 +297,26 @@ class Pilot:
                             await asyncio.sleep(0.2)
                         self.new_pointing = future_pointing.value
 
-                        msg = 'scheduler returns {}'.format(self.new_pointing['id'])
-                        if self.new_pointing['id'] != self.current_pointing['id']:
+                        if self.new_pointing is None:
+                            msg = 'scheduler returns None'
+                        else:
+                            msg = 'scheduler returns {}'.format(self.new_pointing['id'])
+                        if ((self.new_pointing is None and self.current_pointing is None) or
+                                (self.new_pointing is not None and
+                                 self.current_pointing is not None and
+                                 self.new_pointing['id'] == self.current_pointing['id'])):
+                            # both the same
+                            self.log.debug(msg)
+                        else:
                             msg += ' (NEW)'
                             self.log.info(msg)
-                        else:
-                            self.log.debug(msg)
 
                         self.initial_scheduler_check_complete = True
 
                     except Exception as error:
                         self.log.warning('{} checking scheduler: {}'.format(
                             type(error).__name__, error))
+                        self.log.debug('', exc_info=True)
                         self.new_pointing = None
 
                 self.scheduler_check_time = now
@@ -981,7 +989,8 @@ class Pilot:
 
             if self.new_pointing is not None:
                 # We have something to do!
-                if self.new_pointing['id'] == self.current_pointing['id']:
+                if (self.current_pointing is not None and
+                        self.new_pointing['id'] == self.current_pointing['id']):
                     # We're already observing it, so carry on
                     elapsed_time = time.time() - self.current_start_time
                     obs_time = self.current_pointing['obstime']
