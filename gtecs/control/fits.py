@@ -725,8 +725,8 @@ def update_header(header, ut, all_info, log=None):
 
     header['DB-TIMBK'] = (time_block_id, 'Database TimeBlock ID')
     header['TIMBKNUM'] = (block_num, 'Number of this time block')
-    header['TIME-VALD'] = (wait_time, 'How long this Pointing is valid in the queue')
-    header['TIME-WAIT'] = (valid_time, 'How long to wait between Pointings for this Target')
+    header['TIMEVALD'] = (wait_time, 'How long this Pointing is valid in the queue')
+    header['TIMEWAIT'] = (valid_time, 'How long to wait between Pointings for this Target')
 
     header['DB-USER '] = (user_id, 'Database User ID who submitted this pointing')
     header['USERNAME'] = (user_name, 'Username that submitted this pointing')
