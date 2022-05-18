@@ -573,17 +573,29 @@ def update_header(header, ut, all_info, log=None):
         info = all_info['db']
 
         # ExposureSet info
-        expset_id = info['expset_id']
+        expset_id = info['expset_id']  # from Exposure
 
         # Pointing info
         pointing_id = info['pointing_id']
-        rank = info['rank']
-        starttime = info['starttime']
-        stoptime = info['stoptime']
+        if info['rank'] is not None:
+            rank = info['rank']
+        else:
+            rank = 'inf'
+        if info['start_time'] is not None:
+            starttime = info['start_time'].strftime('%Y-%m-%dT%H:%M:%S')
+        else:
+            starttime = 'NA'
+        if info['stop_time'] is not None:
+            stoptime = info['stop_time'].strftime('%Y-%m-%dT%H:%M:%S')
+        else:
+            stoptime = 'NA'
 
         # Target info
         target_id = info['target_id']
-        initialrank = info['start_rank']
+        if info['start_rank'] is not None:
+            initialrank = info['start_rank']
+        else:
+            initialrank = 'inf'
         weight = info['weight']
         num_observed = info['num_completed']
         is_template = info['is_template']
@@ -591,7 +603,10 @@ def update_header(header, ut, all_info, log=None):
         # Strategy info
         strategy_id = info['strategy_id']
         infinite = info['infinite']
-        min_time = info['min_time']
+        if info['min_time'] is not None:
+            min_time = info['min_time']
+        else:
+            min_time = 'NA'
         too = info['too']
         requires_template = info['requires_template']
         min_alt = info['min_alt']
@@ -602,8 +617,14 @@ def update_header(header, ut, all_info, log=None):
         # TimeBlock info
         time_block_id = info['time_block_id']
         block_num = info['block_num']
-        wait_time = info['wait_time']
-        valid_time = info['valid_time']
+        if info['wait_time'] is not None:
+            wait_time = info['wait_time']
+        else:
+            wait_time ='NA'
+        if info['valid_time'] is not None:
+            valid_time = info['valid_time']
+        else:
+            valid_time = 'NA'
 
         # Get User info
         user_id = info['user_id']
@@ -636,9 +657,12 @@ def update_header(header, ut, all_info, log=None):
         if info['event_id'] is not None:
             event_id = info['event_id']
             event_name = info['event_name']
-            event_source = info['source']
-            event_type = info['type']
-            event_time = info['time']
+            event_source = info['event_source']
+            event_type = info['event_type']
+            if info['event_time'] is not None:
+                event_time = info['event_type'].strftime('%Y-%m-%dT%H:%M:%S')
+            else:
+                event_time = 'NA'
         else:
             event_id = 'NA'
             event_name = 'NA'
