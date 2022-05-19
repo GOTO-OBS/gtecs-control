@@ -724,6 +724,7 @@ def update_header(header, ut, all_info, log=None):
         event_type = 'NA'
         event_time = 'NA'
 
+    # MAX COMMENT LENGTH: '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
     header['DB-EXPS '] = (expset_id, 'Database ExposureSet ID')
 
     header['DB-PNT  '] = (pointing_id, 'Database Pointing ID')
@@ -735,11 +736,11 @@ def update_header(header, ut, all_info, log=None):
     header['BASERANK'] = (initialrank, 'Initial rank of this Target')
     header['WEIGHT  '] = (weight, 'Target weighting')
     header['OBSNUM  '] = (num_observed, 'Count of times this Target has been observed')
-    header['IS-TMPL '] = (is_template, 'Does this Pointing count as a template observation?')
+    header['IS-TMPL '] = (is_template, 'Is this Pointing a template observation?')
 
     header['DB-STRAT'] = (strategy_id, 'Database Strategy ID')
     header['INFINITE'] = (infinite, 'Is this an infinitely repeating pointing?')
-    header['LIM-TIME'] = (min_time, 'Minimum required observing time for this pointing')
+    header['LIM-TIME'] = (min_time, 'Minimum observing time for this pointing')
     header['TOO     '] = (too, 'Is this Pointing a Target of Opportunity?')
     header['REQ-TMPL'] = (requires_template, 'Did this Pointing require a template?')
     header['LIM-ALT '] = (min_alt, 'Minimum altitude limit for this pointing')
@@ -750,7 +751,7 @@ def update_header(header, ut, all_info, log=None):
     header['DB-TIMBK'] = (time_block_id, 'Database TimeBlock ID')
     header['TIMBKNUM'] = (block_num, 'Number of this time block')
     header['TIMEVALD'] = (wait_time, 'How long this Pointing is valid in the queue')
-    header['TIMEWAIT'] = (valid_time, 'How long to wait between Pointings for this Target')
+    header['TIMEWAIT'] = (valid_time, 'How long between Pointings for this Target')
 
     header['DB-USER '] = (user_id, 'Database User ID who submitted this pointing')
     header['USERNAME'] = (user_name, 'Username that submitted this pointing')
