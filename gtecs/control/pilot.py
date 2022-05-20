@@ -292,7 +292,11 @@ class Pilot:
                             dome_shielding = False
 
                         # get the new pointing from the scheduler, asynchronously
-                        future_pointing = check_schedule(dome_shielding, asynchronous=True)
+                        future_pointing = check_schedule(
+                            dome_shielding,
+                            asynchronous=True,
+                            force_update=self.force_scheduler_check,
+                        )
                         while not future_pointing.ready:
                             await asyncio.sleep(0.2)
                         self.new_pointing = future_pointing.value
