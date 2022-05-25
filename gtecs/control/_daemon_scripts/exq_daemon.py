@@ -99,12 +99,13 @@ class ExqDaemon(BaseDaemon):
                             self.log.warning('Cannot move mount, skipping dither')
                             self.exposure_state = 'mount_dithering'
 
-                        # Offset the mount slightly
+                        # Offset the mount slightly by pulse guiding
+                        # TODO: have a set direction pattern?
                         self.log.info('Offsetting the mount position')
                         try:
                             with daemon_proxy('mnt') as mnt_daemon:
-                                mnt_daemon.offset(params.DITHERING_DIRECTION,
-                                                  params.DITHERING_DISTANCE)
+                                mnt_daemon.pulse_guide(params.DITHERING_DIRECTION,
+                                                       params.DITHERING_DURATION)
                                 self.dither_time = self.loop_time
                                 self.exposure_state = 'mount_dithering'
                         except Exception:

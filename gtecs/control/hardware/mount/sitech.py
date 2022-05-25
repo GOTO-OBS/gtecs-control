@@ -6,8 +6,8 @@ import time
 
 from astropy.time import Time
 
-from .. import params
-from ..astronomy import apparent_to_j2000, j2000_to_apparent
+from ... import params
+from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
 class SiTech(object):
@@ -328,8 +328,8 @@ class SiTech(object):
     def sync_radec(self, ra, dec):
         """Set current pointing to given RA and Dec coordinates (in J2000)."""
         # first need to "cook" the coordinates into SiTech's JNow
-        ra_jnow, dec_jnow = j2000_to_apparent(ra * 180 / 24, dec, Time.now().jd)
-        ra_jnow *= 24 / 180
+        ra_jnow, dec_jnow = j2000_to_apparent(ra * 360 / 24, dec, Time.now().jd)
+        ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
         if self.log and self.log_debug:

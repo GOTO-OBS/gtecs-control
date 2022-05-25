@@ -1,13 +1,12 @@
 """Astronomy utilities."""
 
 import datetime
-import math
 
 from astroplan import Observer
 from astroplan.moon import moon_illumination
 
 from astropy import units as u
-from astropy.coordinates import AltAz, CIRS, EarthLocation, FK5, SkyCoord, get_moon, get_sun
+from astropy.coordinates import AltAz, CIRS, EarthLocation, FK5, HADec, SkyCoord, get_moon, get_sun
 from astropy.coordinates.builtin_frames.utils import get_jd12
 from astropy.time import Time
 
@@ -24,65 +23,68 @@ from . import params
 MAGIC_TIME = Time(-999, format='jd')
 
 
-def j2000_to_apparent(ra, dec, jd=None):
+def j2000_to_apparent(ra_deg, dec_deg, jd=None):
     """Find the apparent place for a star at J2000, FK5 coordinates.
 
     This is equivalent to the 'JNow' coordinates used by SiTech.
 
-    Arguments
-    -----------
-    ra, dec: float
-        J2000, FK5 coordinates of star in decimal degrees
+    Parameters
+    ----------
+    ra_deg : float
+        J2000, FK5 right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        J2000, FK5 declination in degrees
 
     jd: float, default=None
         Julian date to calculate apparent place
         if None, `astropy.time.Time.now().jd` is used
 
     Returns
-    --------
+    -------
     ra, dec: float
          Apparent RA and Dec of star.
 
     """
-    j2000 = SkyCoord(ra, dec, unit=u.deg, frame='fk5')
+    j2000 = SkyCoord(ra_deg, dec_deg, unit=u.deg, frame='fk5')
     if jd is None:
-        now = Time.now().jd
+        time = Time.now().jd
     else:
-        now = Time(jd, format='jd')
-    cirs = j2000.transform_to(CIRS(obstime=now))
+        time = Time(jd, format='jd')
+    cirs = j2000.transform_to(CIRS(obstime=time))
     # find the equation of the origins to transform CIRS to apparent place
-    eo = eo06a(*get_jd12(now, 'tt')) * u.rad
+    eo = eo06a(*get_jd12(time, 'tt')) * u.rad
     return (cirs.ra - eo).deg, cirs.dec.deg
 
 
-def apparent_to_j2000(ra, dec, jd):
+def apparent_to_j2000(ra_deg, dec_deg, jd):
     """Find the J2000, FK5 coordinates of a star given the apparent place.
 
     Apparent place is the same as the 'JNow' coordinates used by SiTech.
 
-    Arguments
-    -----------
-    ra, dec: float
-        Apparent RA and Dec of star in decimal degrees
+    Parameters
+    ----------
+    ra_deg : float
+        Apparent right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        Apparent declination in degrees
 
     jd: float, default=None
         Julian date to calculate apparent place
         if None, `astropy.time.Time.now().jd` is used
 
     Returns
-    --------
+    -------
     ra, dec: float
          J2000, FK5 RA and Dec of star.
 
     """
     if jd is None:
-        now = Time.now().jd
+        time = Time.now().jd
     else:
-        now = Time(jd, format='jd')
+        time = Time(jd, format='jd')
     # find the equation of the origins to transform apparent place to CIRS
-    eo = eo06a(*get_jd12(now, 'tt')) * u.rad
-    cirs = SkyCoord(ra + eo.to(u.deg).value, dec, unit=u.deg,
-                    frame=CIRS(obstime=now))
+    eo = eo06a(*get_jd12(time, 'tt')) * u.rad
+    cirs = SkyCoord(ra_deg + eo.to(u.deg).value, dec_deg, unit=u.deg, frame=CIRS(obstime=time))
     j2000 = cirs.transform_to(FK5())
     return j2000.ra.deg, j2000.dec.deg
 
@@ -90,9 +92,9 @@ def apparent_to_j2000(ra, dec, jd):
 def observatory_location():
     """Get the observatory location.
 
-    Returns:
-    --------
-    obs_loc : `~astropy.coordinates.EarthLocation`
+    Returns
+    -------
+    location : `~astropy.coordinates.EarthLocation`
 
     """
     return EarthLocation(lon=params.SITE_LONGITUDE,
@@ -153,7 +155,7 @@ def above_horizon(ra_deg, dec_deg, now=None, horizon=30):
     return alt > alt_limit
 
 
-def altaz_from_radec(ra_deg, dec_deg, now=None):
+def altaz_from_radec(ra_deg, dec_deg, time=None, location=None):
     """Calculate Altitude and Azimuth of coordinates.
 
     Refraction from atmosphere is ignored.
@@ -164,28 +166,34 @@ def altaz_from_radec(ra_deg, dec_deg, now=None):
         right ascension in degrees
     dec_deg : float or numpy.ndarray
         declination in degrees
-    now : `~astropy.time.Time`, optional
-        time(s) to calculate at
-        default is `Time.now()`
+
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
 
     Returns
-    --------
+    -------
     alt_deg : float
         altitude in degrees
     az_deg : float
         azimuth in degrees
 
     """
-    if now is None:
-        now = Time.now()
-    loc = observatory_location()
-    radec_coo = SkyCoord(ra_deg * u.deg, dec_deg * u.deg)  # ICRS J2000
-    altaz_frame = AltAz(obstime=now, location=loc)
-    altaz_coo = radec_coo.transform_to(altaz_frame)
-    return (altaz_coo.alt.degree, altaz_coo.az.degree)
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
+    radec_coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)  # ICRS J2000
+    altaz_frame = AltAz(obstime=time, location=location)
+    altaz_coords = radec_coords.transform_to(altaz_frame)
+    return (altaz_coords.alt.degree, altaz_coords.az.degree)
 
 
-def radec_from_altaz(alt_deg, az_deg, now=None):
+def radec_from_altaz(alt_deg, az_deg, time=None, location=None):
     """Calculate RA and Dec coordinates at a given Altitude and Azimuth.
 
     Refraction from atmosphere is ignored.
@@ -196,44 +204,52 @@ def radec_from_altaz(alt_deg, az_deg, now=None):
         altitude in degrees
     az_deg : float or numpy.ndarray
         azimuth in degrees
-    now : `~astropy.time.Time`, optional
-        time(s) to calculate at
-        default is `Time.now()`
+
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
 
     Returns
-    --------
+    -------
     ra_deg : float
         right ascension in degrees
     dec_deg : float
         declination in degrees
 
     """
-    if now is None:
-        now = Time.now()
-    loc = observatory_location()
-    altaz = AltAz(az=az_deg * u.deg, alt=alt_deg * u.deg, obstime=now, location=loc)
-    altaz_coo = SkyCoord(altaz)
-    radec_frame = 'icrs'  # ICRS J2000
-    radec_coo = altaz_coo.transform_to(radec_frame)
-    return (radec_coo.ra.degree, radec_coo.dec.degree)
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
+    altaz_frame = AltAz(az=az_deg * u.deg, alt=alt_deg * u.deg, obstime=time, location=location)
+    altaz_coords = SkyCoord(altaz_frame)
+    radec_coords = altaz_coords.transform_to('icrs')  # ICRS J2000
+    return (radec_coords.ra.degree, radec_coords.dec.degree)
 
 
-def get_sunalt(now):
-    """Calculate sun altitude from observatory.
+def get_sunalt(time=None):
+    """Calculate the altitude of the Sun at the given time.
 
     Parameters
     ----------
-    now : `~astropy.time.Time`
-        time(s) to calculate Altitude
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
 
     Returns
-    --------
+    -------
     alt : float or np.ndarray
 
     """
-    sun = get_sun(now)
+    if time is None:
+        time = Time.now()
+    sun = get_sun(time)
     loc = observatory_location()
-    altaz_frame = AltAz(obstime=now, location=loc)
+    altaz_frame = AltAz(obstime=time, location=loc)
     altaz_coo = sun.transform_to(altaz_frame)
     return altaz_coo.alt.degree
 
@@ -320,10 +336,10 @@ def local_midnight(date):
 
 def night_startdate():
     """Return the date at the start of the current astronomical night in format Y-M-D."""
-    now = datetime.datetime.utcnow()
-    if now.hour < 12:
-        now = now - datetime.timedelta(days=1)
-    return now.strftime('%Y-%m-%d')
+    time = datetime.datetime.utcnow()
+    if time.hour < 12:
+        time = time - datetime.timedelta(days=1)
+    return time.strftime('%Y-%m-%d')
 
 
 @u.quantity_input(sunalt=u.deg)
@@ -354,74 +370,81 @@ def sunalt_time(date, sunalt, eve=True):
         return observer.sun_rise_time(start, which='previous', horizon=sunalt)
 
 
-def airmass(alt):
-    """Calculate airmass at a given altitude.
+def get_ha(ra_deg, dec_deg, time=None, location=None):
+    """Return Hour Angle of given coordinates.
 
     Parameters
     ----------
-    alt : float
-        altitude
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
 
     Returns
     -------
-    airmass : float
-        airmass at that altitude
+    ha : float
+        hour angle in hours
 
     """
-    return 1 / math.cos((math.pi) / 2) - alt
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
+    radec_coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
+    hadec_frame = HADec(obstime=time, location=location)
+    hadec_coords = radec_coords.transform_to(hadec_frame)
+    return hadec_coords.ha.hour
 
 
-def get_ha(ra_hrs, lst):
-    """Return Hour Angle of given RA.
-
-    Parameters
-    -----------
-    ra_hrs : float
-        J2000 Right Ascension, in hours
-    lst : float
-        Local Apparent Sidereal Time, hours
-
-    Returns
-    -------
-    ha_hrs : float
-        hour angle, hours
-
-    """
-    ha_hrs = lst - ra_hrs
-    return ha_hrs
-
-
-def get_lst(now):
-    """Return Local Apparent Sidereal Time at observatory.
+def get_lst(time=None, location=None):
+    """Return Local Apparent Sidereal Time at the given time.
 
     Parameters
     ----------
-    now: `~astropy.time.Time`
-        astropy Time object
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
 
     Returns
-    --------
-    sidereal_time : float
+    -------
+    sidereal_time : `~astropy.units.Quantity`
         LAST
 
     """
-    now.location = observatory_location()
-    return now.sidereal_time(kind='apparent')
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
+    return time.sidereal_time(kind='apparent', longitude=location)
 
 
-def above_elevation_limit(targ_ra, targ_dec, now):
+def above_elevation_limit(ra_deg, dec_deg, time=None):
     """Check if target is above the mount elevation limit at the given time.
 
     This is not to be confused with the artificial horizon used when scheduling targets.
 
     Parameters
     ----------
-    targ_ra : float or np.ndarray
-        J2000 RA in degrees
-    targ_dec : float or np.ndarray
-        J2000 Declination in degrees
-    now : `~astropy.time.Time`
-        time to check altitude
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
 
     Returns
     -------
@@ -429,60 +452,75 @@ def above_elevation_limit(targ_ra, targ_dec, now):
         True if the target is above params.MIN_ELEVATION, False if below
 
     """
-    targ_alt, _ = altaz_from_radec(targ_ra, targ_dec, now)
-    return targ_alt > params.MIN_ELEVATION
+    if time is None:
+        time = Time.now()
+
+    alt, _ = altaz_from_radec(ra_deg, dec_deg, time)
+    return alt > params.MIN_ELEVATION
 
 
-def ang_sep(ra_1, dec_1, ra_2, dec_2):
-    """Find angular separation between two sky positions.
+def within_hourangle_limit(ra_deg, dec_deg, time=None):
+    """Check if target is within the mount hour angle limit at the given time.
 
     Parameters
     ----------
-    ra_1 : float or np.ndarray
-        RA of coordinate 1, degrees
-    dec_1 : float or np.ndarray
-        DEC of coordinate 1, degrees
-    ra_2 : float or np.ndarray
-        RA of coordinate 2, degrees
-    dec_2 : float or np.ndarray
-        DEC of coordinate 2, degrees
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
 
     Returns
-    --------
-    sep : float or np.ndarray
-        angular seperations in degrees
+    -------
+    within_limit : bool
+        True if the target is within |params.MAX_HOURANGLE| of zenith, False if outside
 
     """
-    coo1 = SkyCoord(ra_1 * u.deg, dec_1 * u.deg)
-    coo2 = SkyCoord(ra_2 * u.deg, dec_2 * u.deg)
-    return coo1.separation(coo2).degree
+    if time is None:
+        time = Time.now()
+
+    ha = get_ha(ra_deg, dec_deg, time)
+    return abs(ha) < params.MAX_HOURANGLE
 
 
-def mnt_str(ra, dec):
-    """Get RA and Dec strings to send to mount.
+def within_mount_limits(ra_deg, dec_deg, time=None):
+    """Check if target is within the mount limits (altitude and hour angle) at the given time.
 
     Parameters
     ----------
-    ra : float
-        ra in decimal degrees
-    dec : float
-        declination in decimal degrees
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
+
+    Returns
+    -------
+    within_limits : bool
+        True if the target is within the mount limits, False if outside
 
     """
-    coo = SkyCoord(ra * u.deg, dec * u.deg)
-    ra_string = coo.ra.to_string(sep=' ', precision=2, unit=u.hour)
-    dec_string = coo.dec.to_string(sep=' ', precision=1, alwayssign=True)
-    dec_string = dec_string[0] + ' ' + dec_string[1:]
-    return ra_string, dec_string
+    if time is None:
+        time = Time.now()
+
+    return (above_elevation_limit(ra_deg, dec_deg, time) and
+            within_hourangle_limit(ra_deg, dec_deg, time))
 
 
-def get_moon_params(now):
+def get_moon_params(time=None):
     """Get the current Moon parameters.
 
     Parameters
     ----------
-    now : `~astropy.time.Time`
+    time : `~astropy.time.Time`, optional
         time to get Moon details
+        default = Time.now()
 
     Returns
     -------
@@ -501,9 +539,12 @@ def get_moon_params(now):
         Bright is illumination above 65%
 
     """
-    coords = get_moon(now)
-    alt, az = altaz_from_radec(coords.ra.degree, coords.dec.degree, now)
-    illumination = moon_illumination(now)
+    if time is None:
+        time = Time.now()
+
+    coords = get_moon(time)
+    alt, _ = altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
+    illumination = moon_illumination(time)
 
     if 0 <= illumination < 0.25:
         phase = 'D'
@@ -515,17 +556,19 @@ def get_moon_params(now):
     return alt, illumination, phase
 
 
-def get_moon_distance(ra, dec, now):
+def get_moon_distance(ra_deg, dec_deg, time):
     """Get the angular seperation of the given coordinates from the Moon at the given time.
 
     Parameters
     ----------
-    ra : float or np.ndarray
-        J2000 RA in degrees
-    dec : float or np.ndarray
-        J2000 Declination in degrees
-    now : `~astropy.time.Time`
-        time to check Moon position
+    ra_deg : float or numpy.ndarray
+        right ascension in degrees
+    dec_deg : float or numpy.ndarray
+        declination in degrees
+
+    time : `~astropy.time.Time`, optional
+        time to get Moon distance
+        default = Time.now()
 
     Returns
     -------
@@ -533,8 +576,11 @@ def get_moon_distance(ra, dec, now):
         angular seperations in degrees
 
     """
-    target = SkyCoord(ra * u.deg, dec * u.deg)
-    moon = get_moon(now)
+    if time is None:
+        time = Time.now()
+
+    target = SkyCoord(ra_deg, dec_deg, unit=u.deg)
+    moon = get_moon(time)
 
     # NOTE - the order matters
     # moon.separation(target) is NOT the same as target.separation(moon)

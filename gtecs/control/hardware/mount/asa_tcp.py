@@ -7,13 +7,15 @@ import time
 from enum import Enum
 
 from astropy import units as u
-from astropy.time import Time
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
-from ..astronomy import apparent_to_j2000, j2000_to_apparent
+from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
 class Commands(Enum):
+    """Command codes."""
+
     NONE = 0
     ERRORCMD = 1
     WARNINGCMD = 2
@@ -498,7 +500,8 @@ class Commands(Enum):
 
 
 class Keywords(Enum):
-    """Command keyword status code"""
+    """Command keyword status codes."""
+
     ERRORMSG = 32
     WARNINGMSG = 33
     INFOMSG = 34
@@ -1052,7 +1055,8 @@ class Keywords(Enum):
 
 
 class ParameterType(Enum):
-    """Parameter type code"""
+    """Parameter type codes."""
+
     DOUBLE = 48
     INT64 = 49
     INT32 = 50
@@ -1063,7 +1067,8 @@ class ParameterType(Enum):
 
 
 class CommandStatus(Enum):
-    """Command status code"""
+    """Command status codes."""
+
     DONE = 32
     STARTED = 33
     MOVING = 34
@@ -1073,6 +1078,8 @@ class CommandStatus(Enum):
 
 
 class EquatorialCoordinateType(Enum):
+    """Equatorial coordinate type codes."""
+
     # Custom or unknown equinox and/or reference frame.
     UNKNOWN = 0
     # Local topocentric; this is the most common for amateur telescopes.
@@ -1087,6 +1094,7 @@ class EquatorialCoordinateType(Enum):
 
 class GuideDirections(Enum):
     """The direction in which the guide-rate motion is to be made."""
+
     # North (+ declination/altitude).
     guideNorth = 0
     # South (- declination/altitude).
@@ -1097,10 +1105,8 @@ class GuideDirections(Enum):
     guideWest = 3
 
 
-class DDM500(object):
+class DDM500:
     """ASA mount control class using TCP/IP commands.
-
-    This class is based on the ASASDK C++ package.
 
     Parameters
     ----------
@@ -1115,6 +1121,7 @@ class DDM500(object):
     log_debug : bool, optional
         log debug strings?
         default = False
+
     """
 
     def __init__(self, address, port, log=None, log_debug=False):

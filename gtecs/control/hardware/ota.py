@@ -6,7 +6,7 @@ import time
 import serial  # noqa: I900
 
 
-class H400(object):
+class H400:
     """ASA H400 gateway controller class, for focusers and mirror covers.
 
     Some of the methods and properties are named oddly, but that's because they're based on
@@ -20,6 +20,7 @@ class H400(object):
     serial_number : str, optional
         serial string to associate with this telescope
         default is 'unknown'
+
     """
 
     # Serial command codes and addresses
@@ -164,7 +165,7 @@ class H400(object):
 
             # Get cover status
             # NB: The open position is ~2700, the closed position is ~0
-            # Unfortunatly there's no way to tell if the cover is moving or not
+            # Unfortunately there's no way to tell if the cover is moving or not
             # The 'part_open' status (0) is true if it's moving or if it's stopped
             # However it shouldn't matter, since new open/close commands can overwrite old ones
             cov_info = {}
@@ -209,12 +210,11 @@ class H400(object):
         else:
             return 'ERROR'
 
-    def step_motor(self, steps, blocking=False):
-        """Step motor a given number of steps.
+    def move_focuser(self, steps, blocking=False):
+        """Move the focuser a given number of steps.
 
         If blocking is True this function returns when the move is complete.
-        If not this function returns immediately, use 'get_status()'
-        to see when move is complete.
+        If not this function returns immediately, use 'get_status()' to see when move is complete.
         """
         target_position = int(self.stepper_position + steps)
         if target_position > self.max_extent:
@@ -223,9 +223,34 @@ class H400(object):
         elif target_position < 0:
             raise ValueError('Target position ({}) is negative'.format(target_position))
 
-        # Convert from μm steps to LSB (see _get_info)
+        # Convert from μm to LSB (see _get_info)
         steps_lsb = steps / 0.156
         reply = self._serial_command('focuser', 'move', int(steps_lsb))
+        if int(reply[0]) != 5000:
+            raise Exception('Command error: {}'.format(reply))
+        self._initial_move = True
+
+        if blocking:
+            while True:
+                time.sleep(0.5)
+                if self.get_status() != 'Moving':
+                    break
+
+    def set_focuser(self, target_position, blocking=False):
+        """Move the focuser to the given position.
+
+        If blocking is True this function returns when the move is complete.
+        If not this function returns immediately, use 'get_status()' to see when move is complete.
+        """
+        if target_position > self.max_extent:
+            raise ValueError('Target position ({}) past limit ({})'.format(
+                             target_position, self.max_extent))
+        elif target_position < 0:
+            raise ValueError('Target position ({}) is negative'.format(target_position))
+
+        # Convert from μm to LSB (see _get_info)
+        position_lsb = target_position / 0.156
+        reply = self._serial_command('focuser', 'goto', int(position_lsb))
         if int(reply[0]) != 5000:
             raise Exception('Command error: {}'.format(reply))
         self._initial_move = True
@@ -242,11 +267,8 @@ class H400(object):
         The ASA focusers don't actually have a home command, this just moves to
         the centre of the range.
         """
-        info_dict = self._get_info()
-        current_position = int(info_dict['focuser']['position'])
         halfway_position = int(self.max_extent / 2)
-        steps = halfway_position - current_position
-        self.step_motor(steps, blocking=blocking)
+        self.set_focuser(halfway_position, blocking=blocking)
 
     def stop_focuser(self):
         """Stop the focuser from moving."""
@@ -292,7 +314,7 @@ class H400(object):
             raise Exception('Command error: {}'.format(reply))
 
 
-class FakeH400(object):
+class FakeH400:
     """Fake ASA H400 gateway controller class, for testing.
 
     Parameters
@@ -303,6 +325,7 @@ class FakeH400(object):
     serial_number : str, optional
         serial string to associate with this telescope
         default is 'unknown'
+
     """
 
     def __init__(self, port, serial_number='unknown'):
@@ -365,8 +388,8 @@ class FakeH400(object):
         else:
             self._target_position = self.stepper_position
 
-    def step_motor(self, steps, blocking=False):
-        """Step motor a given number of steps.
+    def move_focuser(self, steps, blocking=False):
+        """Move the focuser a given number of steps.
 
         If blocking is True this function returns when the move is complete.
         If not this function returns immediately.
@@ -387,10 +410,31 @@ class FakeH400(object):
             ot.daemon = True
             ot.start()
 
+    def set_focuser(self, target_position, blocking=False):
+        """Move the focuser to the given position.
+
+        If blocking is True this function returns when the move is complete.
+        If not this function returns immediately.
+        """
+        if target_position > self.max_extent:
+            raise ValueError('Target position ({}) past limit ({})'.format(
+                             target_position, self.max_extent))
+        elif target_position < 0:
+            raise ValueError('Target position ({}) is negative'.format(target_position))
+
+        self._target_position = target_position
+
+        if blocking:
+            self._move_fake_focuser()
+        else:
+            ot = threading.Thread(target=self._move_fake_focuser)
+            ot.daemon = True
+            ot.start()
+
     def home_focuser(self, blocking=False):
         """Move the focuser to the home position."""
-        steps = int(self.max_extent / 2) - self.stepper_position
-        self.step_motor(steps, blocking=blocking)
+        halfway_position = int(self.max_extent / 2)
+        self.set_focuser(halfway_position, blocking=blocking)
 
     def stop_focuser(self):
         """Stop the focuser from moving."""

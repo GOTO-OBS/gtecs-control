@@ -8,8 +8,8 @@ from astropy.table import Table
 
 import numpy as np
 
-from .. import astronomy as ast
 from .. import params
+from ..astronomy import altaz_from_radec, observatory_location, radec_from_altaz, twilight_length
 
 data = [
     {'Name': 'MAblank1', 'RA2000': '01 00 00', 'DE2000': '+00 07 00', 'bmag': 11.4, 'rmag': 12.3},
@@ -90,7 +90,7 @@ def best_flat(time):
 
     """
     coords = SkyCoord(flats_table['ra'], flats_table['dec'], unit=(u.hour, u.deg))
-    alt, az = ast.altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
+    alt, az = altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     row = flats_table[np.argmax(alt)]
     flat_field = FlatField(row['name'], row['ra'], row['dec'], row['bmag'], row['rmag'])
     return flat_field
@@ -101,7 +101,7 @@ def antisun_flat(time):
     # TODO: What about the Moon?
     #       We do it for the autofocus in `catalogs.gliese.focus_star`
     sun = get_sun(time)
-    loc = ast.observatory_location()
+    loc = observatory_location()
     altaz_frame = AltAz(obstime=time, location=loc)
     sun_altaz = sun.transform_to(altaz_frame)
     sun_az = sun_altaz.az.degree
@@ -110,7 +110,7 @@ def antisun_flat(time):
     if az >= 360:
         az = az - 360
     alt = 75  # fixed
-    ra, dec = ast.radec_from_altaz(alt, az, time)
+    ra, dec = radec_from_altaz(alt, az, time)
 
     # format
     c = SkyCoord(ra, dec, unit=(u.deg, u.deg))
@@ -152,7 +152,7 @@ def exposure_sequence(date, binning, start_exptime, nflats=5, eve=True):
     except IndexError:
         read = readout_times[0]
 
-    tau = ast.twilight_length(date).to(u.min).value
+    tau = twilight_length(date).to(u.min).value
 
     # time constant from Tyson & Gal (1993).
     if eve:

@@ -215,12 +215,15 @@ SEEING_TIMEOUT = config['SEEING_TIMEOUT']
 
 ############################################################
 # Mount parameters
-MIN_ELEVATION = config['MIN_ELEVATION']
 MOUNT_CLASS = config['MOUNT_CLASS']
 MOUNT_HOST = config['MOUNT_HOST']
 MOUNT_PORT = config['MOUNT_PORT']
 MOUNT_DEBUG = config['MOUNT_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
+
+MIN_ELEVATION = config['MIN_ELEVATION']
+MAX_HOURANGLE = config['MAX_HOURANGLE']
+
 MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 ############################################################
@@ -288,7 +291,7 @@ MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 # Exposure Queue parameters
 EXQ_DITHERING = config['EXQ_DITHERING']
 DITHERING_DIRECTION = config['DITHERING_DIRECTION']
-DITHERING_DISTANCE = config['DITHERING_DISTANCE']
+DITHERING_DURATION = config['DITHERING_DURATION']
 
 ############################################################
 # Power parameters

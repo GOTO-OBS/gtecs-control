@@ -6,7 +6,7 @@ except ImportError:
     import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import AltAz, SkyCoord
 from astropy.table import Table
 from astropy.time import Time
 
@@ -14,7 +14,7 @@ import numpy as np
 
 import scipy.spatial as sp
 
-from .. import astronomy as ast
+from ..astronomy import observatory_location
 
 
 class LandoltStar(object):
@@ -82,8 +82,8 @@ def standard_star(time, airmass, colour):
         landolt_table = Table.read(path)
 
     coords = SkyCoord(landolt_table['RAJ2000'], landolt_table['DEJ2000'], unit=(u.hour, u.deg))
-    observer = ast.observatory_location()
-    altaz_frame = ast.AltAz(location=observer, obstime=time)
+    observer = observatory_location()
+    altaz_frame = AltAz(location=observer, obstime=time)
     altaz_coords = coords.transform_to(altaz_frame)
     airmasses = altaz_coords.secz
     colours = landolt_table['B-V']

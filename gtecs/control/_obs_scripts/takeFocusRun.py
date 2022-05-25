@@ -17,8 +17,8 @@ from gtecs.control import params
 from gtecs.control.catalogs import focus_star
 from gtecs.control.focusing import get_best_focus_position, measure_focus
 from gtecs.control.misc import NeatCloser
-from gtecs.control.observing import (get_focuser_limits, get_focuser_positions, prepare_for_images,
-                                     set_focuser_positions, slew_to_radec)
+from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
+                                     prepare_for_images, set_focuser_positions, slew_to_radec)
 
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection
@@ -450,7 +450,8 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
 
 
 def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
-        measure_corners=False, go_to_best=False, no_slew=False, no_plot=False, no_confirm=False):
+        measure_corners=False, go_to_best=False,
+        no_slew=False, no_analysis=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
     print('~~~~~~')
@@ -512,13 +513,21 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
         print('Moving focusers...')
         set_focuser_positions(new_positions.to_dict(), timeout=120)
         print('New positions:', get_focuser_positions())
-        print('Taking {} measurements at new focus position...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, regions=regions)
-        if not isinstance(foc_data, pd.DataFrame):
-            # Concat region list
-            foc_data = pd.concat(foc_data)
-        all_data.append(foc_data)
-    df = pd.concat(all_data)
+        if not no_analysis:
+            print('Taking {} measurements at new focus position...'.format(num_exp))
+            foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, regions=regions)
+            if not isinstance(foc_data, pd.DataFrame):
+                # Concat region list
+                foc_data = pd.concat(foc_data)
+            all_data.append(foc_data)
+        else:
+            for i in range(num_exp):
+                print('Taking exposure {}/{}...'.format(i + 1, num_exp))
+                # This will take and save the images, we don't care about the data here
+                image_headers = get_analysis_image(
+                    exptime, filt, binning, target_name, 'FOCUS',
+                    glance=False, uts=params.UTS_WITH_FOCUSERS, get_headers=True)
+                print('Exposure {} complete'.format(image_headers[1]['RUN-ID']))
 
     print('~~~~~~')
     print('Exposures finished')
@@ -530,11 +539,19 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     set_focuser_positions(initial_positions, timeout=120)
     print('Restored focus: ', get_focuser_positions())
 
+    if no_analysis:
+        print('~~~~~~')
+        print('Skipping analysis...')
+        # Nothing else to do
+        print('Done')
+        sys.exit()
+
     # Write out data
     print('~~~~~~')
     print('Writing out data to file...')
     path = os.path.join(params.FILE_PATH, 'focus_data')
     filename = 'focusdata_{}.csv'.format(finish_time)
+    df = pd.concat(all_data)
     df.to_csv(os.path.join(path, filename))
     print('Saved to {}'.format(os.path.join(path, filename)))
 
@@ -650,6 +667,9 @@ if __name__ == '__main__':
     parser.add_argument('--no-slew', action='store_true',
                         help=('do not slew to a focus star (stay at current position)')
                         )
+    parser.add_argument('--no-analysis', action='store_true',
+                        help=('do not analyse the image HFDs, just take them and quit')
+                        )
     parser.add_argument('--no-plot', action='store_true',
                         help=('do not display plot of results')
                         )
@@ -667,6 +687,7 @@ if __name__ == '__main__':
     measure_corners = args.corners
     go_to_best = args.go_to_best
     no_slew = args.no_slew
+    no_analysis = args.no_analysis
     no_plot = args.no_plot
     no_confirm = args.no_confirm
 
@@ -675,7 +696,7 @@ if __name__ == '__main__':
     try:
         RestoreFocusCloser(initial_positions)
         run(steps, range_frac, num_exp, exptime, filt, binning,
-            measure_corners, go_to_best, no_slew, no_plot, no_confirm)
+            measure_corners, go_to_best, no_slew, no_analysis, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)

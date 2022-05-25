@@ -9,7 +9,7 @@ import numpy as np
 from gtecs.obs.database import get_pointing_by_id, open_session
 
 from . import params
-from .astronomy import above_elevation_limit, radec_from_altaz
+from .astronomy import radec_from_altaz, within_mount_limits
 from .daemons import daemon_function, daemon_info
 from .fits import clear_glance_files, get_glance_data, get_image_data
 from .misc import execute_command
@@ -359,7 +359,7 @@ def get_mount_position():
     """
     mnt_info = daemon_info('mnt')
     ra = mnt_info['mount_ra']
-    ra = ra * 360 / 24.  # mount uses RA in hours
+    ra = ra * 360 / 24  # mount uses RA in hours
     dec = mnt_info['mount_dec']
     return ra, dec
 
@@ -387,8 +387,8 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
         if `wait` is False and a non-None timeout is given, still wait for that time
 
     """
-    if not above_elevation_limit(ra, dec, Time.now()):
-        raise ValueError('Target is below {} alt, cannot slew'.format(params.MIN_ELEVATION))
+    if not within_mount_limits(ra, dec, Time.now()):
+        raise ValueError('Target is outside of mount limits, cannot slew')
 
     mnt_info = daemon_info('mnt')
     if mnt_info['status'] == 'Slewing':

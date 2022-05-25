@@ -112,10 +112,7 @@ def query(command, args, daemon_id):
             # decimal ra and dec
             ra_deg = float(args[0])
             dec_deg = float(args[1])
-            assert 0 <= ra_deg < 360
-            ra_hrs = ra_deg * 24. / 360.
-            assert 0 <= ra_hrs < 24
-            assert -90 <= dec_deg <= 90
+            ra_hrs = ra_deg * 24 / 360
             # slew to given target
             reply = daemons.daemon_function(daemon_id, 'slew_to_radec', [ra_hrs, dec_deg])
             print(reply)
@@ -167,19 +164,13 @@ def query(command, args, daemon_id):
         if len(args) == 1:
             # decimal
             ra_deg = float(args[0])
-            assert 0 <= ra_deg < 360
-            ra_hrs = ra_deg * 24. / 360.
-            assert 0 <= ra_hrs < 24
+            ra_hrs = ra_deg * 24 / 360
         elif len(args) == 3:
             # h m s
             h = int(args[0])
             m = int(args[1])
             s = float(args[2])
-            assert 0 <= h < 24
-            assert 0 <= m < 60
-            assert 0 <= s < 60
             ra_hrs = h + m / 60. + s / 3600.
-            assert 0 <= ra_hrs < 24
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -191,7 +182,6 @@ def query(command, args, daemon_id):
         if len(args) == 1:
             # decimal
             dec_deg = float(args[0])
-            assert -90 <= dec_deg <= 90
         elif len(args) == 3:
             # d m s
             if args[0][0] == '-':
@@ -201,26 +191,20 @@ def query(command, args, daemon_id):
             d = int(args[0])
             m = int(args[1])
             s = float(args[2])
-            assert 0 <= m < 60
-            assert 0 <= s < 60
             if sign == '+':
                 dec_deg = d + m / 60. + s / 3600.
             else:  # NB d is negative
                 dec_deg = d - m / 60. - s / 3600.
-            assert -90 <= dec_deg <= 90
         elif len(args) == 4:
             # + d m s
             sign = args[0]
             d = int(args[1])
             m = int(args[2])
             s = float(args[3])
-            assert 0 <= m < 60
-            assert 0 <= s < 60
             if sign == '+':
                 dec_deg = d + m / 60. + s / 3600.
             else:
                 dec_deg = -1 * (d + m / 60. + s / 3600.)
-            assert -90 <= dec_deg <= 90
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -229,8 +213,7 @@ def query(command, args, daemon_id):
 
     elif command == 'trackrate':
         # parse arguments
-        if len(args) == 1:
-            assert args[0].lower() == 'reset'
+        if len(args) == 1 and args[0].lower() == 'reset':
             ra_rate = 0
             dec_rate = 0
         elif len(args) == 2:
@@ -244,14 +227,24 @@ def query(command, args, daemon_id):
 
     elif command == 'offset':
         # parse arguments
-        if len(args) == 2:
+        if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
             direction = args[0].upper()
-            assert direction in ['N', 'E', 'S', 'W']
             distance = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
         # send command
         reply = daemons.daemon_function(daemon_id, 'offset', [direction, distance])
+        print(reply)
+
+    elif command in ['pulseguide', 'pulse_guide', 'guide']:
+        # parse arguments
+        if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
+            direction = args[0].upper()
+            duration = float(args[1])
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function(daemon_id, 'pulse_guide', [direction, duration])
         print(reply)
 
     elif command == 'target':
@@ -289,11 +282,9 @@ def query(command, args, daemon_id):
             alt_deg = float(args[0])
             if alt_deg == 90:
                 alt_deg = 89.99999
-            assert 0 <= alt_deg < 90
             az_deg = float(args[1])
             if az_deg == 360:
                 az_deg = 0
-            assert 0 <= az_deg < 360
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -306,11 +297,9 @@ def query(command, args, daemon_id):
             alt_deg = float(args[0])
             if alt_deg == 90:
                 alt_deg = 89.99999
-            assert 0 <= alt_deg < 90
             az_deg = float(args[1])
             if az_deg == 360:
                 az_deg = 0
-            assert 0 <= az_deg < 360
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -336,15 +325,15 @@ def print_info(info):
     ra, dec = info['mount_ra'], info['mount_dec']
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 180 / 12))
+    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
     print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
 
-    if not info['targeting'] == 'altaz':
+    if info['targeting'] != 'altaz':
         # Assume RA/Dec target, unless Alt/Az is set
         if info['target_ra'] is not None:
             ra = info['target_ra']
             ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-            print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra * 180 / 12))
+            print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
         else:
             print('Target RA:        NOT SET')
         if info['target_dec'] is not None:
@@ -376,8 +365,6 @@ def print_info(info):
             print('Dec track rate:   SIDEREAL')
         else:
             print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
-        print('LST:              {:.2f}'.format(info['lst']))
-        print('Hour Angle:       {:.2f}'.format(info['ha']))
     elif info['class'] == 'ASA':
         if info['error_status'] is not None:
             t = Time(info['error_status_time'], format='unix', precision=0)
@@ -393,6 +380,17 @@ def print_info(info):
         print('Dec position err:  {:+.4f} arcsec'.format(info['position_error']['dec']))
         print('RA current:         {:.1f} A'.format(info['motor_current']['ra']))
         print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
+
+    print('~~~~~~~')
+    lst_str = Angle(info['lst'] * u.hour).to_string(sep=':', precision=1)
+    print('Sidereal Time:    {:>11}'.format(lst_str))
+    print('Hour Angle:       {:+6.2f} h'.format(info['ha']))
+
+    print('Sun alt:          {:+6.2f} deg'.format(info['sun_alt']))
+    print('Moon alt:         {:+6.2f} deg'.format(info['moon_alt']))
+    print('Moon phase:         {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
+    print('Moon distance:    {:6.2f} deg'.format(info['moon_dist']))
+
     print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -418,8 +416,10 @@ def print_info_s(info):
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 
-    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 180 / 12, alt))
+    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 360 / 24, alt))
     print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
+    if info['moon_dist'] <= 30:
+        print(style.ytxt('  WARNING: Moon dist < 30 deg ({:.2f})'.format(info['moon_dist'])))
     if info['error_status'] is not None:
         t = Time(info['error_status_time'], format='unix', precision=0)
         print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
@@ -451,6 +451,7 @@ def print_instructions():
           '  unpark                         leave park state',
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
+          '  guide [N|E|S|W duration]       pulse guide in direction for duration (in ms)',
           '  blinky on|off                  turn on or off blinky mode (SiTech only)',
           '  motors on|off                  turn on or off the mount motors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',

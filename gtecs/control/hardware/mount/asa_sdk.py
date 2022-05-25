@@ -6,16 +6,14 @@ import time
 from asa import ASAMount
 
 from astropy import units as u
-from astropy.time import Time
 from astropy.coordinates import SkyCoord
+from astropy.time import Time
 
-from gtecs.control.astronomy import apparent_to_j2000, j2000_to_apparent
+from ...astronomy import apparent_to_j2000, j2000_to_apparent
 
 
-class DDM500(object):
-    """ASA mount control class using TCP/IP commands.
-
-    This class is based on the ASASDK C++ package.
+class DDM500:
+    """ASA mount control class using the ASASDK C++ package.
 
     Parameters
     ----------
@@ -30,6 +28,7 @@ class DDM500(object):
     log_debug : bool, optional
         log debug strings?
         default = False
+
     """
 
     def __init__(self, address, port, log=None, log_debug=False):
@@ -88,6 +87,7 @@ class DDM500(object):
             status_dict = self.mount.get_status()
             self._status_dict = status_dict
             self._jd = status_dict['UTC'][0]
+            self._sidereal_time = status_dict['LAST'][0]
             self._ra_jnow = status_dict['RightAscension']
             self._dec_jnow = status_dict['Declination']
             # Need to "uncook" from apparent to J2000
@@ -123,6 +123,18 @@ class DDM500(object):
 
             # store update time
             self._status_update_time = time.time()
+
+    @property
+    def jd(self):
+        """Return current Julian Date."""
+        self._update_status()
+        return self._jd
+
+    @property
+    def sidereal_time(self):
+        """Return the current sidereal time."""
+        self._update_status()
+        return self._sidereal_time
 
     @property
     def status(self):
@@ -307,6 +319,16 @@ class DDM500(object):
         old_coord = SkyCoord(self.ra * u.hourangle, self.dec * u.deg)
         new_coord = old_coord.directional_offset_by(angle[direction] * u.deg, distance * u.arcsec)
         self.slew_to_radec(new_coord.ra.hourangle, new_coord.dec.deg, set_target=False)
+
+    def pulse_guide(self, direction, duration):
+        """Move the scope in the given direction for the given duration (in ms)."""
+        if direction.upper() not in ['N', 'S', 'E', 'W']:
+            raise ValueError('Invalid direction "{}" (should be [N,E,S,W])'.format(direction))
+        if not self.tracking:
+            raise ValueError('Can only pulse guide when tracking')
+
+        direction = ['N', 'S', 'E', 'W'].index(direction.upper())
+        return self.mount.pulse_guide(direction, int(duration))
 
     def error_check(self):
         """Check for any errors raised by the mount."""
