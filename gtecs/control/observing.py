@@ -107,10 +107,10 @@ def prepare_for_images(open_covers=True):
         time.sleep(4)
 
     # Bring the CCDs down to temperature
-    if not cameras_are_cool():
+    if not cameras_are_cool(target_temp=params.CCD_TEMP):
         print('Cooling cameras')
         execute_command('cam temp {}'.format(params.CCD_TEMP))
-        while not cameras_are_cool():
+        while not cameras_are_cool(target_temp=params.CCD_TEMP):
             time.sleep(0.5)
 
     # Start the mount motors (but remain parked, or in whatever position we're in)
