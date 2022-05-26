@@ -354,7 +354,7 @@ def get_mount_position():
 def mount_is_parked():
     """Check if the mount motors are enabled."""
     mnt_info = daemon_info('mnt', force_update=False)
-    return mnt_info['status'] == 'parked'
+    return mnt_info['status'] == 'Parked'
 
 
 def mount_motors_are_on():
