@@ -726,6 +726,10 @@ class CamDaemon(BaseDaemon):
             if ut not in self.uts:
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
 
+        # Check current status
+        if self.exposure_state != 'none' or len(self.active_uts) > 0:
+            raise errors.HardwareStatusError('Cameras are exposing')
+
         # Set values
         self.active_uts = sorted([ut for ut in ut_list])
         for ut in ut_list:
@@ -752,6 +756,10 @@ class CamDaemon(BaseDaemon):
         for ut in ut_list:
             if ut not in self.uts:
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+
+        # Check current status
+        if self.exposure_state != 'none' or len(self.active_uts) > 0:
+            raise errors.HardwareStatusError('Cameras are exposing')
 
         # Set values
         self.active_uts = sorted([ut for ut in ut_list])
@@ -780,6 +788,10 @@ class CamDaemon(BaseDaemon):
         for ut in ut_list:
             if ut not in self.uts:
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+
+        # Check current status
+        if self.exposure_state != 'none' or len(self.active_uts) > 0:
+            raise errors.HardwareStatusError('Cameras are exposing')
 
         # Set values
         self.active_uts = sorted([ut for ut in ut_list])
