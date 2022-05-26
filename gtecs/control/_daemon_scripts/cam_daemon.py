@@ -284,8 +284,11 @@ class CamDaemon(BaseDaemon):
                         # we've aborted everything, stop the exposure
                         self.exposure_state = 'none'
                         self.current_exposure = None
+                        self.exposing_start_time = 0
+                        self.exposure_start_time = {ut: 0 for ut in self.uts}
                         self.exposure_finished = {ut: False for ut in self.uts}
                         self.image_ready = {ut: False for ut in self.uts}
+                        self.all_info = None
                         self.active_uts = []
                         self.num_taken += 1
                         self.take_exposure_flag = 0
@@ -467,6 +470,7 @@ class CamDaemon(BaseDaemon):
         if len(active_uts) == 0:
             # We must have aborted before we got to this stage
             self.log.warning('{}: Saving thread aborted'.format(expstr))
+            self.saving_thread_running = False
             return
 
         # wait for the thread to loop, otherwise fetching delays the info check
@@ -557,6 +561,7 @@ class CamDaemon(BaseDaemon):
         if len(active_uts) == 0:
             # We must have aborted before we got to this stage
             self.log.warning('{}: Saving thread aborted'.format(expstr))
+            self.saving_thread_running = False
             return
 
         # if taking glance images, clear all old glances (all, not just those in active UTs)
