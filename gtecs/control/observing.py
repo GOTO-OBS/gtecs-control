@@ -658,9 +658,8 @@ def focusers_are_set():
     return all(foc_info[ut]['status'] != 'UNSET' for ut in params.UTS_WITH_FOCUSERS)
 
 
-def cameras_are_cool():
+def cameras_are_cool(target_temp):
     """Check if all the cameras are below the target temperature."""
-    target_temp = params.CCD_TEMP
     cam_info = daemon_info('cam', force_update=False)
     return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS_WITH_CAMERAS)
 

@@ -99,7 +99,7 @@ def run():
 
     # Bring the CCDs down to temperature
     execute_command('cam temp {}'.format(params.CCD_TEMP))
-    while not cameras_are_cool():
+    while not cameras_are_cool(target_temp=params.CCD_TEMP):
         time.sleep(1)
     execute_command('cam info -f')
 
