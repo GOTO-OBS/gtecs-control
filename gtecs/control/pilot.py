@@ -698,7 +698,9 @@ class Pilot:
         self.running_script = None
 
         if name == 'OBS':
-            # if it was an observation that just finished then force a scheduler check
+            # if it was an observation that just finished then clear the pointing
+            # and force a scheduler check
+            self.current_pointing = None
             self.log.debug('forcing scheduler check')
             self.force_scheduler_check = True
         elif name == 'BADCOND':
@@ -1009,15 +1011,16 @@ class Pilot:
 
                 else:
                     # We have a new Pointing to start
-                    self.log.info('got new pointing from scheduler {}'.format(
+                    self.log.info('got new pointing from scheduler: {}'.format(
                         self.new_pointing['id']))
 
                     if self.current_pointing is not None:
                         # We're already observing something, so we have to interrupt it
                         await self.cancel_running_script(why='new pointing')
                     else:
-                        # We weren't doing anything, which implies we were parked
-                        await self.unpark_mount()
+                        # We weren't doing anything, so we just finished one or we were parked
+                        if not self.mount_is_tracking:
+                            await self.unpark_mount()
 
                     # Start the new pointing
                     self.log.debug('starting pointing {}'.format(self.new_pointing['id']))
