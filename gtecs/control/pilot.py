@@ -963,6 +963,12 @@ class Pilot:
                 await asyncio.sleep(2)
                 continue
 
+            # if the scheduler is being checked we should wait for it to complete
+            if self.force_scheduler_check:
+                self.log.debug('waiting for forced scheduler check')
+                await asyncio.sleep(1)
+                continue
+
             # should we stop for the sun?
             now = Time.now()
             sunalt_now = get_sunalt(now)
