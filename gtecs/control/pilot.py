@@ -493,13 +493,9 @@ class Pilot:
         if not restart:
             await self.wait_for_sunalt(self.startup_sunalt, 'STARTUP')
 
-        # 1) Startup (skip if we're restarting)
-        if not restart:
-            if not self.startup_complete:
-                await self.startup()
-        else:
-            # Need to mark startup complete here, since the startup function won't
-            self.startup_complete = True
+        # 1) Startup (even if we're restarting, it shouldn't take long but skip the report)
+        if not self.startup_complete:
+            await self.startup(send_report=not restart)
         self.log.info('startup complete')
 
         # Wait for first successful hardware check
@@ -1219,7 +1215,7 @@ class Pilot:
         self.log.info('finished for tonight')
 
     # Startup and shutdown commands
-    async def startup(self):
+    async def startup(self, send_report=True):
         """Start up the system.
 
         Runs the startup script, sets the startup_complete flag and sends the startup report
@@ -1232,7 +1228,8 @@ class Pilot:
         self.startup_complete = True
 
         # send the startup report
-        send_startup_report(msg='*Pilot reports startup complete*')
+        if send_report:
+            send_startup_report(msg='*Pilot reports startup complete*')
 
         self.log.debug('startup process complete')
 
