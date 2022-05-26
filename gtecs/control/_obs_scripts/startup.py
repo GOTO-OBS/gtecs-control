@@ -14,7 +14,8 @@ import time
 
 from gtecs.common.system import execute_command
 from gtecs.control import params
-from gtecs.control.observing import cameras_are_cool, filters_are_homed, focusers_are_set
+from gtecs.control.observing import (cameras_are_cool, filters_are_homed, focusers_are_set,
+                                     mirror_covers_are_open, mount_is_parked)
 
 
 def run():
@@ -62,17 +63,15 @@ def run():
     # Restart the mount daemon, to reconnect to the mount, and power on the motors
     execute_command('mnt restart')
     time.sleep(10)
-    execute_command('mnt info')
-    time.sleep(1)
     if params.MOUNT_CLASS == 'ASA':
         execute_command('mnt motors on')
-
     # Don't unpark the mount or set a target, we want to stay parked while opening
-    # execute_command('mnt unpark')
-    # print('Setting target to Zenith')
-    # execute_command('mnt slew_altaz 89 0')
-    # time.sleep(20)
-    # execute_command('mnt info -f')
+    # Instead make sure the mount is parked
+    if not mount_is_parked():
+        execute_command('mnt park')
+        while not mount_is_parked():
+            time.sleep(1)
+    execute_command('mnt info')
 
     # Clean up any persistent queue from previous night
     execute_command('exq clear')
@@ -104,10 +103,12 @@ def run():
     execute_command('cam info -f')
 
     # Don't open the mirror covers, because we want to do darks first
-    # execute_command('ota open')
-    # while not mirror_covers_are_open():
-    #     time.sleep(1)
-    # execute_command('ota info -f')
+    # Instead make sure they are closed
+    if mirror_covers_are_open():
+        execute_command('ota close')
+        while mirror_covers_are_open():
+            time.sleep(1)
+    execute_command('ota info -f')
 
     print('Startup tasks done')
 
