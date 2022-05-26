@@ -73,10 +73,14 @@ def run():
             time.sleep(1)
     execute_command('mnt info')
 
-    # Clean up any persistent queue from previous night
+    # Clean up any persistent queue from previous night,
+    # and cancel any exposures just in case we're restarting
     execute_command('exq clear')
     time.sleep(1)
     execute_command('exq resume')
+    time.sleep(1)
+    execute_command('cam abort')
+    time.sleep(4)
 
     # Home the filter wheels
     execute_command('filt home')
