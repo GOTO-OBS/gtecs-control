@@ -81,7 +81,6 @@ ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
 ERROR_MNT_MOTORSOFF = 'MNT:MOTORS_OFF'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
-ERROR_CAM_EXPOSETIMEOUT = 'CAM:EXPOSING_TIMEOUT'
 ERROR_CAM_READTIMEOUT = 'CAM:READING_TIMEOUT'
 ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
 ERROR_OTA_NOTCLOSED = 'OTA:NOT_CLOSED'
@@ -1070,15 +1069,6 @@ class CamMonitor(BaseMonitor):
         if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
             self.clear_error(ERROR_CAM_WARM)
 
-        # ERROR_CAM_EXPOSETIMEOUT
-        # Set the error if the cameras have been exposing for too long
-        # We can exposure for a variable amount of time, so this is a very high bar!
-        if self.hardware_status == STATUS_CAM_EXPOSING:
-            self.add_error(ERROR_CAM_EXPOSETIMEOUT, delay=600)
-        # Clear the error if the mount is not moving
-        if self.hardware_status != STATUS_CAM_EXPOSING:
-            self.clear_error(ERROR_CAM_EXPOSETIMEOUT)
-
         # ERROR_CAM_READTIMEOUT
         # Set the error if the cameras have been reading out for too long
         if self.hardware_status == STATUS_CAM_READING:
@@ -1151,18 +1141,6 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: Having trouble getting down to temperature,
             #                   Either it's a hardware issue or it's just too warm.
             return ERROR_CAM_WARM, recovery_procedure
-
-        elif ERROR_CAM_EXPOSETIMEOUT in self.errors:
-            # PROBLEM: The cameras have been exposing for too long.
-            recovery_procedure = {}
-            # SOLUTION 1: Try aborting the current exposure.
-            recovery_procedure[1] = ['cam abort', 30]
-            # SOLUTION 2: Try restarting the daemon.
-            recovery_procedure[2] = ['cam restart', 30]
-            # SOLUTION 3: Try restarting the dependencies.
-            recovery_procedure[3] = ['intf restart', 30]
-            # OUT OF SOLUTIONS: Must be a hardware error.
-            return ERROR_CAM_EXPOSETIMEOUT, recovery_procedure
 
         elif ERROR_CAM_READTIMEOUT in self.errors:
             # PROBLEM: The cameras have been reading out for too long.
