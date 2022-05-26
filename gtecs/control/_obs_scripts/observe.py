@@ -57,7 +57,8 @@ def run(pointing_id):
     """Run the observe routine."""
     # make sure hardware is ready
     prepare_for_images()
-    refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
+    if params.FOCUS_COMPENSATION_ENABLED:
+        refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
 
     # Clear & pause queue to make sure
     execute_command('exq clear')
