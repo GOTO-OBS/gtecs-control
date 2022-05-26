@@ -720,7 +720,7 @@ class DomeDaemon(BaseDaemon):
             if self.hatch_open_time == 0:
                 self.hatch_open_time = self.loop_time
             if (self.info['mode'] == 'robotic' and
-                    (self.loop_time - self.hatch_opened_time) > params.HATCH_OPEN_DELAY):
+                    (self.loop_time - self.hatch_open_time) > params.HATCH_OPEN_DELAY):
                 lockdown = True
                 reason = 'hatch open in robotic mode'
                 reasons.append(reason)
