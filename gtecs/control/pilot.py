@@ -597,6 +597,7 @@ class Pilot:
 
         # start the process and get transport and protocol for control of it
         self.log.info('starting {}'.format(name))
+        self.log.debug('> {}'.format(' '.join(cmd)))
         self.running_script = name
         self.running_script_transport, self.running_script_protocol = await proc
 
