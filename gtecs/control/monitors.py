@@ -34,13 +34,16 @@ STATUS_MNT_NONSIDEREAL = 'tracking_nonsidereal'
 STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_MOTORSOFF = 'motors_off'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
-STATUS_CAM_COOL = 'cool'
+STATUS_CAM_EXPOSING = 'exposing'
+STATUS_CAM_READING = 'reading'
 STATUS_CAM_WARM = 'warm'
 STATUS_OTA_FULLOPEN = 'full_open'
 STATUS_OTA_PARTOPEN = 'part_open'
 STATUS_OTA_CLOSED = 'closed'
 STATUS_FILT_UNHOMED = 'unhomed'
+STATUS_FILT_MOVING = 'moving'
 STATUS_FOC_UNSET = 'unset'
+STATUS_FOC_MOVING = 'moving'
 STATUS_CONDITIONS_INTERNAL_ERROR = 'internal_error'
 
 # Hardware modes
@@ -78,10 +81,14 @@ ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
 ERROR_MNT_MOTORSOFF = 'MNT:MOTORS_OFF'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
 ERROR_CAM_WARM = 'CAM:NOT_COOL'
+ERROR_CAM_EXPOSETIMEOUT = 'CAM:EXPOSING_TIMEOUT'
+ERROR_CAM_READTIMEOUT = 'CAM:READING_TIMEOUT'
 ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
 ERROR_OTA_NOTCLOSED = 'OTA:NOT_CLOSED'
 ERROR_FILT_UNHOMED = 'FILT:NOT_HOMED'
+ERROR_FILT_MOVETIMEOUT = 'FILT:MOVING_TIMEOUT'
 ERROR_FOC_UNSET = 'FOC:NOT_SET'
+ERROR_FOC_MOVETIMEOUT = 'FOC:MOVING_TIMEOUT'
 ERROR_CONDITIONS_INTERNAL = 'CONDITIONS:INTERNAL_ERROR'
 
 
@@ -1043,8 +1050,12 @@ class CamMonitor(BaseMonitor):
         all_cool = all(info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UTS_WITH_CAMERAS)
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
+        elif any(info[ut]['status'] == 'Exposing' for ut in params.UTS_WITH_CAMERAS):
+            hardware_status = STATUS_CAM_EXPOSING
+        elif any(info[ut]['status'] == 'Reading' for ut in params.UTS_WITH_CAMERAS):
+            hardware_status = STATUS_CAM_READING
         else:
-            hardware_status = STATUS_CAM_COOL
+            hardware_status = STATUS_ACTIVE
 
         self.hardware_status = hardware_status
         return hardware_status
@@ -1058,6 +1069,23 @@ class CamMonitor(BaseMonitor):
         # Clear the error if the cameras are cool or they shouldn't be
         if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
             self.clear_error(ERROR_CAM_WARM)
+
+        # ERROR_CAM_EXPOSETIMEOUT
+        # Set the error if the cameras have been exposing for too long
+        # We can exposure for a variable amount of time, so this is a very high bar!
+        if self.hardware_status == STATUS_CAM_EXPOSING:
+            self.add_error(ERROR_CAM_EXPOSETIMEOUT, delay=600)
+        # Clear the error if the mount is not moving
+        if self.hardware_status != STATUS_CAM_EXPOSING:
+            self.clear_error(ERROR_CAM_EXPOSETIMEOUT)
+
+        # ERROR_CAM_READTIMEOUT
+        # Set the error if the cameras have been reading out for too long
+        if self.hardware_status == STATUS_CAM_READING:
+            self.add_error(ERROR_CAM_READTIMEOUT, delay=60)
+        # Clear the error if the mount is not moving
+        if self.hardware_status != STATUS_CAM_READING:
+            self.clear_error(ERROR_CAM_READTIMEOUT)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1123,6 +1151,30 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: Having trouble getting down to temperature,
             #                   Either it's a hardware issue or it's just too warm.
             return ERROR_CAM_WARM, recovery_procedure
+
+        elif ERROR_CAM_EXPOSETIMEOUT in self.errors:
+            # PROBLEM: The cameras have been exposing for too long.
+            recovery_procedure = {}
+            # SOLUTION 1: Try aborting the current exposure.
+            recovery_procedure[1] = ['cam abort', 30]
+            # SOLUTION 2: Try restarting the daemon.
+            recovery_procedure[2] = ['cam restart', 30]
+            # SOLUTION 3: Try restarting the dependencies.
+            recovery_procedure[3] = ['intf restart', 30]
+            # OUT OF SOLUTIONS: Must be a hardware error.
+            return ERROR_CAM_EXPOSETIMEOUT, recovery_procedure
+
+        elif ERROR_CAM_READTIMEOUT in self.errors:
+            # PROBLEM: The cameras have been reading out for too long.
+            recovery_procedure = {}
+            # SOLUTION 1: Try aborting the current exposure.
+            recovery_procedure[1] = ['cam abort', 30]
+            # SOLUTION 2: Try restarting the daemon.
+            recovery_procedure[2] = ['cam restart', 30]
+            # SOLUTION 3: Try restarting the dependencies.
+            recovery_procedure[3] = ['intf restart', 30]
+            # OUT OF SOLUTIONS: Must be a hardware error.
+            return ERROR_CAM_READTIMEOUT, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1277,6 +1329,8 @@ class FiltMonitor(BaseMonitor):
 
         if any(info[ut]['homed'] is False for ut in params.UTS_WITH_FILTERWHEELS):
             hardware_status = STATUS_FILT_UNHOMED
+        elif any(info[ut]['status'] == 'Moving' for ut in params.UTS_WITH_FILTERWHEELS):
+            hardware_status = STATUS_FILT_MOVING
         else:
             hardware_status = STATUS_ACTIVE
 
@@ -1292,6 +1346,14 @@ class FiltMonitor(BaseMonitor):
         # Clear the error if the filter wheels have been homed
         if self.hardware_status != STATUS_FILT_UNHOMED:
             self.clear_error(ERROR_FILT_UNHOMED)
+
+        # ERROR_FILT_MOVETIMEOUT
+        # Set the error if the filter wheels have been moving for too long
+        if self.hardware_status == STATUS_FILT_MOVING:
+            self.add_error(ERROR_FILT_MOVETIMEOUT, delay=60)
+        # Clear the error if the filter wheels aren't moving any more
+        if self.hardware_status != STATUS_FILT_MOVING:
+            self.clear_error(ERROR_FILT_MOVETIMEOUT)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1358,6 +1420,16 @@ class FiltMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: Sounds like a hardware issue.
             return ERROR_FILT_UNHOMED, recovery_procedure
 
+        elif ERROR_FILT_MOVETIMEOUT in self.errors:
+            # PROBLEM: The filter wheels have been moving for too long.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['filt restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
+            # OUT OF SOLUTIONS: Must be a hardware error.
+            return ERROR_FILT_MOVETIMEOUT, recovery_procedure
+
         else:
             # Some unexpected error.
             return ERROR_UNKNOWN, {}
@@ -1382,6 +1454,8 @@ class FocMonitor(BaseMonitor):
 
         if any(info[ut]['status'] == 'UNSET' for ut in params.UTS_WITH_FOCUSERS):
             hardware_status = STATUS_FOC_UNSET
+        elif any(info[ut]['status'] == 'Moving' for ut in params.UTS_WITH_FOCUSERS):
+            hardware_status = STATUS_FOC_MOVING
         else:
             hardware_status = STATUS_ACTIVE
 
@@ -1391,12 +1465,20 @@ class FocMonitor(BaseMonitor):
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
         # STATUS_FOC_UNSET
-        # Set the error if the filter wheels aren't homed
+        # Set the error if the focusers aren't homed
         if self.hardware_status == STATUS_FOC_UNSET:
             self.add_error(ERROR_FOC_UNSET)
-        # Clear the error if the filter wheels have been homed
+        # Clear the error if the focusers have been homed
         if self.hardware_status != STATUS_FOC_UNSET:
             self.clear_error(ERROR_FOC_UNSET)
+
+        # ERROR_FOC_MOVETIMEOUT
+        # Set the error if the focusers have been moving for too long
+        if self.hardware_status == STATUS_FOC_MOVING:
+            self.add_error(ERROR_FOC_MOVETIMEOUT, delay=60)
+        # Clear the error if the focusers aren't moving any more
+        if self.hardware_status != STATUS_FOC_MOVING:
+            self.clear_error(ERROR_FOC_MOVETIMEOUT)
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1462,6 +1544,16 @@ class FocMonitor(BaseMonitor):
             recovery_procedure[2] = ['foc move -10', 10]
             # OUT OF SOLUTIONS: Must be a hardware issue.
             return ERROR_FOC_UNSET, recovery_procedure
+
+        elif ERROR_FOC_MOVETIMEOUT in self.errors:
+            # PROBLEM: The focusers have been moving for too long.
+            recovery_procedure = {}
+            # SOLUTION 1: Try restarting the daemon.
+            recovery_procedure[1] = ['foc restart', 30]
+            # SOLUTION 2: Try restarting the dependencies.
+            recovery_procedure[2] = ['intf restart', 30]
+            # OUT OF SOLUTIONS: Must be a hardware error.
+            return ERROR_FOC_MOVETIMEOUT, recovery_procedure
 
         else:
             # Some unexpected error.
@@ -1680,7 +1772,7 @@ class ConditionsMonitor(BaseMonitor):
             recovery_procedure[2] = ['power off poe', 60]
             recovery_procedure[3] = ['power on poe', 120]
             # OUT OF SOLUTIONS: Maybe it's not the RoomAlert's fault.
-            return ERROR_FILT_UNHOMED, recovery_procedure
+            return ERROR_CONDITIONS_INTERNAL, recovery_procedure
 
         else:
             # Some unexpected error.
