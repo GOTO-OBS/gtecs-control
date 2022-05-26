@@ -117,11 +117,12 @@ class DomeDaemon(BaseDaemon):
                     # Check if we need to turn on/off the dehumidifier
                     self._autodehum_check()
 
-                    # Check if we should enable shielding due to high wind
-                    self._autoshield_check()
+                    if params.DOME_WINDSHIELD_PERMITTED:
+                        # Check if we should enable shielding due to high wind
+                        self._autoshield_check()
 
-                    # Check if we need to raise the shields
-                    self._windshield_check()
+                        # Check if we need to raise the shields
+                        self._windshield_check()
 
             # control functions
             # open dome
@@ -872,6 +873,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Autoshield disabled while no connection to dome')
             return
 
+        if not params.DOME_WINDSHIELD_PERMITTED:
+            # windshield mode is disabled system-wide
+            return
+
         if (isinstance(self.info, dict) and
                 (self.info.get('windspeed') is None or self.info['windspeed'] == -999)):
             # Note dict.get() returns None if it is not in the dictionary
@@ -902,6 +907,10 @@ class DomeDaemon(BaseDaemon):
         """Check if the dome is open and needs to raise shields."""
         if not self.dome:
             self.log.warning('Shielding disabled while no connection to dome')
+            return
+
+        if not params.DOME_WINDSHIELD_PERMITTED:
+            # windshield mode is disabled system-wide
             return
 
         # Safety check: never move in engineering mode
@@ -1272,6 +1281,8 @@ class DomeDaemon(BaseDaemon):
             return 'Windshielding is already enabled'
         elif command == 'off' and not windshield_enabled:
             return 'Windshielding is already disabled'
+        elif command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
+            return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
 
         # Set flag
         if command == 'on':
@@ -1303,6 +1314,8 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable autoshield in engineering mode')
+            elif not params.DOME_WINDSHIELD_PERMITTED:
+                return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
             elif self.autoshield_enabled:
                 return 'Autoshield is already enabled'
         else:
