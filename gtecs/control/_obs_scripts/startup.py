@@ -38,13 +38,13 @@ def run():
         execute_command('power on mount,tcu,asa_gateways')
     time.sleep(10)
 
-    # Restart the UT interfaces
-    # We shouldn't need to do this, they should be fine running while the hardware is powered off
-    # However sometimes it seems there are errors, so we do this just to be sure
-    execute_command('intf shutdown')
-    time.sleep(2)
-    execute_command('intf kill')  # Just in case they failed to shutdown
-    time.sleep(2)
+    # # Restart the UT interfaces
+    # # We shouldn't need to do this, they should be fine running while the hardware is powered off
+    # # However sometimes it seems there are errors, so we do this just to be sure
+    # execute_command('intf shutdown')
+    # time.sleep(2)
+    # execute_command('intf kill')  # Just in case they failed to shutdown
+    # time.sleep(2)
 
     # Make sure the interfaces are started before the other daemons
     execute_command('intf start')

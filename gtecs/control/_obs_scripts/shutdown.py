@@ -39,16 +39,19 @@ def run():
         print('Mirror covers timed out, continuing with shutdown')
         send_slack_msg('Shutdown script could not close the mirror covers!')
 
-    # Shutdown the interfaces (kill to be sure, they can be sticky sometimes)
-    execute_command('intf shutdown')
-    time.sleep(2)
-    execute_command('intf kill')
-    time.sleep(2)
+    # # Shutdown the interfaces (kill to be sure, they can be sticky sometimes)
+    # execute_command('intf shutdown')
+    # time.sleep(2)
+    # execute_command('intf kill')
+    # time.sleep(2)
 
-    # Power off the cameras, focusers etc
-    execute_command('power off cams,focs,filts,fans')
-    if params.MOUNT_CLASS == 'ASA':
-        execute_command('power off asa_gateways')
+    # # Power off the cameras, focusers etc
+    # execute_command('power off cams,focs,filts,fans')
+    # if params.MOUNT_CLASS == 'ASA':
+    #     execute_command('power off asa_gateways')
+
+    # Set camera temps to 0 (don't shutdown any more)
+    execute_command('cam temp 0')
 
     # Park the mount
     execute_command('mnt park')
