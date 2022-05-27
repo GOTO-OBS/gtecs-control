@@ -17,7 +17,7 @@ def extract_image_sources(data, filter_width=15, threshold=5, region=None):
     data : `numpy.array`
         image data to analyse
     filter_width : int, default=5
-        before detection, the image is filtered. This is the filter width in pixels.
+        before detection, the image is filtered. This is the filter width in (binned) pixels.
         For optimal source detection, this should roughly match the expected FWHM
     threshold : float, default=5
         if set to, e.g. 5, objects 5sigma above the background are detected
@@ -75,7 +75,7 @@ def measure_image_fwhm(data, filter_width=15, threshold=5, region=None, verbose=
     Returns
     -------
     median : float
-        median FWHM value
+        median FWHM value, in binned pixels
     std : float
         standard deviation of FWHM measurements
 
@@ -114,7 +114,7 @@ def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=T
     Returns
     -------
     median : float
-        median HFD value
+        median HFD value, in binned pixels
     std : float
         standard deviation of HFD measurements
 

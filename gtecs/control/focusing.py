@@ -100,12 +100,16 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
                         # Extract median HFD and std values from the image data
                         # Note filter_width is 15, this deals much better with out-of-focus images
                         hfd, hfd_std = measure_image_hfd(image_data[ut],
-                                                         filter_width=15,
+                                                         filter_width=15 // binning,
                                                          region=region,
                                                          verbose=False)
 
+                        # HFDs are in binned pixels, convert to unbinned
+                        hfd *= binning
+                        hfd_std *= binning
+
                         # Check for invalid values
-                        if hfd_std <= 0.0 <= 0.0:
+                        if hfd_std <= 0.0:
                             raise ValueError
 
                     except Exception as err:
