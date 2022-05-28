@@ -594,9 +594,9 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
         # Get the run number, it should be safer than the last modified which has messed up before
         # (perhaps due to the Warwick archiver?)
         run_number = get_run_number()
-        data = get_image_data(run_number=run_number, timeout=60)
+        data = get_image_data(run_number=run_number, timeout=90)
     else:
-        data = get_glance_data(timeout=60)
+        data = get_glance_data(timeout=90)
 
     return data
 
