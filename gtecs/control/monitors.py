@@ -1071,8 +1071,10 @@ class CamMonitor(BaseMonitor):
 
         # ERROR_CAM_READTIMEOUT
         # Set the error if the cameras have been reading out for too long
+        # Note the timeout is pretty high, to prevent false positives since the pilot
+        # only checks every 30s.
         if self.hardware_status == STATUS_CAM_READING:
-            self.add_error(ERROR_CAM_READTIMEOUT, delay=60)
+            self.add_error(ERROR_CAM_READTIMEOUT, delay=180)
         # Clear the error if the mount is not moving
         if self.hardware_status != STATUS_CAM_READING:
             self.clear_error(ERROR_CAM_READTIMEOUT)
