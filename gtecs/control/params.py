@@ -350,6 +350,8 @@ SCHEDULER_PORT = config['SCHEDULER_PORT']
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
 BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
+PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']
+PILOT_TAKE_FOCRUNS = config['PILOT_TAKE_FOCRUNS']
 
 ############################################################
 # Slack bot parameters

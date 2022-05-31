@@ -688,15 +688,17 @@ class Pilot:
                  'script': 'takeBiasesAndDarks.py',
                  'args': [str(params.NUM_DARKS)],
                  }
-        # xdarks = {'name': 'XDARKS',
-        #           'sunalt': 1,
-        #           'late_sunalt': 0,
-        #           'script': 'takeExtraDarks.py',
-        #           'args': [],
-        #           }
+        xdarks = {'name': 'XDARKS',
+                  'sunalt': 1,
+                  'late_sunalt': 0,
+                  'script': 'takeExtraDarks.py',
+                  'args': [],
+                  }
 
-        # self.daytime_tasks = [darks, xdarks]
-        self.daytime_tasks = [darks]
+        if not params.PILOT_TAKE_EXTRA_DARKS:
+            self.daytime_tasks = [darks]
+        else:
+            self.daytime_tasks = [darks, xdarks]
 
         # open
         self.open_sunalt = -4
@@ -714,20 +716,36 @@ class Pilot:
                    'script': 'autoFocus.py',
                    'args': ['-n', '1', '-t', '5'],
                    }
+        focrun_e = {'name': 'FOCRUN',
+                    'sunalt': -12,
+                    'late_sunalt': -13,
+                    'script': 'takeFocusRun.py',
+                    'args': ['2', '-r', '0.02', '-n', '1', '-t', '5',
+                             '--zenith', '--no-analysis', '--no-confirm'],
+                    }
 
-        self.evening_tasks = [flats_e, autofoc]
+        if not params.PILOT_TAKE_FOCRUNS:
+            self.evening_tasks = [flats_e, autofoc]
+        else:
+            self.evening_tasks = [flats_e, autofoc, focrun_e]
 
         # observing
-        self.obs_start_sunalt = -12
-        self.obs_stop_sunalt = -12  # -14 WITH FOCRUN
+        if not params.PILOT_TAKE_FOCRUNS:
+            self.obs_start_sunalt = -12
+            self.obs_stop_sunalt = -12
+        else:
+            # Need extra time at start and end
+            self.obs_start_sunalt = -14
+            self.obs_stop_sunalt = -14
 
         # morning tasks: done after observing, before closing the dome
-        # foc_run = {'name': 'FOCRUN',
-        #           'sunalt': -14.5,
-        #           'late_sunalt': -13,
-        #           'script': 'takeFocusRun.py',
-        #           'args': ['1000', '100', 'n'],
-        #           }
+        focrun_m = {'name': 'FOCRUN',
+                    'sunalt': -14,
+                    'late_sunalt': -13,
+                    'script': 'takeFocusRun.py',
+                    'args': ['2', '-r', '0.02', '-n', '1', '-t', '5',
+                             '--zenith', '--no-analysis', '--no-confirm'],
+                    }
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
                    'late_sunalt': -7.55,
@@ -735,8 +753,10 @@ class Pilot:
                    'args': ['MORN'],
                    }
 
-        # self.morning_tasks = [foc_run, flats_m]
-        self.morning_tasks = [flats_m]
+        if not params.PILOT_TAKE_FOCRUNS:
+            self.morning_tasks = [flats_m]
+        else:
+            self.morning_tasks = [focrun_m, flats_m]
 
         # close sunalt
         # (NB we usually finish early, this is the limit used for the night countdown)
