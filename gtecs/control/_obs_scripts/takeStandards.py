@@ -19,7 +19,8 @@ def run():
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
     # use set so we don't duplicate observations
-    stars = {standard_star(Time.now(), airmass, colour)
+    now = Time.now()
+    stars = {standard_star(airmass, colour, time=now)
              for airmass, colour in zip(airmasses, colours)}
     print('Starting standard star routine')
     for star in stars:

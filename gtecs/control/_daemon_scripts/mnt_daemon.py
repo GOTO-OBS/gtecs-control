@@ -526,10 +526,11 @@ class MntDaemon(BaseDaemon):
         elif (self.targeting == 'altaz' and
                 self.target_alt is not None and self.target_az is not None):
             now = Time.now()
+            location = observatory_location()
             current_coord = AltAz(alt=self.mount.alt * u.deg, az=self.mount.az * u.deg,
-                                  obstime=now, location=observatory_location())
+                                  obstime=now, location=location)
             target_coord = AltAz(alt=self.target_alt * u.deg, az=self.target_az * u.deg,
-                                 obstime=now, location=observatory_location())
+                                 obstime=now, location=location)
             return current_coord.separation(target_coord).deg
         else:
             return None

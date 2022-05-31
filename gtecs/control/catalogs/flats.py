@@ -5,6 +5,7 @@ import warnings
 from astropy import units as u
 from astropy.coordinates import AltAz, SkyCoord, get_sun
 from astropy.table import Table
+from astropy.time import Time
 
 import numpy as np
 
@@ -96,13 +97,29 @@ def best_flat(time):
     return flat_field
 
 
-def antisun_flat(time):
-    """Get the anti-Sun flat position."""
+def antisun_flat(time=None, location=None):
+    """Get the anti-Sun flat position.
+
+    Parameters
+    ----------
+    time : `~astropy.time.Time`, optional
+        time to check
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
+
+    """
     # TODO: What about the Moon?
     #       We do it for the autofocus in `catalogs.gliese.focus_star`
+    # TODO: This could belong in astronomy.py, or in a better observing/obs scripts module.
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
     sun = get_sun(time)
-    loc = observatory_location()
-    altaz_frame = AltAz(obstime=time, location=loc)
+    altaz_frame = AltAz(obstime=time, location=location)
     sun_altaz = sun.transform_to(altaz_frame)
     sun_az = sun_altaz.az.degree
 

@@ -57,17 +57,22 @@ def nearest(x, arr):
     return tree.query(x, 1)
 
 
-def standard_star(time, airmass, colour):
+def standard_star(airmass, colour, time=None, location=None):
     """Find the standard star nearest in airmass and B-V color to request.
 
     Parameters
     ----------
-    time : `astropy.time.Time`
-        the time
     airmass : float
         desired airmass
     colour : float
         desired B-V colour
+
+    time : `astropy.time.Time`
+        time to check
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
 
     Returns
     -------
@@ -75,12 +80,16 @@ def standard_star(time, airmass, colour):
         the standard star to observe
 
     """
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
     with pkg_resources.path('gtecs.control.data', 'Landolt09.fit') as path:
         landolt_table = Table.read(path)
 
     coords = SkyCoord(landolt_table['RAJ2000'], landolt_table['DEJ2000'], unit=(u.hour, u.deg))
-    observer = observatory_location()
-    altaz_frame = AltAz(location=observer, obstime=time)
+    altaz_frame = AltAz(location=location, obstime=time)
     altaz_coords = coords.transform_to(altaz_frame)
     airmasses = altaz_coords.secz
     colours = landolt_table['B-V']
