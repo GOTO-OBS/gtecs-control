@@ -902,7 +902,7 @@ class Pilot:
         if last_obs_sunalt > until_sunalt:
             self.log.warning('limiting last_obs_sunalt to {}'.format(until_sunalt))
             last_obs_sunalt = until_sunalt
-
+        last_focrun_time = time.time()
         request_pointing = True
         finishing = False
 
@@ -1004,6 +1004,21 @@ class Pilot:
                     break
 
             self.scheduler_updating = False
+
+            if params.PILOT_TAKE_FOCRUNS:
+                # NB we could use this same logic to periodically refocus, if necessary
+                time_since_last_run = time.time() - last_focrun_time
+                if (time_since_last_run > params.FOCRUN_PERIOD and
+                        not (self.tasks_pending or self.running_script)):
+                    # take a focus run at whatever position we're at
+                    self.log.debug('focus run timer: {:.2f}h'.format(time_since_last_run / 60 / 60))
+                    self.log.info('taking focus run')
+                    focrun_args = ['2', '-r', '0.02', '-n', '1', '-t', '5',
+                                   '--no-slew', '--no-analysis', '--no-confirm']
+                    # wait for the script to finish, blocking the observing loop
+                    await self.start_script('FOCRUN', 'takeFocusRun.py', args=focrun_args)
+                    # done
+                    last_focrun_time = time.time()
 
             # Exit the loop if we didn't request a pointing.
             # We still want the above scheduler communication to happen if we're paused.
