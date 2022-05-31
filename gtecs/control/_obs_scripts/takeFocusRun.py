@@ -18,7 +18,8 @@ from gtecs.control import params
 from gtecs.control.catalogs import focus_star
 from gtecs.control.focusing import get_best_focus_position, measure_focus
 from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
-                                     prepare_for_images, set_focuser_positions, slew_to_radec)
+                                     prepare_for_images, set_focuser_positions,
+                                     slew_to_altaz, slew_to_radec)
 
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection
@@ -453,7 +454,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
 
 
 def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
-        measure_corners=False, go_to_best=False,
+        measure_corners=False, go_to_best=False, zenith=False,
         no_slew=False, no_analysis=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -482,12 +483,17 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
 
     # Slew to a focus star
     if not no_slew:
-        star = focus_star(Time.now())
         print('~~~~~~')
-        print('Slewing to target {}...'.format(star))
-        target_name = star.name
-        coordinate = star.coord_now()
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        if zenith:
+            print('Slewing to zenith...')
+            target_name = 'Focus run'
+            slew_to_altaz(89.9, 0, timeout=120)
+        else:
+            star = focus_star(Time.now())
+            print('Slewing to target {}...'.format(star))
+            target_name = star.name
+            coordinate = star.coord_now()
+            slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
         print('Reached target')
     else:
         target_name = 'Focus run'
@@ -667,8 +673,11 @@ if __name__ == '__main__':
     parser.add_argument('--go-to-best', action='store_true',
                         help=('when the run is complete move to the best focus position')
                         )
+    parser.add_argument('--zenith', action='store_true',
+                        help=('slew to zenith instead of a focus star')
+                        )
     parser.add_argument('--no-slew', action='store_true',
-                        help=('do not slew to a focus star (stay at current position)')
+                        help=('do not slew (stay at current position)')
                         )
     parser.add_argument('--no-analysis', action='store_true',
                         help=('do not analyse the image HFDs, just take them and quit')
@@ -689,6 +698,7 @@ if __name__ == '__main__':
     binning = args.binning
     measure_corners = args.corners
     go_to_best = args.go_to_best
+    zenith = args.zenith
     no_slew = args.no_slew
     no_analysis = args.no_analysis
     no_plot = args.no_plot
@@ -699,7 +709,7 @@ if __name__ == '__main__':
     try:
         RestoreFocusCloser(initial_positions)
         run(steps, range_frac, num_exp, exptime, filt, binning,
-            measure_corners, go_to_best, no_slew, no_analysis, no_plot, no_confirm)
+            measure_corners, go_to_best, zenith, no_slew, no_analysis, no_plot, no_confirm)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)
