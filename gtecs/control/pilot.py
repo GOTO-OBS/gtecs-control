@@ -442,7 +442,7 @@ class Pilot:
                                 await self.unpark_mount()
                             asyncio.ensure_future(self.start_script('BADCOND',
                                                                     'badConditionsTasks.py',
-                                                                    args=[3]))
+                                                                    args=['3']))
 
                             # save the counter
                             self.bad_conditions_tasks_timer = self.time_paused['conditions']
@@ -565,8 +565,8 @@ class Pilot:
             A name for this process. Prepended to output from process.
         script : str
             The Python script to execute.
-        args : list, optional
-            Arguments to the script.
+        args : list of str, optional
+            Arguments to the script (must be strings).
         protocol : `gtecs.control.pilot.TaskProtocol`, optional
             Protocol used to process output from Process
             Default is `LoggedProtocol`
@@ -591,7 +591,7 @@ class Pilot:
         # create the process coroutine
         loop = asyncio.get_event_loop()
         with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
-            cmd = [str(path), *args] if args is not None else [str(path)]
+            cmd = [str(path), *[str(a) for a in args]] if args is not None else [str(path)]
             proc = loop.subprocess_exec(factory, params.PYTHON_EXE, '-u', *cmd,
                                         stdin=None)
 
