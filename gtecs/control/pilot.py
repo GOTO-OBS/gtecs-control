@@ -717,10 +717,10 @@ class Pilot:
                    'args': ['-n', '1', '-t', '5'],
                    }
         focrun_e = {'name': 'FOCRUN',
-                    'sunalt': -12,
-                    'late_sunalt': -13,
+                    'sunalt': -13,
+                    'late_sunalt': -14,
                     'script': 'takeFocusRun.py',
-                    'args': ['2', '-r', '0.02', '-n', '1', '-t', '5',
+                    'args': ['4', '-r', '0.02', '-n', '1', '-t', '5',
                              '--zenith', '--no-analysis', '--no-confirm'],
                     }
 
@@ -735,15 +735,15 @@ class Pilot:
             self.obs_stop_sunalt = -12
         else:
             # Need extra time at start and end
-            self.obs_start_sunalt = -14
-            self.obs_stop_sunalt = -14
+            self.obs_start_sunalt = -15
+            self.obs_stop_sunalt = -15
 
         # morning tasks: done after observing, before closing the dome
         focrun_m = {'name': 'FOCRUN',
                     'sunalt': -14,
                     'late_sunalt': -13,
                     'script': 'takeFocusRun.py',
-                    'args': ['2', '-r', '0.02', '-n', '1', '-t', '5',
+                    'args': ['4', '-r', '0.02', '-n', '1', '-t', '5',
                              '--zenith', '--no-analysis', '--no-confirm'],
                     }
         flats_m = {'name': 'FLATS',
@@ -1013,7 +1013,7 @@ class Pilot:
                     # take a focus run at whatever position we're at
                     self.log.debug('focus run timer: {:.2f}h'.format(time_since_last_run / 60 / 60))
                     self.log.info('taking focus run')
-                    focrun_args = ['2', '-r', '0.02', '-n', '1', '-t', '5',
+                    focrun_args = ['4', '-r', '0.02', '-n', '1', '-t', '5',
                                    '--no-slew', '--no-analysis', '--no-confirm']
                     # wait for the script to finish, blocking the observing loop
                     await self.start_script('FOCRUN', 'takeFocusRun.py', args=focrun_args)
