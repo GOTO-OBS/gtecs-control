@@ -95,7 +95,10 @@ class MntDaemon(BaseDaemon):
                     continue
 
                 # Check if the mount has passed the limits and should stop
-                self._limit_check()
+                # This is a nice idea, but including the Slewing status means we can never get
+                # out if it triggers. You'd need to be able to detect if it's moving towards
+                # or away form the limit, and that's tricky.
+                # self._limit_check()
 
             # control functions
             # slew to target
