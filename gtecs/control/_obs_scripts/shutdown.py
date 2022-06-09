@@ -13,7 +13,6 @@ This script should perform the following simple tasks:
 import time
 
 from gtecs.common.system import execute_command
-from gtecs.control import params
 from gtecs.control.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
 from gtecs.control.slack import send_slack_msg
 
@@ -60,9 +59,7 @@ def run():
     except TimeoutError:
         print('Mount timed out, continuing with shutdown')
         send_slack_msg('Shutdown script could not park the mount!')
-    # Power off the mount motors
-    if params.MOUNT_CLASS == 'ASA':
-        execute_command('mnt motors off')
+    # Leave the mount motors on, so it can't move accidentally (e.g. in the wind)
     # Note we don't power off the mount control computers here,
     # we just make sure they are powered on during startup
 

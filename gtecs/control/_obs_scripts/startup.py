@@ -60,7 +60,7 @@ def run():
 
     time.sleep(4)
 
-    # Restart the mount daemon, to reconnect to the mount, and power on the motors
+    # Restart the mount daemon, to reconnect to the mount, and make sure the motors are on
     execute_command('mnt restart')
     time.sleep(10)
     if params.MOUNT_CLASS == 'ASA':
