@@ -142,7 +142,12 @@ def run(pointing_id):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Observe the given database pointing.')
-    parser.add_argument('pointing_id', type=int, help='Pointing Database ID')
+    # Mandatory arguments
+    parser.add_argument('pointing_id',
+                        type=int,
+                        help='Pointing Database ID',
+                        )
+
     args = parser.parse_args()
 
     run(args.pointing_id)

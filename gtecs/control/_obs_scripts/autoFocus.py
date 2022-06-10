@@ -347,23 +347,33 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Autofocus the telescopes.')
-    parser.add_argument('-n', '--numexp', type=int, default=1,
-                        help=('number of exposures to take at each position (default=3)')
+    # Optional arguments
+    parser.add_argument('-n', '--numexp',
+                        type=int, default=1,
+                        help=('number of exposures to take at each position'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('-t', '--exptime', type=float, default=5,
-                        help=('exposure time to use (default=5s)')
+    parser.add_argument('-t', '--exptime',
+                        type=float, default=5,
+                        help=('exposure time, in seconds'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
-                        help=('filter to use (default=L)')
+    parser.add_argument('-f', '--filter',
+                        type=str, choices=params.FILTER_LIST, default='L',
+                        help=('filter to use'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('-b', '--binning', type=int, default=1,
-                        help=('image binning factor (default=1)')
+    parser.add_argument('-b', '--binning',
+                        type=int, default=1,
+                        help=('image binning factor'
+                              ' (default=%(default)d)')
                         )
+    # Flags
     parser.add_argument('--no-slew', action='store_true',
                         help=('do not slew to a focus star (stay at current position)')
                         )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     num_exp = args.numexp
     exptime = args.exptime
     filt = args.filter

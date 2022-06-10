@@ -52,8 +52,9 @@ if __name__ == '__main__':
     parser = ArgumentParser(description='Take bias and dark frames.')
     # Optional arguments
     parser.add_argument('numexp',
-                        type=int, nargs='?', default=5,
-                        help=('number of frames to take'
+                        type=int,
+                        nargs='?', default=5,
+                        help=('number of frames to take for each exposure time'
                               ' (default=%(default)d)'),
                         )
     # Flags

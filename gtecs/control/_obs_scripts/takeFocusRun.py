@@ -647,49 +647,69 @@ if __name__ == '__main__':
         return x
 
     parser = ArgumentParser(description='Take a series of exposures at different focus positions.')
-    parser.add_argument('steps', type=int, default=5,
+    # Mandatory arguments
+    parser.add_argument('steps',
+                        type=int, default=5,
                         help=('how many exposures to take either side of the current position '
                               '(eg steps=5 gives 11 in total: 5 + 1 in the centre + 5)'),
                         )
-    parser.add_argument('-r', '--range', type=restricted_float, default=0.035,
-                        help=('fraction of the focuser range to run over '
-                              '(range 0-1, default=0.035)'),
+    # Optional arguments
+    parser.add_argument('-r', '--range',
+                        type=restricted_float, default=0.035,
+                        help=('fraction of the focuser range to run over'
+                              ' (range 0-1, default=%(default)f)'),
                         )
-    parser.add_argument('-n', '--numexp', type=int, default=2,
-                        help=('number of exposures to take at each position (default=3)')
+    parser.add_argument('-n', '--numexp',
+                        type=int, default=2,
+                        help=('number of exposures to take at each position'
+                              ' (default=%(default)d)'),
                         )
-    parser.add_argument('-t', '--exptime', type=float, default=2,
-                        help=('exposure time to use (default=2s)')
+    parser.add_argument('-t', '--exptime',
+                        type=float, default=5,
+                        help=('exposure time, in seconds'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
-                        help=('filter to use (default=L)')
+    parser.add_argument('-f', '--filter',
+                        type=str, choices=params.FILTER_LIST, default='L',
+                        help=('filter to use'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('-b', '--binning', type=int, default=1,
-                        help=('image binning factor (default=1)')
+    parser.add_argument('-b', '--binning',
+                        type=int, default=1,
+                        help=('image binning factor'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('--corners', action='store_true',
+    # Flags
+    parser.add_argument('--corners',
+                        action='store_true',
                         help=('measure focus position in the corners as well as the centre')
                         )
-    parser.add_argument('--go-to-best', action='store_true',
+    parser.add_argument('--go-to-best',
+                        action='store_true',
                         help=('when the run is complete move to the best focus position')
                         )
-    parser.add_argument('--zenith', action='store_true',
+    parser.add_argument('--zenith',
+                        action='store_true',
                         help=('slew to zenith instead of a focus star')
                         )
-    parser.add_argument('--no-slew', action='store_true',
+    parser.add_argument('--no-slew',
+                        action='store_true',
                         help=('do not slew (stay at current position)')
                         )
-    parser.add_argument('--no-analysis', action='store_true',
+    parser.add_argument('--no-analysis',
+                        action='store_true',
                         help=('do not analyse the image HFDs, just take them and quit')
                         )
-    parser.add_argument('--no-plot', action='store_true',
+    parser.add_argument('--no-plot',
+                        action='store_true',
                         help=('do not display plot of results')
                         )
-    parser.add_argument('--no-confirm', action='store_true',
+    parser.add_argument('--no-confirm',
+                        action='store_true',
                         help=('skip confirmation (needed if running automatically)')
                         )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     steps = args.steps
     range_frac = args.range
     num_exp = args.numexp

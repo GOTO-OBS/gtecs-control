@@ -61,8 +61,13 @@ def run(nexp=3):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Tasks to run during the night while the dome is closed.')
-    parser.add_argument('nexp', type=int, nargs='?', default=3,
-                        help='number of bias and dark sets to take (default=3)')
+    # Optional arguments
+    parser.add_argument('nexp',
+                        type=int, nargs='?', default=3,
+                        help=('number of bias and dark sets to take'
+                              ' (default=%(default)d)'),
+                        )
+
     args = parser.parse_args()
 
     run(args.nexp)
