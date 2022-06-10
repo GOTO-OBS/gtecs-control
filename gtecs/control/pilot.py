@@ -688,17 +688,10 @@ class Pilot:
                  'script': 'takeBiasesAndDarks.py',
                  'args': [str(params.NUM_DARKS)],
                  }
-        xdarks = {'name': 'XDARKS',
-                  'sunalt': 1,
-                  'late_sunalt': 0,
-                  'script': 'takeExtraDarks.py',
-                  'args': [],
-                  }
+        if params.PILOT_TAKE_EXTRA_DARKS:
+            darks['args'].append('-x')
 
-        if not params.PILOT_TAKE_EXTRA_DARKS:
-            self.daytime_tasks = [darks]
-        else:
-            self.daytime_tasks = [darks, xdarks]
+        self.daytime_tasks = [darks]
 
         # open
         self.open_sunalt = -4
