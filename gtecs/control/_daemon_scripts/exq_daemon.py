@@ -81,6 +81,7 @@ class ExqDaemon(BaseDaemon):
                 if self.current_exposure is None and len(self.exp_queue) > 0:
                     self.log.info('Starting new exposure')
                     self.current_exposure = self.exp_queue.pop(0)
+                    self.log.debug(self.current_exposure.as_line().strip())
                     self.exposure_state = 'init'  # STATE 0, essentially
 
                 # Exposure state machine
