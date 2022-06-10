@@ -540,10 +540,10 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
 
     # Create the command string
     if uts is not None:
-        uts = [str(int(ut)) for ut in uts if ut in params.UTS_WITH_CAMERAS]
+        uts = [int(ut) for ut in uts if ut in params.UTS_WITH_CAMERAS]
         if len(uts) == 0:
             raise ValueError('Invalid UT values (not in {})'.format(params.UTS_WITH_CAMERAS))
-        ut_string = ','.join(uts)
+        ut_string = ','.join([str(ut) for ut in uts])
         exq_command = 'exq {} {} {:.1f} {} {} "{}" {}'.format('image' if not glance else 'glance',
                                                               ut_string,
                                                               exptime,
@@ -571,19 +571,16 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     wait_for_images(img_num + 1, exptime + 60)
     time.sleep(2)
 
+    # Fetch the data
     if get_headers:
         return daemon_function('cam', 'get_latest_headers')
-
-    # Fetch the data
-    if not glance:
-        # Get the run number, it should be safer than the last modified which has messed up before
+    elif not glance:
+        # Use the run number, it should be safer than the last modified which has messed up before
         # (perhaps due to the Warwick archiver?)
         run_number = get_run_number()
-        data = get_image_data(run_number=run_number, timeout=90)
+        return get_image_data(run_number, uts=uts, timeout=90)
     else:
-        data = get_glance_data(timeout=90)
-
-    return data
+        return get_glance_data(uts=uts, timeout=90)
 
 
 def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
