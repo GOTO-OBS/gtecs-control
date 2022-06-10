@@ -704,24 +704,37 @@ class Pilot:
         self.open_sunalt = -4
 
         # evening tasks: done after opening the dome, before observing starts
+        target_n = int(Time.now().jd) % len(params.FLATS_TARGET_COUNTS)
+        target_counts = params.FLATS_TARGET_COUNTS[target_n]
         flats_e = {'name': 'FLATS',
                    'sunalt': -4.5,
                    'late_sunalt': -7,
                    'script': 'takeFlats.py',
-                   'args': ['EVE'],
+                   'args': ['EVE',
+                            '-c', str(target_counts),
+                            '-n', str(params.NUM_FLATS),
+                            ],
                    }
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
                    'late_sunalt': None,  # Always autofocus if opening late
                    'script': 'autoFocus.py',
-                   'args': ['-n', '1', '-t', '5'],
+                   'args': ['-n', '1',
+                            '-t', '5',
+                            ],
                    }
         focrun_e = {'name': 'FOCRUN',
                     'sunalt': -13,
                     'late_sunalt': -14,
                     'script': 'takeFocusRun.py',
-                    'args': ['4', '-r', '0.02', '-n', '1', '-t', '5',
-                             '--zenith', '--no-analysis', '--no-confirm'],
+                    'args': ['4',
+                             '-r', '0.02',
+                             '-n', '1',
+                             '-t', '5',
+                             '--zenith',
+                             '--no-analysis',
+                             '--no-confirm',
+                             ],
                     }
 
         if not params.PILOT_TAKE_FOCRUNS:
@@ -743,14 +756,23 @@ class Pilot:
                     'sunalt': -14,
                     'late_sunalt': -13,
                     'script': 'takeFocusRun.py',
-                    'args': ['4', '-r', '0.02', '-n', '1', '-t', '5',
-                             '--zenith', '--no-analysis', '--no-confirm'],
+                    'args': ['4',
+                             '-r', '0.02',
+                             '-n', '1',
+                             '-t', '5',
+                             '--zenith',
+                             '--no-analysis',
+                             '--no-confirm',
+                             ],
                     }
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
                    'late_sunalt': -7.55,
                    'script': 'takeFlats.py',
-                   'args': ['MORN'],
+                   'args': ['MORN',
+                            '-c', str(target_counts),
+                            '-n', str(params.NUM_FLATS),
+                            ],
                    }
 
         if not params.PILOT_TAKE_FOCRUNS:

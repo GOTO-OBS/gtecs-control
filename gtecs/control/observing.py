@@ -489,23 +489,8 @@ def wait_for_mount_parking(timeout=None):
         raise TimeoutError('Mount timed out')
 
 
-def random_offset(distance):
-    """Make an offset of the given distance in a random direction.
-
-    Parameters
-    ----------
-    distance : float
-        offset distance in arcseconds
-
-    """
-    direction = np.random.choice(['N', 'E', 'S', 'W'])
-    execute_command('mnt offset {} {}'.format(direction, distance))
-    # wait a short while for it to move
-    time.sleep(2)
-
-
 def offset(direction, distance):
-    """Make a offset of the given distance in the given direction .
+    """Offset the mount by the given distance in the given direction.
 
     Parameters
     ----------

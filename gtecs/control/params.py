@@ -332,11 +332,6 @@ EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
 ############################################################
 # Obs script parameters
-FLATS_SKYMEANTARGET_EVEN = config['FLATS_SKYMEANTARGET_EVEN']
-FLATS_SKYMEANTARGET_ODD = config['FLATS_SKYMEANTARGET_ODD']
-FLATS_NUM = config['FLATS_NUM']
-FLATS_MAXEXPTIME = config['FLATS_MAXEXPTIME']
-FLATS_STEPSIZE = config['FLATS_STEPSIZE']
 
 IERS_A_URL = config['IERS_A_URL']
 IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
@@ -349,6 +344,8 @@ SCHEDULER_PORT = config['SCHEDULER_PORT']
 ############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
+NUM_FLATS = config['NUM_FLATS']
+FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
 BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']
 PILOT_TAKE_FOCRUNS = config['PILOT_TAKE_FOCRUNS']

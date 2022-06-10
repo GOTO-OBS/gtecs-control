@@ -258,7 +258,7 @@ def sky_brightness(sunalt, filt):
         raise ValueError('unknown filter ' + str(filt))
 
 
-def extrapolate_from_filters(exptime, filt, sky_mean, sky_mean_target):
+def extrapolate_from_filters(exptime, filt, counts, target_counts):
     """Estimate flat exposure times given a reasonable exposure time in one filter.
 
     This is a very basic calculation, is just scales the exptime proportional to the bandwidth
@@ -270,14 +270,14 @@ def extrapolate_from_filters(exptime, filt, sky_mean, sky_mean_target):
         exposure time, in seconds, that produces a reasonable number of counts
     filt : string
         the filter used for the sky exposure
-    sky_mean : float
+    counts : float
         the mean number of counts recorded in the sky exposure
-    sky_mean_target : float
+    target_counts : float
         the target number of counts
 
     Returns
     -------
-    exptimes : dict
+    exptime_list : dict
         best guess of new exposure times for each filter
 
     """
@@ -293,7 +293,7 @@ def extrapolate_from_filters(exptime, filt, sky_mean, sky_mean_target):
         raise ValueError('Filter {} is not in known filters {}'.format(filt,
                                                                        list(bandwidth.keys())))
 
-    scaling_factor = sky_mean_target / sky_mean
+    scaling_factor = target_counts / counts
     target_exptime = exptime * scaling_factor
 
     return {new_filt: (bandwidth[filt] / bandwidth[new_filt]) * target_exptime
