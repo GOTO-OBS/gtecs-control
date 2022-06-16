@@ -1103,6 +1103,7 @@ class Pilot:
                     else:
                         # We weren't doing anything, either we just finished one or we were parked
                         if not self.mount_is_tracking:
+                            send_slack_msg('Pilot is resuming observations')
                             await self.unpark_mount()
 
                     # Start the new pointing
@@ -1112,7 +1113,6 @@ class Pilot:
                                                             args=[str(new_pointing['id'])]))
                     self.current_start_time = time.time()
                     self.current_pointing = new_pointing
-                    self.current_status = 'running'
 
             else:
                 # Nothing to do!
@@ -1122,7 +1122,7 @@ class Pilot:
                     # the scheduler on the next loop.
                     await self.cancel_running_script('obs parking')
                     self.park_mount()
-                    send_slack_msg('Pilot has nothing to observe!')
+                    # send_slack_msg('Pilot has nothing to observe!')
 
             await asyncio.sleep(5)
 
