@@ -67,8 +67,6 @@ def run(test=False):
         try:
             # Try sending the command
             log.warning('Sending dome close command')
-            execute_command('dome restart')
-            time.sleep(5)
             execute_command('dome close')
 
             # Wait for the dome to (hopefully) close
@@ -85,6 +83,8 @@ def run(test=False):
                 # UH-OH
                 msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
                 log.warning('The dome is still not closed!')
+                # Try restarting the daemon before we try again
+                execute_command('dome restart')
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
