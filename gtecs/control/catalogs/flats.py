@@ -138,7 +138,7 @@ def antisun_flat(time=None, location=None):
     return flat_field
 
 
-def exposure_sequence(date, binning, start_exptime, nflats=5, eve=True):
+def exposure_sequence(start_exptime, num_flats=5, eve=True, time=None):
     """Exposure sequence for well exposed flat fields.
 
     Following the prescription in Tyson & Gal (1993), this routine calculates
@@ -146,60 +146,46 @@ def exposure_sequence(date, binning, start_exptime, nflats=5, eve=True):
 
     Parameters
     ----------
-    date : str
-        night starting date, format YYYY-MM-DD
-    binning : int
-        amount of on chip binning
     start_exptime : float
         exposure time of a well exposed flat, in seconds
-    nflats : int
+    num_flats : int
         number of flats required
     eve : bool
         True for evening flats, False for morning
+    time : `astropy.time.Time`, optional
+        night starting date
+        default = Time.now()
 
     Returns
     -------
-    exptimes : list of float
+    exptime_list : list of float
         suggested exposure times
 
     """
-    readout_times = [30, 30, 30]
-    try:
-        read = readout_times[binning - 1]
-    except IndexError:
-        read = readout_times[0]
-
-    tau = twilight_length(date).to(u.min).value
-
-    # time constant from Tyson & Gal (1993).
-    if eve:
-        a = 10.0**(-7.52 / tau / 60)
-    else:
-        a = 10.0**(7.52 / tau / 60)
-
+    tau = twilight_length(time)
+    readout = 30
     t0 = 0.0
     e0 = start_exptime
+    t = t0 + readout
+    if eve:
+        e = 0.1
+        a = 10.0**(-7.52 / tau / 60)
+    else:
+        e = 1000.0
+        a = 10.0**(7.52 / tau / 60)
     sky_brightness = (a**e0 - 1.0) / np.log(a)
 
-    exptimes = []
-    if eve:
-        elast = 0.1
-    else:
-        elast = 1000.0
-
-    tlast = t0 + read
-    for _ in range(nflats):
+    exptime_list = []
+    for _ in range(num_flats):
         # have we exceeded exposure limits?
-        if eve and elast > 60.0:
+        if (eve and e > 60.0) or (not eve and e < 0.5):
             break
-        elif not eve and elast < 0.5:
-            break
-        tnext = np.log(a**(tlast + read) + sky_brightness * np.log(a)) / np.log(a)
-        enext = tnext - (tlast + read)
-        exptimes.append(enext)
-        elast = enext
-        tlast = tnext
-    return exptimes
+        t_next = np.log(a**(t + readout) + sky_brightness * np.log(a)) / np.log(a)
+        e_next = t_next - (t + readout)
+        exptime_list.append(e_next)
+        e = e_next
+        t = t_next
+    return exptime_list
 
 
 def sky_brightness(sunalt, filt):
@@ -216,7 +202,8 @@ def sky_brightness(sunalt, filt):
         filter
 
     """
-    assert filt.upper() in params.FILTER_LIST
+    if filt.upper() not in params.FILTER_LIST:
+        raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
     zenith_distance = 90 - sunalt
     if (zenith_distance < 95) or (zenith_distance > 105):
         warnings.warn("extrapolating outside valid range for Sun's altitude")
@@ -256,45 +243,3 @@ def sky_brightness(sunalt, filt):
         return ((sb_b + sb_v + sb_r) / 3.0) * 2.0
     else:
         raise ValueError('unknown filter ' + str(filt))
-
-
-def extrapolate_from_filters(exptime, filt, counts, target_counts):
-    """Estimate flat exposure times given a reasonable exposure time in one filter.
-
-    This is a very basic calculation, is just scales the exptime proportional to the bandwidth
-    of each filter.
-
-    Parameters
-    ----------
-    exptime : float
-        exposure time, in seconds, that produces a reasonable number of counts
-    filt : string
-        the filter used for the sky exposure
-    counts : float
-        the mean number of counts recorded in the sky exposure
-    target_counts : float
-        the target number of counts
-
-    Returns
-    -------
-    exptime_list : dict
-        best guess of new exposure times for each filter
-
-    """
-    # These bandwidths are from the Baader filter profiles
-    # TODO could be defined in params?
-    bandwidth = {'L': 2942,
-                 'R': 979,
-                 'G': 813,
-                 'B': 1188,
-                 'C': 5596,
-                 }
-    if filt not in bandwidth:
-        raise ValueError('Filter {} is not in known filters {}'.format(filt,
-                                                                       list(bandwidth.keys())))
-
-    scaling_factor = target_counts / counts
-    target_exptime = exptime * scaling_factor
-
-    return {new_filt: (bandwidth[filt] / bandwidth[new_filt]) * target_exptime
-            for new_filt in bandwidth}

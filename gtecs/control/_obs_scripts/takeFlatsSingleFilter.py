@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Script to take flat frames in the morning or evening."""
+"""Script to take flat frames in the morning or evening in a single filter."""
 
 import time
 from argparse import ArgumentParser
@@ -9,22 +9,11 @@ from astropy.time import Time
 
 from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
-from gtecs.control.catalogs import antisun_flat, exposure_sequence
+from gtecs.control.catalogs import antisun_flat
 from gtecs.control.observing import (get_analysis_image, get_mount_position,
                                      prepare_for_images, slew_to_radec)
 
 import numpy as np
-
-
-# TODO: filter info could be in params?
-FILTER_BANDWIDTH = {'L': 2942,
-                    'R': 979,
-                    'G': 813,
-                    'B': 1188,
-                    'C': 5596,
-                    }
-# Order filters by twilight sky brightness, dimmest first (remember to reverse in the morning)
-FILTER_ORDER = ['B', 'G', 'R', 'L', 'C']
 
 
 def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False):
@@ -59,26 +48,21 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
     return mean_counts
 
 
-def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step=600,
+def run(eve, filt, exptime, offset_step,
         late=False, start_now=False, no_slew=False):
     """Take flats just after sunset or just after start of twilight."""
     # make sure hardware is ready
     prepare_for_images()
 
     print('Starting flats')
-
-    # Sort filters based on sky brightness
-    if filt_list is None:
-        filt_list = params.FILTER_LIST.copy()
-    filt_list = sorted(filt_list, key=lambda x: FILTER_ORDER.index(x))
-
     if eve:
         start_alt = -5 * u.deg
-        exptime = 3.0
+        start_counts = 50000
+        end_counts = 10000
     else:
         start_alt = -10 * u.deg
-        exptime = 20.0
-        filt_list.reverse()
+        start_counts = 10000
+        end_counts = 50000
 
     # Wait until we reach correct sun altitude
     if start_now is False:
@@ -114,56 +98,37 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
     # Start taking glances and wait for sky to reach target brightness
     print('~~~~~~')
     print('Taking initial exposures')
-    filt = filt_list[0]
     while True:
         counts = take_flat(exptime, filt, offset_step, target_name, glance=True)
         print('{} image sky mean: {:.1f} counts'.format(filt, counts))
 
-        if eve and counts > target_counts:
-            print('Waiting until below {:.1f} counts'.format(target_counts))
+        if eve and counts > start_counts:
+            print('Waiting until below {:.1f} counts'.format(start_counts))
             time.sleep(1)
-        elif not eve and counts < target_counts:
-            print('Waiting until above {:.1f} counts'.format(target_counts))
+        elif not eve and counts < start_counts:
+            print('Waiting until above {:.1f} counts'.format(start_counts))
             time.sleep(1)
         else:
             break
-    print('Reached target sky brightness ({:.1f} counts)'.format(target_counts))
+    print('Reached target sky brightness ({:.1f} counts)'.format(start_counts))
 
-    # Run through the filter list
-    for i, filt in enumerate(filt_list):
-        filt = filt_list[i]
+    # Take exposures until the target counts have been reached
+    print('~~~~~~')
+    print('Taking flats in {} filter'.format(filt))
+    flats_count = 0
+    while True:
+        flats_count += 1
+        print('Taking {} filter flat {}'.format(filt, flats_count))
+        counts = take_flat(exptime, filt, offset_step, target_name)
+        print('{} image sky mean: {:.1f} counts'.format(filt, counts))
 
-        if i > 0:
-            # Guess initial exposure time based on the previous filter
-            target_exptime = exptime * (target_counts / counts)
-            bandwidth_ratio = FILTER_BANDWIDTH[filt] / FILTER_BANDWIDTH[filt_list[i - 1]]
-            test_exptime = target_exptime * bandwidth_ratio
-
-            # Take initial measurement
-            print('~~~~~~')
-            print('Taking {} test exposure to find new exposure time'.format(filt))
-            counts = take_flat(test_exptime, filt, offset_step, target_name, glance=True)
-            print('{} image sky mean: {:.1f} counts'.format(filt, counts))
-
-            # Rescale based on new measurement
-            exptime = test_exptime * (target_counts / counts)
-            print('Rescaling exposure time from {:.1f} to {:.1f}'.format(test_exptime, exptime))
-            if exptime > max_exptime:
-                print('Limiting exposure time to {:.1f}s'.format(max_exptime))
-                exptime = max_exptime
-
-        print('~~~~~~')
-        print('Taking flats in {} filter'.format(filt))
-        exptime_list = exposure_sequence(exptime, num_exp, eve=eve)
-
-        for i, exptime in enumerate(exptime_list):
-            print('Taking {} filter flat {}/{}'.format(filt, i + 1, len(exptime_list)))
-            if exptime > max_exptime:
-                print('Limiting exposure time to {:.1f}s'.format(max_exptime))
-                exptime = max_exptime
-
-            counts = take_flat(exptime, filt, offset_step, target_name)
-            print('{} image sky mean: {:.1f} counts'.format(filt, counts))
+        if eve and counts > end_counts:
+            time.sleep(1)
+        elif not eve and counts < end_counts:
+            time.sleep(1)
+        else:
+            break
+    print('Reached target sky brightness ({:.1f} counts)'.format(end_counts))
 
     print('Done')
 
@@ -175,24 +140,14 @@ if __name__ == '__main__':
                         type=str, choices=['EVE', 'MORN'],
                         help='run the evening or morning routine')
     # Optional arguments
-    parser.add_argument('-c', '--target-counts',
-                        type=int, default=30000,
-                        help=('target mean sky counts for each flat frame'
+    parser.add_argument('-f', '--filter',
+                        type=str, choices=params.FILTER_LIST, default='L',
+                        help=('filter to use'
                               ' (default=%(default)d)')
                         )
-    parser.add_argument('-n', '--numexp',
-                        type=int, default=3,
-                        help=('number of exposures to take in each flat'
-                              ' (default=%(default)d)')
-                        )
-    parser.add_argument('-f', '--filters',
-                        type=str, default=','.join(params.FILTER_LIST),
-                        help=('filters to use'
-                              ' (comma separated, default=%(default)s)')
-                        )
-    parser.add_argument('-m', '--max-exptime',
-                        type=float, default=300,
-                        help=('maximum exposure time, in seconds'
+    parser.add_argument('-t', '--exptime',
+                        type=float, default=5,
+                        help=('exposure time, in seconds'
                               ' (default=%(default)d)')
                         )
     parser.add_argument('-o', '--offset-step',
@@ -216,10 +171,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     eve = args.time == 'EVE'
-    target_counts = args.target_counts
-    num_exp = args.numexp
-    filt_list = args.filters.split(',')
-    max_exptime = args.max_exptime
+    filt = args.filter
+    exptime = args.exptime
     offset_step = args.offset_step
     late = args.late
     start_now = args.now
@@ -227,4 +180,4 @@ if __name__ == '__main__':
     if start_now and late:
         print('Conflicting options detected: --now flag will override --late flag')
 
-    run(eve, target_counts, num_exp, filt_list, max_exptime, offset_step, late, start_now, no_slew)
+    run(eve, filt, exptime, offset_step, late, start_now, no_slew)

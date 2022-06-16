@@ -202,8 +202,7 @@ def get_sunalt(time=None, location=None):
     return altaz_coo.alt.degree
 
 
-@u.quantity_input(horizon=u.deg)
-def get_night_times(time=None, location=None, horizon=-15 * u.deg):
+def get_night_times(time=None, location=None, horizon=-15):
     """Calculate the night start and stop times for a given time.
 
     If the time is during the night the times for that night are returned.
@@ -235,41 +234,50 @@ def get_night_times(time=None, location=None, horizon=-15 * u.deg):
 
     if observer.is_night(time, horizon=horizon):
         # The time is during the night
-        sun_set_time = observer.sun_set_time(time, which='previous', horizon=horizon)
+        sun_set_time = observer.sun_set_time(time, which='previous', horizon=horizon * u.deg)
     else:
         # The time is during the day
-        sun_set_time = observer.sun_set_time(time, which='next', horizon=horizon)
-    sun_rise_time = observer.sun_rise_time(sun_set_time, which='next', horizon=horizon)
+        sun_set_time = observer.sun_set_time(time, which='next', horizon=horizon * u.deg)
+    sun_rise_time = observer.sun_rise_time(sun_set_time, which='next', horizon=horizon * u.deg)
 
     return sun_set_time, sun_rise_time
 
 
-def twilight_length(date, location=None):
+def twilight_length(time=None, location=None, horizon=-15):
     """Twilight length for night starting on given date.
 
     Parameters
     ----------
-    date : string
-        night starting date (YYYY-MM-DD)
-
+    time : `astropy.time.Time`, optional
+        night starting date
+        default = Time.now()
     location : `~astropy.coordinates.EarthLocation`, optional
         observatory location
         default = observatory_location()
+    horizon : float, optional
+        horizon below which night is defined
+        default is -15 degrees
 
     Returns
     -------
-    twilight_length : `astropy.units.Quantity`
-        length of astronomical twilight
+    twilight_length : float
+        length of astronomical twilight in minutes
 
     """
+    if time is None:
+        time = Time.now()
     if location is None:
         location = observatory_location()
     observer = Observer(location=location)
 
-    noon = Time(date + ' 12:00:00')
-    sun_set_time = observer.sun_set_time(noon, which='next')
-    twilight_end = observer.sun_set_time(noon, which='next', horizon=-18 * u.deg)
-    return (twilight_end - sun_set_time).to(u.min)
+    if observer.is_night(time, horizon=0 * u.deg):
+        # The time is after twilight has started
+        twilight_start = observer.sun_set_time(time, which='previous', horizon=0 * u.deg)
+    else:
+        # The time is during the day
+        twilight_start = observer.sun_set_time(time, which='next', horizon=0 * u.deg)
+    twilight_end = observer.sun_set_time(twilight_start, which='next', horizon=horizon * u.deg)
+    return (twilight_end - twilight_start).to(u.min).value
 
 
 def local_midnight(date, location=None):
