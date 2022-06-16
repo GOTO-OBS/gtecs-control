@@ -709,6 +709,9 @@ class CamDaemon(BaseDaemon):
 
     def get_latest_headers(self):
         """Get the headers for the last completed exposure."""
+        while self.saving_thread_running:
+            # If we're currently saving we need to wait for the headers to be stored
+            time.sleep(0.1)
         return self.latest_headers
 
     def set_window(self, x, y, dx, dy, ut_list):
