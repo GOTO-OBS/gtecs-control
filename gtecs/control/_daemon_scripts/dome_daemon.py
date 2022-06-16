@@ -938,7 +938,7 @@ class DomeDaemon(BaseDaemon):
             # Partially close the dome
             self.close_flag = 1
             self.move_side = 'both'
-            self.move_frac = 0.3
+            self.move_frac = params.DOME_WINDSHIELD_POSITION
 
         elif (self.shielding and not self.windshield_enabled and
               (self.info['north'] == 'part_open' or self.info['south'] == 'part_open') and
@@ -955,6 +955,7 @@ class DomeDaemon(BaseDaemon):
     def _sound_alarm(self):
         """Sound the dome siren."""
         if not self.alarm_enabled:
+            # TODO: we should have a separate override for automatic moves
             return
 
         if params.ARDUINO_LOCATION is not None:
