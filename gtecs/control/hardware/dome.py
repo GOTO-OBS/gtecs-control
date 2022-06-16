@@ -189,6 +189,10 @@ class FakeDome:
         if self.status[side] in ['opening', 'closing']:
             return
 
+        # limit move fraction
+        if frac > 1:
+            frac = 1
+
         # start output thread
         if not self.output_thread_running:
             if self.log:
@@ -702,6 +706,10 @@ class AstroHavenDome:
         # Don't interrupt!
         if self.status[side] in ['opening', 'closing']:
             return
+
+        # limit move fraction
+        if frac > 1:
+            frac = 1
 
         # start output thread
         if not self.output_thread_running:
