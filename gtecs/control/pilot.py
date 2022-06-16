@@ -917,7 +917,11 @@ class Pilot:
         if last_obs_sunalt > until_sunalt:
             self.log.warning('limiting last_obs_sunalt to {}'.format(until_sunalt))
             last_obs_sunalt = until_sunalt
+
         last_focrun_time = time.time()
+        focrun_count = 0
+        focrun_positions = [(70, 0), (70, 90), (70, 180), (70, 270), (89.9, 0)]
+
         request_pointing = True
         finishing = False
 
@@ -1025,15 +1029,31 @@ class Pilot:
                 time_since_last_run = time.time() - last_focrun_time
                 if (time_since_last_run > params.FOCRUN_PERIOD and
                         not (self.tasks_pending or self.running_script)):
-                    # take a focus run at whatever position we're at
                     self.log.debug('focus run timer: {:.2f}h'.format(time_since_last_run / 60 / 60))
                     self.log.info('taking focus run')
-                    focrun_args = ['4', '-r', '0.02', '-n', '1', '-t', '5',
-                                   '--no-slew', '--no-analysis', '--no-confirm']
+                    # loop through positions
+                    position = focrun_positions[focrun_count]
+                    execute_command(f'mnt slew_altaz {position[0]:d} {position[1]:d}')
+                    # wait for mount to slew
+                    while True:
+                        await asyncio.sleep(5)
+                        mount_status = self.hardware['mnt'].get_hardware_status()
+                        self.log.debug('mount is {}'.format(mount_status))
+                        if mount_status == 'tracking':
+                            break
                     # wait for the script to finish, blocking the observing loop
-                    await self.start_script('FOCRUN', 'takeFocusRun.py', args=focrun_args)
+                    focrun_args = ['4',
+                                   '-r', '0.02',
+                                   '-n', '1',
+                                   '-t', '5',
+                                   '--no-slew',
+                                   '--no-analysis',
+                                   '--no-confirm',
+                                   ]
+                    await self.start_script('FOCRUN-X', 'takeFocusRun.py', args=focrun_args)
                     # done
                     last_focrun_time = time.time()
+                    focrun_count += 1
 
             # Exit the loop if we didn't request a pointing.
             # We still want the above scheduler communication to happen if we're paused.
@@ -1442,6 +1462,7 @@ class Pilot:
             # wait for mount to slew
             start_time = time.time()
             while True:
+                await asyncio.sleep(5)
                 mount_status = self.hardware['mnt'].get_hardware_status()
                 self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
