@@ -67,7 +67,7 @@ class H400:
                           3: 'ERROR',
                           }
 
-    def __init__(self, port, serial_number='unknown'):
+    def __init__(self, port, serial_number='unknown', debug_file=None):
         self._stored_info = None
         self._info_delay = 1
 
@@ -92,17 +92,26 @@ class H400:
         # Get initial info
         self._get_info()
 
+        # start debug thread
+        if debug_file is not None:
+            self.debug_file = debug_file
+            self.debug_delay = 0.2
+            t = threading.Thread(target=self._debug_thread)
+            t.daemon = True
+            t.start()
+
     def __del__(self):
         try:
+            self.debug_thread_running = False
             self.serial.close()
         except AttributeError:
             pass
 
     @classmethod
-    def locate_device(cls, port, serial_number='unknown'):
+    def locate_device(cls, port, serial_number='unknown', debug_file=None):
         """Locate the focuser by port."""
         try:
-            return cls(port, serial_number)
+            return cls(port, serial_number, debug_file)
         except serial.serialutil.SerialException:
             return None
 
@@ -146,7 +155,7 @@ class H400:
             return reply_list
 
     def _get_info(self):
-        """Get the focuser status infomation."""
+        """Get the focuser status information."""
         # Limit how often we update
         if self._stored_info is None or time.time() - self._stored_info['ts'] > self._info_delay:
             info_dict = {}
@@ -181,6 +190,43 @@ class H400:
             info_dict['ts'] = time.time()
             self._stored_info = info_dict
         return self._stored_info
+
+    def _debug_thread(self):
+        import requests
+        import json
+
+        self.debug_thread_running = True
+        self.count = 0
+
+        def http_get(command_str):
+            data = {}
+            data['ClientID'] = 2323
+            self.count += 1
+            data['ClientTransactionID'] = self.count
+            url = 'http://10.2.6.105:11111/api/v1/telescope/0/' + command_str
+            r = requests.get(url, params=data)
+            reply_str = r.content.decode(r.encoding)
+            reply = json.loads(reply_str)
+            return reply['Value']
+
+        while self.debug_thread_running:
+            try:
+                line = f'{time.time():.7f};'
+                foc_status = self._serial_command('focuser', 'status')
+                line += ';'.join([foc_status[1], foc_status[2], foc_status[4], foc_status[5]])
+                # ra = http_get('rightascension')
+                # dec = http_get('declination')
+                az = http_get('azimuth')
+                alt = http_get('altitude')
+                slewing = http_get('slewing')
+                tracking = http_get('tracking')
+                # line += f';{ra:.4f};{dec:.4f};{az:.4f};{alt:.4f};{slewing};{tracking}'
+                line += f';{az:.4f};{alt:.4f};{slewing};{tracking}'
+                with open(self.debug_file, 'a') as f:
+                    f.write(line + '\n')
+            except Exception:
+                pass
+            time.sleep(self.debug_delay)
 
     @property
     def connected(self):
