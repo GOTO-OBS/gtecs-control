@@ -53,7 +53,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
         Name of the target being observed.
     uts : list of int, default=params.UTS_WITH_FOCUSERS (all UTs with focusers)
         UTs to measure focus for.
-    regions : 2-tuple of slice or list of 2-tuple of slice or None, default=None
+    regions : 2-tuple of slice, or list of 2-tuple of slice, or None, default=None
         image region(s) to measure the focus within, in UNBINNED pixels
         if None then use the default central region from
         `gtecs.control.analysis.extract_image_sources()`
@@ -72,6 +72,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
     if regions is None:
         regions = [None]
     elif len(regions) == 2 and isinstance(regions[0], slice):
+        # A single 2-tuple region
         regions = [regions]
 
     # Get the current focuser positions and the temperature the last time they moved
@@ -89,10 +90,14 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
         # Measure the median HFDs in each image
         for ut in all_uts:
             for j, region in enumerate(regions):
-                # correct the region limits if binning
-                if region is not None:
-                    region = (slice(region[0].start // binning, region[0].stop // binning),
-                              slice(region[1].start // binning, region[1].stop // binning))
+                # The "region" can be a list, in which case they are combined
+                if len(region) == 2 and isinstance(region[0], slice):
+                    region = [region]
+                # We need to correct the region limits if binning, since they're in unbinned pixels
+                if region[0] is not None:
+                    region = [(slice(r[0].start // binning, r[0].stop // binning),
+                               slice(r[1].start // binning, r[1].stop // binning))
+                              for r in region]
 
                 if ut in image_data:
                     # Measure focus within each given region
@@ -175,7 +180,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
         print(s[:-1])
 
     if len(all_dfs) == 1:
-        # backwards compatability if there's only one region
+        # backwards compatibility if there's only one region
         df = all_dfs[0]
         df.drop('region', axis=1, inplace=True)
         return df

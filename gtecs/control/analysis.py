@@ -107,7 +107,7 @@ def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=T
     Parameters
     ----------
     verbose : bool, default=True
-        if False, supress printout
+        if False, suppress printout
 
     For other parameters see `gtecs.control.analysis.extract_image_sources()`
 
@@ -119,25 +119,34 @@ def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=T
         standard deviation of HFD measurements
 
     """
-    # Extract sources
-    objects, data = extract_image_sources(data, filter_width, threshold, region)
+    # Allow multiple regions to be measured
+    regions = region
+    if len(regions) == 2 and isinstance(regions[0], slice) and isinstance(regions[1], slice):
+        regions = [regions]
 
-    # Measure Half-Flux Radius to find HFDs
-    hfrs, flags = sep.flux_radius(data, objects['x'], objects['y'],
-                                  rmax=40 * np.ones_like(objects['x']),
-                                  frac=0.5, normflux=objects['cflux'])
-    hfds = 2 * hfrs
+    all_hfds = []
+    for region in regions:
+        # Extract sources
+        objects, region_data = extract_image_sources(data, filter_width, threshold, region)
 
-    # Mask any objects with non-zero flags or high peak counts
-    mask = np.logical_and(flags == 0, objects['peak'] < 40000)
-    hfds = hfds[mask]
-    if len(hfds) <= 3:
-        raise ValueError('Not enough objects ({}) found for HFD measurement'.format(len(hfds)))
+        # Measure Half-Flux Radius to find HFDs
+        hfrs, flags = sep.flux_radius(region_data, objects['x'], objects['y'],
+                                      rmax=40 * np.ones_like(objects['x']),
+                                      frac=0.5, normflux=objects['cflux'])
+        hfds = 2 * hfrs
+
+        # Mask any objects with non-zero flags or high peak counts
+        mask = np.logical_and(flags == 0, objects['peak'] < 40000)
+        all_hfds.append(hfds[mask])
+    all_hfds = np.concatenate(all_hfds)
+
+    if len(all_hfds) <= 3:
+        raise ValueError('Not enough objects ({}) found for HFD measurement'.format(len(all_hfds)))
     else:
         if verbose:
-            print('Found {} objects with measurable HFDs'.format(len(hfds)))
+            print('Found {} objects with measurable HFDs'.format(len(all_hfds)))
 
     # Get median and standard deviation over all extracted objects
-    mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(hfds, sigma=2.5, maxiters=10)
+    mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(all_hfds, sigma=2.5, maxiters=10)
 
     return median_hfd, std_hfd

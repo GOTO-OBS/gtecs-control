@@ -90,10 +90,10 @@ def calculate_positions(range_frac, steps, scale_factors=None):
     return pd.DataFrame(all_positions)
 
 
-def estimate_time(steps, num_exp, exp_time, binning, corners=False):
+def estimate_time(steps, num_exp, exp_time, binning, n_regions=1):
     """Estimate how long it will take to complete the run."""
     READOUT_TIME_PER_EXPOSURE = 30 / (binning ** 2)
-    ANALYSIS_TIME_PER_EXPOSURE = 15 if not corners else 30  # it takes longer with more regions
+    ANALYSIS_TIME_PER_EXPOSURE = 20 + 2 * n_regions  # it takes longer with more regions
     MOVING_TIME_PER_STEP = 20
     FAR_MOVING_TIME = 40  # Time to move out and back from the extreme ends of the run
 
@@ -454,7 +454,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
 
 
 def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
-        measure_corners=False, go_to_best=False, zenith=False,
+        use_annulus_region=True, measure_corners=False, go_to_best=False, zenith=False,
         no_slew=False, no_analysis=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -464,7 +464,28 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                      for ut in params.AUTOFOCUS_PARAMS}
     positions = calculate_positions(range_frac, steps, scale_factors)
 
-    total_time = estimate_time(steps, num_exp, exptime, binning, measure_corners)
+    # Define measurement regions
+    if use_annulus_region:
+        # Measure sources in an annulus around the centre (defined by Kendall)
+        region = [(slice(1384, 2384), slice(1036, 5183)),  # left
+                  (slice(5920, 6920), slice(1036, 5183)),  # right
+                  (slice(2384, 5920), slice(4183, 5183)),  # top
+                  (slice(2384, 5920), slice(1036, 2036)),  # bottom
+                  ]
+        regions = [region]  # We want to combine the sources from all of these regions
+    elif measure_corners:
+        # Measure 5 regions independently
+        regions = [(slice(2500, 6000), slice(1500, 4500)),  # centre (default)
+                   (slice(200, 2500), slice(100, 1500)),    # bottom-left
+                   (slice(6000, 8000), slice(100, 1500)),   # bottom-right
+                   (slice(200, 2500), slice(4500, 6000)),   # top-left
+                   (slice(6000, 8000), slice(4500, 6000)),  # top-right
+                   ]
+    else:
+        # Stick to the default central region, defined in `extract_image_sources`
+        regions = [None]
+
+    total_time = estimate_time(steps, num_exp, exptime, binning, len(regions))
     print('ESTIMATED TIME TO COMPLETE RUN: {:.1f} min'.format(total_time / 60))
 
     # Confirm
@@ -502,17 +523,6 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     print('~~~~~~')
     initial_positions = get_focuser_positions()
     print('Initial positions:', initial_positions)
-
-    # Define measurement regions
-    if measure_corners:
-        regions = [(slice(2500, 6000), slice(1500, 4500)),  # centre (default)
-                   (slice(200, 2500), slice(100, 1500)),    # bottom-left
-                   (slice(6000, 8000), slice(100, 1500)),   # bottom-right
-                   (slice(200, 2500), slice(4500, 6000)),   # top-left
-                   (slice(6000, 8000), slice(4500, 6000)),  # top-right
-                   ]
-    else:
-        regions = None
 
     # Measure the HFDs at each position calculated earlier
     all_data = []
@@ -572,7 +582,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
             for ut in sorted(set(df.index))
             }
     print('Fit results:')
-    if not measure_corners:
+    if len(regions) == 1:
         fit_df = fit_to_data(df, nfvs)
         print(fit_df)
     else:
@@ -594,7 +604,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        if not measure_corners:
+        if len(regions) == 1:
             plot_results(df, fit_df, nfvs, finish_time)
         else:
             # Still make both plots
@@ -602,7 +612,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
             plot_corners(df, fit_df, regions, nfvs, finish_time)
 
     # Get best positions
-    if not measure_corners:
+    if len(regions) == 1:
         best_focus = fit_df['cross_pos'].to_dict()
     else:
         # for now take the best position in the central region (region 0)
