@@ -574,7 +574,11 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     # Fetch the data
     if get_headers:
         headers = daemon_function('cam', 'get_latest_headers')
-        return {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
+        if uts is not None:
+            return {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
+        else:
+            # We used all UTs
+            return headers
     elif not glance:
         # Use the run number, it should be safer than the last modified which has messed up before
         # (perhaps due to the Warwick archiver?)
