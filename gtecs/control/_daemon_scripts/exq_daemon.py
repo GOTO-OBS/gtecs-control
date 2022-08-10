@@ -127,7 +127,7 @@ class ExqDaemon(BaseDaemon):
                         with daemon_proxy('filt') as filt_daemon:
                             filt_info = filt_daemon.get_info(force_update=False)
                         filt_uts = [ut for ut in self.current_exposure.ut_list
-                                    if ut in params.UTS_WITH_FILTERWHEELS]
+                                    if ut in filt_info]  # only ones with filter wheels
 
                         # Check if we need to home the filters
                         if all(filt_info[ut]['homed'] for ut in filt_uts):
@@ -149,7 +149,7 @@ class ExqDaemon(BaseDaemon):
                     with daemon_proxy('filt', timeout=10) as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
-                                if ut in params.UTS_WITH_FILTERWHEELS]
+                                if ut in filt_info]
 
                     # Continue when all the filters are homed
                     if all(filt_info[ut]['homed'] for ut in filt_uts):
@@ -162,7 +162,7 @@ class ExqDaemon(BaseDaemon):
                     with daemon_proxy('filt') as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=False)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
-                                if ut in params.UTS_WITH_FILTERWHEELS]
+                                if ut in filt_info]
 
                     # Check if we need to change the filters
                     if all(filt_info[ut]['current_filter'] == self.current_exposure.filt
@@ -187,7 +187,7 @@ class ExqDaemon(BaseDaemon):
                     with daemon_proxy('filt', timeout=10) as filt_daemon:
                         filt_info = filt_daemon.get_info(force_update=True)
                     filt_uts = [ut for ut in self.current_exposure.ut_list
-                                if ut in params.UTS_WITH_FILTERWHEELS]
+                                if ut in filt_info]
 
                     # Continue when the filters are set
                     if all(filt_info[ut]['current_filter'] == self.current_exposure.filt
@@ -325,10 +325,16 @@ class ExqDaemon(BaseDaemon):
                 raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if filt and filt.upper() == 'X':
+        if filt == 'X':
             filt = None
-        if filt and filt.upper() not in params.FILTER_LIST:
-            raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
+        if filt is not None:
+            # We could check all UTs and raise an error if the filter isn't in its list.
+            # Instead we'll just quietly remove it from the exposure.
+            # When we set we'll move the filter wheels to that filter, while any static ones
+            # will only be included here if the filter is the one we're asking for.
+            ut_list = [ut for ut in ut_list if filt in params.UT_DICT['FILTERS']]
+            if len(ut_list) == 0:
+                raise ValueError('Unknown filter: {}'.format(filt))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in params.FRAMETYPE_LIST:
@@ -346,7 +352,7 @@ class ExqDaemon(BaseDaemon):
         for i in range(1, nexp + 1):
             exposure = Exposure(ut_list,
                                 exptime,
-                                filt.upper() if filt else None,
+                                filt,
                                 binning,
                                 frametype,
                                 target.replace(';', ''),
@@ -361,15 +367,15 @@ class ExqDaemon(BaseDaemon):
             self.exp_queue.append(exposure)
             if not glance:
                 self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
-                              exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+                              exptime, filt if filt is not None else 'X', len(self.exp_queue)))
             else:
                 self.log.info('Added {:.0f}s {} glance, now {:.0f} in queue'.format(
-                              exptime, filt.upper() if filt else 'X', len(self.exp_queue)))
+                              exptime, filt if filt is not None else 'X', len(self.exp_queue)))
 
         # Format return string
         s = 'Added {}{:.0f}s {} {}{},'.format('{}x '.format(nexp) if nexp > 1 else '',
                                               exptime,
-                                              filt.upper() if filt else 'X',
+                                              filt if filt is not None else 'X',
                                               'exposure' if not glance else 'glance',
                                               's' if nexp > 1 else '',
                                               )

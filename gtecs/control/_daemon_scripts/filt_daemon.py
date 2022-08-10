@@ -31,8 +31,7 @@ class FiltDaemon(BaseDaemon):
         self.uts = params.UTS_WITH_FILTERWHEELS.copy()
         self.active_uts = []
         self.new_filter = {ut: '' for ut in self.uts}
-        # for now we assume UTs have the same filters in the same order
-        self.filters = {ut: params.FILTER_LIST.copy() for ut in self.uts}
+        self.filters = {ut: params.UT_DICT[ut]['FILTERS'] for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
 
@@ -204,7 +203,7 @@ class FiltDaemon(BaseDaemon):
 
             # Check the new filter is a valid input
             try:
-                new_filt = new_filter[ut].upper()
+                new_filt = new_filter[ut]
             except Exception:
                 s = '"{}" is not a valid filter'.format(new_filter[ut])
                 retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
@@ -212,7 +211,7 @@ class FiltDaemon(BaseDaemon):
 
             # Check the new filter is in the filter list
             if new_filt not in self.filters[ut]:
-                s = 'New filter "{}" not in list {}'.format(new_filt, self.filters[ut])
+                s = 'New filter "{}" not in list ({})'.format(new_filt, ','.join(self.filters[ut]))
                 retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 

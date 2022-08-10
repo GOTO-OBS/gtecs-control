@@ -680,7 +680,7 @@ if __name__ == '__main__':
                               ' (default=%(default)d)')
                         )
     parser.add_argument('-f', '--filter',
-                        type=str, choices=params.FILTER_LIST, default='L',
+                        type=str, default='L',
                         help=('filter to use'
                               ' (default=%(default)d)')
                         )

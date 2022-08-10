@@ -9,7 +9,6 @@ from astropy.time import Time
 
 import numpy as np
 
-from .. import params
 from ..astronomy import altaz_from_radec, observatory_location, radec_from_altaz, twilight_length
 
 data = [
@@ -191,8 +190,8 @@ def exposure_sequence(start_exptime, num_flats=5, eve=True, time=None):
 def sky_brightness(sunalt, filt):
     """Sky brightness as a function of sky altitude.
 
-    Uses measurements of Patat (2006) for Paranal in UBVRI
-    Approximate scalings are made to LRGBC
+    Uses measurements of Patat (2006) for Paranal in UBVRI,
+    roughly scaled to approximate LRGBC.
 
     Parameters
     ----------
@@ -202,8 +201,6 @@ def sky_brightness(sunalt, filt):
         filter
 
     """
-    if filt.upper() not in params.FILTER_LIST:
-        raise ValueError('Filter not in list {}'.format(params.FILTER_LIST))
     zenith_distance = 90 - sunalt
     if (zenith_distance < 95) or (zenith_distance > 105):
         warnings.warn("extrapolating outside valid range for Sun's altitude")
@@ -211,35 +208,34 @@ def sky_brightness(sunalt, filt):
 
     # now define UBVRI relationships from Patat (2006)
     # each entry gives sB in mags/arcsec**2
-    surface_brightness = [
-        lambda x: 15.01 + 1.376 * x - 0.039 * x * x,
-        lambda x: 11.84 + 1.411 * x - 0.041 * x * x,
-        lambda x: 11.84 + 1.518 * x - 0.057 * x * x,
-        lambda x: 11.40 + 1.567 * x - 0.064 * x * x,
-        lambda x: 10.93 + 1.470 * x - 0.062 * x * x
-    ]
+    surface_brightness = {'U': lambda x: 15.01 + 1.376 * x - 0.039 * x * x,
+                          'B': lambda x: 11.84 + 1.411 * x - 0.041 * x * x,
+                          'V': lambda x: 11.84 + 1.518 * x - 0.057 * x * x,
+                          'R': lambda x: 11.40 + 1.567 * x - 0.064 * x * x,
+                          'I': lambda x: 10.93 + 1.470 * x - 0.062 * x * x,
+                          }
 
     # TODO: scale these weightings to do better
-    if filt.upper() == 'L':
-        # approx BVR.
-        sb_b = surface_brightness[1](phi)
-        sb_v = surface_brightness[2](phi)
-        sb_r = surface_brightness[3](phi)
+    if filt == 'L':
+        # approx B+V+R.
+        sb_b = surface_brightness['B'](phi)
+        sb_v = surface_brightness['V'](phi)
+        sb_r = surface_brightness['R'](phi)
         return (sb_b + sb_v + sb_r) / 3.0
-    elif filt.upper() == 'B':
+    elif filt == 'B':
         # approx B
-        return surface_brightness[1](phi)
-    elif filt.upper() == 'G':
+        return surface_brightness['B'](phi)
+    elif filt == 'G':
         # approx V
-        return surface_brightness[2](phi)
-    elif filt.upper() == 'R':
+        return surface_brightness['V'](phi)
+    elif filt == 'R':
         # approx R
-        return surface_brightness[3](phi)
-    elif filt.upper() == 'C':
+        return surface_brightness['R'](phi)
+    elif filt == 'C':
         # approx twice L?
-        sb_b = surface_brightness[1](phi)
-        sb_v = surface_brightness[2](phi)
-        sb_r = surface_brightness[3](phi)
+        sb_b = surface_brightness['B'](phi)
+        sb_v = surface_brightness['V'](phi)
+        sb_r = surface_brightness['R'](phi)
         return ((sb_b + sb_v + sb_r) / 3.0) * 2.0
     else:
-        raise ValueError('unknown filter ' + str(filt))
+        raise ValueError('Unknown filter: {}'.format(filt))

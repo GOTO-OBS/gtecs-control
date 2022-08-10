@@ -638,26 +638,25 @@ def exposure_queue_is_empty():
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
     filt_info = daemon_info('filt', force_update=False)
-    return all(filt_info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
+    return all(filt_info[ut]['homed'] for ut in filt_info)
 
 
 def focusers_are_set():
     """Check if all the focusers are set."""
     foc_info = daemon_info('foc', force_update=False)
-    return all(foc_info[ut]['status'] != 'UNSET' for ut in params.UTS_WITH_FOCUSERS)
+    return all(foc_info[ut]['status'] != 'UNSET' for ut in foc_info)
 
 
 def cameras_are_cool(target_temp):
     """Check if all the cameras are below the target temperature."""
     cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS_WITH_CAMERAS)
+    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in cam_info)
 
 
 def cameras_are_fullframe():
     """Check if all the cameras are set to take full-frame exposures."""
     cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area']
-               for ut in params.UTS_WITH_CAMERAS)
+    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area'] for ut in cam_info)
 
 
 def wait_for_exposure_queue(timeout=None):

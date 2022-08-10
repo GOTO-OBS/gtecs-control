@@ -706,6 +706,7 @@ class Pilot:
                    'args': ['EVE',
                             '-c', str(target_counts),
                             '-n', str(params.NUM_FLATS),
+                            '-f', str(params.FLATS_FILTERS),
                             ],
                    }
         autofoc = {'name': 'FOC',
@@ -765,6 +766,7 @@ class Pilot:
                    'args': ['MORN',
                             '-c', str(target_counts),
                             '-n', str(params.NUM_FLATS),
+                            '-f', str(params.FLATS_FILTERS),
                             ],
                    }
 

@@ -100,11 +100,25 @@ for ut in UT_DICT:
             if 'CLASS' not in UT_DICT[ut][hw_class]:
                 raise ValueError('{} for UT {} does not have a valid class'.format(hw_class, ut))
 
+    # Define available filters
+    if UT_DICT[ut]['FILTERWHEEL'] is not None:
+        if UT_DICT[ut]['FILTERWHEEL']['CLASS'] in ['None', 'Static', 'Fixed']:
+            # This UT has a "static" filter wheel, so a fixed filter which be given
+            UT_DICT[ut]['FILTERS'] = [UT_DICT[ut]['FILTERWHEEL']['FILTER']]
+            UT_DICT[ut]['FILTERWHEEL'] = None
+        else:
+            # This UT has a filter wheel with multiple filters
+            UT_DICT[ut]['FILTERS'] = UT_DICT[ut]['FILTERWHEEL']['FILTERS']
+    else:
+        # No filter wheel or fixed filter, so just set to Clear
+        UT_DICT[ut]['FILTERS'] = ['C']
+
 UTS = sorted(UT_DICT)
 UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA'] is not None]
 UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER'] is not None]
 UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not None]
 UTS_WITH_COVERS = [ut for ut in UTS_WITH_FOCUSERS if UT_DICT[ut]['FOCUSER']['CLASS'] == 'ASA']
+ALL_FILTERS = sorted({filt for ut in UTS for filt in UT_DICT[ut]['FILTERS']})
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
               for interface_id in DAEMONS
@@ -221,10 +235,6 @@ FAKE_FLI = config['FAKE_FLI']
 FAKE_ASA = config['FAKE_ASA']
 
 ############################################################
-# Filter wheel parameters
-FILTER_LIST = config['FILTER_LIST']
-
-############################################################
 # Focuser parameters
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
 # Only UTs with focusers should have params here, but not necessarily all of them
@@ -333,7 +343,6 @@ EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
 ############################################################
 # Obs script parameters
-
 IERS_A_URL = config['IERS_A_URL']
 IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
 
@@ -346,6 +355,9 @@ SCHEDULER_PORT = config['SCHEDULER_PORT']
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
 NUM_FLATS = config['NUM_FLATS']
+FLATS_FILTERS = config['FLATS_FILTERS']
+if FLATS_FILTERS == 'all':  # default
+    FLATS_FILTERS = ','.join(ALL_FILTERS)
 FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
 BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']

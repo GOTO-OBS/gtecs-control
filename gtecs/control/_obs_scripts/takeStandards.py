@@ -31,7 +31,7 @@ def run():
         slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
 
         # take 20 second exposures in all filters
-        take_image_set(20, params.FILTER_LIST, name, imgtype='STD')
+        take_image_set(20, ['L', 'R', 'G', 'B', 'C'], name, imgtype='STD')
 
     print('Done')
 

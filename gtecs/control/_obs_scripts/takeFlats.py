@@ -43,11 +43,10 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
     # Move to the new position and wait until we're there
     slew_to_radec(new_ra, new_dec, timeout=120)
 
+    # Only use UTs which have the given filter
+    uts = [ut for ut in params.UT_DICT if filt in params.UT_DICT[ut]['FILTERS']]
+
     # Take the image and load the image data
-    if filt != 'C':
-        uts = params.UTS_WITH_FILTERWHEELS
-    else:
-        uts = None
     image_headers = get_analysis_image(exptime, filt, 1, target_name, 'FLAT', glance, uts=uts,
                                        get_headers=True)
 
@@ -69,8 +68,9 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
     # Sort filters based on sky brightness
     if filt_list is None:
-        filt_list = params.FILTER_LIST.copy()
-    filt_list = sorted(filt_list, key=lambda x: FILTER_ORDER.index(x))
+        filt_list = FILTER_ORDER.copy()
+    else:
+        filt_list = sorted(filt_list, key=lambda x: FILTER_ORDER.index(x))
 
     if eve:
         start_alt = -5 * u.deg
@@ -182,11 +182,11 @@ if __name__ == '__main__':
                         )
     parser.add_argument('-n', '--numexp',
                         type=int, default=3,
-                        help=('number of exposures to take in each flat'
+                        help=('number of exposures to take in each filter'
                               ' (default=%(default)d)')
                         )
     parser.add_argument('-f', '--filters',
-                        type=str, default=','.join(params.FILTER_LIST),
+                        type=str, default='L,R,G,B,C',
                         help=('filters to use'
                               ' (comma separated, default=%(default)s)')
                         )
