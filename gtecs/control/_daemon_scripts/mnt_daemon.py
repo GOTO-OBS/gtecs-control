@@ -308,6 +308,7 @@ class MntDaemon(BaseDaemon):
                 elif params.MOUNT_CLASS == 'ASA':
                     self.mount = DDM500(params.MOUNT_HOST,
                                         params.MOUNT_PORT,
+                                        fake_parking=params.FAKE_MOUNT_PARKING,
                                         log=self.log,
                                         log_debug=params.MOUNT_DEBUG,
                                         )
