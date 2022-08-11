@@ -101,8 +101,8 @@ def run():
     time.sleep(4)  # need a long sleep or the commands will interfere?
 
     # Bring the CCDs down to temperature
-    execute_command('cam temp {}'.format(params.CCD_TEMP))
-    while not cameras_are_cool(target_temp=params.CCD_TEMP):
+    execute_command('cam temp cool')
+    while not cameras_are_cool():
         time.sleep(1)
     execute_command('cam info -f')
 

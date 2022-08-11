@@ -49,8 +49,8 @@ def run():
     # if params.MOUNT_CLASS == 'ASA':
     #     execute_command('power off asa_gateways')
 
-    # Set camera temps to 0 (don't shutdown any more)
-    execute_command('cam temp 0')
+    # Set camera temps to warm during the day (don't shutdown any more)
+    execute_command('cam temp warm')
 
     # Park the mount
     execute_command('mnt park')

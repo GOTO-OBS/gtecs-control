@@ -107,10 +107,10 @@ def prepare_for_images(open_covers=True):
         time.sleep(4)
 
     # Bring the CCDs down to temperature
-    if not cameras_are_cool(target_temp=params.CCD_TEMP):
+    if not cameras_are_cool():
         print('Cooling cameras')
-        execute_command('cam temp {}'.format(params.CCD_TEMP))
-        while not cameras_are_cool(target_temp=params.CCD_TEMP):
+        execute_command('cam temp cool')
+        while not cameras_are_cool():
             time.sleep(0.5)
 
     # Start the mount motors (but remain parked, or in whatever position we're in)
@@ -647,10 +647,11 @@ def focusers_are_set():
     return all(foc_info[ut]['status'] != 'UNSET' for ut in foc_info['uts'])
 
 
-def cameras_are_cool(target_temp):
+def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
     cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in cam_info['uts'])
+    return all(cam_info[ut]['ccd_temp'] < cam_info[ut]['target_temp'] + 1
+               for ut in cam_info['uts'])
 
 
 def cameras_are_fullframe():

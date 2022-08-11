@@ -1038,7 +1038,7 @@ class PowerMonitor(BaseMonitor):
 class CamMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
-    def __init__(self, uts, target_temp, starting_mode=MODE_CAM_COOL, log=None):
+    def __init__(self, uts, starting_mode=MODE_CAM_COOL, log=None):
         super().__init__('cam', log)
 
         # Define modes and starting mode
@@ -1048,7 +1048,6 @@ class CamMonitor(BaseMonitor):
         # Hardware parameters
         self.uts = uts
         self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
-        self.target_temp = target_temp
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1057,7 +1056,7 @@ class CamMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all(info[ut]['ccd_temp'] < self.target_temp + 1 for ut in self.uts)
+        all_cool = all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in self.uts)
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
         elif any(info[ut]['status'] == 'Exposing' for ut in self.uts):
@@ -1150,7 +1149,7 @@ class CamMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try setting the target temperature.
             #             Note we need to wait for a long time, assuming they're at room temp.
-            recovery_procedure[1] = ['cam temp {}'.format(self.target_temp), 600]
+            recovery_procedure[1] = ['cam temp cool', 600]
             # OUT OF SOLUTIONS: Having trouble getting down to temperature,
             #                   Either it's a hardware issue or it's just too warm.
             return ERROR_CAM_WARM, recovery_procedure

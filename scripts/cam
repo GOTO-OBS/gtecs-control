@@ -213,12 +213,12 @@ def query(command, args):
 
     elif command == 'temp':
         # parse arguments
-        if len(args) == 1 and misc.is_num(args[0]):
+        if len(args) == 1:
             ut_list = params.UTS_WITH_CAMERAS
-            target_temp = float(args[0])
-        elif len(args) == 2 and misc.is_num(args[1]):
+            target_temp = args[0]
+        elif len(args) == 2:
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
-            target_temp = float(args[1])
+            target_temp = args[1]
         else:
             raise errors.InputError('Invalid arguments')
         # send command
@@ -299,7 +299,7 @@ def print_instructions():
           '  abort [uts]                    abort current exposure',
           '  window [uts] x y dx dy         set camera image window',
           '  window [uts] full|reset|clear  reset camera image window to full-frame',
-          '  temp [uts] temp                set camera temperature',
+          '  temp [uts] <temp>|cool|warm    set camera temperature ("cool"/"warm" are in params)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (alias for tail)',
           'Control commands:',

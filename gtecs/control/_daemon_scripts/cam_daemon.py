@@ -60,7 +60,10 @@ class CamDaemon(BaseDaemon):
         self.saving_thread_running = False
 
         self.target_window = {ut: None for ut in self.uts}
-        self.target_temp = {ut: 0 for ut in self.uts}
+
+        self.cool_temp = int(params.CAM_IMAGING_TEMPERATURE)
+        self.warm_temp = int(params.CAM_STANDBY_TEMPERATURE)
+        self.target_temp = {ut: self.warm_temp for ut in self.uts}
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -389,7 +392,6 @@ class CamDaemon(BaseDaemon):
                     ut_info['status'] = 'Ready'
                 ut_info['exposure_start_time'] = self.exposure_start_time[ut]
                 ut_info['image_ready'] = self.image_ready[ut]
-                ut_info['target_temp'] = self.target_temp[ut]
 
                 with daemon_proxy(interface_id) as interface:
                     ut_info['serial_number'] = interface.get_camera_serial_number(ut)
@@ -397,6 +399,7 @@ class CamDaemon(BaseDaemon):
                     ut_info['remaining'] = interface.get_camera_time_remaining(ut)
                     ut_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
                     ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
+                    ut_info['target_temp'] = self.target_temp[ut]
                     ut_info['cooler_power'] = interface.get_camera_cooler_power(ut)
                     cam_info = interface.get_camera_info(ut)
                     ut_info['cam_info'] = cam_info
@@ -477,7 +480,7 @@ class CamDaemon(BaseDaemon):
         # wait for the thread to loop, otherwise fetching delays the info check
         while True:
             if (self.info['time'] <= cam_info['time']) or (self.loop_time <= self.info['time']):
-                # This is a little dodgey...
+                # This is a little dogey...
                 # If the exposure queue is running we want it to send the next exposure to start
                 # before we start fetching the previous exposure.
                 # The loops are to be fair pretty slow, due to the dependency check.
@@ -787,7 +790,13 @@ class CamDaemon(BaseDaemon):
             raise errors.DaemonStatusError('Dependencies are not running')
 
         # Check input
-        if not (-55 <= target_temp <= 45):
+        if target_temp.lower() == 'cool':
+            target_temp = self.cool_temp
+        elif target_temp.lower() == 'warm':
+            target_temp = self.warm_temp
+        if not isinstance(target_temp, (int, float)):
+            raise ValueError('Temperature must be an integer or float')
+        elif not (-55 <= target_temp <= 45):
             raise ValueError('Temperature must be between -55 and 45')
         for ut in ut_list:
             if ut not in self.uts:
