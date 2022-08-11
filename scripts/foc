@@ -200,7 +200,7 @@ def query(command, args):
 def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
-    for ut in params.UTS_WITH_FOCUSERS:
+    for ut in info['uts']:
         print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         print('Status: {}'.format(info[ut]['status']), end='')
         if info[ut]['remaining'] > 0:
@@ -221,8 +221,8 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    l = max(len(str(info[ut]['limit'])) for ut in params.UTS_WITH_FOCUSERS)
-    for ut in params.UTS_WITH_FOCUSERS:
+    l = max(len(str(info[ut]['limit'])) for ut in info['uts'])
+    for ut in info['uts']:
         print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         if info[ut]['status'] != 'Moving':
             cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], l)

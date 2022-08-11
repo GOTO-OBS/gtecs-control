@@ -146,7 +146,7 @@ class OTADaemon(BaseDaemon):
 
     # Internal functions
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info
@@ -156,6 +156,8 @@ class OTADaemon(BaseDaemon):
         temp_info['uptime'] = self.loop_time - self.start_time
 
         # Get info from each UT
+        temp_info['uts'] = self.uts.copy()
+        temp_info['uts_with_covers'] = self.uts_with_covers.copy()
         for ut in self.uts:
             try:
                 ut_info = {}

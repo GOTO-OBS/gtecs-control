@@ -139,7 +139,7 @@ def get_mirror_cover_positions():
     """Find the current mirror cover positions."""
     ota_info = daemon_info('ota')
     positions = {}
-    for ut in params.UTS_WITH_COVERS:
+    for ut in ota_info['uts']:
         positions[ut] = ota_info[ut]['position']
     return positions
 
@@ -147,18 +147,14 @@ def get_mirror_cover_positions():
 def mirror_covers_are_open():
     """Return true if all of the covers are open."""
     positions = get_mirror_cover_positions()
-
     covers_open = [positions[ut] == 'full_open' for ut in positions]
-
     return np.all(covers_open)
 
 
 def mirror_covers_are_closed():
     """Return true if all of the covers are closed."""
     positions = get_mirror_cover_positions()
-
     covers_closed = [positions[ut] == 'closed' for ut in positions]
-
     return np.all(covers_closed)
 
 
@@ -181,7 +177,7 @@ def wait_for_mirror_covers(opening=True, timeout=None):
 
         try:
             ota_info = daemon_info('ota', force_update=True)
-            positions = [ota_info[ut]['position'] for ut in params.UTS_WITH_COVERS]
+            positions = [ota_info[ut]['position'] for ut in ota_info['uts']]
             if opening is True and np.all(positions[ut] == 'full_open' for ut in positions):
                 reached_position = True
             if opening is False and np.all(positions[ut] == 'closed' for ut in positions):
@@ -198,27 +194,27 @@ def wait_for_mirror_covers(opening=True, timeout=None):
 
 def get_focuser_positions(uts=None):
     """Find the current focuser positions."""
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
     foc_info = daemon_info('foc', force_update=True)
+    if uts is None:
+        uts = foc_info['uts']
     positions = {ut: foc_info[ut]['current_pos'] for ut in uts}
     return positions
 
 
 def get_focuser_limits(uts=None):
     """Find the maximum focuser position limit."""
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
     foc_info = daemon_info('foc', force_update=True)
+    if uts is None:
+        uts = foc_info['uts']
     limits = {ut: foc_info[ut]['limit'] for ut in uts}
     return limits
 
 
 def focusers_are_ready(uts=None):
     """Return true if none of the focusers are moving."""
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
     foc_info = daemon_info('foc', force_update=True)
+    if uts is None:
+        uts = foc_info['uts']
     ready = [foc_info[ut]['status'] == 'Ready' for ut in uts]
     return np.all(ready)
 
@@ -328,8 +324,8 @@ def wait_for_focusers(target_positions, timeout=None):
 def get_focuser_temperatures():
     """Get the current temperature and the temperature when the focusers last moved."""
     foc_info = daemon_info('foc')
-    curr_temp = {ut: foc_info[ut]['current_temp'] for ut in params.UTS_WITH_FOCUSERS}
-    prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in params.UTS_WITH_FOCUSERS}
+    curr_temp = {ut: foc_info[ut]['current_temp'] for ut in foc_info['uts']}
+    prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in foc_info['uts']}
     return curr_temp, prev_temp
 
 
@@ -642,26 +638,25 @@ def exposure_queue_is_empty():
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
     filt_info = daemon_info('filt', force_update=False)
-    return all(filt_info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
+    return all(filt_info[ut]['homed'] for ut in filt_info['uts'])
 
 
 def focusers_are_set():
     """Check if all the focusers are set."""
     foc_info = daemon_info('foc', force_update=False)
-    return all(foc_info[ut]['status'] != 'UNSET' for ut in params.UTS_WITH_FOCUSERS)
+    return all(foc_info[ut]['status'] != 'UNSET' for ut in foc_info['uts'])
 
 
 def cameras_are_cool(target_temp):
     """Check if all the cameras are below the target temperature."""
     cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS_WITH_CAMERAS)
+    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in cam_info['uts'])
 
 
 def cameras_are_fullframe():
     """Check if all the cameras are set to take full-frame exposures."""
     cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area']
-               for ut in params.UTS_WITH_CAMERAS)
+    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area'] for ut in cam_info['uts'])
 
 
 def wait_for_exposure_queue(timeout=None):
@@ -728,7 +723,7 @@ def wait_for_images(target_image_number, timeout=None):
             cam_info = daemon_info('cam', force_update=True)
             done = [(cam_info[ut]['status'] == 'Ready' and
                      int(cam_info['num_taken']) == int(target_image_number))
-                    for ut in params.UTS_WITH_CAMERAS]
+                    for ut in cam_info['uts']]
             if np.all(done):
                 finished = True
         except Exception:

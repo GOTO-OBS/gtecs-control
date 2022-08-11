@@ -465,7 +465,7 @@ class DomeDaemon(BaseDaemon):
         self._check_errors()
 
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info

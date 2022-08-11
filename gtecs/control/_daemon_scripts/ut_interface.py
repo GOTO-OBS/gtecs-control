@@ -274,7 +274,7 @@ class UTInterfaceDaemon(BaseDaemon):
         self._check_errors()
 
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info
@@ -284,9 +284,16 @@ class UTInterfaceDaemon(BaseDaemon):
         temp_info['uptime'] = self.loop_time - self.start_time
 
         temp_info['interface_id'] = self.daemon_id
+        temp_info['uts'] = list(self.uts)
 
+        # Get OTA info
+        temp_info['ota_uts'] = [ut for ut in self.ota_params if self.ota_params[ut] is not None]
+        temp_info['ota_params'] = self.ota_params
         temp_info['ota_serials'] = {ut: self.ota_params[ut]['SERIAL'] for ut in self.ota_params}
 
+        # Get Camera info
+        temp_info['cam_uts'] = [ut for ut in self.cam_params if self.cam_params[ut] is not None]
+        temp_info['cam_params'] = self.cam_params
         temp_info['cam_serials'] = {}
         for ut in self.cameras:
             # Get info from each camera
@@ -304,6 +311,9 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
+        # Get Focuser info
+        temp_info['foc_uts'] = [ut for ut in self.foc_params if self.foc_params[ut] is not None]
+        temp_info['foc_params'] = self.foc_params
         temp_info['foc_serials'] = {}
         for ut in self.focusers:
             # Get info from each focuser
@@ -321,6 +331,9 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
+        # Get Filter Wheel info
+        temp_info['filt_uts'] = [ut for ut in self.filt_params if self.filt_params[ut] is not None]
+        temp_info['filt_params'] = self.filt_params
         temp_info['filt_serials'] = {}
         for ut in self.filterwheels:
             # Get info from each filterwheel
@@ -337,13 +350,6 @@ class UTInterfaceDaemon(BaseDaemon):
                     hw_name = 'filterwheel_{}'.format(ut)
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
-
-        # Get other internal info
-        temp_info['uts'] = list(self.uts)
-        temp_info['ota_params'] = self.ota_params
-        temp_info['cam_params'] = self.cam_params
-        temp_info['foc_params'] = self.foc_params
-        temp_info['filt_params'] = self.filt_params
 
         # Write debug log line
         # NONE, nothing really changes

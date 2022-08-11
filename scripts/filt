@@ -147,7 +147,7 @@ def query(command, args):
 def print_info(info):
     """Print the full info dict."""
     print('#### FILTER WHEEL INFO ####')
-    for ut in params.UTS_WITH_FILTERWHEELS:
+    for ut in info['uts']:
         print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         if info[ut]['status'] != 'Moving':
             print('Status: {}'.format(info[ut]['status']))
@@ -171,7 +171,7 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS_WITH_FILTERWHEELS:
+    for ut in info['uts']:
         print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         if info[ut]['status'] != 'Moving':
             if not info[ut]['homed']:

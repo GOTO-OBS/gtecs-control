@@ -147,11 +147,11 @@ def query(command, args):
 def print_info(info):
     """Print the full info dict."""
     print('#### OTA INFO ####')
-    for ut in params.UTS:
+    for ut in info['uts']:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         print('Serial number:  {}'.format(info[ut]['serial_number']))
         print('Hardware class: {}'.format(info[ut]['hw_class']))
-        if ut in params.UTS_WITH_COVERS:
+        if ut in info['uts_with_covers']:
             print('Mirror cover:   {}'.format(info[ut]['position'].capitalize()))
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
@@ -161,7 +161,7 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS_WITH_COVERS:
+    for ut in info['uts_with_covers']:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
 

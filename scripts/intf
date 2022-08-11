@@ -144,7 +144,8 @@ def query(command, args):
             for reply in reply_list:
                 print_info(reply)
         elif info_type == 'raw':
-            print(reply_list)
+            for reply in reply_list:
+                print(reply)
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
