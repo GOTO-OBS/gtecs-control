@@ -332,7 +332,7 @@ class ExqDaemon(BaseDaemon):
             # Instead we'll just quietly remove it from the exposure.
             # When we set we'll move the filter wheels to that filter, while any static ones
             # will only be included here if the filter is the one we're asking for.
-            ut_list = [ut for ut in ut_list if filt in params.UT_DICT['FILTERS']]
+            ut_list = [ut for ut in ut_list if filt in params.UT_DICT[ut]['FILTERS']]
             if len(ut_list) == 0:
                 raise ValueError('Unknown filter: {}'.format(filt))
         if int(binning) < 1 or (int(binning) - binning) != 0:
