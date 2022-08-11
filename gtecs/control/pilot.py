@@ -226,16 +226,18 @@ class Pilot:
         self.scheduler_updating = False
 
         # hardware to keep track of and fix if necessary
-        self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
-                         'mnt': monitors.MntMonitor('parked', log=self.log),
-                         'power': monitors.PowerMonitor(log=self.log),
-                         'cam': monitors.CamMonitor('cool', log=self.log),
-                         'ota': monitors.OTAMonitor('closed', log=self.log),
-                         'filt': monitors.FiltMonitor(log=self.log),
-                         'foc': monitors.FocMonitor(log=self.log),
-                         'exq': monitors.ExqMonitor(log=self.log),
-                         'conditions': monitors.ConditionsMonitor(log=self.log),
-                         }
+        self.hardware = {
+            'dome': monitors.DomeMonitor('closed', log=self.log),
+            'mnt': monitors.MntMonitor(params.MOUNT_CLASS, 'parked', log=self.log),
+            'power': monitors.PowerMonitor(params.POWER_UNITS, log=self.log),
+            'cam': monitors.CamMonitor(params.UTS_WITH_CAMERAS, params.CCD_TEMP, 'cool',
+                                       log=self.log),
+            'ota': monitors.OTAMonitor(params.UTS_WITH_COVERS, 'closed', log=self.log),
+            'filt': monitors.FiltMonitor(params.UTS_WITH_FILTERWHEELS, log=self.log),
+            'foc': monitors.FocMonitor(params.UTS_WITH_FOCUSERS, log=self.log),
+            'exq': monitors.ExqMonitor(log=self.log),
+            'conditions': monitors.ConditionsMonitor(log=self.log),
+        }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 
         # store system mode

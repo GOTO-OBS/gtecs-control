@@ -637,12 +637,15 @@ class DomeMonitor(BaseMonitor):
 class MntMonitor(BaseMonitor):
     """Hardware monitor for the mount daemon."""
 
-    def __init__(self, starting_mode=MODE_MNT_PARKED, log=None):
+    def __init__(self, mount_class, starting_mode=MODE_MNT_PARKED, log=None):
         super().__init__('mnt', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_MNT_PARKED, MODE_MNT_STOPPED, MODE_MNT_TRACKING]
         self.mode = starting_mode
+
+        # Hardware parameters
+        self.mount_class = mount_class
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -777,10 +780,10 @@ class MntMonitor(BaseMonitor):
                 # PROBLEM: We've lost connection to the mount.
                 recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the mount.
-                if params.MOUNT_CLASS == 'SITECH':
+                if self.mount_class == 'SITECH':
                     recovery_procedure[1] = ['power off sitech', 10]
                     recovery_procedure[2] = ['power on sitech', 180]
-                elif params.MOUNT_CLASS == 'ASA':
+                elif self.mount_class == 'ASA':
                     recovery_procedure[1] = ['power off mount,tcu', 10]
                     recovery_procedure[2] = ['power on mount,tcu', 180]
                 # OUT OF SOLUTIONS: Them mount must not have started correctly.
@@ -818,10 +821,10 @@ class MntMonitor(BaseMonitor):
             #          Maybe it's been powered off.
             recovery_procedure = {}
             # SOLUTION 1: Try rebooting the mount.
-            if params.MOUNT_CLASS == 'SITECH':
+            if self.mount_class == 'SITECH':
                 recovery_procedure[1] = ['power off sitech', 10]
                 recovery_procedure[2] = ['power on sitech', 180]
-            elif params.MOUNT_CLASS == 'ASA':
+            elif self.mount_class == 'ASA':
                 recovery_procedure[1] = ['power off mount,tcu', 10]
                 recovery_procedure[2] = ['power on mount,tcu', 180]
             # OUT OF SOLUTIONS: It still can't connect, sounds like a hardware issue.
@@ -861,9 +864,9 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 1: Stop immediately!
             recovery_procedure[1] = ['mnt stop', 30]
             # SOLUTION 2: Still moving? Okay, kill the power.
-            if params.MOUNT_CLASS == 'SITECH':
+            if self.mount_class == 'SITECH':
                 recovery_procedure[2] = ['power off sitech', 10]
-            elif params.MOUNT_CLASS == 'ASA':
+            elif self.mount_class == 'ASA':
                 recovery_procedure[2] = ['power off mount,tcu', 10]
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_MNT_MOVETIMEOUT, recovery_procedure
@@ -905,9 +908,9 @@ class MntMonitor(BaseMonitor):
             # SOLUTION 2: Try again.
             recovery_procedure[2] = ['mnt stop', 30]
             # SOLUTION 3: If it's really not stopping then best to kill the power.
-            if params.MOUNT_CLASS == 'SITECH':
+            if self.mount_class == 'SITECH':
                 recovery_procedure[2] = ['power off sitech', 10]
-            elif params.MOUNT_CLASS == 'ASA':
+            elif self.mount_class == 'ASA':
                 recovery_procedure[2] = ['power off mount,tcu', 10]
             # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
             #                   it's been put into stopped mode. It could be parked, but that's
@@ -955,12 +958,15 @@ class MntMonitor(BaseMonitor):
 class PowerMonitor(BaseMonitor):
     """Hardware monitor for the power daemon."""
 
-    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
+    def __init__(self, units, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('power', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
+
+        # Hardware parameters
+        self.units = units
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -989,7 +995,7 @@ class PowerMonitor(BaseMonitor):
         elif ERROR_HARDWARE in self.errors:
             # The power daemon connects to multiple power units.
             # We need to go through one-by-one.
-            for unit_name in params.POWER_UNITS:
+            for unit_name in self.units:
                 if unit_name in self.bad_hardware:
                     # PROBLEM: We've lost connection to a power unit.
                     recovery_procedure = {}
@@ -1032,26 +1038,31 @@ class PowerMonitor(BaseMonitor):
 class CamMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
-    def __init__(self, starting_mode=MODE_CAM_COOL, log=None):
+    def __init__(self, uts, target_temp, starting_mode=MODE_CAM_COOL, log=None):
         super().__init__('cam', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_CAM_COOL, MODE_CAM_WARM]
         self.mode = starting_mode
 
+        # Hardware parameters
+        self.uts = uts
+        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+        self.target_temp = target_temp
+
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any(info[ut] is None for ut in params.UTS_WITH_CAMERAS):
+        if info is None or any(info[ut] is None for ut in self.uts):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all(info[ut]['ccd_temp'] < params.CCD_TEMP + 1 for ut in params.UTS_WITH_CAMERAS)
+        all_cool = all(info[ut]['ccd_temp'] < self.target_temp + 1 for ut in self.uts)
         if not all_cool:
             hardware_status = STATUS_CAM_WARM
-        elif any(info[ut]['status'] == 'Exposing' for ut in params.UTS_WITH_CAMERAS):
+        elif any(info[ut]['status'] == 'Exposing' for ut in self.uts):
             hardware_status = STATUS_CAM_EXPOSING
-        elif any(info[ut]['status'] == 'Reading' for ut in params.UTS_WITH_CAMERAS):
+        elif any(info[ut]['status'] == 'Reading' for ut in self.uts):
             hardware_status = STATUS_CAM_READING
         else:
             hardware_status = STATUS_ACTIVE
@@ -1091,7 +1102,7 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the interfaces.
-            for interface_id in params.INTERFACES:
+            for interface_id in self.interfaces:
                 if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1139,7 +1150,7 @@ class CamMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try setting the target temperature.
             #             Note we need to wait for a long time, assuming they're at room temp.
-            recovery_procedure[1] = ['cam temp {}'.format(params.CCD_TEMP), 600]
+            recovery_procedure[1] = ['cam temp {}'.format(self.target_temp), 600]
             # OUT OF SOLUTIONS: Having trouble getting down to temperature,
             #                   Either it's a hardware issue or it's just too warm.
             return ERROR_CAM_WARM, recovery_procedure
@@ -1164,25 +1175,29 @@ class CamMonitor(BaseMonitor):
 class OTAMonitor(BaseMonitor):
     """Hardware monitor for the OTA daemon."""
 
-    def __init__(self, starting_mode=MODE_OTA_CLOSED, log=None):
+    def __init__(self, uts, starting_mode=MODE_OTA_CLOSED, log=None):
         super().__init__('ota', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_OTA_CLOSED, MODE_OTA_OPEN]
         self.mode = starting_mode
 
+        # Hardware parameters
+        self.uts = uts
+        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any(info[ut] is None for ut in params.UTS_WITH_COVERS):
+        if info is None or any(info[ut] is None for ut in self.uts):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        if any(info[ut]['position'] == 'ERROR' for ut in params.UTS_WITH_COVERS):
+        if any(info[ut]['position'] == 'ERROR' for ut in self.uts):
             hardware_status = STATUS_UNKNOWN
-        elif all(info[ut]['position'] == 'closed' for ut in params.UTS_WITH_COVERS):
+        elif all(info[ut]['position'] == 'closed' for ut in self.uts):
             hardware_status = STATUS_OTA_CLOSED
-        elif all(info[ut]['position'] == 'full_open' for ut in params.UTS_WITH_COVERS):
+        elif all(info[ut]['position'] == 'full_open' for ut in self.uts):
             hardware_status = STATUS_OTA_FULLOPEN
         else:
             hardware_status = STATUS_OTA_PARTOPEN
@@ -1220,7 +1235,7 @@ class OTAMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The OTA daemon depends on the interfaces.
-            for interface_id in params.INTERFACES:
+            for interface_id in self.interfaces:
                 if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1293,23 +1308,27 @@ class OTAMonitor(BaseMonitor):
 class FiltMonitor(BaseMonitor):
     """Hardware monitor for the filter wheel daemon."""
 
-    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
+    def __init__(self, uts, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('filt', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
+        # Hardware parameters
+        self.uts = uts
+        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any(info[ut] is None for ut in params.UTS_WITH_FILTERWHEELS):
+        if info is None or any(info[ut] is None for ut in self.uts):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        if any(info[ut]['homed'] is False for ut in params.UTS_WITH_FILTERWHEELS):
+        if any(info[ut]['homed'] is False for ut in self.uts):
             hardware_status = STATUS_FILT_UNHOMED
-        elif any(info[ut]['status'] == 'Moving' for ut in params.UTS_WITH_FILTERWHEELS):
+        elif any(info[ut]['status'] == 'Moving' for ut in self.uts):
             hardware_status = STATUS_FILT_MOVING
         else:
             hardware_status = STATUS_ACTIVE
@@ -1347,7 +1366,7 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the interfaces.
-            for interface_id in params.INTERFACES:
+            for interface_id in self.interfaces:
                 if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1418,23 +1437,27 @@ class FiltMonitor(BaseMonitor):
 class FocMonitor(BaseMonitor):
     """Hardware monitor for the focuser daemon."""
 
-    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
+    def __init__(self, uts, starting_mode=MODE_ACTIVE, log=None):
         super().__init__('foc', log)
 
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
+        # Hardware parameters
+        self.uts = uts
+        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
-        if info is None or any(info[ut] is None for ut in params.UTS_WITH_FOCUSERS):
+        if info is None or any(info[ut] is None for ut in self.uts):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        if any(info[ut]['status'] == 'UNSET' for ut in params.UTS_WITH_FOCUSERS):
+        if any(info[ut]['status'] == 'UNSET' for ut in self.uts):
             hardware_status = STATUS_FOC_UNSET
-        elif any(info[ut]['status'] == 'Moving' for ut in params.UTS_WITH_FOCUSERS):
+        elif any(info[ut]['status'] == 'Moving' for ut in self.uts):
             hardware_status = STATUS_FOC_MOVING
         else:
             hardware_status = STATUS_ACTIVE
@@ -1472,7 +1495,7 @@ class FocMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the interfaces.
-            for interface_id in params.INTERFACES:
+            for interface_id in self.interfaces:
                 if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
@@ -1550,6 +1573,9 @@ class ExqMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
+        # Hardware parameters
+        self.interfaces = params.INTERFACES.keys()
+
     def get_hardware_status(self):
         """Get the current status of the hardware."""
         info = self.get_info()
@@ -1583,7 +1609,7 @@ class ExqMonitor(BaseMonitor):
             # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
             # themselves too, but ideally the ExqMonitor should be standalone in case one of them
             # fails.
-            for interface_id in params.INTERFACES:
+            for interface_id in self.interfaces:
                 if interface_id in self.bad_dependencies:
                     # PROBLEM: The interfaces aren't responding.
                     recovery_procedure = {}
