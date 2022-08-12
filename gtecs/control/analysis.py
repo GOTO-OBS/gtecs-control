@@ -121,6 +121,8 @@ def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=T
     """
     # Allow multiple regions to be measured
     regions = region
+    if region is None:
+        regions = [None]
     if len(regions) == 2 and isinstance(regions[0], slice) and isinstance(regions[1], slice):
         regions = [regions]
 
