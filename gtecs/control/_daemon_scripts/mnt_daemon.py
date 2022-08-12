@@ -495,9 +495,11 @@ class MntDaemon(BaseDaemon):
         # Write debug log line
         try:
             if not self.info:
-                self.log.debug('Mount is {}'.format(temp_info['status']))
+                self.log.debug('Mount is {} [{}]'.format(temp_info['status'],
+                                                         self._pos_str(temp_info)))
             elif temp_info['status'] != self.info['status']:
-                self.log.debug('Mount is {}'.format(temp_info['status']))
+                self.log.debug('Mount is {} [{}]'.format(temp_info['status'],
+                                                         self._pos_str(temp_info)))
         except Exception:
             self.log.error('Could not write current status')
 
@@ -539,11 +541,13 @@ class MntDaemon(BaseDaemon):
         else:
             return None
 
-    def _pos_str(self):
+    def _pos_str(self, info=None):
         """Return a simple string reporting the current position."""
+        if info is None:
+            info = self.info
         pos_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
-            self.info['mount_ra'] * 360 / 24, self.info['mount_dec'],
-            self.info['mount_alt'], self.info['mount_az'])
+            info['mount_ra'] * 360 / 24, info['mount_dec'],
+            info['mount_alt'], info['mount_az'])
         return pos_str
 
     # Control functions
