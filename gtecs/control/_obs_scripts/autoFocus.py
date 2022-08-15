@@ -114,6 +114,8 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'Unable to measure image HFDs' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
+        if len(active_uts) == 0:
+            raise ValueError('All UTs have failed')
 
     # The focusers should be reasonably close to best focus.
     # If they are super far out then this method isn't going to work.
@@ -126,6 +128,8 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'Started too far from best focus' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
+        if len(active_uts) == 0:
+            raise ValueError('All UTs have failed')
 
     # Move to the positive side of the best focus position and measure HFD.
     # Assume the starting value is close to best, and a big step should be far enough out.
@@ -182,6 +186,8 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
             print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
             failed_uts.update({ut: 'HFDs did not change with focuser position' for ut in bad_uts})
             active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
+            if len(active_uts) == 0:
+                raise ValueError('All UTs have failed')
 
     # Now move back towards where best focus position should be.
     # This should confirm we're actually on the right-hand (positive) side of the V-curve.
@@ -211,6 +217,8 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'HFDs did not decrease as expected' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
+        if len(active_uts) == 0:
+            raise ValueError('All UTs have failed')
 
     # We're on the curve, so we can estimate the focuser positions for given HFDs.
     # Keep reducing the target HFDs while we are greater than twice the near-focus HFD value.
@@ -314,6 +322,8 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
         print('Bad UTs: {}'.format(','.join([str(ut) for ut in bad_uts])))
         failed_uts.update({ut: 'Final HFDs were worse than initial values' for ut in bad_uts})
         active_uts = sorted(ut for ut in active_uts if ut not in failed_uts)
+        if len(active_uts) == 0:
+            raise ValueError('All UTs have failed')
 
     # Reset any bad UTs to initial positions
     if len(failed_uts) > 0:
