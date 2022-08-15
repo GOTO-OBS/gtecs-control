@@ -34,6 +34,7 @@ STATUS_MNT_NONSIDEREAL = 'tracking_nonsidereal'
 STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_MOTORSOFF = 'motors_off'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
+STATUS_MNT_AUTOSLEW_ERROR = 'autoslew_error'
 STATUS_CAM_EXPOSING = 'exposing'
 STATUS_CAM_READING = 'reading'
 STATUS_CAM_WARM = 'warm'
@@ -70,6 +71,7 @@ ERROR_DOME_MOVETIMEOUT = 'DOME:MOVING_TIMEOUT'
 ERROR_DOME_PARTOPENTIMEOUT = 'DOME:PARTOPEN_TIMEOUT'
 ERROR_DOME_NOTFULLOPEN = 'DOME:NOT_FULLOPEN'
 ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
+ERROR_MNT_AUTOSLEW = 'MNT:AUTOSLEW_ERROR'
 ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
 ERROR_MNT_STOPPED = 'MNT:NOT_TRACKING'
@@ -659,7 +661,9 @@ class MntMonitor(BaseMonitor):
         target_dist = info['target_dist']
         targeting = info['targeting'] == 'radec'  # Ignore off-target for altaz
 
-        if mount == 'Tracking':
+        if 'error_status' in info and info['error_status'] is not None:
+            hardware_status = STATUS_MNT_AUTOSLEW_ERROR
+        elif mount == 'Tracking':
             if nonsidereal:
                 hardware_status = STATUS_MNT_NONSIDEREAL
             elif targeting and target_dist and float(target_dist) > 0.01:
@@ -686,6 +690,14 @@ class MntMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
+        # STATUS_MNT_AUTOSLEW_ERROR
+        # Set the error if the mount is already reporting an error
+        if self.hardware_status == STATUS_MNT_AUTOSLEW_ERROR:
+            self.add_error(ERROR_MNT_AUTOSLEW, delay=120)
+        # Clear the error if the mount is not moving
+        if self.hardware_status != STATUS_MNT_AUTOSLEW_ERROR:
+            self.clear_error(ERROR_MNT_AUTOSLEW)
+
         # ERROR_MNT_MOVETIMEOUT
         # Set the error if the mount has been moving for too long
         if self.hardware_status == STATUS_MNT_MOVING:
@@ -815,6 +827,15 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[1] = ['mnt restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
+
+        elif ERROR_MNT_AUTOSLEW in self.errors:
+            # PROBLEM: The ASA mount is reporting an error.
+            recovery_procedure = {}
+            # SOLUTION 1: Try rebooting the mount.
+            recovery_procedure[1] = ['power off mount,tcu', 10]
+            recovery_procedure[2] = ['power on mount,tcu', 180]
+            # OUT OF SOLUTIONS: Sounds like a hardware issue.
+            return ERROR_MNT_CONNECTION, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The mount computer has lost connection to the mount controller.
