@@ -393,7 +393,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--filter',
                         type=str, default='L',
                         help=('filter to use'
-                              ' (default=%(default)d)')
+                              ' (default=%(default)s)')
                         )
     parser.add_argument('-b', '--binning',
                         type=int, default=1,
