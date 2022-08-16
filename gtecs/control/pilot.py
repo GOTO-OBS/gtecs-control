@@ -718,6 +718,8 @@ class Pilot:
                             '-t', '5',
                             ],
                    }
+        if not params.AUTOFOCUS_SLACK_REPORTS:  # This is ugly, these should all be in a config file
+            autofoc['args'].append('--no-report')
         focrun_e = {'name': 'FOCRUN',
                     'sunalt': -13,
                     'late_sunalt': -14,
@@ -1111,9 +1113,10 @@ class Pilot:
 
                     # Start the new pointing
                     self.log.debug('starting pointing {}'.format(new_pointing['id']))
-                    asyncio.ensure_future(self.start_script('OBS',
-                                                            'observe.py',
-                                                            args=[str(new_pointing['id'])]))
+                    args = [str(new_pointing['id'])]
+                    if params.FOCUS_TEMP_COMPENSATION:
+                        args.append('--temp-compensation')
+                    asyncio.ensure_future(self.start_script('OBS', 'observe.py', args=args))
                     self.current_start_time = time.time()
                     self.current_pointing = new_pointing
 

@@ -43,7 +43,8 @@ class RestoreFocusCloser(NeatCloser):
         set_focuser_positions(self.positions)
 
 
-def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
+def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
+        no_slew=False, no_report=False,
         use_annulus_region=True):
     """Run the autofocus routine.
 
@@ -353,7 +354,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1, no_slew=False,
         print('Initial HFDs:', initial_hfds.round(1).to_dict())
         print('Final HFDs:  ', final_hfds.round(1).to_dict())
 
-    if params.FOCUS_SLACK_REPORTS:
+    if not no_report:
         # Send Slack report
         print('~~~~~~')
         print('Sending best focus measurements to Slack...')
@@ -403,6 +404,9 @@ if __name__ == '__main__':
     parser.add_argument('--no-slew', action='store_true',
                         help=('do not slew to a focus star (stay at current position)')
                         )
+    parser.add_argument('--no-report', action='store_true',
+                        help=('do not send final focus positions to Slack')
+                        )
 
     args = parser.parse_args()
     num_exp = args.numexp
@@ -410,6 +414,7 @@ if __name__ == '__main__':
     filt = args.filter
     binning = args.binning
     no_slew = args.no_slew
+    no_report = args.no_report
 
     # Get the autofocus parameters
     all_uts = sorted(params.AUTOFOCUS_PARAMS.keys())
@@ -426,7 +431,7 @@ if __name__ == '__main__':
     initial_positions = get_focuser_positions()
     try:
         RestoreFocusCloser(initial_positions)
-        run(foc_params, num_exp, exptime, filt, binning, no_slew)
+        run(foc_params, num_exp, exptime, filt, binning, no_slew, no_report)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)

@@ -237,49 +237,6 @@ FAKE_FLI = config['FAKE_FLI']
 FAKE_ASA = config['FAKE_ASA']
 
 ############################################################
-# Focuser parameters
-AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
-# Only UTs with focusers should have params here, but not necessarily all of them
-# Also we need to be careful with types
-AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
-                    for ut in AUTOFOCUS_PARAMS
-                    if int(ut) in UTS_WITH_FOCUSERS}
-for ut in AUTOFOCUS_PARAMS:
-    # Use default params if they're not given (not perfect, they really need to be defined per UT)
-    if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
-    if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = 5000
-    if 'SMALL_STEP' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = 1000
-    if 'SLOPE_LEFT' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = -0.001
-    if 'SLOPE_RIGHT' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
-    if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
-    if 'TEMP_GRADIENT' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = 0
-    if 'TEMP_MINCHANGE' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = 0.5
-    if 'FOCRUN_SCALE' not in AUTOFOCUS_PARAMS[ut]:
-        AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = 1
-    # Enforce type
-    AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
-    AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
-    AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
-    AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
-    AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
-    AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
-    AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
-    AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
-    AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = float(AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'])
-FOCUS_SLACK_REPORTS = config['FOCUS_SLACK_REPORTS']
-FOCUS_COMPENSATION_ENABLED = config['FOCUS_COMPENSATION_ENABLED']
-FOCUS_COMPENSATION_TEST = config['FOCUS_COMPENSATION_TEST']
-FOCUS_COMPENSATION_VERBOSE = config['FOCUS_COMPENSATION_VERBOSE']
-
-############################################################
 # Camera parameters
 MIN_EXPOSURE_DELAY = config['MIN_EXPOSURE_DELAY']
 SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
@@ -345,27 +302,66 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
 ############################################################
-# Obs script parameters
-IERS_A_URL = config['IERS_A_URL']
-IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
-
-########################################################################
-# Scheduler parameters
-SCHEDULER_HOST = config['SCHEDULER_HOST']
-SCHEDULER_PORT = config['SCHEDULER_PORT']
-
-############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
+PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']
+
 NUM_FLATS = config['NUM_FLATS']
 FLATS_FILTERS = config['FLATS_FILTERS']
 if FLATS_FILTERS == 'all':  # default
     FLATS_FILTERS = ','.join(ALL_FILTERS)
 FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
-BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
-PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']
+
+FOCUS_TEMP_COMPENSATION = config['FOCUS_TEMP_COMPENSATION']
+
+AUTOFOCUS_SLACK_REPORTS = config['AUTOFOCUS_SLACK_REPORTS']
+
 PILOT_TAKE_FOCRUNS = config['PILOT_TAKE_FOCRUNS']
 FOCRUN_PERIOD = config['FOCRUN_PERIOD']
+
+BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
+
+############################################################
+# Day marshal parameters
+IERS_A_URL = config['IERS_A_URL']
+IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
+
+############################################################
+# Obs script parameters
+AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
+AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
+                    for ut in AUTOFOCUS_PARAMS
+                    if int(ut) in UTS_WITH_FOCUSERS}
+for ut in AUTOFOCUS_PARAMS:
+    # Use default params if they're not given (not perfect, they really need to be defined per UT)
+    if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
+    if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = 5000
+    if 'SMALL_STEP' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = 1000
+    if 'SLOPE_LEFT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = -0.001
+    if 'SLOPE_RIGHT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
+    if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
+    if 'TEMP_GRADIENT' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = 0
+    if 'TEMP_MINCHANGE' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = 0.5
+    if 'FOCRUN_SCALE' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = 1
+    # Enforce type
+    AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
+    AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
+    AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
+    AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
+    AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
+    AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
+    AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
+    AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
+    AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = float(AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'])
 
 ############################################################
 # Slack bot parameters

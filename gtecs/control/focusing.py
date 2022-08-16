@@ -187,7 +187,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
     return all_dfs
 
 
-def refocus(take_images=False, verbose=False):
+def focus_temp_compensation(take_images=False, verbose=False):
     """Apply any needed temperature compensation to the focusers."""
     # Find the change in temperature since the last move
     curr_temp, prev_temp = get_focuser_temperatures()

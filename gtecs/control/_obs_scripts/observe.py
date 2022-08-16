@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 from gtecs.common.system import NeatCloser, execute_command
 from gtecs.control import params
 from gtecs.control.daemons import daemon_function
-from gtecs.control.focusing import refocus
+from gtecs.control.focusing import focus_temp_compensation
 from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
 from gtecs.control.observing import (prepare_for_images, slew_to_radec,
                                      wait_for_exposure_queue, wait_for_mount)
@@ -53,12 +53,12 @@ class InterruptedPointingCloser(NeatCloser):
         sys.exit(retcode)
 
 
-def run(pointing_id):
+def run(pointing_id, temp_compensation=False):
     """Run the observe routine."""
     # make sure hardware is ready
     prepare_for_images()
-    if params.FOCUS_COMPENSATION_ENABLED:
-        refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
+    if temp_compensation:
+        focus_temp_compensation(take_images=True, verbose=True)
 
     # Clear & pause queue to make sure
     execute_command('exq clear')
@@ -147,7 +147,13 @@ if __name__ == '__main__':
                         type=int,
                         help='Pointing Database ID',
                         )
+    # Flags
+    parser.add_argument('--temp-compensation', action='store_true',
+                        help=('adjust the focus position to compensate for temperature changes')
+                        )
 
     args = parser.parse_args()
+    pointing_id = args.pointing_id
+    temp_compensation = args.temp_compensation
 
-    run(args.pointing_id)
+    run(pointing_id, temp_compensation)
