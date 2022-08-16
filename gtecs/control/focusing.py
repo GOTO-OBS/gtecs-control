@@ -224,13 +224,13 @@ def focus_temp_compensation(take_images=False, verbose=False):
 
         if not take_images:
             # Just move
-            move_focusers(offsets, timeout=None)
+            move_focusers(offsets, timeout=60)
         else:
             before_data = measure_focus(exptime=5)
             if verbose:
                 print('Before data:\n', before_data.round(1))
 
-            move_focusers(offsets, timeout=None)
+            move_focusers(offsets, timeout=60)
 
             after_data = measure_focus(exptime=5)
             if verbose:
@@ -239,3 +239,41 @@ def focus_temp_compensation(take_images=False, verbose=False):
             diff = {ut: np.round(after_data['hfd'][ut] - before_data['hfd'][ut], 1)
                     for ut in after_data.index}
             print('Change in HFDs:', diff)
+
+
+def refocus(uts=None):
+    """Quickly test and adjust the focus position if necessary."""
+    # WIP: for now all this does is move the focusers in and out and take some quick test images
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+    uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
+
+    focus_offset = 200
+    exptime = 5
+    filt = 'L'
+    binning = 2
+
+    # Move the focusers out
+    offsets = {ut: focus_offset for ut in uts}
+    move_focusers(offsets, timeout=60)
+
+    # Take test image
+    # Note get_headers=True means we won't bother loading the image data,
+    # this saves time even if we don't use the headers here.
+    get_analysis_image(exptime, filt, binning, 'Refocus test', 'FOCUS',
+                       glance=False, uts=uts, get_headers=True)
+
+    # Move the focusers in to the other side
+    offsets = {ut: focus_offset * -2 for ut in uts}
+    move_focusers(offsets, timeout=60)
+
+    # Take another test image
+    get_analysis_image(exptime, filt, binning, 'Refocus test', 'FOCUS',
+                       glance=False, uts=uts, get_headers=True)
+
+    # Move the focusers back to the start
+    offsets = {ut: focus_offset for ut in uts}
+    move_focusers(offsets, timeout=60)
+
+    # Done, for now
+    return

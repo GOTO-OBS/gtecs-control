@@ -302,6 +302,11 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
 ############################################################
+# Scheduler parameters
+SCHEDULER_HOST = config['SCHEDULER_HOST']
+SCHEDULER_PORT = config['SCHEDULER_PORT']
+
+############################################################
 # Pilot parameters
 NUM_DARKS = config['NUM_DARKS']
 PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']
@@ -312,7 +317,8 @@ if FLATS_FILTERS == 'all':  # default
     FLATS_FILTERS = ','.join(ALL_FILTERS)
 FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
 
-FOCUS_TEMP_COMPENSATION = config['FOCUS_TEMP_COMPENSATION']
+OBS_ADJUST_FOCUS = config['OBS_ADJUST_FOCUS']
+OBS_FOCUS_TEMP_COMPENSATION = config['OBS_FOCUS_TEMP_COMPENSATION']
 
 AUTOFOCUS_SLACK_REPORTS = config['AUTOFOCUS_SLACK_REPORTS']
 

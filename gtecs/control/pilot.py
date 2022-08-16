@@ -1114,7 +1114,9 @@ class Pilot:
                     # Start the new pointing
                     self.log.debug('starting pointing {}'.format(new_pointing['id']))
                     args = [str(new_pointing['id'])]
-                    if params.FOCUS_TEMP_COMPENSATION:
+                    if params.OBS_ADJUST_FOCUS:
+                        args.append('--refocus')
+                    elif params.OBS_FOCUS_TEMP_COMPENSATION:
                         args.append('--temp-compensation')
                     asyncio.ensure_future(self.start_script('OBS', 'observe.py', args=args))
                     self.current_start_time = time.time()
