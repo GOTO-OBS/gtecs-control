@@ -3,6 +3,7 @@
 
 import sys
 import time
+import traceback
 from argparse import ArgumentParser
 
 from gtecs.control import params
@@ -11,35 +12,29 @@ from gtecs.control.focusing import refocus
 from gtecs.control.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
 from gtecs.control.observing import (prepare_for_images, slew_to_radec,
                                      wait_for_exposure_queue, wait_for_mount)
-from gtecs.control.scheduling import get_pointing_info, mark_pointing
+from gtecs.control.scheduling import get_pointing_info
 
 
 def handle_interrupt(pointing_id, start_time, min_time):
-    """Mark the pointing as interrupted."""
+    """Long and return the correct error code depending on min time."""
     print('Interrupt caught')
-
     elapsed_time = time.time() - start_time
     print('Elapsed time: {:.0f}s'.format(elapsed_time))
-    if elapsed_time < 2:
-        # Since time in the database doesn't have milliseconds, it gets upset
-        # if the times are too close - so sleep for a sec to ensure they aren't
-        time.sleep(1)
-
     if min_time is None:
-        # Mark the pointing as interrupted
-        mark_pointing(pointing_id, 'interrupted')
-        print('Pointing {} marked as interrupted'.format(pointing_id))
+        # Return retcode 1
+        print('Pointing {} was interrupted'.format(pointing_id))
+        return 1
     else:
         if elapsed_time > min_time:
-            # We observed enough, mark the pointing as completed
+            # We observed enough, return retcode 0
             print('Passed min time ({:.0f}s)'.format(min_time))
-            mark_pointing(pointing_id, 'completed')
-            print('Pointing {} marked as completed'.format(pointing_id))
+            print('Pointing {} was completed'.format(pointing_id))
+            return 0
         else:
-            # We didn't observe enough, mark the pointing as interrupted
+            # Return retcode 1
             print('Did not pass min time ({:.0f}s)'.format(min_time))
-            mark_pointing(pointing_id, 'interrupted')
-            print('Pointing {} marked as interrupted'.format(pointing_id))
+            print('Pointing {} was interrupted'.format(pointing_id))
+            return 1
 
 
 class InterruptedPointingCloser(NeatCloser):
@@ -53,7 +48,8 @@ class InterruptedPointingCloser(NeatCloser):
 
     def tidy_up(self):
         """Mark the Pointing correctly."""
-        handle_interrupt(self.pointing_id, self.start_time, self.min_time)
+        retcode = handle_interrupt(self.pointing_id, self.start_time, self.min_time)
+        sys.exit(retcode)
 
 
 def run(pointing_id):
@@ -67,16 +63,12 @@ def run(pointing_id):
     execute_command('exq pause')
     execute_command('cam abort')
 
-    # Get the Pointing infomation from the scheduler
+    # Get the Pointing information from the scheduler
     pointing_info = get_pointing_info(pointing_id)
-
-    # Mark the Pointing as running
     print('Observing pointing ID: ', pointing_id)
-    mark_pointing(pointing_id, 'running')
     start_time = time.time()
-    print('Pointing {} marked as running'.format(pointing_id))
 
-    # Catch any interrupts or exceptions from now (only after we've marked the pointing as running)
+    # Catch any interrupts or exceptions from now on
     InterruptedPointingCloser(pointing_id, start_time, min_time=pointing_info['min_time'])
     try:
         # Start slew
@@ -133,18 +125,17 @@ def run(pointing_id):
         execute_command('exq resume')
 
         # Wait for the queue to empty
-        # NB We deliberately use a pesamistic timeout, it will raise an error if it takes too long
+        # NB We deliberately use a pessimistic timeout, it will raise an error if it takes too long
         wait_for_exposure_queue(time_estimate * 1.5)
 
-        # Mark as completed
-        mark_pointing(pointing_id, 'completed')
-        print('Pointing {} marked as completed'.format(pointing_id))
+        # Exposures are done, return retcode 0
+        print('Pointing {} is completed'.format(pointing_id))
         sys.exit(0)
 
     except Exception:
-        # Mark as interrupted and raise
-        handle_interrupt(pointing_id, start_time, min_time=pointing_info['min_time'])
-        raise
+        traceback.print_exc()
+        retcode = handle_interrupt(pointing_id, start_time, min_time=pointing_info['min_time'])
+        sys.exit(retcode)
 
 
 if __name__ == '__main__':
