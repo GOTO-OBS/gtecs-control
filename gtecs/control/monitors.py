@@ -442,11 +442,12 @@ class DomeMonitor(BaseMonitor):
     """Hardware monitor for the dome daemon."""
 
     def __init__(self, starting_mode=MODE_DOME_CLOSED, log=None):
-        super().__init__('dome', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_DOME_CLOSED, MODE_DOME_OPEN]
         self.mode = starting_mode
+
+        # Initialise after attributes are set
+        super().__init__('dome', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -640,14 +641,15 @@ class MntMonitor(BaseMonitor):
     """Hardware monitor for the mount daemon."""
 
     def __init__(self, mount_class, starting_mode=MODE_MNT_PARKED, log=None):
-        super().__init__('mnt', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_MNT_PARKED, MODE_MNT_STOPPED, MODE_MNT_TRACKING]
         self.mode = starting_mode
 
         # Hardware parameters
         self.mount_class = mount_class
+
+        # Initialise after attributes are set
+        super().__init__('mnt', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -980,14 +982,15 @@ class PowerMonitor(BaseMonitor):
     """Hardware monitor for the power daemon."""
 
     def __init__(self, units, starting_mode=MODE_ACTIVE, log=None):
-        super().__init__('power', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
         # Hardware parameters
         self.units = units
+
+        # Initialise after attributes are set
+        super().__init__('power', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1060,8 +1063,6 @@ class CamMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
     def __init__(self, uts, starting_mode=MODE_CAM_COOL, log=None):
-        super().__init__('cam', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_CAM_COOL, MODE_CAM_WARM]
         self.mode = starting_mode
@@ -1069,6 +1070,9 @@ class CamMonitor(BaseMonitor):
         # Hardware parameters
         self.uts = uts
         self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
+        # Initialise after attributes are set
+        super().__init__('cam', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1196,8 +1200,6 @@ class OTAMonitor(BaseMonitor):
     """Hardware monitor for the OTA daemon."""
 
     def __init__(self, uts, starting_mode=MODE_OTA_CLOSED, log=None):
-        super().__init__('ota', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_OTA_CLOSED, MODE_OTA_OPEN]
         self.mode = starting_mode
@@ -1205,6 +1207,9 @@ class OTAMonitor(BaseMonitor):
         # Hardware parameters
         self.uts = uts
         self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
+        # Initialise after attributes are set
+        super().__init__('ota', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1329,8 +1334,6 @@ class FiltMonitor(BaseMonitor):
     """Hardware monitor for the filter wheel daemon."""
 
     def __init__(self, uts, starting_mode=MODE_ACTIVE, log=None):
-        super().__init__('filt', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
@@ -1338,6 +1341,9 @@ class FiltMonitor(BaseMonitor):
         # Hardware parameters
         self.uts = uts
         self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
+        # Initialise after attributes are set
+        super().__init__('filt', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1458,8 +1464,6 @@ class FocMonitor(BaseMonitor):
     """Hardware monitor for the focuser daemon."""
 
     def __init__(self, uts, starting_mode=MODE_ACTIVE, log=None):
-        super().__init__('foc', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
@@ -1467,6 +1471,9 @@ class FocMonitor(BaseMonitor):
         # Hardware parameters
         self.uts = uts
         self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+
+        # Initialise after attributes are set
+        super().__init__('foc', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1587,14 +1594,15 @@ class ExqMonitor(BaseMonitor):
     """Hardware monitor for the exposure queue daemon."""
 
     def __init__(self, starting_mode=MODE_ACTIVE, log=None):
-        super().__init__('exq', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
         # Hardware parameters
         self.interfaces = params.INTERFACES.keys()
+
+        # Initialise after attributes are set
+        super().__init__('exq', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
@@ -1719,14 +1727,15 @@ class ConditionsMonitor(BaseMonitor):
     """Hardware monitor for the conditions daemon."""
 
     def __init__(self, starting_mode=MODE_ACTIVE, log=None):
-        super().__init__('conditions', log)
-
         # Define modes and starting mode
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
         # Set a longer info timeout than default, as checks can take a while
         self.info_timeout = 30
+
+        # Initialise after attributes are set
+        super().__init__('conditions', log)
 
     def get_hardware_status(self):
         """Get the current status of the hardware."""
