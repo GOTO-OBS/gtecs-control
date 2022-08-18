@@ -349,13 +349,13 @@ def get_mount_position():
 
 def mount_is_parked():
     """Check if the mount motors are enabled."""
-    mnt_info = daemon_info('mnt', force_update=False)
+    mnt_info = daemon_info('mnt', force_update=True)
     return mnt_info['status'] == 'Parked'
 
 
 def mount_motors_are_on():
     """Check if the mount motors are enabled."""
-    mnt_info = daemon_info('mnt', force_update=False)
+    mnt_info = daemon_info('mnt', force_update=True)
     return mnt_info['motors_on']
 
 
@@ -622,7 +622,7 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
 
 def outlets_are_off(outlets):
     """Check if the given power outlets are off."""
-    power_info = daemon_info('power', force_update=False)
+    power_info = daemon_info('power', force_update=True)
     all_status = {outlet: power_info[unit][outlet]
                   for unit in power_info if 'status' in unit
                   for outlet in power_info[unit]}
@@ -631,32 +631,32 @@ def outlets_are_off(outlets):
 
 def exposure_queue_is_empty():
     """Check if the image queue is empty."""
-    exq_info = daemon_info('exq', force_update=False)
+    exq_info = daemon_info('exq', force_update=True)
     return exq_info['queue_length'] == 0
 
 
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
-    filt_info = daemon_info('filt', force_update=False)
+    filt_info = daemon_info('filt', force_update=True)
     return all(filt_info[ut]['homed'] for ut in filt_info['uts'])
 
 
 def focusers_are_set():
     """Check if all the focusers are set."""
-    foc_info = daemon_info('foc', force_update=False)
+    foc_info = daemon_info('foc', force_update=True)
     return all(foc_info[ut]['status'] != 'UNSET' for ut in foc_info['uts'])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
-    cam_info = daemon_info('cam', force_update=False)
+    cam_info = daemon_info('cam', force_update=True)
     return all(cam_info[ut]['ccd_temp'] < cam_info[ut]['target_temp'] + 1
                for ut in cam_info['uts'])
 
 
 def cameras_are_fullframe():
     """Check if all the cameras are set to take full-frame exposures."""
-    cam_info = daemon_info('cam', force_update=False)
+    cam_info = daemon_info('cam', force_update=True)
     return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area'] for ut in cam_info['uts'])
 
 
