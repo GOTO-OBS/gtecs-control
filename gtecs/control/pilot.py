@@ -910,7 +910,7 @@ class Pilot:
             # Should we stop?
             now = Time.now()
             sunalt_now = get_sunalt(now)
-            if now > self.midnight or self.shutdown_now:
+            if now > self.midnight:
                 if sunalt_now > last_obs_sunalt:
                     # At this point we stop asking for new pointings, but keep observing.
                     if not finishing:
@@ -919,7 +919,7 @@ class Pilot:
                         self.log.info('sunalt={:.1f}, stopping scheduler checks'.format(sunalt_now))
                         finishing = True
                     request_pointing = False
-                if sunalt_now > until_sunalt or self.shutdown_now:
+                if sunalt_now > until_sunalt:
                     # We've reached the limit and we're still observing, so we need to abort
                     # any current observation.
                     # This should set current_status, and then we'll update the database and
@@ -928,6 +928,11 @@ class Pilot:
                     await self.cancel_running_script('obs finished')
                     request_pointing = False
                     self.observing = False
+            if self.shutdown_now:
+                self.log.info('shutdown triggered, stopping observing')
+                await self.cancel_running_script('shutdown')
+                request_pointing = False
+                self.observing = False
 
             # First, log what the current pointing is (if anything)
             if self.current_pointing is not None:
@@ -985,6 +990,7 @@ class Pilot:
             # We still want the above scheduler communication to happen if we're paused.
             # If we were observing then pausing should have killed OBS, which will have flagged the
             # pointing as interrupted. So we need the database update to happen above.
+            # Likewise if it's the end of the night we need observing=False and the loop to exit.
             # But now we can skip everything below.
             if self.paused:
                 self.log.info('observing suspended while paused')
@@ -1230,32 +1236,33 @@ class Pilot:
         - Ensure the dome is closed.
         - Quit.
         """
-        # cancel any currently running script
-        # do this first so the scheduler marks any current pointing as interrupted,
-        # before the check_schedule task is cancelled
-        await self.cancel_running_script(why='shutdown')
-        while self.observing:
-            # need to wait for the observing loop to finish
-            await asyncio.sleep(1)
+        self.log.info('shutdown process begun')
 
-        # then shut down all running tasks
-        # this is so check_flags doesn't initiate two shutdowns,
-        # or we don't end up trying to restart if conditions clear
-        # or an "unfixable" hardware error gets fixed
+        # Cancel any currently running script.
+        # Do this first so the scheduler marks any current pointing as interrupted,
+        # before the night marshal `observe()` function is killed below.
+        await self.cancel_running_script(why='shutdown')
+        if self.observing:
+            # Give time for a scheduler check to complete before shutting down,
+            # so that it has the chance to mark the pointing as interrupted.
+            await asyncio.sleep(10)
+
+        # Now cancel all running tasks.
+        # This is so check_flags doesn't initiate two shutdowns,
+        # or we don't end up trying to restart if conditions clear,
+        # or an "unfixable" hardware error gets fixed.
         self.log.info('cancelling running tasks')
         for task in self.running_tasks:
             task.cancel()
 
-        # run shutdown script
+        # Run shutdown script
         self.log.info('running shutdown script')
         await self.start_script('SHUTDOWN', 'shutdown.py')
 
-        # flag that the shutdown script has been run, by un-flagging startup
+        # Flag that the shutdown script has been run, by un-flagging startup
         self.startup_complete = False
 
-        # next and most important.
-        # NEVER STOP WITHOUT CLOSING THE DOME!
-        # EMAIL IF DOME WON'T CLOSE
+        # Finally, and most important: NEVER STOP WITHOUT CLOSING THE DOME!
         self.log.info('making sure dome is closed')
         await self.close_dome_confirm()
 
