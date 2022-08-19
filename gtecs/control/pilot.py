@@ -1305,7 +1305,7 @@ class Pilot:
             if dome_status == 'full_open':
                 break
             await asyncio.sleep(5)
-            if time.time() - start_time > 180:
+            if time.time() - start_time > 300:
                 self.log.error('dome opening timed out')
                 asyncio.ensure_future(self.emergency_shutdown('Could not open the dome'))
         self.log.info('dome confirmed open')
@@ -1325,7 +1325,7 @@ class Pilot:
                 if cover_status == 'full_open':
                     break
                 await asyncio.sleep(5)
-                if time.time() - start_time > 60:
+                if time.time() - start_time > 300:
                     self.log.error('cover opening timed out')
                     asyncio.ensure_future(self.emergency_shutdown('Could not open mirror covers'))
             self.log.info('mirror covers confirmed open')
@@ -1362,7 +1362,7 @@ class Pilot:
                 if dome_status in ['closed', 'in_lockdown']:
                     break
                 await asyncio.sleep(5)
-                if time.time() - start_time > 180:
+                if time.time() - start_time > 300:
                     self.log.error('dome closing timed out')
                     send_slack_msg('ERROR: Pilot could not close the dome!')
                     asyncio.ensure_future(self.emergency_shutdown('Could not close the dome'))
@@ -1391,7 +1391,7 @@ class Pilot:
                 if mount_status == 'tracking':
                     break
                 await asyncio.sleep(5)
-                if time.time() - start_time > 60:
+                if time.time() - start_time > 300:
                     self.log.error('mount unparking timed out')
                     asyncio.ensure_future(self.emergency_shutdown('Could not unpark mount'))
         self.log.info('mount confirmed tracking')
