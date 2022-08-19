@@ -21,7 +21,7 @@ from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
-from .misc import execute_command, send_email
+from .misc import execute_command
 from .scheduling import update_schedule
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
@@ -1264,7 +1264,7 @@ class Pilot:
 
         # Finally, and most important: NEVER STOP WITHOUT CLOSING THE DOME!
         self.log.info('making sure dome is closed')
-        await self.close_dome_confirm()
+        await self.close_dome(confirm=True)
 
         self.log.info('shutdown process complete')
 
@@ -1298,13 +1298,16 @@ class Pilot:
         self.hardware['dome'].mode = 'open'
 
         # wait for dome to open
-        sleep_time = 5
+        start_time = time.time()
         while True:
             dome_status = self.hardware['dome'].get_hardware_status()
             self.log.debug('dome is {}'.format(dome_status))
             if dome_status == 'full_open':
                 break
-            await asyncio.sleep(sleep_time)
+            await asyncio.sleep(5)
+            if time.time() - start_time > 180:
+                self.log.error('dome opening timed out')
+                asyncio.ensure_future(self.emergency_shutdown('Could not open the dome'))
         self.log.info('dome confirmed open')
 
         if self.startup_complete:
@@ -1313,17 +1316,21 @@ class Pilot:
             self.log.info('opening mirror covers')
             execute_command('ota open')
             self.hardware['ota'].mode = 'open'
+
             # wait for mirror covers to open
-            sleep_time = 1
+            start_time = time.time()
             while True:
                 cover_status = self.hardware['ota'].get_hardware_status()
                 self.log.debug('covers are {}'.format(cover_status))
                 if cover_status == 'full_open':
                     break
-                await asyncio.sleep(sleep_time)
+                await asyncio.sleep(5)
+                if time.time() - start_time > 60:
+                    self.log.error('cover opening timed out')
+                    asyncio.ensure_future(self.emergency_shutdown('Could not open mirror covers'))
             self.log.info('mirror covers confirmed open')
 
-    def close_dome(self):
+    async def close_dome(self, confirm=False):
         """Send the dome close command and return immediately."""
         if self.startup_complete:
             # See above: if we haven't started (or, more likely here, have already shutdown)
@@ -1346,41 +1353,23 @@ class Pilot:
         self.dome_confirmed_closed = False
         self.close_command_time = time.time()
 
-    async def close_dome_confirm(self, mins_until_panic=10):
-        """Close the dome, make sure it's closed and alert if it won't.
+        if confirm:
+            # wait for dome to close
+            start_time = time.time()
+            while True:
+                dome_status = self.hardware['dome'].get_hardware_status()
+                self.log.debug('dome is {}'.format(dome_status))
+                if dome_status in ['closed', 'in_lockdown']:
+                    break
+                await asyncio.sleep(5)
+                if time.time() - start_time > 180:
+                    self.log.error('dome closing timed out')
+                    send_slack_msg('ERROR: Pilot could not close the dome!')
+                    asyncio.ensure_future(self.emergency_shutdown('Could not close the dome'))
 
-        Parameters
-        ----------
-        mins_until_panic : float
-            time in minutes to wait before emailing
-
-        """
-        start_time = time.time()
-        self.close_dome()
-
-        # wait for dome to close
-        sleep_time = 5
-        while True:
-            dome_status = self.hardware['dome'].get_hardware_status()
-            self.log.debug('dome is {}'.format(dome_status))
-            if dome_status in ['closed', 'in_lockdown']:
-                break
-
-            # panic time
-            elapsed_time = time.time() - start_time
-            if elapsed_time / 60. > mins_until_panic:
-                msg = 'IMPORTANT: Pilot cannot close dome!'
-                send_slack_msg(msg)
-                try:
-                    send_email(message=msg)
-                except Exception:
-                    self.log.error('Error sending email')
-
-            await asyncio.sleep(sleep_time)
-
-        self.dome_confirmed_closed = True
-        send_slack_msg('Pilot confirmed dome is closed')
-        self.log.info('dome confirmed closed')
+            self.dome_confirmed_closed = True
+            send_slack_msg('Pilot confirmed dome is closed')
+            self.log.info('dome confirmed closed')
 
     async def unpark_mount(self):
         """Unpark the mount (if it's parked), start tracking and await until it is ready."""
@@ -1395,13 +1384,16 @@ class Pilot:
             # slew to above horizon, to stop errors
             execute_command('mnt slew_altaz 50 0')
             # wait for mount to slew
-            sleep_time = 5
+            start_time = time.time()
             while True:
                 mount_status = self.hardware['mnt'].get_hardware_status()
                 self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
                     break
-                await asyncio.sleep(sleep_time)
+                await asyncio.sleep(5)
+                if time.time() - start_time > 60:
+                    self.log.error('mount unparking timed out')
+                    asyncio.ensure_future(self.emergency_shutdown('Could not unpark mount'))
         self.log.info('mount confirmed tracking')
 
     def stop_mount(self):
