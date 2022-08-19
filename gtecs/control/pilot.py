@@ -230,6 +230,7 @@ class Pilot:
         self.current_pointing = None
         self.current_start_time = None
         self.current_status = None
+        self.scheduler_updating = False
 
         # hardware to keep track of and fix if necessary
         self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
@@ -632,6 +633,11 @@ class Pilot:
         if name == 'OBS':
             # If it was an observation that just finished then update the status.
             # It should then be sent to the database in the next scheduler update.
+            # First we need to wait just in case the scheduler is currently being updated,
+            # otherwise things get messed up.
+            while self.scheduler_updating:
+                self.log.debug('waiting for scheduler to finish updating')
+                await asyncio.sleep(0.5)
             if retcode == 0:
                 self.current_status = 'completed'
             else:
@@ -936,6 +942,7 @@ class Pilot:
                 self.log.debug('current pointing: None')
 
             # Now update the database and get the latest pointing from the scheduler
+            self.scheduler_updating = True
             try:
                 if request_pointing:
                     self.log.debug('checking scheduler')
@@ -971,6 +978,8 @@ class Pilot:
                 if not self.observing:
                     # That was the last Pointing for the night, no reason to continue this loop
                     break
+
+            self.scheduler_updating = False
 
             # Do nothing if paused
             # We still want the above scheduler communication to happen if we're paused.
