@@ -171,11 +171,11 @@ class FakeDome:
             if command == 'open':
                 self._status_arr[i_side] += 1
                 self._write_temp()
-                time.sleep(3)
+                time.sleep(0.5)
             elif command == 'close':
                 self._status_arr[i_side] -= 1
                 self._write_temp()
-                time.sleep(3)
+                time.sleep(0.5)
 
             time.sleep(0.5)
 
