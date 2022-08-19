@@ -886,24 +886,32 @@ class Pilot:
         if last_obs_sunalt > until_sunalt:
             self.log.warning('limiting last_obs_sunalt to {}'.format(until_sunalt))
             last_obs_sunalt = until_sunalt
+
         request_pointing = True
+        finishing = False
 
         self.log.info('observing')
         self.observing = True
         while self.observing:
-            # Do nothing if paused
+            # Check if we're paused
             if self.paused:
-                self.log.info('observing suspended while paused')
-                await asyncio.sleep(10)
-                continue
+                # We still want the scheduler report to happen, just don't request anything.
+                request_pointing = False
+            else:
+                # When we unpause we need to start requesting again.
+                request_pointing = True
 
             # Should we stop?
             now = Time.now()
             sunalt_now = get_sunalt(now)
             if now > self.midnight or self.shutdown_now:
-                if sunalt_now > last_obs_sunalt and request_pointing:
+                if sunalt_now > last_obs_sunalt:
                     # At this point we stop asking for new pointings, but keep observing.
-                    self.log.info('sunalt={:.1f}, stopping scheduler checks'.format(sunalt_now))
+                    if not finishing:
+                        # The `finishing`` state is entirely to stop spamming this log message,
+                        # since the unpause logic above will keep resetting `request_pointing``.
+                        self.log.info('sunalt={:.1f}, stopping scheduler checks'.format(sunalt_now))
+                        finishing = True
                     request_pointing = False
                 if sunalt_now > until_sunalt or self.shutdown_now:
                     # We've reached the limit and we're still observing, so we need to abort
@@ -915,18 +923,24 @@ class Pilot:
                     request_pointing = False
                     self.observing = False
 
-            # First, log if we are currently observing
+            # First, log what the current pointing is (if anything)
             if self.current_pointing is not None:
-                self.log.debug('observing {} ({}, {:.0f}s/~{:.0f}s)'.format(
+                self.log.debug('current pointing: {} ({}, {:.0f}s/~{:.0f}s)'.format(
                                self.current_pointing['id'],
                                self.current_status,
                                time.time() - self.current_start_time,
                                self.current_pointing['obstime']),
                                )
+            elif not self.paused:
+                # Don't spam None if we're paused
+                self.log.debug('current pointing: None')
 
             # Now update the database and get the latest pointing from the scheduler
             try:
-                self.log.debug('checking scheduler')
+                if request_pointing:
+                    self.log.debug('checking scheduler')
+                else:
+                    self.log.debug('updating scheduler')
                 dome_shielding = self.hardware['dome'].shielding_active
                 future_pointing = update_schedule(
                     self.current_pointing['id'] if self.current_pointing is not None else None,
@@ -945,9 +959,10 @@ class Pilot:
                 self.log.debug('', exc_info=True)
                 new_pointing = None
 
-            self.log.debug('scheduler returns {}'.format(new_pointing['id']
-                                                         if new_pointing is not None
-                                                         else 'None'))
+            if request_pointing:
+                self.log.debug('scheduler returns {}'.format(new_pointing['id']
+                                                             if new_pointing is not None
+                                                             else 'None'))
 
             # Now that we've updated the database we can clear the current Pointing
             if self.current_status in ['completed', 'interrupted']:
@@ -956,6 +971,16 @@ class Pilot:
                 if not self.observing:
                     # That was the last Pointing for the night, no reason to continue this loop
                     break
+
+            # Do nothing if paused
+            # We still want the above scheduler communication to happen if we're paused.
+            # If we were observing then pausing should have killed OBS, which will have flagged the
+            # pointing as interrupted. So we need the database update to happen above.
+            # But now we can skip everything below.
+            if self.paused:
+                self.log.info('observing suspended while paused')
+                await asyncio.sleep(10)
+                continue
 
             # See if a new pointing has arrived and react appropriately
             # There are 6 options (technically 5, bottom left & bottom right
