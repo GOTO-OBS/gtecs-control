@@ -405,7 +405,7 @@ class Pilot:
                     self.log.info('dome confirmed closed')
                 elif time.time() - self.close_command_time > 65.:
                     self.log.warning('dome not closed. Trying again...')
-                    self.close_dome()
+                    await self.close_dome()
             await asyncio.sleep(sleep_time)
 
     @task_handler
@@ -1090,7 +1090,7 @@ class Pilot:
                     await self.cancel_running_script('bad conditions')
 
                 # always make sure we're closed and parked
-                self.close_dome()
+                await self.close_dome()
                 self.park_mount()
 
                 # reset the timer for bad conditions tasks to zero
@@ -1276,7 +1276,7 @@ class Pilot:
 
             self.log.info('closing dome immediately')
             self.stop_mount()
-            self.close_dome()
+            await self.close_dome()
 
             # trigger night countdown to shutdown
             self.shutdown_now = True
