@@ -914,8 +914,6 @@ class Pilot:
                 if sunalt_now > last_obs_sunalt:
                     # At this point we stop asking for new pointings, but keep observing.
                     if not finishing:
-                        # The `finishing`` state is entirely to stop spamming this log message,
-                        # since the unpause logic above will keep resetting `request_pointing``.
                         self.log.info('sunalt={:.1f}, stopping scheduler checks'.format(sunalt_now))
                         finishing = True
                     request_pointing = False
@@ -942,8 +940,8 @@ class Pilot:
                                time.time() - self.current_start_time,
                                self.current_pointing['obstime']),
                                )
-            elif not self.paused:
-                # Don't spam None if we're paused
+            elif request_pointing:
+                # Don't spam None if we didn't want anything
                 self.log.debug('current pointing: None')
 
             # Now update the database and get the latest pointing from the scheduler
@@ -980,20 +978,26 @@ class Pilot:
             if self.current_status in ['completed', 'interrupted']:
                 self.current_pointing = None
                 self.current_status = None
-                if not self.observing:
+                if finishing:
                     # That was the last Pointing for the night, no reason to continue this loop
+                    self.observing = False
                     break
 
             self.scheduler_updating = False
 
-            # Do nothing if paused
+            # Exit the loop if we didn't request a pointing.
             # We still want the above scheduler communication to happen if we're paused.
             # If we were observing then pausing should have killed OBS, which will have flagged the
             # pointing as interrupted. So we need the database update to happen above.
-            # Likewise if it's the end of the night we need observing=False and the loop to exit.
-            # But now we can skip everything below.
-            if self.paused:
-                self.log.info('observing suspended while paused')
+            # Likewise if it's the end of the night we need to loop until observing=False.
+            # But we can skip everything below.
+            if request_pointing is False:
+                msg = 'observing suspended'
+                if self.paused:
+                    msg += ' while paused'
+                elif finishing:
+                    msg += ', waiting for current obs to finish'
+                self.log.info(msg)
                 await asyncio.sleep(10)
                 continue
 
@@ -1053,6 +1057,7 @@ class Pilot:
             await asyncio.sleep(5)
 
         # the loop has broken, so we've reached sunrise and finished the final Pointing
+        self.observing = False
         self.log.info('observing completed')
 
     # Pausing
