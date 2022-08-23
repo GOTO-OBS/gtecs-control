@@ -618,7 +618,7 @@ class Pilot:
         if retcode != 0:
             # process finished abnormally
             self.log.warning('{} ended abnormally'.format(name))
-            if isinstance(result, str) and ('Error' in result) or ('Exception' in result):
+            if isinstance(result, str) and ('Error' in result or 'Exception' in result):
                 msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
                 send_slack_msg(msg)
             elif name not in ['OBS', 'BADCOND']:
