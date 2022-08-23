@@ -9,7 +9,8 @@ from argparse import ArgumentParser
 from gtecs.common.system import NeatCloser, execute_command
 from gtecs.control import params
 from gtecs.control.daemons import daemon_function
-from gtecs.control.focusing import focus_temp_compensation, refocus
+from gtecs.control.focusing import (RestoreFocusCloser, focus_temp_compensation,
+                                    get_focuser_positions, refocus, set_focuser_positions)
 from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
 from gtecs.control.observing import (prepare_for_images, slew_to_radec,
                                      wait_for_exposure_queue, wait_for_mount)
@@ -58,10 +59,20 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
     # make sure hardware is ready
     prepare_for_images()
 
-    if adjust_focus:
-        refocus()
-    elif temp_compensation:
-        focus_temp_compensation(take_images=True, verbose=True)
+    if adjust_focus or temp_compensation:
+        # If something goes wrong, or the script is interrupted, we need to restore
+        # the original focus positions.
+        initial_positions = get_focuser_positions()
+        try:
+            RestoreFocusCloser(initial_positions)
+            if adjust_focus:
+                refocus()
+            elif temp_compensation:
+                focus_temp_compensation(take_images=True, verbose=True)
+        except Exception:
+            print('Error caught: Restoring original focus positions...')
+            set_focuser_positions(initial_positions)
+            raise
 
     # Clear & pause queue to make sure
     execute_command('exq clear')

@@ -6,8 +6,22 @@ import pandas as pd
 
 from . import params
 from .analysis import measure_image_hfd
+from .misc import NeatCloser
 from .observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
-                        move_focusers)
+                        move_focusers, set_focuser_positions)
+
+
+class RestoreFocusCloser(NeatCloser):
+    """Restore the original focus positions if anything goes wrong."""
+
+    def __init__(self, positions):
+        super().__init__(taskname='Script')
+        self.positions = positions
+
+    def tidy_up(self):
+        """Restore the original focus."""
+        print('Interrupt caught: Restoring original focus positions...')
+        set_focuser_positions(self.positions)
 
 
 def get_hfd_position(target_hfd, current_position, current_hfd, gradient):

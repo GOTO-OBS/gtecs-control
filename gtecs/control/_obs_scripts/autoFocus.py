@@ -18,29 +18,16 @@ from argparse import ArgumentParser
 
 from astropy.time import Time
 
-from gtecs.common.system import NeatCloser
 from gtecs.control import params
 from gtecs.control.catalogs import focus_star
-from gtecs.control.focusing import get_best_focus_position, get_hfd_position, measure_focus
+from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position, get_hfd_position,
+                                    measure_focus)
 from gtecs.control.observing import (get_focuser_positions, prepare_for_images,
                                      set_focuser_positions, slew_to_radec)
 
 import numpy as np
 
 import pandas as pd
-
-
-class RestoreFocusCloser(NeatCloser):
-    """Restore the original focus positions if anything goes wrong."""
-
-    def __init__(self, positions):
-        super().__init__(taskname='Script')
-        self.positions = positions
-
-    def tidy_up(self):
-        """Restore the original focus."""
-        print('Interrupt caught: Restoring original focus positions...')
-        set_focuser_positions(self.positions)
 
 
 def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
