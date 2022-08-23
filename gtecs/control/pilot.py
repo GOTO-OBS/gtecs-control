@@ -934,12 +934,21 @@ class Pilot:
 
             # First, log what the current pointing is (if anything)
             if self.current_pointing is not None:
+                running_time = time.time() - self.current_start_time
                 self.log.debug('current pointing: {} ({}, {:.0f}s/~{:.0f}s)'.format(
                                self.current_pointing['id'],
                                self.current_status,
-                               time.time() - self.current_start_time,
+                               running_time,
                                self.current_pointing['obstime']),
                                )
+                # Check if we have been running for way too long
+                if (self.current_status == 'running' and
+                        (running_time > self.current_pointing['obstime'] * 5)):
+                    # Either something odd is going on with the exposures, or the OBS task died
+                    # and failed to change the status to interrupted.
+                    self.log.warning('timeout exceeded, killing observation')
+                    await self.cancel_running_script(why='observing timeout')
+                    self.current_status = 'interrupted'  # Just to be sure
             elif request_pointing:
                 # Don't spam None if we didn't want anything
                 self.log.debug('current pointing: None')
