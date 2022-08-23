@@ -9,27 +9,27 @@ from astropy.time import Time
 from . import params
 
 
-def load_json(fname):
+def load_json(fname, attempts=3):
     """Attempt to load a JSON file, with multiple tries."""
     data = None
-    attempts_remaining = 3
+    attempts_remaining = attempts
     while attempts_remaining:
         try:
             with open(fname, 'r') as fh:
                 data = json.load(fh)
-            assert len(data) != 0
-            break
-        except Exception:
-            time.sleep(0.001)
+            if data is None or len(data) == 0:
+                raise ValueError('Empty file')
+            return data
+        except Exception as err:
             attempts_remaining -= 1
-            pass
-    if attempts_remaining and data is not None:
-        return data
-    else:
-        raise IOError('cannot read {}'.format(fname))
+            if attempts_remaining > 0:
+                time.sleep(0.001)
+                continue
+            else:
+                raise IOError('Cannot read {} (contents: "{}")'.format(fname, data)) from err
 
 
-class Conditions(object):
+class Conditions:
     """A class to give easy access to the conditions flags."""
 
     def __init__(self):
@@ -88,7 +88,7 @@ class Conditions(object):
         return ' - '.join(arr)
 
 
-class Status(object):
+class Status:
     """A class to give easy access to the status flags."""
 
     def __init__(self):
