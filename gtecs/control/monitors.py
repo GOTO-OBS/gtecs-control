@@ -938,7 +938,7 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
             #                   it's been put into stopped mode. It could be parked, but that's
             #                   a different error.
-            return ERROR_MNT_STOPPED, recovery_procedure
+            return ERROR_MNT_NOTSTOPPED, recovery_procedure
 
         elif ERROR_MNT_NONSIDEREAL in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking at the correct rate.
