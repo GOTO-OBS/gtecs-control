@@ -74,7 +74,7 @@ ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
 ERROR_MNT_AUTOSLEW = 'MNT:AUTOSLEW_ERROR'
 ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
-ERROR_MNT_STOPPED = 'MNT:NOT_TRACKING'
+ERROR_MNT_NOTTRACKING = 'MNT:NOT_TRACKING'
 ERROR_MNT_NOTSTOPPED = 'MNT:NOT_STOPPED'
 ERROR_MNT_NONSIDEREAL = 'MNT:TRACKING_NONSIDEREAL'
 ERROR_MNT_PARKED = 'MNT:PARKED'
@@ -740,13 +740,13 @@ class MntMonitor(BaseMonitor):
         if self.hardware_status != STATUS_MNT_CONNECTION_ERROR:
             self.clear_error(ERROR_MNT_CONNECTION)
 
-        # ERROR_MNT_STOPPED
-        # Set the error if the mount is not moving and it should be tracking
-        if self.mode != MODE_MNT_STOPPED and self.hardware_status == STATUS_MNT_STOPPED:
-            self.add_error(ERROR_MNT_STOPPED, delay=30)
+        # ERROR_MNT_NOTRACKING
+        # Set the error if the mount is stopped and it should be tracking
+        if self.mode == MODE_MNT_TRACKING and self.hardware_status == STATUS_MNT_STOPPED:
+            self.add_error(ERROR_MNT_NOTTRACKING, delay=30)
         # Clear the error if the mount is tracking or it shouldn't be any more
-        if self.mode == MODE_MNT_STOPPED or self.hardware_status != STATUS_MNT_STOPPED:
-            self.clear_error(ERROR_MNT_STOPPED)
+        if self.mode != MODE_MNT_TRACKING or self.hardware_status != STATUS_MNT_STOPPED:
+            self.clear_error(ERROR_MNT_NOTTRACKING)
 
         # ERROR_MNT_NOTSTOPPED
         # Set the error if the mount isn't stopped and it should be
@@ -907,7 +907,7 @@ class MntMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: It can't reach the target for some reason.
             return ERROR_MNT_NOTONTARGET, recovery_procedure
 
-        elif ERROR_MNT_STOPPED in self.errors:
+        elif ERROR_MNT_NOTTRACKING in self.errors:
             # PROBLEM: The mount is in tracking mode but it's not tracking.
             recovery_procedure = {}
             # SOLUTION 1: Try tracking.
@@ -921,7 +921,7 @@ class MntMonitor(BaseMonitor):
             #             Try slewing to the neutral position.
             recovery_procedure[4] = ['mnt altaz 50 0', 60]
             # OUT OF SOLUTIONS: There must be a problem that's not letting it track.
-            return ERROR_MNT_STOPPED, recovery_procedure
+            return ERROR_MNT_NOTTRACKING, recovery_procedure
 
         elif ERROR_MNT_NOTSTOPPED in self.errors:
             # PROBLEM: The mount is in stopped mode but it's not stopped.
