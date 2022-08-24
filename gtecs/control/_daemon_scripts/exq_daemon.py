@@ -35,6 +35,8 @@ class ExqDaemon(BaseDaemon):
         self.current_exposure = None
         self.exposure_state = 'none'
         self.dither_time = 0
+        self.dither_pattern = ['N', 'E', 'SS', 'W', 'W', 'NN', 'ES']
+        self.dither_duration = params.DITHERING_DURATION
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
         if not os.path.exists(self.set_number_file):
@@ -102,14 +104,18 @@ class ExqDaemon(BaseDaemon):
                             self.exposure_state = 'mount_dithering'
 
                         # Offset the mount slightly by pulse guiding
-                        # TODO: have a set direction pattern?
-                        self.log.info('Offsetting the mount position')
                         try:
-                            with daemon_proxy('mnt') as mnt_daemon:
-                                mnt_daemon.pulse_guide(params.DITHERING_DIRECTION,
-                                                       params.DITHERING_DURATION)
+                            if self.current_exposure.set_pos != 1:  # Don't dither on first one
+                                i = (self.current_exposure.set_pos - 2) % len(self.dither_pattern)
+                                direction = self.dither_pattern[i]
+                                self.log.info(f'Offsetting the mount position {direction}')
+                                for d in direction:
+                                    with daemon_proxy('mnt') as mnt_daemon:
+                                        mnt_daemon.pulse_guide(d, self.dither_duration)
+                                        if len(direction) > 1:
+                                            time.sleep(2)  # This is awkward
                                 self.dither_time = self.loop_time
-                                self.exposure_state = 'mount_dithering'
+                            self.exposure_state = 'mount_dithering'
                         except Exception:
                             self.log.error('No response from mount daemon')
                             self.log.debug('', exc_info=True)
