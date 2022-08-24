@@ -1173,8 +1173,8 @@ class Pilot:
                     await self.cancel_running_script('bad conditions')
 
                 # always make sure we're closed and parked
+                # (though the dome should already be closing itself)
                 await self.close_dome()
-                self.park_mount()
 
                 # reset the timer for bad conditions tasks to zero
                 self.bad_conditions_tasks_timer = 0
