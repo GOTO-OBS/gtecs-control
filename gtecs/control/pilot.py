@@ -943,6 +943,7 @@ class Pilot:
                                )
                 # Check if we have been running for way too long
                 if (self.current_status == 'running' and
+                        (running_time > 120) and  # Give a minimum time for short observations
                         (running_time > self.current_pointing['obstime'] * 5)):
                     # Either something odd is going on with the exposures, or the OBS task died
                     # and failed to change the status to interrupted.
