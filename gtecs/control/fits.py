@@ -173,6 +173,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     """Get all info dicts from the running daemons, and other common info."""
     info_time = Time.now()
     all_info = {}
+    bad_info = []
 
     # Camera daemon
     all_info['cam'] = cam_info
@@ -194,6 +195,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.error(f'Failed to fetch "{daemon_id}" info')
             log.debug('', exc_info=True)
             all_info[daemon_id] = None
+            bad_info.append(daemon_id)
 
     threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log, log_debug))
                for daemon_id in ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']]
@@ -324,6 +326,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             all_info['mnt']['position_error_info'] = None
             all_info['mnt']['tracking_error_info'] = None
             all_info['mnt']['motor_current_info'] = None
+            bad_info.append('mnt_history')
 
     # Conditions sources
     if all_info['conditions'] is not None:
@@ -347,6 +350,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.debug('', exc_info=True)
             all_info['conditions']['weather_ext'] = None
             all_info['conditions']['weather_int'] = None
+            bad_info.append('conditions_sources')
 
     # Conditions history
     if all_info['conditions'] is not None and all_info['conditions']['weather_ext'] is not None:
@@ -385,6 +389,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.error('Failed to calculate conditions history info')
             log.debug('', exc_info=True)
             all_info['conditions']['weather_ext']['windgust_history_info'] = None
+            bad_info.append('conditions_history')
 
     # Database
     if cam_info['current_exposure']['set_id'] is not None:
@@ -416,6 +421,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.error('Failed to fetch database info')
             log.debug('', exc_info=True)
             all_info['db'] = None
+            bad_info.append('database')
     else:
         db_info = {}
         db_info['from_database'] = False
@@ -446,7 +452,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
 
     all_info['params'] = params_info
 
-    return all_info
+    return all_info, bad_info
 
 
 def update_header(header, ut, all_info, log=None):

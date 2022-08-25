@@ -15,6 +15,7 @@ from gtecs.control.daemons import BaseDaemon, daemon_proxy
 from gtecs.control.exposures import Exposure
 from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
                                 image_location, make_fits, save_fits)
+from gtecs.control.slack import send_slack_msg
 
 
 class CamDaemon(BaseDaemon):
@@ -212,8 +213,12 @@ class CamDaemon(BaseDaemon):
                     # Fetch the daemon info
                     if self.all_info is None:
                         self.log.info('{}: Fetching info from other daemons'.format(expstr))
-                        self.all_info = get_all_info(self.info.copy(), self.log)
+                        self.all_info, bad_info = get_all_info(self.info.copy(), log=self.log)
                         self.log.info('{}: Fetched info from other daemons'.format(expstr))
+                        if len(bad_info) > 0:
+                            # We failed to get at least one info set, log and tell Slack
+                            self.log.error('Bad info: {}'.format(bad_info))
+                            send_slack_msg('Cam failed to get info for: {}'.format(bad_info))
 
                     # Wait for the images to be ready
                     for ut in self.active_uts:
