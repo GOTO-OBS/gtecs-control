@@ -672,7 +672,7 @@ class MntMonitor(BaseMonitor):
                 hardware_status = STATUS_MNT_OFFTARGET
             else:
                 hardware_status = STATUS_MNT_TRACKING
-        elif mount in ['Slewing', 'Parking']:
+        elif mount in ['Slewing', 'Parking', 'Guiding']:
             hardware_status = STATUS_MNT_MOVING
         elif mount == 'Parked':
             hardware_status = STATUS_MNT_PARKED
