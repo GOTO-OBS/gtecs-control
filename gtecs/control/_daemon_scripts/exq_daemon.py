@@ -34,9 +34,17 @@ class ExqDaemon(BaseDaemon):
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
         self.exposure_state = 'none'
+
+        # dithering
+        self.dithering_enabled = params.EXQ_DITHERING  # TODO: should be per exposure, also in db
         self.dither_time = 0
-        self.dither_pattern = ['N', 'E', 'SS', 'W', 'W', 'NN', 'ES']
-        self.dither_duration = params.DITHERING_DURATION
+        self.dither_pattern = [('N', 1.00),  # TODO: should be in params
+                               ('E', 1.32),
+                               ('S', 1.54),
+                               ('W', 1.61),
+                               ('N', 1.21),
+                               ('E', 1.22),
+                               ]
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
         if not os.path.exists(self.set_number_file):
@@ -89,7 +97,7 @@ class ExqDaemon(BaseDaemon):
                 # Exposure state machine
                 if self.exposure_state == 'init':
                     # STATE 1: Start the mount dithering (then move filters while settling)
-                    if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
+                    if self.dithering_enabled and self.current_exposure.frametype != 'dark':
                         # Get the mount info
                         try:
                             with daemon_proxy('mnt', timeout=10) as mnt_daemon:
@@ -107,13 +115,11 @@ class ExqDaemon(BaseDaemon):
                         try:
                             if self.current_exposure.set_pos != 1:  # Don't dither on first one
                                 i = (self.current_exposure.set_pos - 2) % len(self.dither_pattern)
-                                direction = self.dither_pattern[i]
-                                self.log.info(f'Offsetting the mount position {direction}')
-                                for d in direction:
-                                    with daemon_proxy('mnt') as mnt_daemon:
-                                        mnt_daemon.pulse_guide(d, self.dither_duration)
-                                        if len(direction) > 1:
-                                            time.sleep(2)  # This is awkward
+                                direction = self.dither_pattern[i][0]
+                                duration = self.dither_pattern[i][1]
+                                self.log.info(f'Offsetting the mount {duration:.2f}s {direction}')
+                                with daemon_proxy('mnt') as mnt_daemon:
+                                    mnt_daemon.pulse_guide(direction, duration * 1000)
                                 self.dither_time = self.loop_time
                             self.exposure_state = 'mount_dithering'
                         except Exception:
@@ -203,7 +209,7 @@ class ExqDaemon(BaseDaemon):
 
                 if self.exposure_state == 'filters_set':
                     # STATE 6: Check if the mount has finished dithering
-                    if params.EXQ_DITHERING and self.current_exposure.frametype != 'dark':
+                    if self.dithering_enabled and self.current_exposure.frametype != 'dark':
                         # Get the mount info
                         try:
                             with daemon_proxy('mnt', timeout=10) as mnt_daemon:
