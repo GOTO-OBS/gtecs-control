@@ -1121,6 +1121,7 @@ class Pilot:
                     asyncio.ensure_future(self.start_script('OBS', 'observe.py', args=args))
                     self.current_start_time = time.time()
                     self.current_pointing = new_pointing
+                    self.current_status = 'running'
 
             else:
                 # Nothing to do!
@@ -1470,7 +1471,6 @@ class Pilot:
             # wait for mount to slew
             start_time = time.time()
             while True:
-                await asyncio.sleep(5)
                 mount_status = self.hardware['mnt'].get_hardware_status()
                 self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
