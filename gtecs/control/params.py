@@ -284,7 +284,6 @@ SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
 CCD_TEMP = config['CCD_TEMP']
 COMPRESS_IMAGES = config['COMPRESS_IMAGES']
-WRITE_IMAGE_LOG = config['WRITE_IMAGE_LOG']
 MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 
 ############################################################
@@ -340,12 +339,6 @@ DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
 
 EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
-########################################################################
-# Scheduler parameters
-SCHEDULER_CHECK_PERIOD = config['SCHEDULER_CHECK_PERIOD']
-HORIZON_FILE = os.path.join(FILE_PATH, 'horizon')
-HORIZON_SHIELDING_FILE = os.path.join(FILE_PATH, 'horizon_shielding')
-
 ############################################################
 # Obs script parameters
 FLATS_SKYMEANTARGET_EVEN = config['FLATS_SKYMEANTARGET_EVEN']
@@ -356,6 +349,11 @@ FLATS_STEPSIZE = config['FLATS_STEPSIZE']
 
 IERS_A_URL = config['IERS_A_URL']
 IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
+
+########################################################################
+# Scheduler parameters
+SCHEDULER_HOST = config['SCHEDULER_HOST']
+SCHEDULER_PORT = config['SCHEDULER_PORT']
 
 ############################################################
 # Pilot parameters

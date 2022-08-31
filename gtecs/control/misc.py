@@ -139,10 +139,9 @@ class NeatCloser(object, metaclass=abc.ABCMeta):
         signal.signal(signal.SIGINT, self.interrupt)
 
     def interrupt(self, sig, handler):
-        """Catch interupts."""
+        """Catch interrupts."""
         print('{} received kill signal'.format(self.taskname))
-        # do things here on interrupt, for example, stop exposing
-        # update queue DB.
+        # do things here on interrupt
         self.tidy_up()
         sys.exit(1)
 

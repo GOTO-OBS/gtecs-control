@@ -46,7 +46,6 @@ if __name__ == '__main__':
                 'foc': monitors.FocMonitor(),
                 'exq': monitors.ExqMonitor(),
                 'conditions': monitors.ConditionsMonitor(),
-                'scheduler': monitors.SchedulerMonitor(),
                 }
 
     # Set modes

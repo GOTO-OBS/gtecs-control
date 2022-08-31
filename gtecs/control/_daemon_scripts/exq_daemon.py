@@ -282,8 +282,8 @@ class ExqDaemon(BaseDaemon):
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
             current_info['set_tot'] = self.current_exposure.set_tot
-            current_info['from_db'] = self.current_exposure.from_db
-            current_info['db_id'] = self.current_exposure.db_id
+            current_info['set_id'] = self.current_exposure.set_id
+            current_info['pointing_id'] = self.current_exposure.pointing_id
             temp_info['current_exposure'] = current_info
         else:
             temp_info['exposing'] = False
@@ -311,7 +311,7 @@ class ExqDaemon(BaseDaemon):
     def add(self, ut_list, exptime, nexp=1,
             filt=None, binning=1, frametype='normal',
             target='NA', imgtype='SCIENCE', glance=False,
-            db_id=None):
+            set_id=None, pointing_id=None):
         """Add exposures to the queue."""
         # Check restrictions
         if self.dependency_error:
@@ -353,7 +353,8 @@ class ExqDaemon(BaseDaemon):
                                 set_num=new_set_number,
                                 set_pos=i,
                                 set_tot=nexp,
-                                db_id=db_id,
+                                set_id=set_id,
+                                pointing_id=pointing_id,
                                 )
             self.exp_queue.append(exposure)
             if not glance:

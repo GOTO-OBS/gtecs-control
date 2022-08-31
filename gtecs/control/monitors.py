@@ -449,6 +449,8 @@ class DomeMonitor(BaseMonitor):
         north = info['north']
         south = info['south']
         shielding = info['shielding']
+        # store shielding status on the monitor for the pilot
+        self.shielding_active = shielding
 
         if north == 'closed' and south == 'closed':
             hardware_status = STATUS_DOME_CLOSED
@@ -1678,77 +1680,6 @@ class ConditionsMonitor(BaseMonitor):
             recovery_procedure[3] = ['power on poe', 120]
             # OUT OF SOLUTIONS: Maybe it's not the RoomAlert's fault.
             return ERROR_FILT_UNHOMED, recovery_procedure
-
-        else:
-            # Some unexpected error.
-            return ERROR_UNKNOWN, {}
-
-
-class SchedulerMonitor(BaseMonitor):
-    """Hardware monitor for the scheduler daemon."""
-
-    def __init__(self, starting_mode=MODE_ACTIVE, log=None):
-        super().__init__('scheduler', log)
-
-        # Define modes and starting mode
-        self.available_modes = [MODE_ACTIVE]
-        self.mode = starting_mode
-
-        # Set a longer info timeout than default, as checks can take a while
-        self.info_timeout = 30
-
-    def get_hardware_status(self):
-        """Get the current status of the hardware."""
-        info = self.get_info()
-        if info is None:
-            self.hardware_status = STATUS_UNKNOWN
-            return STATUS_UNKNOWN
-
-        # no custom statuses
-        hardware_status = STATUS_ACTIVE
-
-        self.hardware_status = hardware_status
-        return hardware_status
-
-    def _check_hardware(self):
-        """Check the hardware and report any detected errors."""
-        # no custom errors
-        return
-
-    def _recovery_procedure(self):
-        """Get the recovery commands for the current error(s), based on hardware status and mode."""
-        if not self.errors:
-            # Everything's fine, thank you. How are you?
-            return None, {}
-
-        elif ERROR_HARDWARE in self.errors:
-            # The scheduler daemon doesn't raise hardware errors.
-            return ERROR_HARDWARE, {}
-
-        elif ERROR_DEPENDENCY in self.errors:
-            # The scheduler daemon doesn't have dependencies, so this really shouldn't happen...
-            return ERROR_DEPENDENCY, {}
-
-        elif ERROR_RUNNING in self.errors or ERROR_PING in self.errors or ERROR_INFO in self.errors:
-            # PROBLEM: Daemon is not running, or it is and it's not responding or returning info.
-            recovery_procedure = {}
-            # SOLUTION 1: Make sure it's started.
-            recovery_procedure[1] = ['scheduler start', 30]
-            # SOLUTION 2: Try restarting it.
-            recovery_procedure[2] = ['scheduler restart', 30]
-            # SOLUTION 3: Kill it, then start it again.
-            recovery_procedure[3] = ['scheduler kill', 10]
-            recovery_procedure[4] = ['scheduler start', 30]
-            # OUT OF SOLUTIONS: There must be something wrong that we can't fix here.
-            return ERROR_PING + ERROR_INFO, recovery_procedure
-
-        elif ERROR_STATUS in self.errors:
-            # PROBLEM: Hardware is in an unknown state.
-            recovery_procedure = {}
-            # SOLUTION 1: Try restarting the daemon.
-            recovery_procedure[1] = ['scheduler restart', 30]
-            # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
-            return ERROR_STATUS, recovery_procedure
 
         else:
             # Some unexpected error.

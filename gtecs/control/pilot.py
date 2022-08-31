@@ -15,16 +15,15 @@ from astropy import units as u
 from astropy.time import Time
 
 from gtecs.common.logging import get_logger
-from gtecs.obs.database import mark_aborted, mark_completed, mark_interrupted, mark_running
 
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
-from .misc import execute_command, send_email
-from .observing import check_schedule, get_pointing_status
-from .slack import send_slack_msg, send_startup_report, send_database_report, send_timing_report
+from .misc import execute_command
+from .scheduling import update_schedule
+from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
 class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
@@ -40,8 +39,7 @@ class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
 
     Make concrete versions of this abstract class
     by implementing `_parseResults`, which parses the
-    processess output and stores the result in the `done`
-    Future.
+    process output and stores the result in the `done` Future.
     """
 
     FD_NAMES = ['stdin', 'stdout', 'stderr']
@@ -50,7 +48,7 @@ class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         """Create the protocol.
 
         Parameters
-        -----------
+        ----------
         name : str
             A name for this task. Will be prepended to output.
         done : `~asyncio.Future`
@@ -145,7 +143,7 @@ class LoggedProtocol(TaskProtocol):
 
 
 def task_handler(func):
-    """Wrapper to handle exceptions within the main pilot coroutines."""
+    """Handle exceptions within the main pilot coroutines."""
     async def wrapper(pilot, *args, **kwargs):
         try:
             pilot.log.debug('starting {} routine'.format(func.__name__))
@@ -162,17 +160,17 @@ def task_handler(func):
             try:
                 pilot.log.debug('finished {} routine'.format(func.__name__))
             except NameError:
-                # An interupt has already killed the logger
+                # An interrupt has already killed the logger
                 # See https://stackoverflow.com/questions/64679139/
                 print('finished {} routine'.format(func.__name__))
     return wrapper
 
 
-class Pilot(object):
-    """Run the scheduler and telescope.
+class Pilot:
+    """Operate the telescope autonomously.
 
     The Pilot uses asyncio to run several tasks concurrently,
-    including checking the Scheduler for the best pointing to
+    including checking the scheduler for the best pointing to
     observe at the moment and then starting an observing task.
 
     Other tasks include, but are not limited to, logging the status,
@@ -200,13 +198,6 @@ class Pilot(object):
         # flag for daytime testing
         self.testing = testing
 
-        # current and next pointing from scheduler
-        self.current_id = None
-        self.current_mintime = None
-        self.current_start_time = None
-        self.new_id = None
-        self.new_mintime = None
-
         # store the name of the running script (if any)
         self.running_script = None
         # for communicating with the external process
@@ -227,7 +218,6 @@ class Pilot(object):
         # status flags, set during the night
         self.initial_hardware_check_complete = False
         self.initial_flags_check_complete = False
-        self.initial_scheduler_check_complete = False
         self.startup_complete = False
         self.night_operations = False
         self.tasks_pending = False
@@ -235,6 +225,12 @@ class Pilot(object):
         self.mount_is_tracking = False   # should the mount be tracking?
         self.dome_is_open = False        # should the dome be open?
         self.shutdown_now = False
+
+        # current pointing details
+        self.current_pointing = None
+        self.current_start_time = None
+        self.current_status = None
+        self.scheduler_updating = False
 
         # hardware to keep track of and fix if necessary
         self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
@@ -246,7 +242,6 @@ class Pilot(object):
                          'foc': monitors.FocMonitor(log=self.log),
                          'exq': monitors.ExqMonitor(log=self.log),
                          'conditions': monitors.ConditionsMonitor(log=self.log),
-                         'scheduler': monitors.SchedulerMonitor(log=self.log),
                          }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 
@@ -256,7 +251,6 @@ class Pilot(object):
         # reasons to pause and timers
         self.whypause = {'hardware': False, 'conditions': False, 'manual': False}
         self.time_paused = {'hardware': 0, 'conditions': 0, 'manual': 0}
-        self.time_lost = 0
         self.bad_conditions_tasks_timer = 0
         self.bad_hardware = None
         self.bad_flags = None
@@ -265,42 +259,7 @@ class Pilot(object):
         self.dome_confirmed_closed = False
         self.close_command_time = 0.
 
-        # scheduler check flags
-        self.force_scheduler_check = False
-        self.scheduler_check_time = 0
-
     # Check routines
-    @task_handler
-    async def check_scheduler(self):
-        """Check scheduler and update current pointing every 10 seconds."""
-        self.log.info('scheduler check routine initialised')
-
-        sleep_time = 10
-        while True:
-            now = time.time()
-            if self.force_scheduler_check or (now - self.scheduler_check_time) > sleep_time:
-                if not self.observing:
-                    self.log.debug('scheduler checks suspended when not observing')
-                elif self.paused:
-                    self.log.debug('scheduler checks suspended while paused')
-                else:
-                    # check scheduler daemon
-                    self.log.debug('checking scheduler')
-
-                    check_results = check_schedule()
-                    self.new_id, self.new_mintime = check_results
-
-                    if self.new_id != self.current_id:
-                        self.log.info('scheduler returns {} (NEW)'.format(self.new_id))
-                    else:
-                        self.log.debug('scheduler returns {}'.format(self.current_id))
-
-                    self.initial_scheduler_check_complete = True
-
-                self.scheduler_check_time = now
-                self.force_scheduler_check = False
-            await asyncio.sleep(1)
-
     @task_handler
     async def check_hardware(self):
         """Continuously monitor hardware and try to fix any issues."""
@@ -446,7 +405,7 @@ class Pilot(object):
                     self.log.info('dome confirmed closed')
                 elif time.time() - self.close_command_time > 65.:
                     self.log.warning('dome not closed. Trying again...')
-                    self.close_dome()
+                    await self.close_dome()
             await asyncio.sleep(sleep_time)
 
     @task_handler
@@ -462,9 +421,6 @@ class Pilot(object):
                 # log why we're paused
                 self.log.info('pilot paused ({})'.format(', '.join(reasons)))
                 self.log.debug('pause times: {}'.format(self.time_paused))
-
-                # track the observing time lost (this is reset whenever a new observation starts)
-                self.time_lost += sleep_time
 
                 # track the time paused for each reason (this is reset whenever the system unpauses)
                 for reason in reasons:
@@ -525,7 +481,6 @@ class Pilot(object):
                                obs_stop_sunalt=self.obs_stop_sunalt,
                                close_sunalt=self.close_sunalt,
                                )
-            send_database_report()
 
         # Wait for first flag check
         while not self.initial_flags_check_complete:
@@ -644,8 +599,7 @@ class Pilot(object):
             script_name += '-' + args[0]
         factory = functools.partial(protocol, script_name, self.running_script_result, 'pilot')
 
-        # create the process coroutine which will return
-        # a 'transport' and 'protocol' when scheduled
+        # create the process coroutine
         loop = asyncio.get_event_loop()
         with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
             cmd = [str(path), *args] if args is not None else [str(path)]
@@ -664,7 +618,7 @@ class Pilot(object):
         if retcode != 0:
             # process finished abnormally
             self.log.warning('{} ended abnormally'.format(name))
-            if ('Error' in result) or ('Exception' in result):
+            if isinstance(result, str) and ('Error' in result or 'Exception' in result):
                 msg = 'Pilot {} task ended abnormally ("{}")'.format(name, result)
                 send_slack_msg(msg)
             elif name not in ['OBS', 'BADCOND']:
@@ -672,22 +626,27 @@ class Pilot(object):
                 msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 
-            # if we were observing, make sure the pointing is marked as aborted
-            # (the observe.py closer should do this anyway, but best to be sure)
-            if name == 'OBS' and self.current_id is not None:
-                mark_aborted(self.current_id)
-                self.log.debug('pointing {} was aborted'.format(self.current_id))
-
         self.log.info('finished {}'.format(name))
         self.running_script = None
 
-        # if it was an observation that just finished (aborted or not) force a scheduler check
+        # cleanup for specific scripts
         if name == 'OBS':
-            self.log.debug('forcing scheduler check')
-            self.force_scheduler_check = True
-
-        # if BADCOND has just finished and we're still paused then park the mount again
-        if name == 'BADCOND':
+            # If it was an observation that just finished then update the status.
+            # It should then be sent to the database in the next scheduler update.
+            # First we need to wait just in case the scheduler is currently being updated,
+            # otherwise things get messed up.
+            while self.scheduler_updating:
+                self.log.debug('waiting for scheduler to finish updating')
+                await asyncio.sleep(0.5)
+            if retcode == 0:
+                self.current_status = 'completed'
+            else:
+                self.current_status = 'interrupted'
+            self.log.debug('pointing {} was {}'.format(self.current_pointing['id'],
+                                                       self.current_status,
+                                                       ))
+        elif name == 'BADCOND':
+            # if BADCOND has just finished and we're still paused then park the mount again
             if (self.paused and not self.whypause['hardware'] and not self.whypause['manual'] and
                     self.mount_is_tracking):
                 self.park_mount()
@@ -860,7 +819,7 @@ class Pilot(object):
             if given, return False if the sun is already past the given altitude
 
         Returns
-        --------
+        -------
         OK : bool
             True if you are safe to go, False if we think you are too late
 
@@ -879,15 +838,11 @@ class Pilot(object):
             too_late = False
 
             # check if we're on the wrong side of midnight
-            if not rising and now > self.midnight:
-                too_late = True
-            elif rising and now < self.midnight:
+            if (not rising and now > self.midnight) or (rising and now < self.midnight):
                 too_late = True
 
             # check if we've missed the late sunalt
-            if not rising and sunalt_now < late_sunalt:
-                too_late = True
-            elif rising and sunalt_now > late_sunalt:
+            if (not rising and sunalt_now < late_sunalt) or (rising and sunalt_now > late_sunalt):
                 too_late = True
 
             if too_late:
@@ -909,9 +864,7 @@ class Pilot(object):
                 self.log.debug(msg)
 
             # has our watch ended?
-            if rising and sunalt_now > sunalt:
-                break
-            elif not rising and sunalt_now < sunalt:
+            if (rising and sunalt_now > sunalt) or (not rising and sunalt_now < sunalt):
                 break
 
             await asyncio.sleep(sleep_time)
@@ -936,142 +889,186 @@ class Pilot(object):
         """
         if last_obs_sunalt is None:
             last_obs_sunalt = until_sunalt - 2
+        if last_obs_sunalt > until_sunalt:
+            self.log.warning('limiting last_obs_sunalt to {}'.format(until_sunalt))
+            last_obs_sunalt = until_sunalt
+
+        request_pointing = True
+        finishing = False
 
         self.log.info('observing')
         self.observing = True
-
-        sleep_time = 5
-        while True:
-            # do nothing if paused
+        while self.observing:
+            # Check if we're paused
             if self.paused:
-                await asyncio.sleep(30)
-                continue
+                # We still want the scheduler report to happen, just don't request anything.
+                request_pointing = False
+            else:
+                # When we unpause we need to start requesting again.
+                request_pointing = True
 
-            # no point observing if we haven't checked the scheduler yet
-            while not self.initial_scheduler_check_complete:
-                self.log.info('waiting for first scheduler check')
-                self.force_scheduler_check = True
-                await asyncio.sleep(2)
-                continue
-
-            # should we stop for the sun?
+            # Should we stop?
             now = Time.now()
             sunalt_now = get_sunalt(now)
             if now > self.midnight:
-                if sunalt_now > last_obs_sunalt and self.observing:
-                    self.log.debug('stopping scheduler checks, current observation will continue')
-                    self.observing = False
+                if sunalt_now > last_obs_sunalt:
+                    # At this point we stop asking for new pointings, but keep observing.
+                    if not finishing:
+                        self.log.info('sunalt={:.1f}, stopping scheduler checks'.format(sunalt_now))
+                        finishing = True
+                    request_pointing = False
                 if sunalt_now > until_sunalt:
-                    # end observing
+                    # We've reached the limit and we're still observing, so we need to abort
+                    # any current observation.
+                    # This should set current_status, and then we'll update the database and
+                    # exit the loop below.
+                    self.log.info('sunalt={:.1f}, finished observing'.format(sunalt_now))
+                    await self.cancel_running_script('obs finished')
+                    request_pointing = False
+                    self.observing = False
+            if self.shutdown_now:
+                self.log.info('shutdown triggered, stopping observing')
+                await self.cancel_running_script('shutdown')
+                request_pointing = False
+                self.observing = False
+
+            # First, log what the current pointing is (if anything)
+            if self.current_pointing is not None:
+                running_time = time.time() - self.current_start_time
+                self.log.debug('current pointing: {} ({}, {:.0f}s/~{:.0f}s)'.format(
+                               self.current_pointing['id'],
+                               self.current_status,
+                               running_time,
+                               self.current_pointing['obstime']),
+                               )
+                # Check if we have been running for way too long
+                if (self.current_status == 'running' and
+                        (running_time > 120) and  # Give a minimum time for short observations
+                        (running_time > self.current_pointing['obstime'] * 5)):
+                    # Either something odd is going on with the exposures, or the OBS task died
+                    # and failed to change the status to interrupted.
+                    self.log.warning('timeout exceeded, killing observation')
+                    await self.cancel_running_script(why='observing timeout')
+                    self.current_status = 'interrupted'  # Just to be sure
+            elif request_pointing:
+                # Don't spam None if we didn't want anything
+                self.log.debug('current pointing: None')
+
+            # Now update the database and get the latest pointing from the scheduler
+            self.scheduler_updating = True
+            try:
+                if request_pointing:
+                    self.log.debug('checking scheduler')
+                else:
+                    self.log.debug('updating scheduler')
+                dome_shielding = self.hardware['dome'].shielding_active
+                future_pointing = update_schedule(
+                    self.current_pointing['id'] if self.current_pointing is not None else None,
+                    self.current_status,
+                    dome_shielding,
+                    request_pointing=request_pointing,
+                    asynchronous=True,
+                    force_update=self.current_status != 'running',
+                )
+                while not future_pointing.ready:
+                    await asyncio.sleep(0.2)
+                new_pointing = future_pointing.value
+            except Exception as error:
+                self.log.warning('{} checking scheduler: {}'.format(
+                    type(error).__name__, error))
+                self.log.debug('', exc_info=True)
+                new_pointing = None
+
+            if request_pointing:
+                self.log.debug('scheduler returns {}'.format(new_pointing['id']
+                                                             if new_pointing is not None
+                                                             else 'None'))
+
+            # Now that we've updated the database we can clear the current Pointing
+            if self.current_status in ['completed', 'interrupted']:
+                self.current_pointing = None
+                self.current_status = None
+                if finishing:
+                    # That was the last Pointing for the night, no reason to continue this loop
+                    self.observing = False
                     break
 
-            # See if a new target has arrived and mark the pointing appropriately
+            self.scheduler_updating = False
+
+            # Exit the loop if we didn't request a pointing.
+            # We still want the above scheduler communication to happen if we're paused.
+            # If we were observing then pausing should have killed OBS, which will have flagged the
+            # pointing as interrupted. So we need the database update to happen above.
+            # Likewise if it's the end of the night we need to loop until observing=False.
+            # But we can skip everything below.
+            if request_pointing is False:
+                msg = 'observing suspended'
+                if self.paused:
+                    msg += ' while paused'
+                elif finishing:
+                    msg += ', waiting for current obs to finish'
+                self.log.info(msg)
+                await asyncio.sleep(10)
+                continue
+
+            # See if a new pointing has arrived and react appropriately
             # There are 6 options (technically 5, bottom left & bottom right
             # are the same...):
-            #               | | new_id is  |    new_id is    |   new_id   |
-            #               | |  same as   |  different to   |     is     |
-            #               | | current_id |   current_id    |    None    |
-            #  -------------+-+------------+-----------------+------------+
-            #  -------------+-+------------+-----------------+------------+
-            #    current_id | |  carry on  | stop current_id |    park    |
-            #   is not None | | current_id | & start new_id  |            |
-            #  -------------+-+------------+-----------------+------------+
-            #    current_id | |    stay    |      start      |    stay    |
-            #      is None  | |   parked   |      new_id     |   parked   |
+            #               | |    NEW is    |    NEW is    |    NEW is    |
+            #               | |   same as    | different to |     None     |
+            #               | |   CURRENT    |   CURRENT    |              |
+            #  -------------+-+--------------+--------------+--------------+
+            #  -------------+-+--------------+--------------+--------------+
+            #     CURRENT   | |   continue   | stop CURRENT | stop CURRENT |
+            #   is not None | |   CURRENT    |     then     |     then     |
+            #   (observing) | |              |   start NEW  |     park     |
+            #  -------------+-+--------------+--------------+--------------+
+            #     CURRENT   | |     stay     |    unpark    |     stay     |
+            #     is None   | |    parked    |     then     |    parked    |
+            #     (parked)  | |              |   start NEW  |              |
+            #  -------------+-+--------------+--------------+--------------+
 
-            if self.new_id == self.current_id:
-                if self.current_id is not None:
-                    now = time.time()
-                    elapsed = now - self.current_start_time
-                    self.log.debug('still observing {} ({:.0f}/{:.0f})'.format(
-                                   self.current_id, elapsed, self.current_mintime))
-                else:
-                    # We should already be parked
-                    self.log.warning('nothing to observe!')
-                    if not self.testing:
-                        send_slack_msg('Pilot has nothing to observe!')
+            if new_pointing is not None:
+                # We have a new Pointing, although it might be what we're already observing
+                if (self.current_pointing is None or
+                        new_pointing['id'] != self.current_pointing['id']):
+                    self.log.info('got new pointing from scheduler: {}'.format(new_pointing['id']))
 
-            elif self.new_id is not None:
-                if self.current_id is not None:
-                    self.log.info('got new pointing from scheduler {}'.format(self.new_id))
-
-                    # Get current pointing status
-                    current_status = get_pointing_status(self.current_id)
-                    self.log.debug('current pointing {} status = {}'.format(
-                                   self.current_id, current_status))
-
-                    # Check if there is currently an observation running
-                    if self.running_script == 'OBS':
-                        # Cancel the script
-                        # NOTE this will mark the pointing as aborted
+                    if self.current_pointing is not None:
+                        # We're already observing something, so we have to cancel it.
+                        # If the scheduler has returned this then it should have already marked the
+                        # current pointing as interrupted, because even though we'll set the
+                        # current_status here it will be overwritten immediately below.
                         await self.cancel_running_script(why='new pointing')
+                    else:
+                        # We weren't doing anything, either we just finished one or we were parked
+                        if not self.mount_is_tracking:
+                            await self.unpark_mount()
 
-                        # Find the elapsed time, accounting for time lost due to being paused
-                        elapsed = time.time() - self.current_start_time - self.time_lost
-                        self.log.debug('min time = {:.1f}, time elapsed = {:.1f}'.format(
-                                       self.current_mintime, elapsed))
-
-                        if elapsed > self.current_mintime:
-                            # We observed enough, mark the pointing as completed
-                            mark_completed(self.current_id)
-                            self.log.debug('pointing {} was completed'.format(self.current_id))
-                        elif current_status == 'completed':
-                            # We killed the script just as it was finishing,
-                            # (after it marked the pointing as completed, but before it returned),
-                            # so we need to re-mark the pointing as completed here.
-                            mark_completed(self.current_id)
-                            self.log.debug('pointing {} was completed'.format(self.current_id))
-                        else:
-                            # Mark the pointing as interrupted
-                            mark_interrupted(self.current_id)
-                            self.log.debug('pointing {} was interrupted'.format(self.current_id))
-
-                else:
-                    self.log.info('got pointing from scheduler {}'.format(self.new_id))
-                    # we weren't doing anything, which implies we were parked
-                    await self.unpark_mount()
-
-                # start the new pointing (the script will mark it as running too, but best to do it
-                # ASAP so the scheduler recognises it)
-                self.log.debug('starting pointing {}'.format(self.new_id))
-                mark_running(self.new_id)
-
-                asyncio.ensure_future(self.start_script('OBS',
-                                                        'observe.py',
-                                                        args=[str(self.new_id)]))
-
-                self.current_start_time = time.time()
-                self.current_id = self.new_id
-                self.current_mintime = self.new_mintime
-                self.time_lost = 0
+                    # Start the new pointing
+                    self.log.debug('starting pointing {}'.format(new_pointing['id']))
+                    asyncio.ensure_future(self.start_script('OBS',
+                                                            'observe.py',
+                                                            args=[str(new_pointing['id'])]))
+                    self.current_start_time = time.time()
+                    self.current_pointing = new_pointing
+                    self.current_status = 'running'
 
             else:
-                self.log.info('nothing to do, parking mount')
-                if not self.testing:
-                    send_slack_msg('Pilot has nothing to do, parking mount')
-                self.park_mount()
-                execute_command('exq clear')
-                execute_command('cam abort')
-                self.current_id = None
-                self.current_mintime = None
-                # If we've interrupted a pointing it needs to be cancelled,
-                # this will mark it as aborted
-                await self.cancel_running_script('obs parking')
+                # Nothing to do!
+                self.log.warning('nothing to observe!')
+                if self.current_pointing is not None:
+                    # Stop what we're doing, which will update the status and it should be sent to
+                    # the scheduler on the next loop.
+                    await self.cancel_running_script('obs parking')
+                    self.park_mount()
+                    send_slack_msg('Pilot has nothing to observe!')
 
-            await asyncio.sleep(sleep_time)
+            await asyncio.sleep(5)
 
-        self.log.info('observing completed!')
+        # the loop has broken, so we've reached sunrise and finished the final Pointing
         self.observing = False
-
-        # finish observing
-        execute_command('exq clear')
-        execute_command('cam abort')
-
-        # If we've interrupted a pointing it needs to be cancelled,
-        # this will mark it as aborted
-        await self.cancel_running_script('obs finished')
-        self.current_id = None
-        self.current_mintime = None
+        self.log.info('observing completed')
 
     # Pausing
     @property
@@ -1105,12 +1102,10 @@ class Pilot(object):
                 if self.dome_is_open:
                     # only need to stop scripts if the dome is open
                     # (this way we don't kill darks if the weather goes bad)
-                    execute_command('exq pause')
-                    execute_command('cam abort')
                     await self.cancel_running_script('bad conditions')
 
                 # always make sure we're closed and parked
-                self.close_dome()
+                await self.close_dome()
                 self.park_mount()
 
                 # reset the timer for bad conditions tasks to zero
@@ -1127,22 +1122,18 @@ class Pilot(object):
                     pass
 
                 # stop current actions
+                await self.cancel_running_script('hardware fault')
                 if self.mount_is_tracking:
                     self.stop_mount()
-                execute_command('exq clear')
-                execute_command('cam abort')
-                await self.cancel_running_script('hardware fault')
 
             elif reason == 'manual':
                 self.log.warning('Pausing (system in manual mode)')
                 send_slack_msg('Pilot is pausing (system in manual mode)')
 
                 # kill the current script, we usually do it manually anyway
+                await self.cancel_running_script('system to manual mode')
                 if self.mount_is_tracking:
                     self.stop_mount()
-                execute_command('exq clear')
-                execute_command('cam abort')
-                await self.cancel_running_script('system to manual mode')
 
         if not pause:
             if self.time_paused[reason] > 0:
@@ -1196,6 +1187,9 @@ class Pilot(object):
         self.log.info('setting end of night for {}'.format(stop_time.iso))
 
         last_log = Time.now()
+        log_period = 60
+        if self.testing:
+            log_period = 10
         sleep_time = 10
         while True:
             now = Time.now()
@@ -1211,7 +1205,7 @@ class Pilot(object):
                 break
 
             # log line
-            if now - last_log > 60 * u.second:
+            if now - last_log > log_period * u.second:
                 last_log = now
                 stop_time.precision = 0
                 delta = stop_time - now
@@ -1226,6 +1220,7 @@ class Pilot(object):
 
         # Run the shutdown command
         self.log.info('starting shutdown')
+        self.shutdown_now = True  # Force in case we stopped another way
         await self.shutdown()
 
         self.log.info('finished for tonight')
@@ -1251,32 +1246,40 @@ class Pilot(object):
     async def shutdown(self):
         """Shut down the system.
 
-        Close any running scripts and tasks, run the shutdown script, ensure the
-        dome is closed and finish.
+        - Cancel any running scripts (including updating the current pointing).
+        - Run the shutdown script.
+        - Ensure the dome is closed.
+        - Quit.
         """
-        # first shut down all running tasks
-        # this is so check_flags doesn't initiate two shutdowns,
-        # or we don't end up trying to restart if conditions clear
-        # or an "unfixible" hardware error gets fixed
+        self.log.info('shutdown process begun')
+
+        # Cancel any currently running script.
+        # Do this first so the scheduler marks any current pointing as interrupted,
+        # before the night marshal `observe()` function is killed below.
+        await self.cancel_running_script(why='shutdown')
+        if self.observing:
+            # Give time for a scheduler check to complete before shutting down,
+            # so that it has the chance to mark the pointing as interrupted.
+            await asyncio.sleep(10)
+
+        # Now cancel all running tasks.
+        # This is so check_flags doesn't initiate two shutdowns,
+        # or we don't end up trying to restart if conditions clear,
+        # or an "unfixable" hardware error gets fixed.
         self.log.info('cancelling running tasks')
         for task in self.running_tasks:
             task.cancel()
 
-        # then cancel any currently running script
-        await self.cancel_running_script(why='shutdown')
-
-        # run shutdown script
+        # Run shutdown script
         self.log.info('running shutdown script')
         await self.start_script('SHUTDOWN', 'shutdown.py')
 
-        # flag that the shutdown script has been run, by un-flagging startup
+        # Flag that the shutdown script has been run, by un-flagging startup
         self.startup_complete = False
 
-        # next and most important.
-        # NEVER STOP WITHOUT CLOSING THE DOME!
-        # EMAIL IF DOME WON'T CLOSE
+        # Finally, and most important: NEVER STOP WITHOUT CLOSING THE DOME!
         self.log.info('making sure dome is closed')
-        await self.close_dome_confirm()
+        await self.close_dome(confirm=True)
 
         self.log.info('shutdown process complete')
 
@@ -1288,7 +1291,7 @@ class Pilot(object):
 
             self.log.info('closing dome immediately')
             self.stop_mount()
-            self.close_dome()
+            await self.close_dome()
 
             # trigger night countdown to shutdown
             self.shutdown_now = True
@@ -1310,13 +1313,16 @@ class Pilot(object):
         self.hardware['dome'].mode = 'open'
 
         # wait for dome to open
-        sleep_time = 5
+        start_time = time.time()
         while True:
             dome_status = self.hardware['dome'].get_hardware_status()
             self.log.debug('dome is {}'.format(dome_status))
             if dome_status == 'full_open':
                 break
-            await asyncio.sleep(sleep_time)
+            await asyncio.sleep(5)
+            if time.time() - start_time > 300:
+                self.log.error('dome opening timed out')
+                asyncio.ensure_future(self.emergency_shutdown('Could not open the dome'))
         self.log.info('dome confirmed open')
 
         if self.startup_complete:
@@ -1325,17 +1331,21 @@ class Pilot(object):
             self.log.info('opening mirror covers')
             execute_command('ota open')
             self.hardware['ota'].mode = 'open'
+
             # wait for mirror covers to open
-            sleep_time = 1
+            start_time = time.time()
             while True:
                 cover_status = self.hardware['ota'].get_hardware_status()
                 self.log.debug('covers are {}'.format(cover_status))
                 if cover_status == 'full_open':
                     break
-                await asyncio.sleep(sleep_time)
+                await asyncio.sleep(5)
+                if time.time() - start_time > 300:
+                    self.log.error('cover opening timed out')
+                    asyncio.ensure_future(self.emergency_shutdown('Could not open mirror covers'))
             self.log.info('mirror covers confirmed open')
 
-    def close_dome(self):
+    async def close_dome(self, confirm=False):
         """Send the dome close command and return immediately."""
         if self.startup_complete:
             # See above: if we haven't started (or, more likely here, have already shutdown)
@@ -1358,41 +1368,23 @@ class Pilot(object):
         self.dome_confirmed_closed = False
         self.close_command_time = time.time()
 
-    async def close_dome_confirm(self, mins_until_panic=10):
-        """Close the dome, make sure it's closed and alert if it won't.
+        if confirm:
+            # wait for dome to close
+            start_time = time.time()
+            while True:
+                dome_status = self.hardware['dome'].get_hardware_status()
+                self.log.debug('dome is {}'.format(dome_status))
+                if dome_status in ['closed', 'in_lockdown']:
+                    break
+                await asyncio.sleep(5)
+                if time.time() - start_time > 300:
+                    self.log.error('dome closing timed out')
+                    send_slack_msg('ERROR: Pilot could not close the dome!')
+                    asyncio.ensure_future(self.emergency_shutdown('Could not close the dome'))
 
-        Parameters
-        ----------
-        mins_until_panic : float
-            time in minutes to wait before emailing
-
-        """
-        start_time = time.time()
-        self.close_dome()
-
-        # wait for dome to close
-        sleep_time = 5
-        while True:
-            dome_status = self.hardware['dome'].get_hardware_status()
-            self.log.debug('dome is {}'.format(dome_status))
-            if dome_status in ['closed', 'in_lockdown']:
-                break
-
-            # panic time
-            elapsed_time = time.time() - start_time
-            if elapsed_time / 60. > mins_until_panic:
-                msg = 'IMPORTANT: Pilot cannot close dome!'
-                send_slack_msg(msg)
-                try:
-                    send_email(message=msg)
-                except Exception:
-                    self.log.error('Error sending email')
-
-            await asyncio.sleep(sleep_time)
-
-        self.dome_confirmed_closed = True
-        send_slack_msg('Pilot confirmed dome is closed')
-        self.log.info('dome confirmed closed')
+            self.dome_confirmed_closed = True
+            send_slack_msg('Pilot confirmed dome is closed')
+            self.log.info('dome confirmed closed')
 
     async def unpark_mount(self):
         """Unpark the mount (if it's parked), start tracking and await until it is ready."""
@@ -1403,17 +1395,20 @@ class Pilot(object):
         self.hardware['mnt'].mode = 'tracking'  # skip stopped and go straight to tracking
         await asyncio.sleep(5)
         mount_status = self.hardware['mnt'].get_hardware_status()
-        if not mount_status == 'tracking':
+        if mount_status != 'tracking':
             # slew to above horizon, to stop errors
             execute_command('mnt slew_altaz 50 0')
             # wait for mount to slew
-            sleep_time = 5
+            start_time = time.time()
             while True:
                 mount_status = self.hardware['mnt'].get_hardware_status()
                 self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
                     break
-                await asyncio.sleep(sleep_time)
+                await asyncio.sleep(5)
+                if time.time() - start_time > 300:
+                    self.log.error('mount unparking timed out')
+                    asyncio.ensure_future(self.emergency_shutdown('Could not unpark mount'))
         self.log.info('mount confirmed tracking')
 
     def stop_mount(self):
@@ -1460,15 +1455,14 @@ def run(test=False, restart=False, late=False):
         asyncio.ensure_future(pilot.check_hardware()),  # periodically check hardware
         asyncio.ensure_future(pilot.check_time_paused()),  # keep track of time paused
         asyncio.ensure_future(pilot.check_flags()),  # check conditions and system flags
-        asyncio.ensure_future(pilot.check_scheduler()),  # start checking the schedule
         asyncio.ensure_future(pilot.check_dome()),  # keep a close eye on dome
         asyncio.ensure_future(pilot.nightmarshal(restart, late)),  # run through scheduled tasks
     ])
 
     # Loop until the night countdown finishes (or the pilot exits early)
     if pilot.testing:
-        # Force the countdown to finish in 15 minutes
-        stop_time = Time.now() + 15 * u.minute
+        # Force the countdown to finish in 5 minutes
+        stop_time = Time.now() + 5 * u.minute
         stop_signal = pilot.night_countdown(stop_time)
     else:
         stop_signal = pilot.night_countdown()
