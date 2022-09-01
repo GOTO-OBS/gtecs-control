@@ -626,7 +626,7 @@ def update_header(header, ut, all_info, log=None):
         if info['wait_time'] is not None:
             wait_time = info['wait_time']
         else:
-            wait_time ='NA'
+            wait_time = 'NA'
         if info['valid_time'] is not None:
             valid_time = info['valid_time']
         else:
