@@ -39,11 +39,12 @@ class CamDaemon(BaseDaemon):
         self.abort_uts = []
 
         self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
-        try:
-            with open(self.run_number_file, 'r') as f:
-                self.latest_run_number = int(f.read())
-        except Exception:
-            self.latest_run_number = 0
+        if not os.path.exists(self.run_number_file):
+            with open(self.run_number_file, 'w') as f:
+                f.write('0')
+                f.close()
+        with open(self.run_number_file, 'r') as f:
+            self.latest_run_number = int(f.read())
         self.num_taken = 0
         self.latest_headers = {ut: None for ut in self.uts}
 

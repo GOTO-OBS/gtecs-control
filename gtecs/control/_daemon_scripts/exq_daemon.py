@@ -37,11 +37,12 @@ class ExqDaemon(BaseDaemon):
         self.dither_time = 0
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
-        try:
-            with open(self.set_number_file, 'r') as f:
-                self.latest_set_number = int(f.read())
-        except Exception:
-            self.latest_set_number = 0
+        if not os.path.exists(self.set_number_file):
+            with open(self.set_number_file, 'w') as f:
+                f.write('0')
+                f.close()
+        with open(self.set_number_file, 'r') as f:
+            self.latest_set_number = int(f.read())
 
         # start control thread
         t = threading.Thread(target=self._control_thread)

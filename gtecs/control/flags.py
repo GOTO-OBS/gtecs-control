@@ -43,28 +43,35 @@ class Conditions(object):
 
     def _load(self):
         """Load the conditions file."""
-        # Read the conditions file
-        self.data = load_json(self.conditions_file)
-        self.update_times = {flag.replace('_update_time', ''): Time(self.data[flag])
-                             for flag in [k for k in self.data if k.endswith('_update_time')]}
-        self.conditions_dict = {flag: self.data[flag] for flag in self.update_times}
-        self.info_flags = self.data['info_flags']
-        self.ignored_flags = self.data['ignored_flags']
+        if not os.path.exists(self.conditions_file):
+            # We can't create a default file, so raise an error
+            raise IOError('Conditions file ({}) does not exist!'.format(self.conditions_file))
+        try:
+            # Read the conditions file
+            self.data = load_json(self.conditions_file)
+            self.update_times = {flag.replace('_update_time', ''): Time(self.data[flag])
+                                 for flag in [k for k in self.data if k.endswith('_update_time')]}
+            self.conditions_dict = {flag: self.data[flag] for flag in self.update_times}
+            self.info_flags = self.data['info_flags']
+            self.ignored_flags = self.data['ignored_flags']
 
-        # Get update time and calculate age flag
-        self.current_time = Time(self.data['current_time'])
-        self.age = float(Time.now().unix - self.current_time.unix)
-        self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
+            # Get update time and calculate age flag
+            self.current_time = Time(self.data['current_time'])
+            self.age = float(Time.now().unix - self.current_time.unix)
+            self.conditions_dict['age'] = int(self.age > params.MAX_CONDITIONS_AGE)
 
-        # Store the total of all flags, excluding info flags
-        self.total = 0
-        self.bad_flags = []
-        for flag, status in self.conditions_dict.items():
-            if flag not in self.info_flags and flag not in self.ignored_flags:
-                self.total += status
-                if status > 0:
-                    self.bad_flags += [flag]
-        self.bad = bool(self.total)
+            # Store the total of all flags, excluding info flags
+            self.total = 0
+            self.bad_flags = []
+            for flag, status in self.conditions_dict.items():
+                if flag not in self.info_flags and flag not in self.ignored_flags:
+                    self.total += status
+                    if status > 0:
+                        self.bad_flags += [flag]
+            self.bad = bool(self.total)
+        except Exception:
+            # We can't create a default file, so raise an error
+            raise IOError('Conditions file ({}) is corrupted!'.format(self.conditions_file))
 
     def get_formatted_string(self, good='G', bad='B', ignored=None):
         """Get a formatted string of the conditions flags."""
@@ -100,6 +107,11 @@ class Status(object):
     def _load(self):
         """Load the status flags file and emergency shutdown file."""
         data = None
+        if not os.path.exists(self.status_file):
+            self._mode = 'robotic'
+            self._observer = params.ROBOTIC_OBSERVER
+            with open(self.status_file, 'w') as f:
+                json.dump(self._status_dict, f)
         try:
             # Read the status file
             data = load_json(self.status_file)
