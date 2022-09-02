@@ -274,6 +274,11 @@ class Pilot:
                 await asyncio.sleep(sleep_time)
                 continue
 
+            if self.running_script == 'BADCOND':
+                self.log.debug('hardware checks suspended during BADCOND routine')
+                await asyncio.sleep(sleep_time)
+                continue
+
             error_count = 0
             self.log.debug('checking hardware')
             for monitor in self.hardware.values():
@@ -412,40 +417,46 @@ class Pilot:
             if self.paused:
                 reasons = [k for k in self.whypause if self.whypause[k]]
 
-                # log why we're paused
+                # Log why we're paused
                 self.log.info('pilot paused ({})'.format(', '.join(reasons)))
                 self.log.debug('pause times: {}'.format(self.time_paused))
 
-                # track the time paused for each reason (this is reset whenever the system unpauses)
+                # Track the time paused for each reason
+                # (this is reset whenever the system unpauses)
                 for reason in reasons:
                     self.time_paused[reason] += sleep_time
 
-                # check if we're ONLY paused due to bad conditions
-                # this means the script won't run if there's a hardware error or we're in manual
-                if not self.whypause['hardware'] and not self.whypause['manual']:
-                    # only start checking after the sun has set and we've finished normal darks
-                    if (self.startup_complete and get_sunalt(Time.now()) < 0 and
-                            not (self.tasks_pending or self.running_script)):
-                        # check the time since the script last ran
-                        delta = self.time_paused['conditions'] - self.bad_conditions_tasks_timer
-                        if delta > params.BAD_CONDITIONS_TASKS_PERIOD:
-                            paused_hours = self.time_paused['conditions'] / (60 * 60)
-                            self.log.debug('bad conditions timer: {:.2f}h'.format(paused_hours))
+                # Check if we're paused due to bad conditions, and how long
+                if self.whypause['conditions']:
+                    delta = self.time_paused['conditions'] - self.bad_conditions_tasks_timer
+                    if delta > params.BAD_CONDITIONS_TASKS_PERIOD:
+                        # We've been paused for long enough to start the bad conditions tasks
+                        paused_hours = self.time_paused['conditions'] / (60 * 60)
+                        self.log.debug('bad conditions timer: {:.2f}h'.format(paused_hours))
 
-                            # here we can run an obs script during poor weather
+                        if self.whypause['hardware'] or self.whypause['manual']:
+                            # We don't want to start the script if we're paused for another reason
+                            self.log.debug('bad conditions tasks suspended while otherwise paused')
+                        elif self.tasks_pending or self.running_script:
+                            # We don't want to start the script if we're running something else
+                            # (though since we're paused this should only be another BADCOND,
+                            #  but if it's been this long something is very wrong...)
+                            self.log.debug('bad conditions tasks suspended until script finished')
+                        elif not self.startup_complete:
+                            # We don't want to start the script until after startup
+                            self.log.debug('bad conditions tasks suspended until after startup')
+                        elif get_sunalt(Time.now()) > self.obs_start_sunalt:
+                            # We don't want to start the script until after dark
+                            self.log.debug('bad conditions tasks suspended until dark time')
+                        else:
+                            # Finally we should now be safe to start the script
                             self.log.info('running bad conditions tasks')
-                            # Note we want to be able to move the mount, so we have to set the
-                            # monitor status to 'tracking' here.
-                            # This means we can't park during the darks, which is annoying
-                            # (because that would count as a hardware error).
-                            # So we have to park again in start_script() once the script finishes.
-                            if not self.mount_is_tracking:
-                                await self.unpark_mount()
+                            # Note hardware checks are disabled while BADCOND is running,
+                            # otherwise we'd have trouble with moving the mount or the mirror
+                            # covers because they'd be in the "wrong" position
                             asyncio.ensure_future(self.start_script('BADCOND',
                                                                     'badConditionsTasks.py',
                                                                     args=['3']))
-
-                            # save the counter
                             self.bad_conditions_tasks_timer = self.time_paused['conditions']
 
             await asyncio.sleep(sleep_time)
@@ -636,11 +647,6 @@ class Pilot:
             self.log.debug('pointing {} was {}'.format(self.current_pointing['id'],
                                                        self.current_status,
                                                        ))
-        elif name == 'BADCOND':
-            # if BADCOND has just finished and we're still paused then park the mount again
-            if (self.paused and not self.whypause['hardware'] and not self.whypause['manual'] and
-                    self.mount_is_tracking):
-                self.park_mount()
 
         return retcode, result
 
