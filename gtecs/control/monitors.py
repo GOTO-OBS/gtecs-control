@@ -750,7 +750,10 @@ class MntMonitor(BaseMonitor):
 
         # ERROR_MNT_NOTSTOPPED
         # Set the error if the mount isn't stopped and it should be
-        if self.mode == MODE_MNT_STOPPED and self.hardware_status != STATUS_MNT_STOPPED:
+        # Note we allow it to be parked, as if it's in the wrong mode we want ERROR_MNT_PARKED
+        # This is more for if it's not stopping moving, in which case we need to kill the power etc.
+        if self.mode == MODE_MNT_STOPPED and self.hardware_status not in [STATUS_MNT_STOPPED,
+                                                                          STATUS_MNT_PARKED]:
             self.add_error(ERROR_MNT_NOTSTOPPED, delay=30)
         # Clear the error if the mount is stopped or it shouldn't be any more
         if self.mode != MODE_MNT_STOPPED or self.hardware_status == STATUS_MNT_STOPPED:
@@ -779,7 +782,7 @@ class MntMonitor(BaseMonitor):
             self.add_error(ERROR_MNT_NOTPARKED, delay=30)
         # Clear the error if the mount is parked or it shouldn't be any more
         # Note this keeps the error set while the mount is moving
-        if self.mode != MODE_MNT_PARKED or self.hardware_status in STATUS_MNT_PARKED:
+        if self.mode != MODE_MNT_PARKED or self.hardware_status == STATUS_MNT_PARKED:
             self.clear_error(ERROR_MNT_NOTPARKED)
 
     def _recovery_procedure(self):
@@ -953,7 +956,7 @@ class MntMonitor(BaseMonitor):
             return ERROR_MNT_NONSIDEREAL, recovery_procedure
 
         elif ERROR_MNT_PARKED in self.errors:
-            # PROBLEM: The mount is in tracking mode but it's parked.
+            # PROBLEM: The mount is in tracking or stopped mode but it's parked.
             recovery_procedure = {}
             # SOLUTION 1: Try unparking.
             recovery_procedure[1] = ['mnt unpark', 30]
