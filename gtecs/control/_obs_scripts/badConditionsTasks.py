@@ -5,8 +5,8 @@ import time
 from argparse import ArgumentParser
 
 from gtecs.common.system import execute_command
-from gtecs.control.observing import (mirror_covers_are_closed, prepare_for_images, slew_to_altaz,
-                                     wait_for_exposure_queue)
+from gtecs.control.observing import (mount_is_parked, mirror_covers_are_closed, prepare_for_images,
+                                     slew_to_altaz, wait_for_exposure_queue)
 
 
 def run(nexp=3):
@@ -34,10 +34,25 @@ def run(nexp=3):
             raise TimeoutError('Mirror covers timed out')
 
     # move the mount around
+    if mount_is_parked():
+        execute_command('mnt unpark')
+        start_time = time.time()
+        while mount_is_parked():
+            time.sleep(1)
+            if (time.time() - start_time) > 60:
+                raise TimeoutError('Mount unparking timed out')
     for az in [0, 90, 180, 270, 0]:
         slew_to_altaz(50, az, timeout=120)
         time.sleep(2)
     print('Mount tests complete')
+
+    # park again
+    execute_command('mnt park')
+    start_time = time.time()
+    while not mount_is_parked():
+        time.sleep(1)
+        if (time.time() - start_time) > 60:
+            raise TimeoutError('Mount parking timed out')
 
     # take extra biases and darks
     execute_command('exq multbias {} 1'.format(nexp))
