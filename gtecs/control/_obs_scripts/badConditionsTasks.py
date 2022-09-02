@@ -5,7 +5,7 @@ import time
 from argparse import ArgumentParser
 
 from gtecs.common.system import execute_command
-from gtecs.control.observing import (prepare_for_images, mirror_covers_are_closed, slew_to_altaz,
+from gtecs.control.observing import (mirror_covers_are_closed, prepare_for_images, slew_to_altaz,
                                      wait_for_exposure_queue)
 
 
@@ -27,8 +27,11 @@ def run(nexp=3):
     # close the covers again for darks (we open to stop them sticking)
     print('Closing mirror covers')
     execute_command('ota close')
+    start_time = time.time()
     while not mirror_covers_are_closed():
         time.sleep(0.5)
+        if (time.time() - start_time) > 60:
+            raise TimeoutError('Mirror covers timed out')
 
     # move the mount around
     for az in [0, 90, 180, 270, 0]:

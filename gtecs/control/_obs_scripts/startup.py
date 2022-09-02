@@ -69,8 +69,11 @@ def run():
     # Instead make sure the mount is parked
     if not mount_is_parked():
         execute_command('mnt park')
+        start_time = time.time()
         while not mount_is_parked():
             time.sleep(1)
+            if (time.time() - start_time) > 60:
+                raise TimeoutError('Mount parking timed out')
     execute_command('mnt info')
 
     # Clean up any persistent queue from previous night,
@@ -84,16 +87,22 @@ def run():
 
     # Home the filter wheels
     execute_command('filt home')
+    start_time = time.time()
     while not filters_are_homed():
         time.sleep(1)
+        if (time.time() - start_time) > 30:
+            raise TimeoutError('Filter wheels timed out')
     execute_command('filt info -f')
 
     # Set the focusers
     execute_command('foc move 10')
     time.sleep(4)
     execute_command('foc move -10')
+    start_time = time.time()
     while not focusers_are_set():
         time.sleep(1)
+        if (time.time() - start_time) > 60:
+            raise TimeoutError('Focusers timed out')
     execute_command('foc info -f')
 
     # Set the cameras to full-frame
@@ -102,16 +111,22 @@ def run():
 
     # Bring the CCDs down to temperature
     execute_command('cam temp cool')
+    start_time = time.time()
     while not cameras_are_cool():
         time.sleep(1)
+        if (time.time() - start_time) > 600:
+            raise TimeoutError('Camera cooling timed out')
     execute_command('cam info -f')
 
     # Don't open the mirror covers, because we want to do darks first
     # Instead make sure they are closed
     if mirror_covers_are_open():
         execute_command('ota close')
+        start_time = time.time()
         while mirror_covers_are_open():
             time.sleep(1)
+            if (time.time() - start_time) > 60:
+                raise TimeoutError('Mirror covers timed out')
     execute_command('ota info -f')
 
     print('Startup tasks done')

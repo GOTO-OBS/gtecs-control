@@ -83,15 +83,21 @@ def prepare_for_images(open_covers=True):
     if not exposure_queue_is_empty():
         print('Clearing exposure queue')
         execute_command('exq clear')
+        start_time = time.time()
         while not exposure_queue_is_empty():
             time.sleep(0.5)
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Exposure queue timed out')
 
     # Home the filter wheels
     if not filters_are_homed():
         print('Homing filters')
         execute_command('filt home')
+        start_time = time.time()
         while not filters_are_homed():
             time.sleep(0.5)
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Filter wheels timed out')
 
     # Set the focusers
     if not focusers_are_set():
@@ -99,6 +105,11 @@ def prepare_for_images(open_covers=True):
         execute_command('foc move 10')
         time.sleep(4)
         execute_command('foc move -10')
+        start_time = time.time()
+        while not focusers_are_set():
+            time.sleep(0.5)
+            if (time.time() - start_time) > 60:
+                raise TimeoutError('Focusers timed out')
 
     # Reset the cameras to full-frame exposures
     if not cameras_are_fullframe():
@@ -110,8 +121,11 @@ def prepare_for_images(open_covers=True):
     if not cameras_are_cool():
         print('Cooling cameras')
         execute_command('cam temp cool')
+        start_time = time.time()
         while not cameras_are_cool():
             time.sleep(0.5)
+            if (time.time() - start_time) > 600:
+                raise TimeoutError('Camera cooling timed out')
 
     # Start the mount motors (but remain parked, or in whatever position we're in)
     if not mount_motors_are_on():
@@ -124,15 +138,21 @@ def prepare_for_images(open_covers=True):
         if not mirror_covers_are_open():
             print('Opening mirror covers')
             execute_command('ota open')
+            start_time = time.time()
             while not mirror_covers_are_open():
                 time.sleep(0.5)
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mirror covers timed out')
     else:
         # Close the mirror covers (for darks etc...)
         if not mirror_covers_are_closed():
             print('Closing mirror covers')
             execute_command('ota close')
+            start_time = time.time()
             while not mirror_covers_are_closed():
                 time.sleep(0.5)
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mirror covers timed out')
 
 
 def get_mirror_cover_positions():
