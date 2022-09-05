@@ -4,9 +4,9 @@ import os
 import time
 from abc import ABC, abstractmethod
 
-from gtecs.common.logging import get_logger
-
 import Pyro4
+
+from gtecs.common import logging
 
 from . import errors
 from . import misc
@@ -68,9 +68,7 @@ class BaseDaemon(ABC):
         self.bad_hardware = set()
 
         # set up logfile
-        self.log = get_logger(self.daemon_id, params.LOG_PATH,
-                              log_to_file=params.FILE_LOGGING,
-                              log_to_stdout=params.STDOUT_LOGGING)
+        self.log = logging.get_logger(self.daemon_id)
         self.log.info('Daemon created')
 
     # Primary control thread
@@ -324,10 +322,15 @@ def start_daemon(daemon_id, args=None):
     process_path = params.DAEMONS[daemon_id]['PROCESS_PATH']
     process_options = {'in_background': True,
                        'host': host}
-    if params.REDIRECT_STDOUT:
-        logfile = daemon_id + '-stdout.log'
-        pipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
-        process_options.update({'stdout': pipe, 'stderr': pipe})
+
+    # Also redirect the process stdout to a log file
+    # The logger stdout will be included in the log,
+    # but this is handy in case of errors outside of the logger.
+    # Also for remote processes this file will be stored locally.
+    log_file = daemon_id + '-stdout.log'
+    log_path = logging.get_log_path() / log_file
+    pipe = open(log_path, 'a')
+    process_options.update({'stdout': pipe, 'stderr': pipe})
 
     if args is not None:
         args = ' '.join([str(arg) for arg in args])

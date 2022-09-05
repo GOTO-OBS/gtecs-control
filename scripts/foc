@@ -4,6 +4,7 @@
 import os
 import sys
 
+from gtecs.common import logging
 from gtecs.control import daemons
 from gtecs.control import errors
 from gtecs.control import misc
@@ -92,7 +93,7 @@ def query(command, args, daemon_id):
             args.remove('stdout')
         else:
             log_file = daemon_id + '.log'
-        log_path = os.path.join(params.LOG_PATH, log_file)
+        log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
         misc.execute_long_command(tail_command)

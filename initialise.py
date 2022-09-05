@@ -40,7 +40,6 @@ print('')
 
 # Create directories
 direcs = [params.FILE_PATH,
-          params.LOG_PATH,
           params.PID_PATH,
           params.IMAGE_PATH,
           ]

@@ -3,7 +3,8 @@
 import os
 import sys
 
-from gtecs.common.package import load_config, get_package_version
+from gtecs.common import config as pkg_config
+from gtecs.common.package import get_package_version, load_config
 
 try:
     import importlib.resources as pkg_resources
@@ -26,13 +27,10 @@ if '.' not in PYTHON_EXE:
     PYTHON_EXE += f'.{sys.version_info.minor}'
 
 # File locations
-FILE_PATH = config['FILE_PATH']
-if FILE_PATH in ['path_not_set', '/path/goes/here/']:
-    raise ValueError('FILE_PATH not set, check config file ({})'.format(CONFIG_FILE))
+FILE_PATH = pkg_config.CONFIG_PATH / 'control'
 IMAGE_PATH = config['IMAGE_PATH']
 if config['IMAGE_PATH'] in ['path_not_set', '/path/goes/here/']:
     IMAGE_PATH = os.path.join(FILE_PATH, 'images')
-LOG_PATH = os.path.join(FILE_PATH, 'logs')
 PID_PATH = os.path.join(FILE_PATH, '.pid')
 
 # General parameters
@@ -68,10 +66,6 @@ COMMAND_DEBUG = config['COMMAND_DEBUG']
 PYRO_TIMEOUT = config['PYRO_TIMEOUT']
 DAEMON_CHECK_PERIOD = config['DAEMON_CHECK_PERIOD']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
-
-FILE_LOGGING = config['FILE_LOGGING']
-STDOUT_LOGGING = config['STDOUT_LOGGING']
-REDIRECT_STDOUT = config['REDIRECT_STDOUT']
 
 DAEMONS = config['DAEMONS']
 for daemon_id in DAEMONS:
