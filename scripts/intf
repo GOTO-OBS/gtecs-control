@@ -9,8 +9,8 @@ from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
+from gtecs.control.style import errortxt
 
 
 DAEMON_ID = os.path.basename(__file__)
@@ -81,33 +81,42 @@ def query(command, args, daemon_ids):
     # Primary daemon control
     elif command == 'start':
         for daemon_id in daemon_ids:
-            with misc.print_errors():
+            try:
                 reply = daemons.start_daemon(daemon_id, args=get_args(daemon_id))
                 print(reply)
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'shutdown':
         for daemon_id in daemon_ids:
-            with misc.print_errors():
+            try:
                 reply = daemons.shutdown_daemon(daemon_id)
                 print(reply)
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'restart':
         for daemon_id in daemon_ids:
-            with misc.print_errors():
+            try:
                 reply = daemons.restart_daemon(daemon_id, args=get_args(daemon_id))
-                print(reply)
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'kill':
         for daemon_id in daemon_ids:
-            with misc.print_errors():
+            try:
                 reply = daemons.kill_daemon(daemon_id)
                 print(reply)
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command in ['check', 'ping']:
         for daemon_id in daemon_ids:
-            with misc.print_errors():
+            try:
                 reply = daemons.check_daemon(daemon_id)
                 print(reply)
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command in ['info', 'status']:
         # parse arguments
@@ -132,11 +141,13 @@ def query(command, args, daemon_ids):
         # send command
         reply_list = []
         for daemon_id in daemon_ids:
-            with misc.print_errors():
+            try:
                 reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
                 if not reply:
                     raise ValueError('No info returned, check daemon')
                 reply_list.append(reply)
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
         # print response
         if info_type == 'verbose':
             for reply in reply_list:
@@ -228,15 +239,16 @@ if __name__ == '__main__':
     else:
         command, *args = sys.argv[1:]
         if command == 'i':
+            # Interactive mode
             while True:
                 interactive_input = input('{}> '.format(DAEMON_ID)).split()
                 if len(interactive_input) > 0:
                     command, *args = interactive_input
                     if command in ['q', 'exit']:
-                        break
-                    else:
-                        with misc.print_errors():
-                            query(command, args, DAEMON_IDS)
+                        sys.exit()
+                    try:
+                        query(command, args, DAEMON_IDS)
+                    except Exception as error:
+                        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
         else:
-            with misc.print_errors():
-                query(command, args, DAEMON_IDS)
+            query(command, args, DAEMON_IDS)

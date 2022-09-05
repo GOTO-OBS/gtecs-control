@@ -8,8 +8,8 @@ from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
+from gtecs.control.style import errortxt
 
 
 DAEMON_ID = os.path.basename(__file__)
@@ -216,15 +216,16 @@ if __name__ == '__main__':
     else:
         command, *args = sys.argv[1:]
         if command == 'i':
+            # Interactive mode
             while True:
                 interactive_input = input('{}> '.format(DAEMON_ID)).split()
                 if len(interactive_input) > 0:
                     command, *args = interactive_input
                     if command in ['q', 'exit']:
-                        break
-                    else:
-                        with misc.print_errors():
-                            query(command, args, DAEMON_ID)
+                        sys.exit()
+                    try:
+                        query(command, args, DAEMON_ID)
+                    except Exception as error:
+                        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
         else:
-            with misc.print_errors():
-                query(command, args, DAEMON_ID)
+            query(command, args, DAEMON_ID)

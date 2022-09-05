@@ -9,7 +9,7 @@ except ImportError:
     import importlib_resources as pkg_resources  # type: ignore
 
 from gtecs.common.system import execute_long_command, get_pid, make_pid_file
-from gtecs.control import misc, params
+from gtecs.control import params
 
 
 SCRIPT_NAMES = sorted([f for f in pkg_resources.contents('gtecs.control._obs_scripts')
@@ -55,5 +55,4 @@ if __name__ == '__main__':
         print_instructions()
     else:
         script, *args = sys.argv[1:]
-        with misc.print_errors():
-            query(script, args)
+        query(script, args)

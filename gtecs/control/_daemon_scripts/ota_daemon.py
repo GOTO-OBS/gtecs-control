@@ -8,9 +8,9 @@ from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.style import errortxt
 
 
 class OTADaemon(BaseDaemon):
@@ -215,13 +215,13 @@ class OTADaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the UT has a mirror cover
             if ut not in self.uts_with_covers:
                 s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the mirror cover is not already moving
@@ -254,13 +254,13 @@ class OTADaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the UT has a mirror cover
             if ut not in self.uts_with_covers:
                 s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the mirror cover is not already moving
@@ -293,13 +293,13 @@ class OTADaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the UT has a mirror cover
             if ut not in self.uts_with_covers:
                 s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check if the mirror cover is moving

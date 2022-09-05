@@ -3,6 +3,7 @@
 import datetime
 import json
 import os
+import re
 import ssl
 import subprocess
 import traceback
@@ -19,7 +20,6 @@ import numpy as np
 
 import Pyro4
 
-from . import misc
 from . import params
 from .hardware.power import APCUPS, FakeUPS
 
@@ -402,7 +402,11 @@ def get_ing():
     weather_dict = {}
 
     for line in indata.split('\n'):
-        columns = misc.remove_html_tags(line).replace(':', ' ').split()
+        # Remove HTML tags
+        p = re.compile(r'<.*?>')
+        line = p.sub('', line).strip()
+
+        columns = line.replace(':', ' ').split()
         if not columns:
             continue
 

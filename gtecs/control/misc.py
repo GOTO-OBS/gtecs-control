@@ -1,61 +1,7 @@
 """Miscellaneous common functions."""
 
-import abc
-import re
-import signal
-import smtplib
-import sys
-import time
-from contextlib import contextmanager
-
 from . import params
 from .style import errortxt
-
-
-class NeatCloser(object, metaclass=abc.ABCMeta):
-    """Neatly handles closing down of processes.
-
-    This is an abstract class.
-
-    Implement the tidy_up method to set the commands which
-    get run after receiving an instruction to stop
-    before the task shuts down.
-
-    Once you have a concrete class based on this abstract class,
-    simply create an instance of it and the tidy_up function will
-    be caused on SIGINT and SIGTERM signals before closing.
-    """
-
-    def __init__(self, taskname):
-        self.taskname = taskname
-        # redirect SIGTERM, SIGINT to us
-        signal.signal(signal.SIGTERM, self.interrupt)
-        signal.signal(signal.SIGINT, self.interrupt)
-
-    def interrupt(self, sig, handler):
-        """Catch interrupts."""
-        print('{} received kill signal'.format(self.taskname))
-        # do things here on interrupt
-        self.tidy_up()
-        sys.exit(1)
-
-    @abc.abstractmethod
-    def tidy_up(self):
-        """Must be implemented to define tasks to run when closed before process is over."""
-        return
-
-
-@contextmanager
-def print_errors():
-    """Catch exceptions and print them nicely.
-
-    Used within the control scripts to handle errors from daemons.
-    """
-    try:
-        yield
-    except Exception as error:
-        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-        pass
 
 
 def valid_ints(array, allowed):
@@ -94,31 +40,6 @@ def is_num(value):
         return True
     except ValueError:
         return False
-
-
-def remove_html_tags(data):
-    """Remove html tags from a given line."""
-    p = re.compile(r'<.*?>')
-    return p.sub('', data).strip()
-
-
-def send_email(recipients=params.EMAIL_LIST, subject='GOTO', message='Test'):
-    """Send an email.
-
-    TODO: I'm pretty sure this is broken.
-    """
-    to_address = ', '.join(recipients)
-    from_address = params.EMAIL_ADDRESS
-    header = 'To:{}\nFrom:{}\nSubject:{}\n'.format(to_address, from_address, subject)
-    timestamp = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime())
-    text = '{}\n\nMessage sent at {}'.format(message, timestamp)
-
-    server = smtplib.SMTP(params.EMAIL_SERVER)
-    server.starttls()
-    server.login('goto-observatory@gmail.com', 'password')
-    server.sendmail(from_address, recipients, header + '\n' + text + '\n\n')
-    server.quit()
-    print('Sent mail to', recipients)
 
 
 def ut_list_to_mask(ut_list):
