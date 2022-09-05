@@ -1,11 +1,7 @@
 """Gliese 1991 catalog of nearby stars."""
 
+import importlib.resources as pkg_resources
 import warnings
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Python < 3.7
-    import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord, get_moon

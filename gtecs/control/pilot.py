@@ -3,13 +3,9 @@
 import abc
 import asyncio
 import functools
+import importlib.resources as pkg_resources
 import sys
 import time
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Python < 3.7
-    import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
 from astropy.time import Time

@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 """A script to make it easier for users to run observation scripts."""
 
+import importlib.resources as pkg_resources
 import sys
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Python < 3.7
-    import importlib_resources as pkg_resources  # type: ignore
 
 from gtecs.common.system import execute_long_command, get_pid, make_pid_file
 from gtecs.control import params

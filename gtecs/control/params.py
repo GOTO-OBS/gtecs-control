@@ -1,17 +1,12 @@
 """Package parameters."""
 
+import importlib.resources as pkg_resources
 import os
 import sys
 
 from gtecs.common import config as pkg_config
 from gtecs.common.package import get_package_version, load_config
 from gtecs.common.system import get_local_ip
-
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Python < 3.7
-    import importlib_resources as pkg_resources  # type: ignore
 
 
 ############################################################
