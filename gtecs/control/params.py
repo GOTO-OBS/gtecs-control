@@ -5,6 +5,7 @@ import sys
 
 from gtecs.common import config as pkg_config
 from gtecs.common.package import get_package_version, load_config
+from gtecs.common.system import get_local_ip
 
 try:
     import importlib.resources as pkg_resources
@@ -31,10 +32,9 @@ FILE_PATH = pkg_config.CONFIG_PATH / 'control'
 IMAGE_PATH = config['IMAGE_PATH']
 if config['IMAGE_PATH'] in ['path_not_set', '/path/goes/here/']:
     IMAGE_PATH = os.path.join(FILE_PATH, 'images')
-PID_PATH = os.path.join(FILE_PATH, '.pid')
 
 # General parameters
-LOCAL_HOST = config['LOCAL_HOST']
+LOCAL_HOST = get_local_ip()
 
 # Common file strings
 ORG_NAME = config['ORG_NAME']

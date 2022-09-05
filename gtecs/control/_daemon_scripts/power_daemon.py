@@ -6,7 +6,7 @@ import time
 
 from astropy.time import Time
 
-from gtecs.control import misc
+from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.hardware.power import APCATS, APCPDU, APCUPS, EPCPDU, ETHPDU
@@ -488,5 +488,5 @@ class PowerDaemon(BaseDaemon):
 
 if __name__ == '__main__':
     daemon_id = 'power'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file(daemon_id):
         PowerDaemon()._run()

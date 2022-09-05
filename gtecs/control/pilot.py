@@ -15,13 +15,13 @@ from astropy import units as u
 from astropy.time import Time
 
 from gtecs.common import logging
+from gtecs.common.system import execute_command
 
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
-from .misc import execute_command
 from .scheduling import update_schedule
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 

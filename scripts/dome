@@ -6,6 +6,7 @@ import sys
 import time
 
 from gtecs.common import logging
+from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import errors
 from gtecs.control import misc
@@ -97,7 +98,7 @@ def query(command, args, daemon_id):
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
-        misc.execute_long_command(tail_command)
+        execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'open':

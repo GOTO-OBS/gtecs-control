@@ -1,7 +1,7 @@
 """Setup script for the gtecs-control package."""
 import glob
 
-from setuptools import setup, find_namespace_packages
+from setuptools import find_namespace_packages, setup
 
 REQUIRES = ['Pyro4',
             'astropy>=5',
@@ -9,7 +9,6 @@ REQUIRES = ['Pyro4',
             'numpy',
             'scipy',
             'sep',
-            'pid',
             'requests',
             'pyserial',
             'opencv-python',

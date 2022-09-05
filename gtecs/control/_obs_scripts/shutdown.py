@@ -12,8 +12,8 @@ This script should perform the following simple tasks:
 
 import time
 
+from gtecs.common.system import execute_command
 from gtecs.control import params
-from gtecs.control.misc import execute_command
 from gtecs.control.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
 from gtecs.control.slack import send_slack_msg
 

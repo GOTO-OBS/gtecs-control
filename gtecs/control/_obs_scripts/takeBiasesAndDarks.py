@@ -3,7 +3,7 @@
 
 from argparse import ArgumentParser
 
-from gtecs.control.misc import execute_command
+from gtecs.common.system import execute_command
 from gtecs.control.observing import prepare_for_images, wait_for_exposure_queue
 
 

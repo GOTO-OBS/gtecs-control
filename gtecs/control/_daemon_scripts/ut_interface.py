@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from astropy.time import Time
 
-from gtecs.control import misc
+from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.fits import glance_location, image_location, make_fits, save_fits
@@ -775,5 +775,5 @@ def parse_args():
 
 if __name__ == '__main__':
     interface_id, hw_dict = parse_args()
-    with misc.make_pid_file(interface_id):
+    with make_pid_file(interface_id):
         UTInterfaceDaemon(interface_id, hw_dict)._run()

@@ -7,8 +7,8 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
 from gtecs.control.exposures import Exposure, ExposureQueue
@@ -447,5 +447,5 @@ class ExqDaemon(BaseDaemon):
 
 if __name__ == '__main__':
     daemon_id = 'exq'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file(daemon_id):
         ExqDaemon()._run()

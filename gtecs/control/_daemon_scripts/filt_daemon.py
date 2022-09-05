@@ -6,6 +6,7 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
@@ -284,5 +285,5 @@ class FiltDaemon(BaseDaemon):
 
 if __name__ == '__main__':
     daemon_id = 'filt'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file(daemon_id):
         FiltDaemon()._run()
