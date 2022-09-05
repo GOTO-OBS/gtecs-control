@@ -159,7 +159,7 @@ def get_mirror_cover_positions():
     """Find the current mirror cover positions."""
     ota_info = daemon_info('ota')
     positions = {}
-    for ut in ota_info['uts']:
+    for ut in ota_info['uts_with_covers']:
         positions[ut] = ota_info[ut]['position']
     return positions
 
@@ -197,7 +197,7 @@ def wait_for_mirror_covers(opening=True, timeout=None):
 
         try:
             ota_info = daemon_info('ota', force_update=True)
-            positions = [ota_info[ut]['position'] for ut in ota_info['uts']]
+            positions = [ota_info[ut]['position'] for ut in ota_info['uts_with_covers']]
             if opening is True and np.all(positions[ut] == 'full_open' for ut in positions):
                 reached_position = True
             if opening is False and np.all(positions[ut] == 'closed' for ut in positions):

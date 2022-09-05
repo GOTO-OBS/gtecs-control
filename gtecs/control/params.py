@@ -90,6 +90,13 @@ for ut in UT_DICT:
         raise ValueError('No interface defined for UT{}'.format(ut))
 
     # Check hardware dicts
+    if 'OTA' not in UT_DICT[ut]:
+        # All UTs should have an OTA, by definition...
+        raise ValueError('UT {} does not have an OTA defined'.format(ut))
+    if 'MIRROR_COVER' not in UT_DICT[ut]['OTA']:
+        UT_DICT[ut]['OTA']['MIRROR_COVER'] = False
+    else:
+        UT_DICT[ut]['OTA']['MIRROR_COVER'] = UT_DICT[ut]['OTA']['MIRROR_COVER'] != '0'
     for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
         # Add any `None`s for any missing hardware
         if hw_class not in UT_DICT[ut]:
@@ -117,7 +124,7 @@ UTS = sorted(UT_DICT)
 UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA'] is not None]
 UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER'] is not None]
 UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not None]
-UTS_WITH_COVERS = [ut for ut in UTS_WITH_FOCUSERS if UT_DICT[ut]['FOCUSER']['CLASS'] == 'ASA']
+UTS_WITH_COVERS = [ut for ut in UTS if UT_DICT[ut]['OTA']['MIRROR_COVER'] is True]
 ALL_FILTERS = sorted({filt for ut in UTS for filt in UT_DICT[ut]['FILTERS']})
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']

@@ -153,6 +153,8 @@ def print_info(info):
         print('Hardware class: {}'.format(info[ut]['hw_class']))
         if ut in info['uts_with_covers']:
             print('Mirror cover:   {}'.format(info[ut]['position'].capitalize()))
+        else:
+            print('Mirror cover:   NA')
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -161,9 +163,12 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in info['uts_with_covers']:
+    for ut in info['uts']:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
-        print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
+        if ut in info['uts_with_covers']:
+            print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
+        else:
+            print('  Mirror cover: [NA]')
 
 
 def print_instructions():
