@@ -12,10 +12,7 @@ from gtecs.control import params
 from gtecs.control.style import errortxt
 
 
-DAEMON_ID = os.path.basename(__file__)
-
-
-def query(command, args, daemon_id):
+def query(command, args):
     """Process a query."""
     # Command functions
     if command in ['help', '?']:
@@ -26,23 +23,23 @@ def query(command, args, daemon_id):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_id)
+        reply = daemons.start_daemon('ota')
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_id)
+        reply = daemons.shutdown_daemon('ota')
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_id)
+        reply = daemons.restart_daemon('ota')
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_id)
+        reply = daemons.kill_daemon('ota')
         print(reply)
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon(daemon_id)
+        reply = daemons.check_daemon('ota')
         print(reply)
 
     elif command in ['info', 'status']:
@@ -76,7 +73,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
+        reply = daemons.daemon_function('ota', 'get_info', args=[force])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -90,10 +87,10 @@ def query(command, args, daemon_id):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_file = daemon_id + '-stdout.log'
+            log_file = 'ota-stdout.log'
             args.remove('stdout')
         else:
-            log_file = daemon_id + '.log'
+            log_file = 'ota.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
@@ -111,7 +108,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'open_covers', [ut_list])
+        reply = daemons.daemon_function('ota', 'open_covers', [ut_list])
         print(reply)
 
     elif command == 'close':
@@ -125,7 +122,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'close_covers', [ut_list])
+        reply = daemons.daemon_function('ota', 'close_covers', [ut_list])
         print(reply)
 
     elif command == 'stop':
@@ -139,7 +136,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'stop_covers', [ut_list])
+        reply = daemons.daemon_function('ota', 'stop_covers', [ut_list])
         print(reply)
 
     # Unrecognized function
@@ -193,20 +190,26 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
+        sys.exit()
+
+    command, *args = sys.argv[1:]
+    if command != 'i':
+        query(command, args)
     else:
-        command, *args = sys.argv[1:]
-        if command == 'i':
-            # Interactive mode
-            while True:
-                interactive_input = input('{}> '.format(DAEMON_ID)).split()
-                if len(interactive_input) > 0:
-                    command, *args = interactive_input
-                    if command in ['q', 'exit']:
-                        sys.exit()
-                    try:
-                        query(command, args, DAEMON_ID)
-                    except Exception as error:
-                        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-        else:
-            query(command, args, DAEMON_ID)
+        # Interactive mode
+        while True:
+            try:
+                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+            except EOFError:
+                print()
+                sys.exit()
+            if len(interactive_input) > 0:
+                command, *args = interactive_input
+                if command in ['q', 'exit']:
+                    sys.exit()
+                try:
+                    query(command, args)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))

@@ -1326,6 +1326,5 @@ class DomeDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'dome'
-    with make_pid_file(daemon_id):
+    with make_pid_file('dome'):
         DomeDaemon()._run()

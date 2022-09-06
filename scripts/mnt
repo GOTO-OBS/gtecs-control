@@ -17,10 +17,7 @@ from gtecs.control import style
 from gtecs.control.style import errortxt
 
 
-DAEMON_ID = os.path.basename(__file__)
-
-
-def query(command, args, daemon_id):
+def query(command, args):
     """Process a query."""
     # Command functions
     if command in ['help', '?']:
@@ -31,23 +28,23 @@ def query(command, args, daemon_id):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_id)
+        reply = daemons.start_daemon('mnt')
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_id)
+        reply = daemons.shutdown_daemon('mnt')
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_id)
+        reply = daemons.restart_daemon('mnt')
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_id)
+        reply = daemons.kill_daemon('mnt')
         print(reply)
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon(daemon_id)
+        reply = daemons.check_daemon('mnt')
         print(reply)
     elif command in ['info', 'status']:
         # parse arguments
@@ -80,7 +77,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
+        reply = daemons.daemon_function('mnt', 'get_info', args=[force])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -94,10 +91,10 @@ def query(command, args, daemon_id):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_file = daemon_id + '-stdout.log'
+            log_file = 'mnt-stdout.log'
             args.remove('stdout')
         else:
-            log_file = daemon_id + '.log'
+            log_file = 'mnt.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
@@ -108,7 +105,7 @@ def query(command, args, daemon_id):
         # parse arguments
         if len(args) == 0:
             # slew to already set target
-            reply = daemons.daemon_function(daemon_id, 'slew_to_radec')
+            reply = daemons.daemon_function('mnt', 'slew_to_radec')
             print(reply)
         elif len(args) == 2:
             # decimal ra and dec
@@ -116,17 +113,17 @@ def query(command, args, daemon_id):
             dec_deg = float(args[1])
             ra_hrs = ra_deg * 24 / 360
             # slew to given target
-            reply = daemons.daemon_function(daemon_id, 'slew_to_radec', [ra_hrs, dec_deg])
+            reply = daemons.daemon_function('mnt', 'slew_to_radec', [ra_hrs, dec_deg])
             print(reply)
         else:
             raise errors.InputError('Invalid arguments')
 
     elif command == 'track':
-        reply = daemons.daemon_function(daemon_id, 'start_tracking')
+        reply = daemons.daemon_function('mnt', 'start_tracking')
         print(reply)
 
     elif command in ['stop', 'halt', 'abort']:
-        reply = daemons.daemon_function(daemon_id, 'full_stop')
+        reply = daemons.daemon_function('mnt', 'full_stop')
         print(reply)
 
     elif command == 'blinky':
@@ -138,7 +135,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'blinky', [activate])
+        reply = daemons.daemon_function('mnt', 'blinky', [activate])
         print(reply)
 
     elif command == 'motors':
@@ -150,15 +147,15 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'power_motors', [activate])
+        reply = daemons.daemon_function('mnt', 'power_motors', [activate])
         print(reply)
 
     elif command == 'park':
-        reply = daemons.daemon_function(daemon_id, 'park')
+        reply = daemons.daemon_function('mnt', 'park')
         print(reply)
 
     elif command == 'unpark':
-        reply = daemons.daemon_function(daemon_id, 'unpark')
+        reply = daemons.daemon_function('mnt', 'unpark')
         print(reply)
 
     elif command == 'ra':
@@ -176,7 +173,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_target_ra', [ra_hrs])
+        reply = daemons.daemon_function('mnt', 'set_target_ra', [ra_hrs])
         print(reply)
 
     elif command == 'dec':
@@ -210,7 +207,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_target_dec', [dec_deg])
+        reply = daemons.daemon_function('mnt', 'set_target_dec', [dec_deg])
         print(reply)
 
     elif command == 'trackrate':
@@ -224,7 +221,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_trackrate', [ra_rate, dec_rate])
+        reply = daemons.daemon_function('mnt', 'set_trackrate', [ra_rate, dec_rate])
         print(reply)
 
     elif command == 'offset':
@@ -235,7 +232,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'offset', [direction, distance])
+        reply = daemons.daemon_function('mnt', 'offset', [direction, distance])
         print(reply)
 
     elif command in ['pulseguide', 'pulse_guide', 'guide']:
@@ -246,7 +243,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'pulse_guide', [direction, duration])
+        reply = daemons.daemon_function('mnt', 'pulse_guide', [direction, duration])
         print(reply)
 
     elif command == 'target':
@@ -268,14 +265,14 @@ def query(command, args, daemon_id):
         print('Found coordinates for "{}":'.format(name), end='  ')
         print('RA: {:.4f}  Dec: {:.4f}'.format(coord.ra.hour, coord.dec.value))
         # send commands
-        reply = daemons.daemon_function(daemon_id, 'set_target_ra', [coord.ra.hour])
+        reply = daemons.daemon_function('mnt', 'set_target_ra', [coord.ra.hour])
         print(reply)
-        reply = daemons.daemon_function(daemon_id, 'set_target_dec', [coord.dec.value])
+        reply = daemons.daemon_function('mnt', 'set_target_dec', [coord.dec.value])
         print(reply)
 
     elif command == 'clear':
         # send command
-        reply = daemons.daemon_function(daemon_id, 'clear_target')
+        reply = daemons.daemon_function('mnt', 'clear_target')
         print(reply)
 
     elif command in ['slew_altaz', 'altaz']:
@@ -290,7 +287,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'slew_to_altaz_sidereal', [alt_deg, az_deg])
+        reply = daemons.daemon_function('mnt', 'slew_to_altaz_sidereal', [alt_deg, az_deg])
         print(reply)
 
     elif command in ['slew_altaz_target', 'altaz_target']:
@@ -305,7 +302,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'slew_to_altaz', [alt_deg, az_deg])
+        reply = daemons.daemon_function('mnt', 'slew_to_altaz', [alt_deg, az_deg])
         print(reply)
 
     # Unrecognized function
@@ -467,20 +464,26 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
+        sys.exit()
+
+    command, *args = sys.argv[1:]
+    if command != 'i':
+        query(command, args)
     else:
-        command, *args = sys.argv[1:]
-        if command == 'i':
-            # Interactive mode
-            while True:
-                interactive_input = input('{}> '.format(DAEMON_ID)).split()
-                if len(interactive_input) > 0:
-                    command, *args = interactive_input
-                    if command in ['q', 'exit']:
-                        sys.exit()
-                    try:
-                        query(command, args, DAEMON_ID)
-                    except Exception as error:
-                        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-        else:
-            query(command, args, DAEMON_ID)
+        # Interactive mode
+        while True:
+            try:
+                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+            except EOFError:
+                print()
+                sys.exit()
+            if len(interactive_input) > 0:
+                command, *args = interactive_input
+                if command in ['q', 'exit']:
+                    sys.exit()
+                try:
+                    query(command, args)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))

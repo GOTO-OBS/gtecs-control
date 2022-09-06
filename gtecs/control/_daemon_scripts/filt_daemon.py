@@ -284,6 +284,5 @@ class FiltDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'filt'
-    with make_pid_file(daemon_id):
+    with make_pid_file('filt'):
         FiltDaemon()._run()

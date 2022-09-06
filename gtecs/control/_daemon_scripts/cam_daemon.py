@@ -800,6 +800,5 @@ class CamDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'cam'
-    with make_pid_file(daemon_id):
+    with make_pid_file('cam'):
         CamDaemon()._run()

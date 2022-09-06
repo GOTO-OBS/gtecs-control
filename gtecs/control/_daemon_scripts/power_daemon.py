@@ -487,6 +487,5 @@ class PowerDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'power'
-    with make_pid_file(daemon_id):
+    with make_pid_file('power'):
         PowerDaemon()._run()

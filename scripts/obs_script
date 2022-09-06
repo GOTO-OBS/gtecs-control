@@ -48,7 +48,9 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
-    else:
-        script, *args = sys.argv[1:]
-        query(script, args)
+        sys.exit()
+
+    script_name, *args = sys.argv[1:]
+    query(script_name, args)

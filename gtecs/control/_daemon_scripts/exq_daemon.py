@@ -446,6 +446,5 @@ class ExqDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'exq'
-    with make_pid_file(daemon_id):
+    with make_pid_file('exq'):
         ExqDaemon()._run()

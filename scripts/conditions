@@ -13,10 +13,7 @@ from gtecs.control import style
 from gtecs.control.style import errortxt
 
 
-DAEMON_ID = os.path.basename(__file__)
-
-
-def query(command, args, daemon_id):
+def query(command, args):
     """Process a query."""
     # Command functions
     if command in ['help', '?']:
@@ -27,23 +24,23 @@ def query(command, args, daemon_id):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_id)
+        reply = daemons.start_daemon('conditions')
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_id)
+        reply = daemons.shutdown_daemon('conditions')
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_id)
+        reply = daemons.restart_daemon('conditions')
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_id)
+        reply = daemons.kill_daemon('conditions')
         print(reply)
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon(daemon_id)
+        reply = daemons.check_daemon('conditions')
         print(reply)
 
     elif command in ['info', 'status']:
@@ -67,7 +64,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
+        reply = daemons.daemon_function('conditions', 'get_info', args=[force])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -79,10 +76,10 @@ def query(command, args, daemon_id):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_file = daemon_id + '-stdout.log'
+            log_file = 'conditions-stdout.log'
             args.remove('stdout')
         else:
-            log_file = daemon_id + '.log'
+            log_file = 'conditions.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
@@ -91,7 +88,7 @@ def query(command, args, daemon_id):
     # Daemon functions
     elif command == 'update':
         # send command
-        reply = daemons.daemon_function(daemon_id, 'update')
+        reply = daemons.daemon_function('conditions', 'update')
         print(reply)
 
     elif command == 'ignore':
@@ -101,7 +98,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'ignore_flags', args=[flags])
+        reply = daemons.daemon_function('conditions', 'ignore_flags', args=[flags])
         print(reply)
 
     elif command == 'enable':
@@ -111,7 +108,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'enable_flags', args=[flags])
+        reply = daemons.daemon_function('conditions', 'enable_flags', args=[flags])
         print(reply)
 
     elif command == 'override':
@@ -125,19 +122,19 @@ def query(command, args, daemon_id):
             raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         if command.lower() == 'on':
-            reply = daemons.daemon_function(daemon_id, 'set_override')
+            reply = daemons.daemon_function('conditions', 'set_override')
         else:
-            reply = daemons.daemon_function(daemon_id, 'clear_override')
+            reply = daemons.daemon_function('conditions', 'clear_override')
         print(reply)
 
     elif command == 'pause':
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_override')
+        reply = daemons.daemon_function('conditions', 'set_override')
         print(reply)
 
     elif command in ['resume', 'unpause']:
         # send command
-        reply = daemons.daemon_function(daemon_id, 'clear_override')
+        reply = daemons.daemon_function('conditions', 'clear_override')
         print(reply)
 
     elif command == 'limits':
@@ -149,7 +146,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
+        reply = daemons.daemon_function('conditions', 'get_info', args=[force])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -680,20 +677,26 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
+        sys.exit()
+
+    command, *args = sys.argv[1:]
+    if command != 'i':
+        query(command, args)
     else:
-        command, *args = sys.argv[1:]
-        if command == 'i':
-            # Interactive mode
-            while True:
-                interactive_input = input('{}> '.format(DAEMON_ID)).split()
-                if len(interactive_input) > 0:
-                    command, *args = interactive_input
-                    if command in ['q', 'exit']:
-                        sys.exit()
-                    try:
-                        query(command, args, DAEMON_ID)
-                    except Exception as error:
-                        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-        else:
-            query(command, args, DAEMON_ID)
+        # Interactive mode
+        while True:
+            try:
+                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+            except EOFError:
+                print()
+                sys.exit()
+            if len(interactive_input) > 0:
+                command, *args = interactive_input
+                if command in ['q', 'exit']:
+                    sys.exit()
+                try:
+                    query(command, args)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))

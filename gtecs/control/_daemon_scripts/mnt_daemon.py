@@ -934,6 +934,5 @@ class MntDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'mnt'
-    with make_pid_file(daemon_id):
+    with make_pid_file('mnt'):
         MntDaemon()._run()

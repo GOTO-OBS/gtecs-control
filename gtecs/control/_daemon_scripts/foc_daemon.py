@@ -573,6 +573,5 @@ class FocDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'foc'
-    with make_pid_file(daemon_id):
+    with make_pid_file('foc'):
         FocDaemon()._run()
