@@ -35,10 +35,6 @@ Several scripts from the `scripts` folder should also be added to your path.
 
 The module will look for a file named `.gtecs.conf` either in the user's home directory, the `gtecs` subdirectory, or a path specified by the `GTECS_CONF` environment variable. An example file is included in the base directory of this repository.
 
-After installing this package copy this sample config file to one of the above locations, and change the file path parameters to specify where you want the package to save files.
-
-Once that has been done run the `initialise.py` script to create the expected directory structure at that location.
-
 ## Testing
 
 TODO
