@@ -9,8 +9,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from gtecs.common import logging
-from gtecs.common.system import execute_command, get_pid, make_pid_file
-from gtecs.control import misc
+from gtecs.common.system import execute_command, get_pid, kill_process, make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
 from gtecs.control.daemons import daemon_info
@@ -41,13 +40,13 @@ def run(test=False):
         time.sleep(2)
 
     # Check that the pilot has shutdown, and try to kill it if it hasn't
-    pid = misc.get_pid('pilot')
+    pid = get_pid('pilot')
     if pid:
         print('Pilot is still running (PID {})'.format(pid))
         send_slack_msg('Pilot did not shut down correctly!')
-        misc.kill_process('pilot')
+        kill_process('pilot')
         time.sleep(5)
-        pid = misc.get_pid('pilot')
+        pid = get_pid('pilot')
         if not pid:
             print('Pilot killed')
             send_slack_msg('Pilot killed')
