@@ -7,8 +7,8 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
 from gtecs.control.exposures import Exposure, ExposureQueue
@@ -37,11 +37,12 @@ class ExqDaemon(BaseDaemon):
         self.dither_time = 0
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
-        try:
-            with open(self.set_number_file, 'r') as f:
-                self.latest_set_number = int(f.read())
-        except Exception:
-            self.latest_set_number = 0
+        if not os.path.exists(self.set_number_file):
+            with open(self.set_number_file, 'w') as f:
+                f.write('0')
+                f.close()
+        with open(self.set_number_file, 'r') as f:
+            self.latest_set_number = int(f.read())
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -445,6 +446,5 @@ class ExqDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'exq'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file('exq'):
         ExqDaemon()._run()

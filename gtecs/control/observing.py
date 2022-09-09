@@ -4,13 +4,14 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import execute_command
+
 import numpy as np
 
 from . import params
 from .astronomy import radec_from_altaz, within_mount_limits
 from .daemons import daemon_function, daemon_info
 from .fits import clear_glance_files, get_glance_data, get_image_data
-from .misc import execute_command
 
 
 def check_dome_closed():

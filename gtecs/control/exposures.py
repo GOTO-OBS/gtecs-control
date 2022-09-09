@@ -183,7 +183,7 @@ class ExposureQueue(MutableSequence):
 
         if not os.path.exists(self.queue_file):
             with open(self.queue_file, 'w') as f:
-                f.write('#\n')
+                f.write('# Exposure queue file\n')
                 f.close()
 
         with open(self.queue_file) as f:
@@ -196,6 +196,7 @@ class ExposureQueue(MutableSequence):
     def write_to_file(self):
         """Write the current queue to the queue file."""
         with open(self.queue_file, 'w') as f:
+            f.write('# Exposure queue file\n')
             for exposure in self.data:
                 f.write(exposure.as_line())
 

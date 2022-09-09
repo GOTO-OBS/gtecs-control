@@ -1,15 +1,15 @@
 """Generic G-TeCS daemon classes & functions."""
 
-import os
+import subprocess
 import time
 from abc import ABC, abstractmethod
 
-from gtecs.common.logging import get_logger
-
 import Pyro4
 
+from gtecs.common import logging
+from gtecs.common.system import get_pid, kill_process
+
 from . import errors
-from . import misc
 from . import params
 
 
@@ -68,9 +68,7 @@ class BaseDaemon(ABC):
         self.bad_hardware = set()
 
         # set up logfile
-        self.log = get_logger(self.daemon_id, params.LOG_PATH,
-                              log_to_file=params.FILE_LOGGING,
-                              log_to_stdout=params.STDOUT_LOGGING)
+        self.log = logging.get_logger(self.daemon_id)
         self.log.info('Daemon created')
 
     # Primary control thread
@@ -222,7 +220,7 @@ class BaseDaemon(ABC):
 
 def daemon_is_running(daemon_id):
     """Check if a daemon is running."""
-    return misc.get_pid(daemon_id) is not None
+    return get_pid(daemon_id) is not None
 
 
 def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEOUT):
@@ -264,7 +262,7 @@ def daemon_is_alive(daemon_id):
 def check_daemon(daemon_id):
     """Check the status of a daemon."""
     host = params.DAEMONS[daemon_id]['HOST']
-    pid = misc.get_pid(daemon_id)
+    pid = get_pid(daemon_id)
     runstr = 'Daemon running on {} (PID {})'.format(host, pid)
 
     status = get_daemon_status(daemon_id)
@@ -316,30 +314,36 @@ def start_daemon(daemon_id, args=None):
     if daemon_is_running(daemon_id):
         try:
             check_daemon(daemon_id)  # Will raise status error if found
-            return 'Daemon already running on {} (PID {})'.format(host, misc.get_pid(daemon_id))
+            return 'Daemon already running on {} (PID {})'.format(host, get_pid(daemon_id))
         except Exception:
             print('Daemon already running but reports error:')
             raise
 
     process_path = params.DAEMONS[daemon_id]['PROCESS_PATH']
-    process_options = {'in_background': True,
-                       'host': host}
-    if params.REDIRECT_STDOUT:
-        logfile = daemon_id + '-stdout.log'
-        pipe = open(os.path.join(params.LOG_PATH, logfile), 'a')
-        process_options.update({'stdout': pipe, 'stderr': pipe})
-
     if args is not None:
         args = ' '.join([str(arg) for arg in args])
     else:
         args = ''
+    command_string = ' '.join((params.PYTHON_EXE, process_path, args))
+    if host not in ['127.0.0.1', params.LOCAL_HOST]:
+        command_string = "ssh {} '{}'".format(host, command_string)
+    if params.COMMAND_DEBUG:
+        print(command_string)
 
-    misc.python_command(process_path, args, **process_options)
+    # Also redirect the process stdout to a log file
+    # The logger stdout will be included in the log,
+    # but this is handy in case of errors outside of the logger.
+    # Also for remote processes this file will be stored locally.
+    log_file = daemon_id + '-stdout.log'
+    log_path = logging.get_log_path() / log_file
+    pipe = open(log_path, 'a')
+
+    subprocess.Popen(command_string, shell=True, stdout=pipe, stderr=pipe)
 
     time.sleep(1)
     start_time = time.time()
     while True:
-        pid = misc.get_pid(daemon_id, host)
+        pid = get_pid(daemon_id, host)
         if pid:
             try:
                 check_daemon(daemon_id)  # Will raise status error if found
@@ -373,7 +377,7 @@ def shutdown_daemon(daemon_id):
         if not daemon_is_running(daemon_id):
             return 'Daemon shut down on {}'.format(host)
         if time.time() - start_time > 4:
-            pid = misc.get_pid(daemon_id)
+            pid = get_pid(daemon_id)
             errstr = 'Daemon still running on {} (PID {})'.format(host, pid)
             raise errors.DaemonConnectionError(errstr)
         time.sleep(0.5)
@@ -386,7 +390,7 @@ def kill_daemon(daemon_id):
         return 'Daemon not running on {}'.format(host)
 
     try:
-        misc.kill_process(daemon_id, host)
+        kill_process(daemon_id, host, verbose=params.COMMAND_DEBUG)
     except Exception:
         pass
 
@@ -396,7 +400,7 @@ def kill_daemon(daemon_id):
         if not daemon_is_running(daemon_id):
             return 'Daemon killed on {}'.format(host)
         if time.time() - start_time > 4:
-            pid = misc.get_pid(daemon_id, host)
+            pid = get_pid(daemon_id, host)
             errstr = 'Daemon still running on {} (PID {})'.format(host, pid)
             raise errors.DaemonConnectionError(errstr)
         time.sleep(0.5)

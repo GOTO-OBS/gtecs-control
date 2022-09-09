@@ -7,8 +7,8 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Conditions, Status
@@ -1326,6 +1326,5 @@ class DomeDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'dome'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file('dome'):
         DomeDaemon()._run()

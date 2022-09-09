@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """A script to make it easier for users to run observation scripts."""
 
+import importlib.resources as pkg_resources
 import sys
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Python < 3.7
-    import importlib_resources as pkg_resources  # type: ignore
 
-from gtecs.control import misc, params
+from gtecs.common.system import execute_long_command, get_pid, make_pid_file
+from gtecs.control import params
 
 
 SCRIPT_NAMES = sorted([f for f in pkg_resources.contents('gtecs.control._obs_scripts')
@@ -24,14 +21,14 @@ def query(script, args):
         print_instructions()
     else:
         for s in sorted(SCRIPT_NAMES):
-            pid = misc.get_pid(s.split('.')[0])
+            pid = get_pid(s.split('.')[0])
             if pid:
                 print('An observing script ({}) is already running (PID {})'.format(s, pid))
                 return
-        with misc.make_pid_file(script.split('.')[0]):
+        with make_pid_file(script.split('.')[0]):
             with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
                 command = ' '.join((params.PYTHON_EXE, str(path), *args))
-                misc.execute_long_command(command)
+                execute_long_command(command)
 
 
 def print_instructions():
@@ -51,8 +48,9 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
-    else:
-        script, *args = sys.argv[1:]
-        with misc.print_errors():
-            query(script, args)
+        sys.exit()
+
+    script_name, *args = sys.argv[1:]
+    query(script_name, args)

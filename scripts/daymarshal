@@ -8,12 +8,12 @@ import time
 import astropy.units as u
 from astropy.time import Time
 
-from gtecs.common.logging import get_logger
+from gtecs.common import logging
+from gtecs.common.system import execute_command, get_pid, make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
 from gtecs.control.daemons import daemon_info
 from gtecs.control.flags import Status
-from gtecs.control.misc import execute_command, get_pid, make_pid_file
 from gtecs.control.observing import wait_for_dome
 from gtecs.control.slack import send_dome_report, send_slack_msg
 
@@ -23,11 +23,7 @@ import numpy as np
 def run(test=False):
     """Run morning safety checks."""
     # Log output
-    log = get_logger('daymarshal', params.LOG_PATH,
-                     log_to_file=False,
-                     log_to_stdout=True,
-                     log_stdout=True,
-                     )
+    log = logging.get_logger('daymarshal')
 
     # Get the current night starting date and time of sunrise
     date = night_startdate()

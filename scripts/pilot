@@ -2,12 +2,11 @@
 """A script to provide control over the pilot."""
 
 import argparse
-import os
 import sys
 
+from gtecs.common import logging
+from gtecs.common.system import execute_long_command, get_pid, kill_process, make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
-from gtecs.control import params
 from gtecs.control.flags import Status
 from gtecs.control.pilot import run
 from gtecs.control.slack import send_slack_msg
@@ -33,7 +32,7 @@ def query(command, args):
             return
 
         # Check it it's already running
-        pid = misc.get_pid('pilot')
+        pid = get_pid('pilot')
         if pid:
             print('Pilot already running (PID {})'.format(pid))
             send_slack_msg('Pilot tried to start, but is already running')
@@ -45,28 +44,34 @@ def query(command, args):
         parser.add_argument('-l', '--late', action='store_true', default=False)
         args = parser.parse_args(args).__dict__
 
-        with misc.make_pid_file('pilot'):
+        with make_pid_file('pilot'):
             run(**args)
 
     elif command == 'ping':
-        pid = misc.get_pid('pilot')
+        pid = get_pid('pilot')
         if pid:
             print('Pilot is running (PID {})'.format(pid))
         else:
             print('Pilot is not running')
 
     elif command == 'kill':
-        if not misc.get_pid('pilot'):
+        if not get_pid('pilot'):
             print('Pilot is not running')
             return
 
-        misc.kill_process('pilot')
+        kill_process('pilot')
 
     elif command in ['log', 'tail']:
-        log_path = os.path.join(params.LOG_PATH, 'pilot.log')
+        # parse arguments
+        if 'stdout' in args:
+            log_file = 'pilot' + '-stdout.log'
+            args.remove('stdout')
+        else:
+            log_file = 'pilot' + '.log'
+        log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
 
-        misc.execute_long_command(tail_command)
+        execute_long_command(tail_command)
 
     # Unrecognized function
     else:
@@ -92,7 +97,9 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
-    else:
-        command, *args = sys.argv[1:]
-        query(command, args)
+        sys.exit()
+
+    command, *args = sys.argv[1:]
+    query(command, args)

@@ -4,8 +4,8 @@
 import sys
 import time
 
+from gtecs.common.system import execute_command
 from gtecs.control import params
-from gtecs.control.misc import execute_command
 
 
 if __name__ == '__main__':

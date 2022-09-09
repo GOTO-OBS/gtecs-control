@@ -6,10 +6,11 @@ import time
 import traceback
 from argparse import ArgumentParser
 
+from gtecs.common.system import NeatCloser, execute_command
 from gtecs.control import params
 from gtecs.control.daemons import daemon_function
 from gtecs.control.focusing import refocus
-from gtecs.control.misc import NeatCloser, execute_command, ut_mask_to_string, ut_string_to_list
+from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
 from gtecs.control.observing import (prepare_for_images, slew_to_radec,
                                      wait_for_exposure_queue, wait_for_mount)
 from gtecs.control.scheduling import get_pointing_info

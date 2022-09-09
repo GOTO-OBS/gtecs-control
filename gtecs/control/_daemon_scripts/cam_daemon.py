@@ -8,8 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
 from gtecs.control.exposures import Exposure
@@ -39,11 +39,12 @@ class CamDaemon(BaseDaemon):
         self.abort_uts = []
 
         self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
-        try:
-            with open(self.run_number_file, 'r') as f:
-                self.latest_run_number = int(f.read())
-        except Exception:
-            self.latest_run_number = 0
+        if not os.path.exists(self.run_number_file):
+            with open(self.run_number_file, 'w') as f:
+                f.write('0')
+                f.close()
+        with open(self.run_number_file, 'r') as f:
+            self.latest_run_number = int(f.read())
         self.num_taken = 0
         self.latest_headers = {ut: None for ut in self.uts}
 
@@ -799,6 +800,5 @@ class CamDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'cam'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file('cam'):
         CamDaemon()._run()

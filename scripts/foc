@@ -4,16 +4,16 @@
 import os
 import sys
 
+from gtecs.common import logging
+from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
+from gtecs.control.style import errortxt
 
 
-DAEMON_ID = os.path.basename(__file__)
-
-
-def query(command, args, daemon_id):
+def query(command, args):
     """Process a query."""
     # Command functions
     if command in ['help', '?']:
@@ -24,23 +24,23 @@ def query(command, args, daemon_id):
 
     # Primary daemon control
     elif command == 'start':
-        reply = daemons.start_daemon(daemon_id)
+        reply = daemons.start_daemon('foc')
         print(reply)
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon(daemon_id)
+        reply = daemons.shutdown_daemon('foc')
         print(reply)
 
     elif command == 'restart':
-        reply = daemons.restart_daemon(daemon_id)
+        reply = daemons.restart_daemon('foc')
         print(reply)
 
     elif command == 'kill':
-        reply = daemons.kill_daemon(daemon_id)
+        reply = daemons.kill_daemon('foc')
         print(reply)
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon(daemon_id)
+        reply = daemons.check_daemon('foc')
         print(reply)
 
     elif command in ['info', 'status']:
@@ -74,7 +74,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
+        reply = daemons.daemon_function('foc', 'get_info', args=[force])
         # print response
         if not reply:
             raise ValueError('No info returned, check daemon')
@@ -88,14 +88,14 @@ def query(command, args, daemon_id):
     elif command in ['log', 'tail']:
         # parse arguments
         if 'stdout' in args:
-            log_file = daemon_id + '-stdout.log'
+            log_file = 'foc-stdout.log'
             args.remove('stdout')
         else:
-            log_file = daemon_id + '.log'
-        log_path = os.path.join(params.LOG_PATH, log_file)
+            log_file = 'foc.log'
+        log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
         # send command
-        misc.execute_long_command(tail_command)
+        execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'set':
@@ -117,7 +117,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'set_focusers', [pos_dict])
+        reply = daemons.daemon_function('foc', 'set_focusers', [pos_dict])
         print(reply)
 
     elif command == 'move':
@@ -139,7 +139,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'move_focusers', [steps_dict])
+        reply = daemons.daemon_function('foc', 'move_focusers', [steps_dict])
         print(reply)
 
     elif command == 'home':
@@ -153,7 +153,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'home_focusers', [ut_list])
+        reply = daemons.daemon_function('foc', 'home_focusers', [ut_list])
         print(reply)
 
     elif command in ['stop', 'halt', 'abort']:
@@ -167,7 +167,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'stop_focusers', [ut_list])
+        reply = daemons.daemon_function('foc', 'stop_focusers', [ut_list])
         print(reply)
 
     elif command == 'sync':
@@ -189,7 +189,7 @@ def query(command, args, daemon_id):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function(daemon_id, 'sync_focusers', [position_dict])
+        reply = daemons.daemon_function('foc', 'sync_focusers', [position_dict])
         print(reply)
 
     # Unrecognized function
@@ -263,19 +263,26 @@ def print_instructions():
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
+        # No command: print help and exit
         print_instructions()
+        sys.exit()
+
+    command, *args = sys.argv[1:]
+    if command != 'i':
+        query(command, args)
     else:
-        command, *args = sys.argv[1:]
-        if command == 'i':
-            while True:
-                interactive_input = input('{}> '.format(DAEMON_ID)).split()
-                if len(interactive_input) > 0:
-                    command, *args = interactive_input
-                    if command in ['q', 'exit']:
-                        break
-                    else:
-                        with misc.print_errors():
-                            query(command, args, DAEMON_ID)
-        else:
-            with misc.print_errors():
-                query(command, args, DAEMON_ID)
+        # Interactive mode
+        while True:
+            try:
+                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+            except EOFError:
+                print()
+                sys.exit()
+            if len(interactive_input) > 0:
+                command, *args = interactive_input
+                if command in ['q', 'exit']:
+                    sys.exit()
+                try:
+                    query(command, args)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))

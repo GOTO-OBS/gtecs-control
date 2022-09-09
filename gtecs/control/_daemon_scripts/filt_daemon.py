@@ -6,10 +6,11 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.style import errortxt
 
 
 class FiltDaemon(BaseDaemon):
@@ -198,7 +199,7 @@ class FiltDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new filter is a valid input
@@ -206,31 +207,31 @@ class FiltDaemon(BaseDaemon):
                 new_filt = new_filter[ut].upper()
             except Exception:
                 s = '"{}" is not a valid filter'.format(new_filter[ut])
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new filter is in the filter list
             if new_filt not in self.filters[ut]:
                 s = 'New filter "{}" not in list {}'.format(new_filt, self.filters[ut])
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new filter is different from the current filter
             # if new_filt == self.info[ut]['current_filter']:
             #     s = 'Filter Wheel is already at position {}'.format(new_filt)
-            #     retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+            #     retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
             #     continue
 
             # Check the filter wheel is not already moving
             if self.info[ut]['remaining'] > 0:
                 s = 'Filter Wheel is already moving'
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the filter wheel is homed
             if not self.info[ut]['homed']:
                 s = 'Filter Wheel is not homed'
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -261,13 +262,13 @@ class FiltDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the filter wheel is not already moving
             if self.info[ut]['remaining'] > 0:
                 s = 'Filter Wheel is already moving'
-                retstrs.append('Filter Wheel {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -283,6 +284,5 @@ class FiltDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'filt'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file('filt'):
         FiltDaemon()._run()

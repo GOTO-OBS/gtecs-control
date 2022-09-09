@@ -6,11 +6,12 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
 from gtecs.control.observing import get_internal_conditions
+from gtecs.control.style import errortxt
 
 
 class FocDaemon(BaseDaemon):
@@ -333,7 +334,7 @@ class FocDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new position is a valid input
@@ -342,26 +343,26 @@ class FocDaemon(BaseDaemon):
                 assert new_pos == new_position[ut]
             except Exception:
                 s = '"{}" is not a valid integer'.format(new_position[ut])
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new position is within the focuser limit
             if new_pos < 0 or new_pos > self.info[ut]['limit']:
                 s = 'New position {} is outside focuser limits (0-{})'.format(
                     new_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # # Check the new position is different from the current position
             # if new_pos == self.info[ut]['current_pos']:
             #     s = 'Focuser is already at position {}'.format(new_pos)
-            #     retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+            #     retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
             #     continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -393,7 +394,7 @@ class FocDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new position is a valid input
@@ -402,7 +403,7 @@ class FocDaemon(BaseDaemon):
                 assert steps == move_steps[ut]
             except Exception:
                 s = '"{}" is not a valid integer'.format(move_steps[ut])
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new position is within the focuser limit
@@ -410,19 +411,19 @@ class FocDaemon(BaseDaemon):
             if new_pos < 0 or new_pos > self.info[ut]['limit']:
                 s = 'New position {} is outside focuser limits (0-{})'.format(
                     new_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # # Check the new position is different from the current position
             # if new_pos == self.info[ut]['current_pos']:
             #     s = 'Focuser is already at position {}'.format(new_pos)
-            #     retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+            #     retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
             #     continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -454,13 +455,13 @@ class FocDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the focuser is not already moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -490,13 +491,13 @@ class FocDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check if the focuser has a stop command
             if not self.info[ut]['can_stop']:
                 s = 'Focuser does not a stop command'
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -526,7 +527,7 @@ class FocDaemon(BaseDaemon):
             # Check the UT ID is valid
             if ut not in self.uts:
                 s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new position is a valid input
@@ -535,26 +536,26 @@ class FocDaemon(BaseDaemon):
                 assert sync_pos == position[ut]
             except Exception:
                 s = '"{}" is not a valid integer'.format(position[ut])
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check if the focuser has a sync command
             if not self.info[ut]['can_sync']:
                 s = 'Focuser does not a sync command'
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the new position is within the focuser limit
             if sync_pos < 0 or sync_pos > self.info[ut]['limit']:
                 s = 'New position {} is outside focuser limits (0-{})'.format(
                     sync_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Check the focuser is not moving
             if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
                 s = 'Focuser is moving'
-                retstrs.append('Focuser {}: '.format(ut) + misc.errortxt(s))
+                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
                 continue
 
             # Set values
@@ -572,6 +573,5 @@ class FocDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'foc'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file('foc'):
         FocDaemon()._run()

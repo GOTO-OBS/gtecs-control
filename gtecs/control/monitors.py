@@ -4,10 +4,11 @@ import logging
 import time
 from abc import ABC, abstractmethod
 
+from gtecs.common.system import execute_command
+
 from . import params
 from .daemons import daemon_is_running, daemon_proxy
 from .errors import RecoveryError
-from .misc import execute_command
 
 # Daemon statuses
 DAEMON_RUNNING = 'running'

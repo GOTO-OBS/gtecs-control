@@ -8,8 +8,8 @@ import astropy.units as u
 from astropy.coordinates import AltAz, SkyCoord
 from astropy.time import Time
 
+from gtecs.common.system import make_pid_file
 from gtecs.control import errors
-from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.astronomy import (altaz_from_radec, get_ha,
                                      get_moon_distance, get_moon_params, get_sunalt,
@@ -934,6 +934,5 @@ class MntDaemon(BaseDaemon):
 
 
 if __name__ == '__main__':
-    daemon_id = 'mnt'
-    with misc.make_pid_file(daemon_id):
+    with make_pid_file('mnt'):
         MntDaemon()._run()

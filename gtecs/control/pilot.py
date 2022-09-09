@@ -3,25 +3,21 @@
 import abc
 import asyncio
 import functools
+import importlib.resources as pkg_resources
 import sys
 import time
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    # Python < 3.7
-    import importlib_resources as pkg_resources  # type: ignore
 
 from astropy import units as u
 from astropy.time import Time
 
-from gtecs.common.logging import get_logger
+from gtecs.common import logging
+from gtecs.common.system import execute_command
 
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
-from .misc import execute_command
 from .scheduling import update_schedule
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
@@ -63,7 +59,7 @@ class TaskProtocol(asyncio.SubprocessProtocol, metaclass=abc.ABCMeta):
         self.done = done
         self.debug = debug
         self.buffer = bytearray()
-        self.log = get_logger(log_name, params.LOG_PATH)
+        self.log = logging.get_logger(log_name)
         super().__init__()
 
     def connection_made(self, transport):
@@ -189,10 +185,7 @@ class Pilot:
 
     def __init__(self, testing=False):
         # get a logger for the pilot
-        self.log = get_logger('pilot', params.LOG_PATH,
-                              log_stdout=True,
-                              log_to_file=params.FILE_LOGGING,
-                              log_to_stdout=params.STDOUT_LOGGING)
+        self.log = logging.get_logger('pilot')
         self.log.info('Pilot started')
 
         # flag for daytime testing

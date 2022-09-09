@@ -4,7 +4,7 @@
 import time
 from argparse import ArgumentParser
 
-from gtecs.control.misc import execute_command
+from gtecs.common.system import execute_command
 from gtecs.control.observing import (prepare_for_images, mirror_covers_are_closed, slew_to_altaz,
                                      wait_for_exposure_queue)
 
