@@ -119,12 +119,6 @@ def run(test=False):
         else:
             execute_command("ssh {} '{}'".format(host, command), timeout=120)
 
-    # Restart the RoomAlert
-    log.info('Rebooting RoomAlert')
-    execute_command('power off poe')
-    time.sleep(5)
-    execute_command('power on poe')
-
     log.info('Done')
 
 

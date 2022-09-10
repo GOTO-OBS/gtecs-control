@@ -45,7 +45,6 @@ STATUS_FILT_UNHOMED = 'unhomed'
 STATUS_FILT_MOVING = 'moving'
 STATUS_FOC_UNSET = 'unset'
 STATUS_FOC_MOVING = 'moving'
-STATUS_CONDITIONS_INTERNAL_ERROR = 'internal_error'
 
 # Hardware modes
 MODE_ACTIVE = 'active'
@@ -90,7 +89,6 @@ ERROR_FILT_UNHOMED = 'FILT:NOT_HOMED'
 ERROR_FILT_MOVETIMEOUT = 'FILT:MOVING_TIMEOUT'
 ERROR_FOC_UNSET = 'FOC:NOT_SET'
 ERROR_FOC_MOVETIMEOUT = 'FOC:MOVING_TIMEOUT'
-ERROR_CONDITIONS_INTERNAL = 'CONDITIONS:INTERNAL_ERROR'
 
 
 class BaseMonitor(ABC):
@@ -1747,24 +1745,16 @@ class ConditionsMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        internal_error = info['flags']['internal'] == 2
-        if internal_error:
-            hardware_status = STATUS_CONDITIONS_INTERNAL_ERROR
-        else:
-            hardware_status = STATUS_ACTIVE
+        # no custom statuses
+        hardware_status = STATUS_ACTIVE
 
         self.hardware_status = hardware_status
         return hardware_status
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # ERROR_CONDITIONS_INTERNAL
-        # Set the error if the internal flag is reporting status 2 (ERROR)
-        if self.hardware_status == STATUS_CONDITIONS_INTERNAL_ERROR:
-            self.add_error(ERROR_CONDITIONS_INTERNAL)
-        # Clear the error if the flag is back to not ERROR (either good or bad)
-        if self.hardware_status != STATUS_CONDITIONS_INTERNAL_ERROR:
-            self.clear_error(ERROR_CONDITIONS_INTERNAL)
+        # no custom errors
+        return
 
     def _recovery_procedure(self):
         """Get the recovery commands for the current error(s), based on hardware status and mode."""
@@ -1800,17 +1790,6 @@ class ConditionsMonitor(BaseMonitor):
             recovery_procedure[1] = ['conditions restart', 30]
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
-
-        elif ERROR_CONDITIONS_INTERNAL in self.errors:
-            # PROBLEM: The internal flag has been set to ERROR.
-            recovery_procedure = {}
-            # SOLUTION 1: Try rebooting the RoomAlert, through the PoE switch.
-            recovery_procedure[1] = ['power reboot poe', 120]
-            # SOLUTION 2: Try powering off for longer.
-            recovery_procedure[2] = ['power off poe', 60]
-            recovery_procedure[3] = ['power on poe', 120]
-            # OUT OF SOLUTIONS: Maybe it's not the RoomAlert's fault.
-            return ERROR_CONDITIONS_INTERNAL, recovery_procedure
 
         else:
             # Some unexpected error.

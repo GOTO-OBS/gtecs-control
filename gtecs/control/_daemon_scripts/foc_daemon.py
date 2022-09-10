@@ -10,7 +10,7 @@ from gtecs.common.system import make_pid_file
 from gtecs.control import errors
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, daemon_proxy
-from gtecs.control.observing import get_internal_conditions
+from gtecs.control.observing import get_conditions
 from gtecs.control.style import errortxt
 
 
@@ -242,7 +242,7 @@ class FocDaemon(BaseDaemon):
         # UPDATE: The H400s don't have temperature sensors, so that simplifies things even further.
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
-            int_conditions = get_internal_conditions()
+            int_conditions = get_conditions()['internal']
             temp_info['dome_temp'] = int_conditions['temperature']
         except Exception:
             self.log.error('Failed to get dome internal temperature')

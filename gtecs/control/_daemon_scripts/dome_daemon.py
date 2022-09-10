@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Daemon to control an AstroHaven dome."""
 
-import subprocess
 import threading
 import time
 
@@ -370,10 +369,9 @@ class DomeDaemon(BaseDaemon):
             else:
                 try:
                     self.dome = AstroHavenDome(params.DOME_LOCATION,
-                                               params.ARDUINO_LOCATION,
-                                               params.ROOMALERT_IP,
-                                               self.log,
-                                               params.DOME_DEBUG,
+                                               domealert_uri=params.DOMEALERT_URI,
+                                               log=self.log,
+                                               log_debug=params.DOME_DEBUG,
                                                )
                     self.log.info('Connected to dome')
                     if 'dome' in self.bad_hardware:
@@ -530,19 +528,11 @@ class DomeDaemon(BaseDaemon):
         try:
             conditions = get_conditions(timeout=10)
             # Windspeed - take the maximum gust from all stations
-            windspeed = np.max([conditions[source]['windmax']
-                                for source in conditions
-                                if conditions[source]['type'] == 'external'])
-            # Internal - take mean of internal sensors
-            int_temperature = np.mean([conditions[source]['temperature']
-                                       for source in conditions
-                                       if conditions[source]['type'] == 'internal'])
-            int_humidity = np.mean([conditions[source]['humidity']
-                                    for source in conditions
-                                    if conditions[source]['type'] == 'internal'])
-            temp_info['windspeed'] = windspeed
-            temp_info['temperature'] = int_temperature
-            temp_info['humidity'] = int_humidity
+            temp_info['windspeed'] = np.max([conditions['weather'][source]['windmax']
+                                             for source in conditions['weather']])
+            # Internal
+            temp_info['temperature'] = conditions['internal']['temperature']
+            temp_info['humidity'] = conditions['internal']['humidity']
         except Exception:
             self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)
@@ -958,15 +948,9 @@ class DomeDaemon(BaseDaemon):
             # TODO: we should have a separate override for automatic moves
             return
 
-        if params.ARDUINO_LOCATION is not None:
-            # Sound the alarm though the curl command
-            # We don't actually care about the output, the request triggers the siren
-            command = 'curl -s {}?s5'.format(params.ARDUINO_LOCATION)
-            subprocess.getoutput(command)
-        else:
-            # Sound the alarm through the heartbeat box
-            # Note the heartbeat siren always sounds for 5s
-            self.heartbeat.sound_alarm()
+        # Sound the alarm through the heartbeat box
+        # Note the heartbeat siren always sounds for 5s
+        self.heartbeat.sound_alarm()
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""

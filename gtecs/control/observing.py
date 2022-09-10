@@ -760,19 +760,4 @@ def wait_for_images(target_image_number, timeout=None):
 def get_conditions(timeout=30):
     """Get the current conditions values."""
     conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
-    return conditions_info['weather']
-
-
-def get_internal_conditions(timeout=30):
-    """Get the current internal conditions (temperature and humidity).
-
-    If there are more than one internal sensors then this function
-    returns the mean temperature and humidity values.
-
-    """
-    conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
-    weather = conditions_info['weather']
-    int_sources = [source for source in weather if weather[source]['type'] == 'internal']
-    int_temperature = np.mean([weather[source]['temperature'] for source in int_sources])
-    int_humidity = np.mean([weather[source]['humidity'] for source in int_sources])
-    return {'temperature': int_temperature, 'humidity': int_humidity}
+    return conditions_info

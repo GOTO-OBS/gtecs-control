@@ -332,15 +332,12 @@ def get_all_info(cam_info, log=None, log_debug=False):
     if all_info['conditions'] is not None:
         try:
             # Select external source
-            ext_source = params.EXTERNAL_WEATHER_SOURCES[0]
+            ext_source = params.WEATHER_SOURCES[0]
             ext_weather = all_info['conditions']['weather'][ext_source].copy()
             all_info['conditions']['weather_ext'] = ext_weather
 
             # Select internal source
-            int_source = params.INTERNAL_WEATHER_SOURCES[0]
-            if int_source in params.EXTERNAL_WEATHER_SOURCES:
-                int_source += '_int'
-            int_weather = all_info['conditions']['weather'][int_source].copy()
+            int_weather = all_info['conditions']['internal'].copy()
             all_info['conditions']['weather_int'] = int_weather
 
         except Exception:
