@@ -196,8 +196,8 @@ def get_domealert():
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - weather_dict['update_time']
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     try:
@@ -224,8 +224,8 @@ def get_SHT35():
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - weather_dict['update_time']
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     try:
