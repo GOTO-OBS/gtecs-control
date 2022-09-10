@@ -84,7 +84,7 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2))
+            print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments

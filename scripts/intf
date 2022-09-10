@@ -145,7 +145,7 @@ def query(command, args):
                 print_info(reply)
         elif info_type == 'raw':
             for reply in reply_list:
-                print(json.dumps(reply, indent=2))
+                print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
