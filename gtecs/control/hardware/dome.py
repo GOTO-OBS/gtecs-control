@@ -497,7 +497,7 @@ class AstroHavenDome:
                     switch_dict = self._read_arduino()
                 elif self.roomalert_ip is not None:
                     switch_dict = self._read_roomalert()
-                elif self.domealert_ip is not None:
+                elif self.domealert_uri is not None:
                     switch_dict = self._read_domealert()
                 else:
                     switch_dict = None
