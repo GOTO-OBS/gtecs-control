@@ -447,9 +447,7 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('Connected to dehumidifier')
             else:
                 try:
-                    dehumidifier_address = params.DEHUMIDIFIER_IP
-                    dehumidifier_port = params.DEHUMIDIFIER_PORT
-                    self.dehumidifier = Dehumidifier(dehumidifier_address, dehumidifier_port)
+                    self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
                     self.log.info('Connected to dehumidifier')
                     if 'dehumidifier' in self.bad_hardware:
                         self.bad_hardware.remove('dehumidifier')
