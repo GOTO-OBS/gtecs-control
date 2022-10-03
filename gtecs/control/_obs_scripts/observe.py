@@ -43,7 +43,7 @@ class InterruptedPointingCloser(NeatCloser):
     """A class to neatly handle shutdown requests."""
 
     def __init__(self, pointing_id, start_time, min_time=None):
-        super().__init__(taskname='Script')
+        super().__init__('Script')
         self.pointing_id = pointing_id
         self.start_time = start_time
         self.min_time = min_time

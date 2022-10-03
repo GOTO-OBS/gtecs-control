@@ -15,7 +15,7 @@ class RestoreFocusCloser(NeatCloser):
     """Restore the original focus positions if anything goes wrong."""
 
     def __init__(self, positions):
-        super().__init__(taskname='Script')
+        super().__init__('Script')
         self.positions = positions
 
     def tidy_up(self):
