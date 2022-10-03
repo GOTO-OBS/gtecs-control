@@ -1,12 +1,13 @@
 """Focusing utilities."""
 
+from gtecs.common.system import NeatCloser
+
 import numpy as np
 
 import pandas as pd
 
 from . import params
 from .analysis import measure_image_hfd
-from .misc import NeatCloser
 from .observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
                         move_focusers, set_focuser_positions)
 
