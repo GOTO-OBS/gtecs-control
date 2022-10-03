@@ -611,6 +611,7 @@ class UTInterfaceDaemon(BaseDaemon):
             # Start image saving in a new process
             p = mp.Process(target=self._write_fits, args=[hdu])
             p.start()
+            p.join()
         elif method == 'thread':
             # Start image saving in a new thread
             t = threading.Thread(target=self._write_fits, args=[hdu])
