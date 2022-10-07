@@ -553,7 +553,8 @@ class CamDaemon(BaseDaemon):
                 interface_id = params.UT_DICT[ut]['INTERFACE']
                 self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
                               expstr, ut, interface_id, filename))
-                executor.submit(save_fits, hdu, filename, log=self.log, confirm=True)
+                executor.submit(save_fits, hdu, filename,
+                                log=self.log, log_debug=False, fancy_log=True)
 
         self.latest_headers = headers
         self.saving_thread_running = False

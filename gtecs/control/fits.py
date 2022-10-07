@@ -130,23 +130,31 @@ def make_fits(image_data, ut, all_info, compress=False,
     return hdu
 
 
-def save_fits(hdu, filename, log=None, confirm=True):
+def save_fits(hdu, filename, log=None, log_debug=False, fancy_log=True):
     """Save a FITS HDU to a file."""
     # Remove any existing file
     try:
         os.remove(filename)
+        if log and log_debug:
+            log.debug(f'Removed {filename} as it already existed')
     except FileNotFoundError:
         pass
 
     # Create the hdulist
     if not isinstance(hdu, fits.PrimaryHDU):
+        if log and log_debug:
+            log.debug('Creating HDUList as Primary HDU with no PrimaryHDU instance')
         hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
     else:
+        if log and log_debug:
+            log.debug('Creating HDUList as standard HDU with built-in PrimaryHDU instance')
         hdulist = fits.HDUList([hdu])
 
     # Write to a tmp file, then move it once it's finished (removes the need for .done files)
     try:
         hdulist.writeto(filename + '.tmp')
+        if log and log_debug:
+            log.debug(f'Wrote file to {filename+".tmp"}')
     except Exception:
         if log is None:
             raise
@@ -154,8 +162,10 @@ def save_fits(hdu, filename, log=None, confirm=True):
         log.debug('', exc_info=True)
     else:
         os.rename(filename + '.tmp', filename)
+        if log and log_debug:
+            log.debug(f'Moved file to {filename}')
 
-    if confirm:
+    if fancy_log:
         # Log image being saved
         ut = hdu.header['UT      ']
         interface_id = params.UT_DICT[ut]['INTERFACE']

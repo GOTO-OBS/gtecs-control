@@ -4,6 +4,7 @@
 import argparse
 import json
 import multiprocessing as mp
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -598,8 +599,13 @@ class UTInterfaceDaemon(BaseDaemon):
             filename = glance_location(ut, tel_number)
 
         self.log.info('Camera {} saving image to {}'.format(ut, filename))
-        save_fits(hdu, filename, log=self.log, confirm=False)
-        self.log.info('Camera {} saved image'.format(ut))
+        save_fits(hdu, filename, log=self.log, log_debug=True, fancy_log=False)
+        # Check that the file was created
+        exists = os.path.isfile(filename)
+        if exists:
+            self.log.info('Camera {} saved image'.format(ut))
+        else:
+            self.log.warning('Camera {} did not save image correctly'.format(ut))
 
     def save_exposure(self, ut, all_info, compress=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
