@@ -909,8 +909,8 @@ def update_header(header, ut, all_info, log=None):
         if ut not in params_info['uts_with_filterwheels']:
             filt_serial = 'None'
             filt_class = 'NA'
-            filt_filter = params_info['ut_dict']['FILTERS'][0]
-            filt_filters = ','.join(params_info['ut_dict']['FILTERS'])  # There should only be one
+            filt_filter = params_info['ut_dict'][ut]['FILTERS'][0]
+            filt_filters = ','.join(params_info['ut_dict'][ut]['FILTERS'])  # Should only be one?
             filt_num = 'NA'
             filt_pos = 'NA'
             filt_move_time = 'NA'
@@ -923,7 +923,7 @@ def update_header(header, ut, all_info, log=None):
                 filt_filter = 'UNHOMED'
             else:
                 filt_filter = info['current_filter']
-            filt_filters = ','.join(params_info['ut_dict']['FILTERS'])
+            filt_filters = ','.join(params_info['ut_dict'][ut]['FILTERS'])
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
             filt_move_time = info['last_move_time']
