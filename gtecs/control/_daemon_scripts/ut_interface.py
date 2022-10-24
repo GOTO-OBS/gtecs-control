@@ -74,7 +74,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -178,7 +178,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         # Try to connect only if neither UTs are connected. We set the focuser_hubs
                         # dict in __init__ to match the two UTs by port.
                         hub_uts = self.focuser_hubs[hw_params['PORT']]
-                        # Always try to connect to the lower UT number, to simplfy things.
+                        # Always try to connect to the lower UT number, to simplify things.
                         if ut == min(hub_uts):
                             focuser = FocusLynxHub.locate_device(hw_params['PORT'])
                         else:
@@ -240,7 +240,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         if 'SERIAL' not in hw_params:
                             raise ValueError('Missing serial number')
                         if 'PORT' in hw_params:
-                            # Deal with unserialized hardware
+                            # Deal with non-serialised hardware
                             filterwheel = FLIFilterWheel.locate_device(hw_params['PORT'])
                             filterwheel.serial_number = hw_params['SERIAL']
                         else:
@@ -617,15 +617,18 @@ class UTInterfaceDaemon(BaseDaemon):
             # Start image saving in a new process
             p = mp.Process(target=self._write_fits, args=[hdu])
             p.start()
-            p.join()
+            p.join()  # Note this means we're not actually running in parallel
+            self.log.info(f'Camera {ut} saving complete')
         elif method == 'thread':
             # Start image saving in a new thread
             t = threading.Thread(target=self._write_fits, args=[hdu])
             t.daemon = True
             t.start()
+            # self.log.info(f'Camera {ut} saving complete')  # No log, we return before it finishes
         else:
             # Just save directly here
             self._write_fits(hdu)
+            self.log.info(f'Camera {ut} saving complete')
 
         # return the image header
         return hdu.header
@@ -676,7 +679,7 @@ class UTInterfaceDaemon(BaseDaemon):
         self.cameras[ut].set_image_size(x, y, dx, dy)
 
     def get_camera_info(self, ut):
-        """Return camera infomation dictionary."""
+        """Return camera information dictionary."""
         return self.cameras[ut].get_info()
 
     def get_camera_state(self, ut):
@@ -696,7 +699,7 @@ class UTInterfaceDaemon(BaseDaemon):
         return self.cameras[ut].get_temperature(temp_type)
 
     def get_camera_cooler_power(self, ut):
-        """Return peltier cooler power."""
+        """Return Peltier cooler power."""
         return self.cameras[ut].get_cooler_power()
 
     def get_camera_image_size(self, ut):
