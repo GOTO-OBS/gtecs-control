@@ -1,5 +1,7 @@
 """Functions for image analysis."""
 
+from concurrent.futures import ProcessPoolExecutor
+
 from astropy.convolution import Gaussian2DKernel
 from astropy.stats import gaussian_fwhm_to_sigma
 from astropy.stats.sigma_clipping import sigma_clipped_stats
@@ -101,11 +103,32 @@ def measure_image_fwhm(data, filter_width=15, threshold=5, region=None, verbose=
     return median_fwhm, std_fwhm
 
 
-def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=True):
+def measure_hfds(data, filter_width, threshold, region):
+    """Extract the half-flux-diameters of sources within a given region."""
+    objects, region_data = extract_image_sources(data, filter_width, threshold, region)
+
+    # Measure Half-Flux Radius to find HFDs
+    hfrs, flags = sep.flux_radius(region_data, objects['x'], objects['y'],
+                                  rmax=40 * np.ones_like(objects['x']),
+                                  frac=0.5,
+                                  normflux=objects['cflux'],
+                                  )
+    hfds = 2 * hfrs
+
+    # Mask any objects with non-zero flags or high peak counts
+    mask = np.logical_and(flags == 0, objects['peak'] < 40000)
+
+    return hfds[mask]
+
+
+def measure_image_hfd(data, filter_width=15, threshold=5, region=None,
+                      parallel=False, verbose=True):
     """Measure the median half-flux-diameter of sources in an image.
 
     Parameters
     ----------
+    parallel : bool, default=False
+        if True, measure each region in parallel
     verbose : bool, default=True
         if False, suppress printout
 
@@ -126,21 +149,18 @@ def measure_image_hfd(data, filter_width=15, threshold=5, region=None, verbose=T
     if len(regions) == 2 and isinstance(regions[0], slice) and isinstance(regions[1], slice):
         regions = [regions]
 
-    all_hfds = []
-    for region in regions:
-        # Extract sources
-        objects, region_data = extract_image_sources(data, filter_width, threshold, region)
-
-        # Measure Half-Flux Radius to find HFDs
-        hfrs, flags = sep.flux_radius(region_data, objects['x'], objects['y'],
-                                      rmax=40 * np.ones_like(objects['x']),
-                                      frac=0.5, normflux=objects['cflux'])
-        hfds = 2 * hfrs
-
-        # Mask any objects with non-zero flags or high peak counts
-        mask = np.logical_and(flags == 0, objects['peak'] < 40000)
-        all_hfds.append(hfds[mask])
-    all_hfds = np.concatenate(all_hfds)
+    if not parallel:
+        all_hfds = []
+        for region in regions:
+            hfds = measure_hfds(data, filter_width, threshold, region)
+            all_hfds.append(hfds)
+        all_hfds = np.concatenate(all_hfds)
+    else:
+        with ProcessPoolExecutor(4) as executor:
+            futures = [executor.submit(measure_hfds, data, filter_width, threshold, region)
+                       for region in regions]
+            results = [future.result() for future in futures]
+        all_hfds = np.concatenate(results).ravel().tolist()
 
     if len(all_hfds) <= 3:
         raise ValueError('Not enough objects ({}) found for HFD measurement'.format(len(all_hfds)))
