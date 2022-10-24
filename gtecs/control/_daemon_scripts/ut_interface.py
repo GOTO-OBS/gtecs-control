@@ -574,14 +574,14 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def fetch_exposure(self, ut):
         """Fetch the image."""
-        self.log.info('Camera {} fetching image'.format(ut))
+        self.log.info('Camera {} fetching image (from fetch_exposure)'.format(ut))
         return self.cameras[ut].fetch_image()
 
     def fetch_exposures(self):
         """Fetch images from all cameras."""
         images = {}
         for ut in self.uts:
-            self.log.info('Camera {} fetching image'.format(ut))
+            self.log.info('Camera {} fetching image (from fetch_exposures)'.format(ut))
             try:
                 images[ut] = self.cameras[ut].fetch_image()
             except IndexError:
@@ -609,7 +609,7 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def save_exposure(self, ut, all_info, compress=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
-        self.log.info('Camera {} fetching image'.format(ut))
+        self.log.info('Camera {} fetching image (from save_exposure)'.format(ut))
         image_data = self.cameras[ut].fetch_image()
         hdu = make_fits(image_data, ut, all_info, compress, log=self.log)
 
