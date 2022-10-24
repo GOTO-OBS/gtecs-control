@@ -1,10 +1,9 @@
 """Generic G-TeCS daemon classes & functions."""
 
+import os
 import subprocess
 import time
 from abc import ABC, abstractmethod
-
-import Pyro4
 
 from gtecs.common import logging
 from gtecs.common.system import get_pid, kill_process
@@ -12,8 +11,12 @@ from gtecs.common.system import get_pid, kill_process
 from . import errors
 from . import params
 
-
 # Pyro configuration
+if params.PYRO_LOGFILE != 'none':
+    # Save Pyro logs to the given file (needs to be done *before* Pyro4 is imported)
+    os.environ['PYRO_LOGFILE'] = params.PYRO_LOGFILE
+    os.environ['PYRO_LOGLEVEL'] = 'DEBUG'
+import Pyro4  # noqa: I100
 Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can serialize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.REQUIRE_EXPOSE = False

@@ -59,6 +59,7 @@ COMMAND_DEBUG = config['COMMAND_DEBUG']
 ############################################################
 # Daemon parameters
 PYRO_TIMEOUT = config['PYRO_TIMEOUT']
+PYRO_LOGFILE = config['PYRO_LOGFILE']
 DAEMON_CHECK_PERIOD = config['DAEMON_CHECK_PERIOD']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
 
