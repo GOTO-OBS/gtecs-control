@@ -1506,7 +1506,7 @@ class FocMonitor(BaseMonitor):
         # ERROR_FOC_MOVETIMEOUT
         # Set the error if the focusers have been moving for too long
         if self.hardware_status == STATUS_FOC_MOVING:
-            self.add_error(ERROR_FOC_MOVETIMEOUT, delay=60)
+            self.add_error(ERROR_FOC_MOVETIMEOUT, delay=180)
         # Clear the error if the focusers aren't moving any more
         if self.hardware_status != STATUS_FOC_MOVING:
             self.clear_error(ERROR_FOC_MOVETIMEOUT)
