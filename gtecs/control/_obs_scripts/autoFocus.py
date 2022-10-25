@@ -20,8 +20,9 @@ from astropy.time import Time
 
 from gtecs.control import params
 from gtecs.control.catalogs import focus_star
-from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position, get_hfd_position,
-                                    measure_focus)
+from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
+                                    get_focus_params, get_focus_region,
+                                    get_hfd_position, measure_focus)
 from gtecs.control.observing import (get_focuser_positions, prepare_for_images,
                                      set_focuser_positions, slew_to_radec)
 
@@ -30,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 
-def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
+def run(num_exp=3, exptime=30, filt='L', binning=1,
         no_slew=False, no_report=False,
         use_annulus_region=True):
     """Run the autofocus routine.
@@ -56,30 +57,22 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
     else:
         target_name = 'Autofocus'
 
+    # Get the focus parameters defined in params
+    foc_params = get_focus_params()
+
     # Try to focus all UTs that have focusers, as long as they have params
     all_uts = sorted(foc_params.index)
     active_uts = all_uts.copy()
     failed_uts = {}
 
-    # Pick focus region
+    # Define measurement region
     if use_annulus_region:
-        # Use an annulus ("donut") around the centre of the image
-        xlen = 8304
-        ylen = 6220
-        width = 1000
-        region = [(slice(int(xlen / 6), int(xlen / 6) + width),
-                   slice(int(ylen / 6), int(5 * ylen / 6))),
-                  (slice(int(5 * xlen / 6) - width, int(5 * xlen / 6)),
-                   slice(int(ylen / 6), int(5 * ylen / 6))),
-                  (slice(int(xlen / 6) + width, int(5 * xlen / 6) - width),
-                   slice(int(5 * ylen / 6) - width, int(5 * ylen / 6))),
-                  (slice(int(xlen / 6) + width, int(5 * xlen / 6) - width),
-                   slice(int(ylen / 6), int(ylen / 6) + width))
-                  ]
-        region = [region]  # We want to combine all sources from each region
+        # Measure sources in an annulus around the centre
+        regions = [get_focus_region(binning)]
     else:
-        # Stick to the default region, defined in `extract_image_sources`
-        region = None
+        # Stick to the default central region
+        regions = [(slice(2500 // binning, 6000 // binning),
+                    slice(1500 // binning, 4500 // binning))]
 
     # With the focusers where they are now, take images to get a baseline HFD.
     print('~~~~~~')
@@ -87,7 +80,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
     print('Initial positions:', initial_positions)
 
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
     initial_hfds = foc_data['hfd']
     if num_exp > 1:
         print('Best HFDs:', initial_hfds.round(1).to_dict())
@@ -129,7 +122,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
     print('New positions:', current_positions)
 
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
     out_hfds = foc_data['hfd']
     if num_exp > 1:
         print('Best HFDs:', out_hfds.round(1).to_dict())
@@ -156,7 +149,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
         print('New positions:', current_positions)
 
         print('Taking {} focus measurements...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
         out_hfds = foc_data['hfd']
         if num_exp > 1:
             print('Best HFDs:', out_hfds.round(1).to_dict())
@@ -187,7 +180,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
     print('New positions:', current_positions)
 
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
     in_hfds = foc_data['hfd']
     if num_exp > 1:
         print('Best HFDs:', in_hfds.round(1).to_dict())
@@ -243,7 +236,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
         print('New positions:', current_positions)
 
         print('Taking {} focus measurements...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
         current_hfds = foc_data['hfd']
         if num_exp > 1:
             print('Best HFDs:', current_hfds.round(1).to_dict())
@@ -266,7 +259,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
     print('New positions:', current_positions)
 
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
     nf_hfds = foc_data['hfd']
     if num_exp > 1:
         print('Best HFDs:', nf_hfds.round(1).to_dict())
@@ -289,7 +282,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
     print('New positions:', current_positions)
 
     print('Taking {} focus measurements...'.format(num_exp))
-    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, region)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, active_uts, regions)
     final_hfds = foc_data['hfd']
     if num_exp > 1:
         print('Best HFDs:', final_hfds.round(1).to_dict())
@@ -328,7 +321,7 @@ def run(foc_params, num_exp=3, exptime=30, filt='L', binning=1,
 
         # Take final measurements again
         print('Taking {} focus measurements...'.format(num_exp))
-        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, all_uts, region)
+        foc_data = measure_focus(num_exp, exptime, filt, binning, target_name, all_uts, regions)
         final_hfds = foc_data['hfd']
         if num_exp > 1:
             print('Best HFDs:', final_hfds.round(1).to_dict())
@@ -403,22 +396,11 @@ if __name__ == '__main__':
     no_slew = args.no_slew
     no_report = args.no_report
 
-    # Get the autofocus parameters
-    all_uts = sorted(params.AUTOFOCUS_PARAMS.keys())
-    foc_params = {'big_step': {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in all_uts},
-                  'small_step': {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in all_uts},
-                  'nfv': {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in all_uts},
-                  'm_l': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in all_uts},
-                  'm_r': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in all_uts},
-                  'delta_x': {ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in all_uts},
-                  }
-    foc_params = pd.DataFrame(foc_params)
-
     # If something goes wrong we need to restore the original focus
     initial_positions = get_focuser_positions()
     try:
         RestoreFocusCloser(initial_positions)
-        run(foc_params, num_exp, exptime, filt, binning, no_slew, no_report)
+        run(num_exp, exptime, filt, binning, no_slew, no_report)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)

@@ -121,8 +121,8 @@ def make_fits(image_data, ut, all_info, compress=False,
             hfd_regions = [None]
         for i, region in enumerate(hfd_regions):
             hfd, hfd_std = measure_image_hfd(image_data,
-                                             filter_width=15,
                                              region=region,
+                                             filter_width=15,
                                              verbose=False)
             hdu.header['MEDHFD{}'.format(i)] = hfd
             hdu.header['STDHFD{}'.format(i)] = hfd_std

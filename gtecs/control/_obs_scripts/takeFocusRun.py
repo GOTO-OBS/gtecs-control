@@ -15,7 +15,8 @@ from astropy.time import Time
 
 from gtecs.control import params
 from gtecs.control.catalogs import focus_star
-from gtecs.control.focusing import RestoreFocusCloser, get_best_focus_position, measure_focus
+from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position, get_focus_region,
+                                    measure_focus)
 from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
                                      prepare_for_images, set_focuser_positions,
                                      slew_to_altaz, slew_to_radec)
@@ -272,7 +273,7 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
     plt.show()
 
 
-def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_plot=True):
+def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=None, save_plot=True):
     """Plot the results of the focus run with measure_corners=True."""
     uts = list(set(list(df.index)))
     if finish_time is None:
@@ -407,9 +408,11 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
             ax.add_collection(pc)
 
             # Plot contour
-            points_x = [8304 / 2, 0, 8304, 0, 8304]
-            points_y = [6220 / 2, 0, 0, 6220, 6220]
-            grid_x, grid_y = np.meshgrid(np.linspace(0, 8304, 20), np.linspace(0, 6220, 20))
+            xlen = 8304 // binning
+            ylen = 6220 // binning
+            points_x = [xlen / 2, 0, xlen, 0, xlen]
+            points_y = [ylen / 2, 0, 0, ylen, ylen]
+            grid_x, grid_y = np.meshgrid(np.linspace(0, xlen, 20), np.linspace(0, ylen, 20))
             cross_pos_fit = griddata((points_x, points_y), cross_pos_relative, (grid_x, grid_y),
                                      method='cubic')
             pcm = ax.contourf(grid_x, grid_y, cross_pos_fit, zorder=-2, alpha=0.3, levels=6)
@@ -421,8 +424,8 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
             cb.ax.tick_params(labelsize=7)
 
             # Set limits & labels
-            ax.set_xlim(0, 8304)
-            ax.set_ylim(0, 6220)
+            ax.set_xlim(0, xlen)
+            ax.set_ylim(0, ylen)
             ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
 
         except Exception:
@@ -452,24 +455,25 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
 
     # Define measurement regions
     if use_annulus_region:
-        # Measure sources in an annulus around the centre (defined by Kendall)
-        region = [(slice(1384, 2384), slice(1036, 5183)),  # left
-                  (slice(5920, 6920), slice(1036, 5183)),  # right
-                  (slice(2384, 5920), slice(4183, 5183)),  # top
-                  (slice(2384, 5920), slice(1036, 2036)),  # bottom
-                  ]
-        regions = [region]  # We want to combine the sources from all of these regions
+        # Measure sources in an annulus around the centre
+        regions = [get_focus_region(binning)]
     elif measure_corners:
-        # Measure 5 regions independently
-        regions = [(slice(2500, 6000), slice(1500, 4500)),  # centre (default)
-                   (slice(200, 2500), slice(100, 1500)),    # bottom-left
-                   (slice(6000, 8000), slice(100, 1500)),   # bottom-right
-                   (slice(200, 2500), slice(4500, 6000)),   # top-left
-                   (slice(6000, 8000), slice(4500, 6000)),  # top-right
+        # Measure 5 corner regions independently
+        regions = [(slice(2500 // binning, 6000 // binning),  # centre (same as default)
+                    slice(1500 // binning, 4500 // binning)),
+                   (slice(200 // binning, 2500 // binning),   # bottom-left
+                    slice(100 // binning, 1500 // binning)),
+                   (slice(6000 // binning, 8000 // binning),  # bottom-right
+                    slice(100 // binning, 1500 // binning)),
+                   (slice(200 // binning, 2500 // binning),   # top-left
+                    slice(4500 // binning, 6000 // binning)),
+                   (slice(6000 // binning, 8000 // binning),  # top-right
+                    slice(4500 // binning, 6000 // binning)),
                    ]
     else:
-        # Stick to the default central region, defined in `extract_image_sources`
-        regions = [None]
+        # Stick to the default central region
+        regions = [(slice(2500 // binning, 6000 // binning),
+                    slice(1500 // binning, 4500 // binning))]
 
     total_time = estimate_time(steps, num_exp, exptime, binning, len(regions))
     print('ESTIMATED TIME TO COMPLETE RUN: {:.1f} min'.format(total_time / 60))
@@ -595,7 +599,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
         else:
             # Still make both plots
             plot_results(df[df['region'] == 0], fit_df[fit_df['region'] == 0], nfvs, finish_time)
-            plot_corners(df, fit_df, regions, nfvs, finish_time)
+            plot_corners(df, fit_df, regions, binning, nfvs, finish_time)
 
     # Get best positions
     if len(regions) == 1:
