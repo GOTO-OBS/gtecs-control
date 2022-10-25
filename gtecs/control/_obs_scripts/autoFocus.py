@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 
-def run(num_exp=3, exptime=30, filt='L', binning=1,
+def run(num_exp=3, exptime=5, filt='L', binning=1,
         no_slew=False, no_report=False,
         use_annulus_region=True):
     """Run the autofocus routine.

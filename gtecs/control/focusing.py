@@ -127,7 +127,7 @@ def get_best_focus_position_2(x_l, y_l, x_r, y_r, m_r):
     return x_b
 
 
-def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus test image',
+def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus test image',
                   uts=None, regions=None):
     """Take a set of images and measure the median half-flux diameters.
 
@@ -136,7 +136,7 @@ def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus
     num_exp : int, default=1
         Number of exposures to take.
         If > 1 the smallest of the measured HFD values will be returned for each UT.
-    exptime : float, default=30
+    exptime : float, default=5
         Image exposure time.
     filt : str, default='L'
        Filter to use for the exposures.
