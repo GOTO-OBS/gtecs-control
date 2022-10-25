@@ -101,6 +101,32 @@ def get_best_focus_position(x_r, y_r, m_l, m_r, delta_x):
     return x_b
 
 
+def get_best_focus_position_2(x_l, y_l, x_r, y_r, m_r):
+    """Find the best focus position by fitting to the V-curve.
+
+    This is an alternative method found by Kendall.
+
+    As in `get_best_focus_position()`, we have two lines l and r that meet at (x_b, y_b).
+        (1) y_b = m_l * x_b + c_l = m_r * x_b + c_r
+    which when rearranged gives
+        (2) x_b = (c_l - c_r) / (m_r - m_l)
+
+    This time we have two points on either side, (x_l, y_l) and (x_r, y_r). With the standard
+    y=mx+c form we can rearrange to find the two constants
+        (3) c_l = y_l - m_l * x_l
+        (4) c_r = y_r - m_r * x_r
+    Then we can sub these both into (2) to get
+        (5) x_b = (y_l - m_l * x_l - y_r + m_r * x_r) / (m_r - m_l)
+
+    Now if we know the two gradients we're done, but in this case we assume that the V-curve is
+    symmetric, i.e. m_l = -m_r. Using that (5) simplifies to
+        (6) x_b = (y_l + m_r * x_l - y_r + m_r * x_r) / (2 * m_r)
+                = (y_l - y_r) / (2 * m_r) + (x_l + x_r) / 2
+    """
+    x_b = (y_l - y_r) / (2 * m_r) + (x_l + x_r) / 2
+    return x_b
+
+
 def measure_focus(num_exp=1, exptime=30, filt='L', binning=1, target_name='Focus test image',
                   uts=None, regions=None):
     """Take a set of images and measure the median half-flux diameters.
@@ -294,39 +320,68 @@ def focus_temp_compensation(take_images=False, verbose=False):
             print('Change in HFDs:', diff)
 
 
-def refocus(uts=None):
+def refocus(uts=None, use_annulus_region=True):
     """Quickly test and adjust the focus position if necessary."""
-    # WIP: for now all this does is move the focusers in and out and take some quick test images
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
     uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
 
+    # Default parameters
     focus_offset = 200
+    num_exp = 1
     exptime = 5
     filt = 'L'
     binning = 2
 
-    # Move the focusers out
-    offsets = {ut: focus_offset for ut in uts}
-    move_focusers(offsets, timeout=60)
+    # Get the focus parameters defined in params
+    foc_params = get_focus_params()
 
-    # Take test image
-    # Note get_headers=True means we won't bother loading the image data,
-    # this saves time even if we don't use the headers here.
-    get_analysis_image(exptime, filt, binning, 'Refocus test', 'FOCUS',
-                       glance=False, uts=uts, get_headers=True)
+    # Define measurement region
+    if use_annulus_region:
+        # Measure sources in an annulus around the centre
+        region = [get_focus_region(binning)]
+    else:
+        # Stick to the default central region
+        region = [(slice(2500 // binning, 6000 // binning),
+                   slice(1500 // binning, 4500 // binning))]
+    regions = [region]
 
-    # Move the focusers in to the other side
-    offsets = {ut: focus_offset * -2 for ut in uts}
-    move_focusers(offsets, timeout=60)
+    # Store the initial positions and define the new ones on either side
+    initial_positions = get_focuser_positions()
+    r_positions = {ut: initial_positions[ut] + focus_offset for ut in uts}
+    l_positions = {ut: initial_positions[ut] - focus_offset for ut in uts}
 
-    # Take another test image
-    get_analysis_image(exptime, filt, binning, 'Refocus test', 'FOCUS',
-                       glance=False, uts=uts, get_headers=True)
+    # Take a test image before starting (we don't care about the HFDs)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
-    # Move the focusers back to the start
-    offsets = {ut: focus_offset for ut in uts}
-    move_focusers(offsets, timeout=60)
+    # Move the focusers out to the right and measure HFDs
+    set_focuser_positions(r_positions, timeout=60)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    r_hfds = foc_data['hfd']
 
-    # Done, for now
+    # Move the focusers out to the left and measure HFDs
+    set_focuser_positions(l_positions, timeout=60)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    l_hfds = foc_data['hfd']
+
+    # Calculate the new best focus positions
+    bf_positions = {ut: get_best_focus_position_2(l_positions[ut], l_hfds[ut],
+                                                  r_positions[ut], r_hfds[ut],
+                                                  foc_params['m_r'],
+                                                  )
+                    for ut in uts}
+
+    # We need to handle any UTs that failed to measure HFDs (e.g. clouds)
+    for ut in uts:
+        if bf_positions[ut] in [np.nan, None]:
+            print('Warning: UT{} position is NaN, reverting to initial position')
+            bf_positions[ut] = initial_positions[ut]
+
+    print('Best focus positions:', bf_positions)
+
+    # Move to the best focus position, and take another test image
+    set_focuser_positions(bf_positions, timeout=60)
+    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+
+    # Done
     return
