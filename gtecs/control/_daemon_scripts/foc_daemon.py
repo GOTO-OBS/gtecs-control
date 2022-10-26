@@ -77,10 +77,11 @@ class FocDaemon(BaseDaemon):
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
                         move_steps = self.move_steps[ut]
-                        new_pos = self.info[ut]['current_pos'] + move_steps
+                        current_pos = self.info[ut]['current_pos']
+                        new_pos = current_pos + move_steps
 
-                        self.log.info('Moving focuser {} ({}) by {} to {}'.format(
-                                      ut, interface_id, move_steps, new_pos))
+                        self.log.info('Moving focuser {} ({}) by {} from {} to {} (moving)'.format(
+                                      ut, interface_id, move_steps, current_pos, new_pos))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -106,10 +107,11 @@ class FocDaemon(BaseDaemon):
                     for ut in self.active_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
                         new_pos = self.set_position[ut]
-                        move_steps = self.info[ut]['current_pos'] - new_pos
+                        current_pos = self.info[ut]['current_pos']
+                        move_steps = new_pos - current_pos
 
-                        self.log.info('Moving focuser {} ({}) by {} to {}'.format(
-                                      ut, interface_id, move_steps, new_pos))
+                        self.log.info('Moving focuser {} ({}) by {} from {} to {} (setting)'.format(
+                                      ut, interface_id, move_steps, current_pos, new_pos))
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -369,8 +371,9 @@ class FocDaemon(BaseDaemon):
             # Set values
             self.active_uts += [ut]
             self.set_position[ut] = new_pos
-            s = 'Focuser {}: Moving from {} to {}'.format(
-                ut, self.info[ut]['current_pos'], self.set_position[ut])
+            s = 'Focuser {}: Moving from {} to {} ({} steps)'.format(
+                ut, self.set_position[ut], self.info[ut]['current_pos'],
+                self.set_position[ut] - self.info[ut]['current_pos'])
             retstrs.append(s)
 
         # Set flag
@@ -430,7 +433,7 @@ class FocDaemon(BaseDaemon):
             # Set values
             self.active_uts += [ut]
             self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
-            s = 'Focuser {}: Moving {} steps from {} to {}'.format(
+            s = 'Focuser {}: Moving {} steps (from {} to {})'.format(
                 ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
             retstrs.append(s)
 
