@@ -80,8 +80,10 @@ class FocDaemon(BaseDaemon):
                         current_pos = self.info[ut]['current_pos']
                         new_pos = current_pos + move_steps
 
-                        self.log.info('Moving focuser {} ({}) by {} from {} to {} (moving)'.format(
-                                      ut, interface_id, move_steps, current_pos, new_pos))
+                        s = 'Moving focuser {} ({}) ' .format(ut, interface_id)
+                        s += '{:+d} steps from {} to {} (moving)'.format(
+                            move_steps, current_pos, new_pos)
+                        self.log.info(s)
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -110,8 +112,10 @@ class FocDaemon(BaseDaemon):
                         current_pos = self.info[ut]['current_pos']
                         move_steps = new_pos - current_pos
 
-                        self.log.info('Moving focuser {} ({}) by {} from {} to {} (setting)'.format(
-                                      ut, interface_id, move_steps, current_pos, new_pos))
+                        s = 'Moving focuser {} ({}) ' .format(ut, interface_id)
+                        s += '{:+d} steps from {} to {} (setting)'.format(
+                            move_steps, current_pos, new_pos)
+                        self.log.info(s)
 
                         try:
                             with daemon_proxy(interface_id) as interface:
@@ -371,7 +375,7 @@ class FocDaemon(BaseDaemon):
             # Set values
             self.active_uts += [ut]
             self.set_position[ut] = new_pos
-            s = 'Focuser {}: Moving from {} to {} ({} steps)'.format(
+            s = 'Focuser {}: Moving from {} to {} ({:+d} steps)'.format(
                 ut, self.set_position[ut], self.info[ut]['current_pos'],
                 self.set_position[ut] - self.info[ut]['current_pos'])
             retstrs.append(s)
@@ -433,7 +437,7 @@ class FocDaemon(BaseDaemon):
             # Set values
             self.active_uts += [ut]
             self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
-            s = 'Focuser {}: Moving {} steps (from {} to {})'.format(
+            s = 'Focuser {}: Moving {:+d} steps (from {} to {})'.format(
                 ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
             retstrs.append(s)
 
