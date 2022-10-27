@@ -320,7 +320,7 @@ def focus_temp_compensation(take_images=False, verbose=False):
             print('Change in HFDs:', diff)
 
 
-def refocus(uts=None, use_annulus_region=True):
+def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=False):
     """Quickly test and adjust the focus position if necessary."""
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
@@ -350,9 +350,8 @@ def refocus(uts=None, use_annulus_region=True):
     initial_positions = get_focuser_positions()
     r_positions = {ut: initial_positions[ut] + focus_offset for ut in uts}
     l_positions = {ut: initial_positions[ut] - focus_offset for ut in uts}
-
-    # Take a test image before starting (we don't care about the HFDs)
-    measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    if take_test_images:
+        measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Move the focusers out to the right and measure HFDs
     set_focuser_positions(r_positions, timeout=60)
@@ -377,9 +376,15 @@ def refocus(uts=None, use_annulus_region=True):
 
     print('Best focus positions:', bf_positions_dict)
 
-    # Move to the best focus position, and take another test image
+    # Move to the best focus position
     set_focuser_positions(bf_positions_dict, timeout=60)
-    measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    if take_test_images:
+        measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
-    # Done
-    return
+    if reset:
+        # Move back to the original position
+        set_focuser_positions(initial_positions, timeout=60)
+        if take_test_images:
+            measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+
+    print('Refocusing complete')
