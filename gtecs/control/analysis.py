@@ -11,6 +11,32 @@ import numpy as np
 import sep
 
 
+def crop_image(data, region):
+    """Crop the given image data to the provided region.
+
+    Parameters
+    ----------
+    data : `numpy.array`
+        The image data to analyse.
+    region : 2-tuple of slice
+        If given, crop data to given slices in x/y axes.
+        For example: `(slice(2500, 6000), slice(1500, 4500))`.
+        Note the region limits must be in BINNED pixels to match the data.
+
+    """
+    if region is None:
+        # Return the uncropped data
+        return data
+    if len(region) != 2 or not isinstance(region[0], slice) or not isinstance(region[1], slice):
+        raise TypeError('Invalid image region: {}'.format(region))
+
+    x_slice, y_slice = region
+    try:
+        data = np.ascontiguousarray(data[y_slice, x_slice])  # Note numpy takes X and Y "backwards"
+    except IndexError:
+        raise ValueError('Region {} exceeds data range, is it in unbinned pixels?'.format(region))
+
+
 def extract_image_sources(data, filter_width=15, threshold=5):
     """Extract sources from an image using `sep.extract`.
 
@@ -72,10 +98,9 @@ def extract_fwhms(data, region=None, *args, **kwargs):
           See https://github.com/kbarbary/sep/issues/34
 
     """
+    # Crop data to the given region
     if region is not None:
-        # Crop data to the given region
-        x_slice, y_slice = region
-        data = np.ascontiguousarray(data[y_slice, x_slice])  # Note numpy takes X and Y "backwards"
+        data = crop_image(data, region)
 
     # Extract sources
     objects, data = extract_image_sources(data, *args, **kwargs)
@@ -102,10 +127,9 @@ def extract_hfds(data, region=None, *args, **kwargs):
     Other parameters are passed to `extract_image_sources`
 
     """
+    # Crop data to the given region
     if region is not None:
-        # Crop data to the given region
-        x_slice, y_slice = region
-        data = np.ascontiguousarray(data[y_slice, x_slice])  # Note numpy takes X and Y "backwards"
+        data = crop_image(data, region)
 
     # Extract sources
     objects, data = extract_image_sources(data, *args, **kwargs)
