@@ -72,7 +72,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
         except Exception:
             print('Error caught: Restoring original focus positions...')
             set_focuser_positions(initial_positions)
-            raise
+            print('Focus reset, continuing with observing routine')
 
     # Clear & pause queue to make sure
     execute_command('exq clear')
