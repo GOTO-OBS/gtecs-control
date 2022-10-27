@@ -68,11 +68,12 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
     # Define measurement region
     if use_annulus_region:
         # Measure sources in an annulus around the centre
-        regions = [get_focus_region(binning)]
+        region = get_focus_region(binning)
     else:
         # Stick to the default central region
-        regions = [(slice(2500 // binning, 6000 // binning),
-                    slice(1500 // binning, 4500 // binning))]
+        region = (slice(2500 // binning, 6000 // binning),
+                  slice(1500 // binning, 4500 // binning))
+    regions = [region]  # measure_focus takes a list of regions
 
     # With the focusers where they are now, take images to get a baseline HFD.
     print('~~~~~~')

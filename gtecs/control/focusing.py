@@ -339,12 +339,12 @@ def refocus(uts=None, use_annulus_region=True):
     # Define measurement region
     if use_annulus_region:
         # Measure sources in an annulus around the centre
-        region = [get_focus_region(binning)]
+        region = get_focus_region(binning)
     else:
         # Stick to the default central region
-        region = [(slice(2500 // binning, 6000 // binning),
-                   slice(1500 // binning, 4500 // binning))]
-    regions = [region]
+        region = (slice(2500 // binning, 6000 // binning),
+                  slice(1500 // binning, 4500 // binning))
+    regions = [region]  # measure_focus takes a list of regions
 
     # Store the initial positions and define the new ones on either side
     initial_positions = get_focuser_positions()
