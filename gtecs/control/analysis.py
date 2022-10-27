@@ -31,11 +31,13 @@ def crop_image(data, region):
         raise TypeError('Invalid image region: {}'.format(region))
 
     x_slice, y_slice = region
-    try:
-        data = np.ascontiguousarray(data[y_slice, x_slice])  # Note numpy takes X and Y "backwards"
-    except IndexError:
+    if (x_slice.start > data.shape[1] or x_slice.stop > data.shape[1] or
+            y_slice.start > data.shape[0] or y_slice.stop > data.shape[0]):
         raise ValueError('Region {} exceeds data range, is it in unbinned pixels?'.format(region))
+
+    data = np.ascontiguousarray(data[y_slice, x_slice])  # Note numpy takes X and Y "backwards"
     return data
+
 
 def extract_image_sources(data, filter_width=15, threshold=5):
     """Extract sources from an image using `sep.extract`.
