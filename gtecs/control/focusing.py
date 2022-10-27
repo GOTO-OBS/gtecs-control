@@ -352,36 +352,34 @@ def refocus(uts=None, use_annulus_region=True):
     l_positions = {ut: initial_positions[ut] - focus_offset for ut in uts}
 
     # Take a test image before starting (we don't care about the HFDs)
-    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Move the focusers out to the right and measure HFDs
     set_focuser_positions(r_positions, timeout=60)
-    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
-    r_hfds = foc_data['hfd']
+    l_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Move the focusers out to the left and measure HFDs
     set_focuser_positions(l_positions, timeout=60)
-    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
-    l_hfds = foc_data['hfd']
+    r_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Calculate the new best focus positions
-    bf_positions = {ut: get_best_focus_position_2(l_positions[ut], l_hfds[ut],
-                                                  r_positions[ut], r_hfds[ut],
-                                                  foc_params['m_r'],
-                                                  )
-                    for ut in uts}
+    bf_positions = get_best_focus_position_2(l_data['pos'], l_data['hfd'],
+                                             r_data['pos'], r_data['hfd'],
+                                             foc_params['m_r'],
+                                             )
+    bf_positions_dict = {ut: int(bf_positions.to_dict()[ut]) for ut in uts}
 
     # We need to handle any UTs that failed to measure HFDs (e.g. clouds)
     for ut in uts:
-        if bf_positions[ut] in [np.nan, None]:
+        if bf_positions_dict[ut] in [np.nan, None]:
             print('Warning: UT{} position is NaN, reverting to initial position')
-            bf_positions[ut] = initial_positions[ut]
+            bf_positions_dict[ut] = initial_positions[ut]
 
-    print('Best focus positions:', bf_positions)
+    print('Best focus positions:', bf_positions_dict)
 
     # Move to the best focus position, and take another test image
-    set_focuser_positions(bf_positions, timeout=60)
-    foc_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    set_focuser_positions(bf_positions_dict, timeout=60)
+    measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Done
     return
