@@ -376,7 +376,7 @@ class FocDaemon(BaseDaemon):
             self.active_uts += [ut]
             self.set_position[ut] = new_pos
             s = 'Focuser {}: Moving from {} to {} ({:+d} steps)'.format(
-                ut, self.set_position[ut], self.info[ut]['current_pos'],
+                ut, self.info[ut]['current_pos'], self.set_position[ut],
                 self.set_position[ut] - self.info[ut]['current_pos'])
             retstrs.append(s)
 
