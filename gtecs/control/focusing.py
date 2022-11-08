@@ -326,7 +326,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
         uts = params.UTS_WITH_FOCUSERS
     uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
 
-    # Default parameters
+    # Default parameters  # TODO: these should be function args? At least the offset
     focus_offset = 200
     num_exp = 1
     exptime = 5
@@ -351,17 +351,21 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     r_positions = {ut: initial_positions[ut] + focus_offset for ut in uts}
     l_positions = {ut: initial_positions[ut] - focus_offset for ut in uts}
     if take_test_images:
+        print('Taking test image at initial position...')
         measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Move the focusers out to the right (+ve) side of the V-curve and measure HFDs
+    print('Measuring focus on the right...')
     set_focuser_positions(r_positions, timeout=60)
     r_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Move the focusers out to the left (-ve) side of the V-curve and measure HFDs
+    print('Measuring focus on the left...')
     set_focuser_positions(l_positions, timeout=60)
     l_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Calculate the new best focus positions
+    print('Calculating best focus positions...')
     bf_positions = get_best_focus_position_2(l_data['pos'], l_data['hfd'],
                                              r_data['pos'], r_data['hfd'],
                                              foc_params['m_r'],
@@ -377,14 +381,18 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     print('Best focus positions:', bf_positions_dict)
 
     # Move to the best focus position
+    print('Moving to best focus position...')
     set_focuser_positions(bf_positions_dict, timeout=60)
     if take_test_images:
+        print('Taking test image at best focus position...')
         measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     if reset:
         # Move back to the original position
+        print('Moving back to initial position...')
         set_focuser_positions(initial_positions, timeout=60)
         if take_test_images:
+            print('Taking test image at initial position...')
             measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     print('Refocusing complete')
