@@ -353,13 +353,13 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     if take_test_images:
         measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
-    # Move the focusers out to the right and measure HFDs
+    # Move the focusers out to the right (+ve) side of the V-curve and measure HFDs
     set_focuser_positions(r_positions, timeout=60)
-    l_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
-
-    # Move the focusers out to the left and measure HFDs
-    set_focuser_positions(l_positions, timeout=60)
     r_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+
+    # Move the focusers out to the left (-ve) side of the V-curve and measure HFDs
+    set_focuser_positions(l_positions, timeout=60)
+    l_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
     # Calculate the new best focus positions
     bf_positions = get_best_focus_position_2(l_data['pos'], l_data['hfd'],
