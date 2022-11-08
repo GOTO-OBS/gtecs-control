@@ -69,6 +69,11 @@ def get_hfd_position(target_hfd, current_position, current_hfd, gradient):
 def get_best_focus_position(x_r, y_r, m_l, m_r, delta_x):
     """Find the best focus position by fitting to the V-curve.
 
+    This method is based on:
+        Fast auto-focus method and software for ccd-based telescopes
+        L Weber and S Brady (2001) Minor Planet Amateur/Professional Workshop
+        https://www.ccdware.com/Files/ITS%20Paper.pdf
+
     We have two straight lines (l and r) which follow y=mx+c, where m is the gradient and c is the
     y-intercept. We want to find the meeting point between the two lines, specifically the
     x-position (x_b) as that corresponds to the best focus position.
@@ -104,7 +109,10 @@ def get_best_focus_position(x_r, y_r, m_l, m_r, delta_x):
 def get_best_focus_position_2(x_l, y_l, x_r, y_r, m_r):
     """Find the best focus position by fitting to the V-curve.
 
-    This is an alternative method found by Kendall.
+    This method is based on:
+        Donut: Measuring Optical Aberrations from a Single Extrafocal Image
+        A. Tokovinin and S. Heathcote (2006) PASP 118 1165
+        https://iopscience.iop.org/article/10.1086/506972
 
     As in `get_best_focus_position()`, we have two lines l and r that meet at (x_b, y_b).
         (1) y_b = m_l * x_b + c_l = m_r * x_b + c_r
