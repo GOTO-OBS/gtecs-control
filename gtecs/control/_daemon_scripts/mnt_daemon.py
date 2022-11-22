@@ -43,6 +43,7 @@ class MntDaemon(BaseDaemon):
         self.set_target_flag = 0
         self.offset_flag = 0
         self.guide_flag = 0
+        self.sync_flag = 0
 
         # mount variables
         self.target_ra = None
@@ -59,6 +60,8 @@ class MntDaemon(BaseDaemon):
         self.guide_duration = None
         self.trackrate_ra = 0
         self.trackrate_dec = 0
+        self.sync_ra = None
+        self.sync_dec = None
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -280,6 +283,25 @@ class MntDaemon(BaseDaemon):
                 self.guide_flag = 0
                 self.guide_direction = None
                 self.guide_duration = None
+                self.force_check_flag = True
+
+            # sync
+            if self.sync_flag:
+                try:
+                    sync_alt, sync_az = altaz_from_radec(
+                        self.sync_ra * 360 / 24, self.sync_dec)
+                    sync_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
+                        self.sync_ra * 360 / 24, self.sync_dec, sync_alt, sync_az)
+                    self.log.info('Syncing position from {} to {}'.format(self._pos_str(), sync_str))
+                    c = self.mount.sync_radec(self.sync_ra, self.sync_dec)
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('sync_to_radec command failed')
+                    self.log.debug('', exc_info=True)
+                self.sync_flag = 0
+                self.sync_ra = None
+                self.sync_dec = None
                 self.force_check_flag = True
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
@@ -940,6 +962,24 @@ class MntDaemon(BaseDaemon):
         self.guide_flag = 1
 
         return 'Pulse guiding'
+
+    def sync_to_radec(self, ra, dec):
+        """Set current pointing to given RA and Dec coordinates."""
+        # Check input
+        if not (0 <= ra < 24):
+            raise ValueError('RA in hours must be between 0 and 24')
+        if not (-90 <= dec <= 90):
+            raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Set values
+        self.sync_ra = ra
+        self.sync_dec = dec
+
+        # Set flag
+        self.force_check_flag = True
+        self.sync_flag = 1
+
+        return 'Syncing position to given coordinates'
 
 
 if __name__ == '__main__':

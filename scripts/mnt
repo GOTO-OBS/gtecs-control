@@ -306,6 +306,19 @@ def query(command, args):
         reply = daemons.daemon_function('mnt', 'slew_to_altaz', [alt_deg, az_deg])
         print(reply)
 
+    elif command == 'sync':
+        # parse arguments
+        if len(args) == 2:
+            # decimal ra and dec
+            ra_deg = float(args[0])
+            dec_deg = float(args[1])
+            ra_hrs = ra_deg * 24 / 360
+            # slew to given target
+            reply = daemons.daemon_function('mnt', 'sync', [ra_hrs, dec_deg])
+            print(reply)
+        else:
+            raise errors.InputError('Invalid arguments')
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -452,6 +465,7 @@ def print_instructions():
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
           '  guide [N|E|S|W duration]       pulse guide in direction for duration (in ms)',
+          '  sync ra dec                    sync current position to given ra/dec',
           '  blinky on|off                  turn on or off blinky mode (SiTech only)',
           '  motors on|off                  turn on or off the mount motors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
