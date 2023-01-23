@@ -611,6 +611,10 @@ class UTInterfaceDaemon(BaseDaemon):
         """Fetch the image data and save to a FITS file."""
         self.log.info('Camera {} fetching image (from save_exposure)'.format(ut))
         image_data = self.cameras[ut].fetch_image()
+        if image_data is None:
+            self.log.error(f'Camera {ut} failed to write image (nothing returned)')
+            return None
+
         hdu = make_fits(image_data, ut, all_info, compress, log=self.log)
 
         if method == 'proc':
@@ -625,6 +629,9 @@ class UTInterfaceDaemon(BaseDaemon):
             t.daemon = True
             t.start()
             # self.log.info(f'Camera {ut} saving complete')  # No log, we return before it finishes
+        elif method == 'thread2':
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                pool.map(self._write_fits, [hdu])
         else:
             # Just save directly here
             self._write_fits(hdu)
@@ -632,6 +639,26 @@ class UTInterfaceDaemon(BaseDaemon):
 
         # return the image header
         return hdu.header
+
+    def save_exposures(self, all_info, compress=False, method='proc'):
+        """Fetch the image data and save to a FITS file."""
+        self.log.info('Fetching images from all cameras (from save_exposures)')
+
+        image_data = self.fetch_exposures()
+        hdus = {ut: make_fits(image_data[ut], ut, all_info, compress, log=self.log)
+                for ut in image_data}
+
+        if method == 'pool':
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                pool.map(self._write_fits, [hdus[ut] for ut in hdus])
+        else:
+            # Just save directly here
+            for ut in hdus:
+                self._write_fits(hdus[ut])
+                self.log.info(f'Camera {ut} saving complete')
+
+        # return the image headers
+        return {ut: hdus[ut].header for ut in hdus}
 
     def abort_exposure(self, ut):
         """Abort current exposure."""
