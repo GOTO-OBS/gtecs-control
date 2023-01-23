@@ -225,7 +225,11 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
             attempts -= 1
 
         print('Moving focusers in...')
-        target_hfds = (current_hfds / 4).where(mask, current_hfds)
+        # We move in by half the distance to the NFV, so we shouldn't overshoot
+        target_hfds = current_hfds - ((current_hfds - foc_params['nfv']) / 2)
+        target_hfds = target_hfds.where(mask, current_hfds)
+        target_dict = {ut: target_hfds.to_dict()[ut] for ut in active_uts}
+        print('Target HFD values:', target_dict)
         new_positions = get_hfd_position(target_hfds,
                                          pd.Series(current_positions),
                                          current_hfds,
@@ -246,6 +250,8 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
     # and move directly to that position.
     print('~~~~~~')
     print('Calculating near-focus positions...')
+    nfv_dict = {ut: int(foc_params['nfv'].to_dict()[ut]) for ut in active_uts}
+    print('Near-focus HFD values:', nfv_dict)
     nf_positions = get_hfd_position(foc_params['nfv'],
                                     pd.Series(current_positions),
                                     current_hfds,
