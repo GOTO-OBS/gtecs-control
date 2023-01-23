@@ -590,7 +590,9 @@ class CamDaemon(BaseDaemon):
             try:
                 with daemon_proxy(interface_id) as interface:
                     headers[ut] = interface.save_exposure(ut, all_info,
-                                                          compress=params.COMPRESS_IMAGES)
+                                                          compress=params.COMPRESS_IMAGES,
+                                                          method='thread',
+                                                          )
             except Exception:
                 self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
