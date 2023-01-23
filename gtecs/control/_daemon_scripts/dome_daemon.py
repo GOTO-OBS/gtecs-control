@@ -11,8 +11,9 @@ from gtecs.control import errors
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Conditions, Status
-from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier, DomeHeartbeat
-from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome, FakeHeartbeat
+from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
+from gtecs.control.hardware.dome import Dehumidifier, ETH002Dehumidifier, FakeDehumidifier
+from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
 from gtecs.control.observing import get_conditions
 from gtecs.control.slack import send_slack_msg
 
@@ -445,6 +446,19 @@ class DomeDaemon(BaseDaemon):
             if params.FAKE_DOME:
                 self.dehumidifier = FakeDehumidifier()
                 self.log.info('Connected to dehumidifier')
+            elif 'DEHUMIDIFIER' in params.POWER_UNITS:
+                try:
+                    dehumidifier_address = params.POWER_UNITS['DEHUMIDIFIER']['IP']
+                    dehumidifier_port = int(params.POWER_UNITS['DEHUMIDIFIER']['PORT'])
+                    self.dehumidifier = ETH002Dehumidifier(dehumidifier_address, dehumidifier_port)
+                    self.log.info('Connected to dehumidifier')
+                    if 'dehumidifier' in self.bad_hardware:
+                        self.bad_hardware.remove('dehumidifier')
+                except Exception:
+                    self.dehumidifier = None
+                    if 'dehumidifier' not in self.bad_hardware:
+                        self.log.exception('Failed to connect to dehumidifier')
+                        self.bad_hardware.add('dehumidifier')
             else:
                 try:
                     self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
