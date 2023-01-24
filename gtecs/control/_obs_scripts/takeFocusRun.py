@@ -728,8 +728,20 @@ if __name__ == '__main__':
     initial_positions = get_focuser_positions()
     try:
         RestoreFocusCloser(initial_positions)
-        run(steps, range_frac, num_exp, exptime, filt, binning,
-            measure_corners, go_to_best, zenith, no_slew, no_analysis, no_plot, no_confirm)
+        run(steps,
+            range_frac=range_frac,
+            num_exp=num_exp,
+            exptime=exptime,
+            filt=filt,
+            binning=binning,
+            measure_corners=measure_corners,
+            go_to_best=go_to_best,
+            zenith=zenith,
+            no_slew=no_slew,
+            no_analysis=no_analysis,
+            no_plot=no_plot,
+            no_confirm=no_confirm
+            )
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)
