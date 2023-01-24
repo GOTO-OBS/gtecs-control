@@ -799,8 +799,8 @@ class MntMonitor(BaseMonitor):
                     recovery_procedure[1] = ['power off sitech', 10]
                     recovery_procedure[2] = ['power on sitech', 180]
                 elif self.mount_class == 'ASA':
-                    recovery_procedure[1] = ['power off mount,tcu', 10]
-                    recovery_procedure[2] = ['power on mount,tcu', 180]
+                    recovery_procedure[1] = ['power off mount', 10]
+                    recovery_procedure[2] = ['power on mount', 180]
                 # OUT OF SOLUTIONS: Them mount must not have started correctly.
                 return ERROR_HARDWARE + 'mount', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
@@ -835,8 +835,8 @@ class MntMonitor(BaseMonitor):
             # PROBLEM: The ASA mount is reporting an error.
             recovery_procedure = {}
             # SOLUTION 1: Try rebooting the mount.
-            recovery_procedure[1] = ['power off mount,tcu', 10]
-            recovery_procedure[2] = ['power on mount,tcu', 180]
+            recovery_procedure[1] = ['power off mount', 10]
+            recovery_procedure[2] = ['power on mount', 180]
             # OUT OF SOLUTIONS: Sounds like a hardware issue.
             return ERROR_MNT_CONNECTION, recovery_procedure
 
@@ -849,8 +849,8 @@ class MntMonitor(BaseMonitor):
                 recovery_procedure[1] = ['power off sitech', 10]
                 recovery_procedure[2] = ['power on sitech', 180]
             elif self.mount_class == 'ASA':
-                recovery_procedure[1] = ['power off mount,tcu', 10]
-                recovery_procedure[2] = ['power on mount,tcu', 180]
+                recovery_procedure[1] = ['power off mount', 10]
+                recovery_procedure[2] = ['power on mount', 180]
             # OUT OF SOLUTIONS: It still can't connect, sounds like a hardware issue.
             return ERROR_MNT_CONNECTION, recovery_procedure
 
@@ -891,7 +891,7 @@ class MntMonitor(BaseMonitor):
             if self.mount_class == 'SITECH':
                 recovery_procedure[2] = ['power off sitech', 10]
             elif self.mount_class == 'ASA':
-                recovery_procedure[2] = ['power off mount,tcu', 10]
+                recovery_procedure[2] = ['power off mount', 10]
             # OUT OF SOLUTIONS: How can it still be moving??
             return ERROR_MNT_MOVETIMEOUT, recovery_procedure
 
