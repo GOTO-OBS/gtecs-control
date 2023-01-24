@@ -60,6 +60,11 @@ def run():
 
     time.sleep(4)
 
+    # Start bringing the CCDs down to temperature first, since they can take a while
+    execute_command('cam temp cool')
+    cam_start_time = time.time()
+    time.sleep(1)
+
     # Restart the mount daemon, to reconnect to the mount, and make sure the motors are on
     execute_command('mnt restart')
     time.sleep(10)
@@ -109,15 +114,6 @@ def run():
     execute_command('cam window full')
     time.sleep(4)  # need a long sleep or the commands will interfere?
 
-    # Bring the CCDs down to temperature
-    execute_command('cam temp cool')
-    start_time = time.time()
-    while not cameras_are_cool():
-        time.sleep(1)
-        if (time.time() - start_time) > 600:
-            raise TimeoutError('Camera cooling timed out')
-    execute_command('cam info -f')
-
     # Don't open the mirror covers, because we want to do darks first
     # Instead make sure they are closed
     if mirror_covers_are_open():
@@ -128,6 +124,13 @@ def run():
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mirror covers timed out')
     execute_command('ota info -f')
+
+    # Finally check that the CCDs are cool
+    while not cameras_are_cool():
+        time.sleep(1)
+        if (time.time() - cam_start_time) > 600:
+            raise TimeoutError('Camera cooling timed out')
+    execute_command('cam info -f')
 
     print('Startup tasks done')
 
