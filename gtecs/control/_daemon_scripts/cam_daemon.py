@@ -296,7 +296,7 @@ class CamDaemon(BaseDaemon):
                 try:
                     for ut in self.clear_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
-                        self.log.info('Clearing queue for UT{}'.format(ut))
+                        self.log.info('Clearing queue on camera {} ({})'.format(ut, interface_id))
                         try:
                             with daemon_proxy(interface_id) as interface:
                                 interface.clear_exposure_queue(ut)
