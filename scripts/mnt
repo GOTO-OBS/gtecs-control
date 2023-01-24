@@ -316,7 +316,7 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('mnt', 'sync', [ra_hrs, dec_deg])
+        reply = daemons.daemon_function('mnt', 'sync_to_radec', [ra_hrs, dec_deg])
         print(reply)
 
     elif command == 'clear_error':
