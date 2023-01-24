@@ -313,11 +313,16 @@ def query(command, args):
             ra_deg = float(args[0])
             dec_deg = float(args[1])
             ra_hrs = ra_deg * 24 / 360
-            # slew to given target
-            reply = daemons.daemon_function('mnt', 'sync', [ra_hrs, dec_deg])
-            print(reply)
         else:
             raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'sync', [ra_hrs, dec_deg])
+        print(reply)
+
+    elif command == 'clear_error':
+        # send command
+        reply = daemons.daemon_function('mnt', 'clear_error')
+        print(reply)
 
     # Unrecognized function
     else:
@@ -468,6 +473,7 @@ def print_instructions():
           '  sync ra dec                    sync current position to given ra/dec',
           '  blinky on|off                  turn on or off blinky mode (SiTech only)',
           '  motors on|off                  turn on or off the mount motors (ASA only)',
+          '  clear_error                    clear any current mount errors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

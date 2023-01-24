@@ -292,7 +292,8 @@ class MntDaemon(BaseDaemon):
                         self.sync_ra * 360 / 24, self.sync_dec)
                     sync_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
                         self.sync_ra * 360 / 24, self.sync_dec, sync_alt, sync_az)
-                    self.log.info('Syncing position from {} to {}'.format(self._pos_str(), sync_str))
+                    self.log.info('Syncing position from {} to {}'.format(
+                        self._pos_str(), sync_str))
                     c = self.mount.sync_radec(self.sync_ra, self.sync_dec)
                     if c:
                         self.log.info(c)
@@ -340,7 +341,7 @@ class MntDaemon(BaseDaemon):
                                            log=self.log,
                                            log_debug=params.MOUNT_DEBUG,
                                            )
-                    # try resetting the device connetion to clear any errors
+                    # try resetting the device connection to clear any errors
                     self.mount.disconnect()
                     time.sleep(0.5)
                     self.mount.connect()
@@ -980,6 +981,19 @@ class MntDaemon(BaseDaemon):
         self.sync_flag = 1
 
         return 'Syncing position to given coordinates'
+
+    def clear_error(self):
+        """Clear any mount errors."""
+        if not isinstance(self.mount, DDM500):
+            raise NotImplementedError('Only ASA mounts allow errors to be cleared')
+
+        self.log.info('Clearing mount error')
+        self.log.debug(f'Current error: "{self.info["error_status"]}"')
+        c = self.mount.clear_error()
+        if c:
+            self.log.info(c)
+
+        return 'Cleared any errors'
 
 
 if __name__ == '__main__':
