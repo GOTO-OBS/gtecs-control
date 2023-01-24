@@ -757,7 +757,8 @@ class CamDaemon(BaseDaemon):
             if self.info[ut]['in_queue'] == 0:
                 s += 'Camera {} has no images to clear'.format(ut)
             else:
-                s += 'Clearing {} images from queue on camera {}'.format(self.info['in_queue'], ut)
+                s += 'Clearing {} images from queue on camera {}'.format(
+                    self.info[ut]['in_queue'], ut)
         return s
 
     def get_latest_headers(self):
