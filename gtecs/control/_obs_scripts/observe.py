@@ -100,9 +100,9 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
         if adjust_focus or temp_compensation:
             try:
                 if adjust_focus:
-                    refocus(take_test_images=False, reset=False)  # TODO: in config params
+                    refocus(take_test_images=params.OBS_FOCUS_IMAGES)
                 elif temp_compensation:
-                    focus_temp_compensation(take_images=True, verbose=True)
+                    focus_temp_compensation(take_images=params.OBS_FOCUS_IMAGES, verbose=True)
             except Exception:
                 # We can reset but don't interrupt the pointing
                 print('Error caught: Restoring original focus positions...')
