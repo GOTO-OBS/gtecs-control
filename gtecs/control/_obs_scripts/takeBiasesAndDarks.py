@@ -12,7 +12,7 @@ def run(num_exp=5, extras=False):
 
     Parameters
     ----------
-    nexp : int
+    num_exp : int
         number of each type of frame to take
 
     extras : bool, optional
@@ -25,7 +25,10 @@ def run(num_exp=5, extras=False):
     # make sure hardware is ready
     prepare_for_images(open_covers=False)
 
+    # TODO: Get set of exposure times from the database?
+    #       We'd need a camera/exposure database...
     execute_command('exq multbias {} 1'.format(num_exp))
+    execute_command('exq multdark {} 45 1'.format(num_exp))
     execute_command('exq multdark {} 60 1'.format(num_exp))
     execute_command('exq multdark {} 90 1'.format(num_exp))
     execute_command('exq multdark {} 120 1'.format(num_exp))
