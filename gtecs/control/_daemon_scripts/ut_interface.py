@@ -667,7 +667,8 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def clear_exposure_queue(self, ut):
         """Clear exposure queue."""
-        self.log.info('Camera {} clearing exposure queue'.format(ut))
+        n = self.get_camera_queue_length(ut)
+        self.log.info('Camera {} clearing {} images from exposure queue'.format(ut, n))
         self.cameras[ut].image_queue.clear()
 
     def set_camera_temp(self, target_temp, ut):
@@ -716,6 +717,10 @@ class UTInterfaceDaemon(BaseDaemon):
     def get_camera_data_state(self, ut):
         """Return True if data is available."""
         return self.cameras[ut].dataAvailable
+
+    def get_camera_queue_length(self, ut):
+        """Get the number of images in the image queue."""
+        return len(self.cameras[ut].image_queue)
 
     def get_camera_time_remaining(self, ut):
         """Return exposure time remaining."""

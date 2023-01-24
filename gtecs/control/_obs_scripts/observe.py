@@ -70,11 +70,6 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
     # make sure hardware is ready
     prepare_for_images()
 
-    # Clear & pause queue to make sure
-    execute_command('exq clear')
-    execute_command('exq pause')
-    execute_command('cam abort')
-
     # Get the Pointing information from the scheduler
     pointing_info = get_pointing_info(pointing_id)
     print('Observing pointing ID: ', pointing_id)

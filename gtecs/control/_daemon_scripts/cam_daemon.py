@@ -31,6 +31,7 @@ class CamDaemon(BaseDaemon):
         # command flags
         self.take_exposure_flag = 0
         self.abort_exposure_flag = 0
+        self.clear_queue_flag = 1  # clear on daemon restart
         self.set_window_flag = 0
         self.set_temp_flag = 0
 
@@ -38,6 +39,7 @@ class CamDaemon(BaseDaemon):
         self.uts = params.UTS_WITH_CAMERAS.copy()
         self.active_uts = []
         self.abort_uts = []
+        self.clear_uts = self.uts.copy()  # clear on daemon restart
 
         self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
         if not os.path.exists(self.run_number_file):
@@ -94,24 +96,6 @@ class CamDaemon(BaseDaemon):
 
                 # We should be connected, now try getting info
                 self._get_info()
-
-            # Clear the camera image queues when the daemon starts,
-            # since we don't do it before each exposure any more
-            # (that's so we can start exposures before the previous one has been fetched).
-            # Usually this shouldn't be necessary if the camera daemon stays in sync, and restarting
-            # the interfaces will clear the queue anyway. But it's here for safety just in case
-            # (e.g. the camera daemon crashes during exposing and is restarted).
-            if not all(self.queues_cleared[ut] for ut in self.uts):
-                for ut in self.uts:
-                    interface_id = params.UT_DICT[ut]['INTERFACE']
-                    self.log.info('Clearing queue for UT{}'.format(ut))
-                    try:
-                        with daemon_proxy(interface_id) as interface:
-                            interface.clear_exposure_queue(ut)
-                            self.queues_cleared[ut] = True
-                    except Exception:
-                        self.log.error('No response from interface {}'.format(interface_id))
-                        self.log.debug('', exc_info=True)
 
             # control functions
             # take exposure
@@ -307,6 +291,29 @@ class CamDaemon(BaseDaemon):
                 self.abort_exposure_flag = 0
                 self.force_check_flag = True
 
+            # clear camera data queue
+            if self.clear_queue_flag:
+                try:
+                    for ut in self.clear_uts:
+                        interface_id = params.UT_DICT[ut]['INTERFACE']
+                        self.log.info('Clearing queue for UT{}'.format(ut))
+                        try:
+                            with daemon_proxy(interface_id) as interface:
+                                interface.clear_exposure_queue(ut)
+                        except Exception:
+                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.debug('', exc_info=True)
+
+                        if ut in self.active_uts:
+                            self.active_uts.remove(ut)
+
+                except Exception:
+                    self.log.error('clear_queue command failed')
+                    self.log.debug('', exc_info=True)
+                self.clear_uts = []
+                self.clear_queue_flag = 0
+                self.force_check_flag = True
+
             # set camera window
             if self.set_window_flag:
                 try:
@@ -402,6 +409,7 @@ class CamDaemon(BaseDaemon):
                     ut_info['serial_number'] = interface.get_camera_serial_number(ut)
                     ut_info['hw_class'] = interface.get_camera_class(ut)
                     ut_info['remaining'] = interface.get_camera_time_remaining(ut)
+                    ut_info['in_queue'] = interface.get_camera_queue_length(ut)
                     ut_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
                     ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
                     ut_info['target_temp'] = self.target_temp[ut]
@@ -705,9 +713,11 @@ class CamDaemon(BaseDaemon):
 
         # Set values
         self.abort_uts = sorted([ut for ut in ut_list if ut in self.active_uts])
+        self.clear_uts = self.abort_uts.copy()
 
         # Set flag
         self.abort_exposure_flag = 1
+        self.clear_queue_flag = 1
 
         # Format return string
         s = 'Aborting:'
@@ -717,6 +727,37 @@ class CamDaemon(BaseDaemon):
                 s += 'Camera {} is not currently exposing'.format(ut)
             else:
                 s += 'Aborting exposure on camera {}'.format(ut)
+        return s
+
+    def clear_queue(self, ut_list):
+        """Clear any leftover images in the camera memory."""
+        # Check restrictions
+        if self.dependency_error:
+            raise errors.DaemonStatusError('Dependencies are not running')
+
+        # Check input
+        for ut in ut_list:
+            if ut not in self.uts:
+                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+
+        # Check current status
+        if self.exposure_state != 'none' or len(self.active_uts) > 0:
+            raise errors.HardwareStatusError('Cameras are exposing')
+
+        # Set values
+        self.clear_uts = sorted([ut for ut in ut_list])
+
+        # Set flag
+        self.clear_queue_flag = 1
+
+        # Format return string
+        s = 'Clearing:'
+        for ut in ut_list:
+            s += '\n  '
+            if self.info['in_queue'] == 0:
+                s += 'Camera {} has no images to clear'.format(ut)
+            else:
+                s += 'Clearing {} images from queue on camera {}'.format(self.info['in_queue'], ut)
         return s
 
     def get_latest_headers(self):

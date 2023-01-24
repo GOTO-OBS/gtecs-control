@@ -67,6 +67,7 @@ def prepare_for_images(open_covers=True):
     - ensure any lights in the dome are turned off
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
+    - ensure the cameras are not exposing and have no images to read out
     - ensure the cameras are not windowed
     - ensure the cameras are at operating temperature
     - ensure the mount motors are on
@@ -110,6 +111,18 @@ def prepare_for_images(open_covers=True):
             time.sleep(0.5)
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Focusers timed out')
+
+    # Make sure the cameras aren't exposing
+    if not cameras_are_empty():
+        print('Aborting ongoing exposures')
+        execute_command('cam abort')
+        time.sleep(3)
+        execute_command('cam clear')
+        start_time = time.time()
+        while not cameras_are_empty():
+            time.sleep(0.5)
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Cameras timed out')
 
     # Reset the cameras to full-frame exposures
     if not cameras_are_fullframe():
@@ -665,6 +678,13 @@ def focusers_are_set():
     """Check if all the focusers are set."""
     foc_info = daemon_info('foc', force_update=True)
     return all(foc_info[ut]['status'] != 'UNSET' for ut in foc_info['uts'])
+
+
+def cameras_are_empty():
+    """Check if all of the cameras are ready to expose."""
+    cam_info = daemon_info('cam', force_update=True)
+    return all((cam_info[ut]['status'] != 'Exposing') and (cam_info[ut]['in_queue'] == 0)
+               for ut in cam_info['uts'])
 
 
 def cameras_are_cool():
