@@ -62,7 +62,7 @@ class UTInterfaceDaemon(BaseDaemon):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
 
-        while(self.running):
+        while self.running:
             self.loop_time = time.time()
 
             # system check
