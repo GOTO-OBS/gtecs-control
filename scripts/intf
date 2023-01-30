@@ -148,11 +148,13 @@ def query(command, args):
                 print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
+        # parse arguments
         if 'stdout' in args:
             stdout = True
             args.remove('stdout')
         else:
             stdout = False
+        # TODO: add ability to select only one log to show
         for daemon_id in sorted(params.INTERFACES):
             # parse arguments
             if stdout:

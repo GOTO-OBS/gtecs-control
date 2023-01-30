@@ -293,6 +293,8 @@ class CamDaemon(BaseDaemon):
 
             # clear camera data queue
             if self.clear_queue_flag:
+                # TODO: Add a verification key to the interfaces to keep track of them?
+                # TODO: Also verify the data size matches what's expected for the binfac!)
                 try:
                     for ut in self.clear_uts:
                         interface_id = params.UT_DICT[ut]['INTERFACE']
@@ -533,6 +535,7 @@ class CamDaemon(BaseDaemon):
                                       expstr, ut, interface_id))
 
                 # keep looping until all the images and info are fetched
+                # TODO: won't work if it fails
                 if all(images[ut] is not None for ut in active_uts):
                     break
 

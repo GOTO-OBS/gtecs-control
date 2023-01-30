@@ -802,6 +802,7 @@ class Pilot:
             self.log.info('next task: {}'.format(name))
 
             # wait for the right sun altitude
+            # TODO: if we haven't reached the late sunalt we should retry if it fails, esp autofocus
             can_start = await self.wait_for_sunalt(sunalt, name, rising,
                                                    late_sunalt if not ignore_late else None)
 

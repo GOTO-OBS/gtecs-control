@@ -180,7 +180,12 @@ class APCPDU:
             raise OSError('SNMP tools not installed')
         address = self.address
         command = [snmpget, '-v', '1', '-c', 'public', address] + oid_arr
-        output = subprocess.check_output(command).decode('ascii').split('\n')
+        try:
+            output = subprocess.check_output(command).decode('ascii').split('\n')
+        except subprocess.CalledProcessError as e:
+            # TODO https://stackoverflow.com/questions/29824461
+            raise
+
         status = ''
         for i in range(len(output) - 1):
             status += output[i][-1]
