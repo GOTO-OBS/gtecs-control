@@ -1,6 +1,6 @@
 """Focusing utilities."""
 
-from gtecs.common.system import NeatCloser
+from gtecs.common.system import NeatCloser, execute_command
 
 import numpy as np
 
@@ -9,7 +9,7 @@ import pandas as pd
 from . import params
 from .analysis import get_focus_region, measure_image_hfd
 from .observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
-                        move_focusers, set_focuser_positions)
+                        get_image_headers, move_focusers, set_focuser_positions, wait_for_focusers)
 
 
 class RestoreFocusCloser(NeatCloser):
@@ -319,7 +319,6 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     # Default parameters  # TODO: these should be function args? At least the offset
     focus_offset = 200
-    num_exp = 1
     exptime = 5
     filt = 'L'
     binning = 2
@@ -343,40 +342,107 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     l_positions = {ut: initial_positions[ut] - focus_offset for ut in uts}
     if take_test_images:
         print('Taking test image at initial position...')
-        measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+        measure_focus(1, exptime, filt, binning, 'Refocus', uts, regions)
 
-    # Move the focusers out to the right (+ve) side of the V-curve and measure HFDs
-    print('Measuring focus on the right...')
-    set_focuser_positions(r_positions, timeout=60)
-    r_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    #####################################################################################
+    # # Move the focusers out to the right (+ve) side of the V-curve and measure HFDs
+    # print('Measuring focus on the right...')
+    # set_focuser_positions(r_positions, timeout=60)
+    # r_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
-    # Move the focusers out to the left (-ve) side of the V-curve and measure HFDs
-    print('Measuring focus on the left...')
-    set_focuser_positions(l_positions, timeout=60)
-    l_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    # # Move the focusers out to the left (-ve) side of the V-curve and measure HFDs
+    # print('Measuring focus on the left...')
+    # set_focuser_positions(l_positions, timeout=60)
+    # l_data = measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
 
-    # Calculate the new best focus positions
-    print('Calculating best focus positions...')
-    bf_positions = get_best_focus_position_2(l_data['pos'], l_data['hfd'],
-                                             r_data['pos'], r_data['hfd'],
-                                             foc_params['m_r'],
-                                             )
-    bf_positions_dict = {ut: int(bf_positions.to_dict()[ut]) for ut in uts}
+    # # Calculate the new best focus positions
+    # print('Calculating best focus positions...')
+    # bf_positions = get_best_focus_position_2(l_data['pos'], l_data['hfd'],
+    #                                          r_data['pos'], r_data['hfd'],
+    #                                          foc_params['m_r'],
+    #                                          )
+    # bf_positions_dict = {ut: int(bf_positions.to_dict()[ut]) for ut in uts}
 
-    # We need to handle any UTs that failed to measure HFDs (e.g. clouds)
-    for ut in uts:
-        if bf_positions_dict[ut] in [np.nan, None]:
-            print('Warning: UT{} position is NaN, reverting to initial position')
-            bf_positions_dict[ut] = initial_positions[ut]
+    # # We need to handle any UTs that failed to measure HFDs (e.g. clouds)
+    # for ut in uts:
+    #     if bf_positions_dict[ut] in [np.nan, None]:
+    #         print('Warning: UT{} position is NaN, reverting to initial position')
+    #         bf_positions_dict[ut] = initial_positions[ut]
 
-    print('Best focus positions:', bf_positions_dict)
+    # print('Best focus positions:', bf_positions_dict)
 
-    # Move to the best focus position
-    print('Moving to best focus position...')
-    set_focuser_positions(bf_positions_dict, timeout=60)
-    if take_test_images:
-        print('Taking test image at best focus position...')
-        measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+    # # Move to the best focus position
+    # print('Moving to best focus position...')
+    # set_focuser_positions(bf_positions_dict, timeout=60)
+    # if take_test_images:
+    #     print('Taking test image at best focus position...')
+    #     measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+
+    #####################################################################################
+    # Step 0: Turn on HFD measurement
+    execute_command('cam measure_hfds on')
+
+    # Step 1: Start to move out to the right (+ve steps), return immediately
+    print('Moving to the right...')
+    set_focuser_positions(r_positions, wait=False)
+
+    # Step 2: Wait until the focusers have finished moving, return when stationary
+    wait_for_focusers(r_positions, timeout=60)
+
+    # Step 3: Start the right exposure, return when finished (but still saving)
+    print('Taking right exposure...')
+    _, r_i = get_analysis_image(exptime, filt, binning, 'Refocus', 'FOCUS', False, uts,
+                                get_data=False, get_headers=False)
+
+    # Step 4: Start to move out to the left (return immediately)
+    print('Moving to the left...')
+    set_focuser_positions(l_positions, wait=False)
+
+    # Step 5: Read the right HFDs from the image headers
+    r_headers = get_image_headers(r_i, timeout=30)
+    r_hfds = {ut: r_headers[ut]['MEDHFD0'] for ut in r_headers}
+    print('right hfds:', r_hfds)
+
+    # Step 6: Wait until the focusers have finished moving, return when stationary
+    wait_for_focusers(l_positions, timeout=60)
+
+    # Step 7: Start the left exposure, return when finished (but still saving)
+    print('Taking left exposure...')
+    _, l_i = get_analysis_image(exptime, filt, binning, 'Refocus', 'FOCUS', False, uts,
+                                get_data=False, get_headers=False)
+
+    # Step 8: Start to move back to the centre
+    print('Moving to the centre...')
+    set_focuser_positions(initial_positions, wait=False)
+
+    # Step 9: Read the left HFDs from the image headers
+    l_headers = get_image_headers(l_i, timeout=30)
+    l_hfds = {ut: l_headers[ut]['MEDHFD0'] for ut in l_headers}
+    print('left hfds:', l_hfds)
+
+    # Step 10: Calculate the new best position
+    bf_positions = get_best_focus_position_2(
+        np.array([l_positions[ut] for ut in l_positions]),
+        np.array([l_hfds[ut] for ut in l_hfds]),
+        np.array([r_positions[ut] for ut in r_positions]),
+        np.array([r_hfds[ut] for ut in r_hfds]),
+        np.array([foc_params['m_r'].to_dict()[ut] for ut in foc_params['m_r'].to_dict()]),
+    )
+    bf_positions = {ut: int(bf_positions[ut - 1]) for ut in uts}
+    print('best positions:', bf_positions)
+
+    # Step 11: Wait until the focusers have finished moving
+    wait_for_focusers(initial_positions, timeout=60)
+
+    # Step 12: Move to the best position
+    print('Moving to best positions...')
+    set_focuser_positions(bf_positions, wait=False)
+
+    # Step 13: Wait until the focusers have finished moving (or return immediately?)
+    wait_for_focusers(bf_positions, timeout=60)
+
+    # Step 14: Turn off HFD measurement
+    execute_command('cam measure_hfds off')
 
     if reset:
         # Move back to the original position
@@ -384,6 +450,6 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
         set_focuser_positions(initial_positions, timeout=60)
         if take_test_images:
             print('Taking test image at initial position...')
-            measure_focus(num_exp, exptime, filt, binning, 'Refocus', uts, regions)
+            measure_focus(1, exptime, filt, binning, 'Refocus', uts, regions)
 
     print('Refocusing complete')

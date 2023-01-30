@@ -535,7 +535,7 @@ def offset(direction, distance):
 
 
 def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None,
-                       get_headers=False):
+                       get_data=True, get_headers=False):
     """Take a single exposure set, then open the images and return the image data.
 
     Parameters
@@ -555,6 +555,8 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     uts : list of ints, default=`None`
         if given, the UTs to take the exposures with
         uts=`None` (the default) will take images on all UTs
+    get_data : bool, default=True
+        return the image data arrays (takes time)
     get_headers : bool, default=False
         return the image headers instead of the full data arrays (much faster)
 
@@ -562,6 +564,8 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     -------
     data : dict
         a dictionary of the image data or headers, with the UT numbers as keys
+        if both get_data and get_headers are False then just return the run number and image number
+        if both are True return a tuple (data_dict, header_dict)
 
     """
     # Find the current image count, so we know what to wait for
@@ -596,26 +600,39 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     execute_command(exq_command)
     execute_command('exq resume')
 
-    # Wait for the camera daemon to finish saving the images
-    wait_for_images(img_num, exptime + 60)
-    time.sleep(2)
+    if not get_data and not get_headers:
+        # Wait for exposures to finish, but not to save
+        wait_for_readout(img_num, exptime + 60)
 
-    # Fetch the data
+        # Just return the run and images numbers to do something else with
+        if not glance:
+            return get_run_number(), img_num
+        else:
+            return 'glance', img_num
+
+    # Otherwise we need to wait for the images to be saved
+    wait_for_images(img_num, exptime + 60)
+
+    if get_data:
+        if not glance:
+            # Use the run number, should be safer than the last modified which has messed up before
+            # (perhaps due to the Warwick archiver?)
+            run_number = get_run_number()
+            image_data = get_image_data(run_number, uts=uts, timeout=90)
+        else:
+            image_data = get_glance_data(uts=uts, timeout=90)
+        if not get_headers:
+            return image_data
     if get_headers:
         # Get the headers from the camera daemon
         headers = get_image_headers(img_num, 30)
         if uts is not None:
-            return {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
-        else:
-            # We used all UTs
+            headers = {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
+        if not get_data:
             return headers
-    elif not glance:
-        # Use the run number, it should be safer than the last modified which has messed up before
-        # (perhaps due to the Warwick archiver?)
-        run_number = get_run_number()
-        return get_image_data(run_number, uts=uts, timeout=90)
-    else:
-        return get_glance_data(uts=uts, timeout=90)
+        else:
+            # Return both
+            return image_data, headers
 
 
 def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
@@ -791,6 +808,40 @@ def wait_for_images(target_image_number, timeout=None):
             cam_info = daemon_info('cam', force_update=True)
             done = [(cam_info[ut]['status'] == 'Ready' and
                      int(cam_info['num_taken']) == int(target_image_number))
+                    for ut in cam_info['uts']]
+            if np.all(done):
+                finished = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Cameras timed out')
+
+
+def wait_for_readout(target_image_number, timeout=None):
+    """With a set of exposures underway, wait for the cameras to finish exposing (but not saving).
+
+    Parameters
+    ----------
+    target_image_number : int
+        camera image number to wait for
+    timeout : float
+        time in seconds after which to timeout. None to wait forever
+
+    """
+    start_time = time.time()
+    finished = False
+    timed_out = False
+    while not finished and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            cam_info = daemon_info('cam', force_update=True)
+            done = [(cam_info[ut]['status'] == 'Reading' and
+                     int(cam_info['num_taken']) == int(target_image_number) - 1)  # not finished yet
                     for ut in cam_info['uts']]
             if np.all(done):
                 finished = True
