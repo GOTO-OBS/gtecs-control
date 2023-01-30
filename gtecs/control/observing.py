@@ -565,7 +565,7 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
 
     """
     # Find the current image count, so we know what to wait for
-    img_num = get_image_count()
+    img_num = get_image_count() + 1
 
     # Create the command string
     if uts is not None:
@@ -597,12 +597,13 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     execute_command('exq resume')
 
     # Wait for the camera daemon to finish saving the images
-    wait_for_images(img_num + 1, exptime + 60)
+    wait_for_images(img_num, exptime + 60)
     time.sleep(2)
 
     # Fetch the data
     if get_headers:
-        headers = daemon_function('cam', 'get_latest_headers')
+        # Get the headers from the camera daemon
+        headers = get_image_headers(img_num, 30)
         if uts is not None:
             return {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
         else:
@@ -741,6 +742,32 @@ def get_run_number():
     """Find the latest exposure run number."""
     cam_info = daemon_info('cam')
     return cam_info['latest_run_number']
+
+
+def get_image_headers(target_image_number, timeout=None):
+    """Get the image headers for the given exposure."""
+    start_time = time.time()
+    finished = False
+    timed_out = False
+    while not finished and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            image_num, headers = daemon_function('cam', 'get_latest_headers')
+            if image_num >= target_image_number:
+                # Either these are the headers we wanted, or we missed them
+                finished = True
+        except Exception:
+            raise
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Cameras timed out')
+    if image_num > target_image_number:
+        raise ValueError('A new exposure has already overriden the image headers, open the file')
+    return headers
 
 
 def wait_for_images(target_image_number, timeout=None):

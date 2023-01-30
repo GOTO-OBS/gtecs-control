@@ -49,7 +49,7 @@ class CamDaemon(BaseDaemon):
         with open(self.run_number_file, 'r') as f:
             self.latest_run_number = int(f.read())
         self.num_taken = 0
-        self.latest_headers = {ut: None for ut in self.uts}
+        self.latest_headers = (0, {ut: None for ut in self.uts})
 
         self.queues_cleared = {ut: False for ut in self.uts}
 
@@ -567,7 +567,7 @@ class CamDaemon(BaseDaemon):
                 executor.submit(save_fits, hdu, filename,
                                 log=self.log, log_debug=False, fancy_log=True)
 
-        self.latest_headers = headers
+        self.latest_headers = (self.num_taken, headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
@@ -608,7 +608,7 @@ class CamDaemon(BaseDaemon):
                 self.log.error('No response from interface {}'.format(interface_id))
                 self.log.debug('', exc_info=True)
 
-        self.latest_headers = headers
+        self.latest_headers = (self.num_taken, headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
