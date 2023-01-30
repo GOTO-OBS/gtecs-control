@@ -10,6 +10,23 @@ import numpy as np
 import sep
 
 
+def get_focus_region(binning=1):
+    """Define an annulus region used when measuring the focus position."""
+    xlen = 8304 // binning
+    ylen = 6220 // binning
+    width = 1000 // binning
+    region = [(slice(int(xlen / 6), int(xlen / 6) + width),
+               slice(int(ylen / 6), int(5 * ylen / 6))),
+              (slice(int(5 * xlen / 6) - width, int(5 * xlen / 6)),
+               slice(int(ylen / 6), int(5 * ylen / 6))),
+              (slice(int(xlen / 6) + width, int(5 * xlen / 6) - width),
+               slice(int(5 * ylen / 6) - width, int(5 * ylen / 6))),
+              (slice(int(xlen / 6) + width, int(5 * xlen / 6) - width),
+               slice(int(ylen / 6), int(ylen / 6) + width))
+              ]
+    return region
+
+
 def crop_image(data, region):
     """Crop the given image data to the provided region.
 

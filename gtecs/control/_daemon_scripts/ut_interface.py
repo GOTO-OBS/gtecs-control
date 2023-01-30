@@ -607,7 +607,7 @@ class UTInterfaceDaemon(BaseDaemon):
         else:
             self.log.warning('Camera {} did not save image correctly'.format(ut))
 
-    def save_exposure(self, ut, all_info, compress=False, method='proc'):
+    def save_exposure(self, ut, all_info, compress=False, measure_hfds=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
         self.log.info('Camera {} fetching image (from save_exposure)'.format(ut))
         image_data = self.cameras[ut].fetch_image()
@@ -615,7 +615,10 @@ class UTInterfaceDaemon(BaseDaemon):
             self.log.error(f'Camera {ut} failed to write image (nothing returned)')
             return None
 
-        hdu = make_fits(image_data, ut, all_info, compress, log=self.log)
+        hdu = make_fits(image_data, ut, all_info,
+                        compress=compress,
+                        measure_hfds=measure_hfds,
+                        log=self.log)
 
         if method == 'proc':
             # Start image saving in a new process
@@ -640,12 +643,15 @@ class UTInterfaceDaemon(BaseDaemon):
         # return the image header
         return hdu.header
 
-    def save_exposures(self, all_info, compress=False, method='proc'):
+    def save_exposures(self, all_info, compress=False, measure_hfds=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
         self.log.info('Fetching images from all cameras (from save_exposures)')
 
         image_data = self.fetch_exposures()
-        hdus = {ut: make_fits(image_data[ut], ut, all_info, compress, log=self.log)
+        hdus = {ut: make_fits(image_data[ut], ut, all_info,
+                              compress=compress,
+                              measure_hfds=measure_hfds,
+                              log=self.log)
                 for ut in image_data}
 
         if method == 'pool':

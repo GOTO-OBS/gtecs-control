@@ -224,6 +224,18 @@ def query(command, args):
             reply = daemons.daemon_function('cam', 'remove_window', [ut_list])
         print(reply)
 
+    elif command == 'measure_hfds':
+        # parse arguments
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise errors.InputError('Invalid arguments')
+        # check arguments
+        if not command.lower() in ['on', 'off']:
+            raise errors.InputError("Command must be 'on' or 'off'")
+        reply = daemons.daemon_function('cam', 'measure_image_hfds', [command])
+        print(reply)
+
     elif command == 'temp':
         # parse arguments
         if len(args) == 1:
@@ -313,6 +325,7 @@ def print_instructions():
           '  clear [uts]                    clear any images in the queue',
           '  window [uts] x y dx dy         set camera image window',
           '  window [uts] full|reset|clear  reset camera image window to full-frame',
+          '  measure_hfds on|off            measure the image hfds?',
           '  temp [uts] <temp>|cool|warm    set camera temperature ("cool"/"warm" are in params)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (alias for tail)',

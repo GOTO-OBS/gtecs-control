@@ -14,8 +14,9 @@ from argparse import ArgumentParser, ArgumentTypeError
 from astropy.time import Time
 
 from gtecs.control import params
+from gtecs.control.analysis import get_focus_region
 from gtecs.control.catalogs import focus_star
-from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position, get_focus_region,
+from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
                                     measure_focus)
 from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
                                      prepare_for_images, set_focuser_positions,

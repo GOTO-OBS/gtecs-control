@@ -63,6 +63,7 @@ class CamDaemon(BaseDaemon):
         self.saving_thread_running = False
 
         self.target_window = {ut: None for ut in self.uts}
+        self.measure_hfds = False
 
         self.cool_temp = int(params.CAM_IMAGING_TEMPERATURE)
         self.warm_temp = int(params.CAM_STANDBY_TEMPERATURE)
@@ -557,7 +558,11 @@ class CamDaemon(BaseDaemon):
                     filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
                 # create and fill the FITS HDU
-                hdu = make_fits(image_data, ut, all_info, compress=False, log=None)
+                hdu = make_fits(image_data, ut, all_info,
+                                compress=params.COMPRESS_IMAGES,
+                                measure_hfds=self.measure_hfds,
+                                log=None
+                                )
                 headers[ut] = hdu.header
 
                 # write the FITS file
@@ -602,6 +607,7 @@ class CamDaemon(BaseDaemon):
                 with daemon_proxy(interface_id) as interface:
                     headers[ut] = interface.save_exposure(ut, all_info,
                                                           compress=params.COMPRESS_IMAGES,
+                                                          measure_hfds=self.measure_hfds,
                                                           method='thread',
                                                           )
             except Exception:
@@ -835,6 +841,32 @@ class CamDaemon(BaseDaemon):
             s += '\n  '
             s += 'Setting window on camera {} to full-frame'.format(ut)
         return s
+
+    def measure_image_hfds(self, command):
+        """Enable or disable measuring image HFDs when saving."""
+        # Check input
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        # Check current status
+        self.wait_for_info()
+        if command == 'on' and self.measure_hfds:
+            return 'Measuring HFDs is already enabled'
+        elif command == 'off' and not self.measure_hfds:
+            return 'Measuring HFDs is already disabled'
+
+        # Set flag
+        if command == 'on':
+            self.log.info('Enabling HFD measurement')
+            self.measure_hfds = True
+        elif command == 'off':
+            self.log.info('Disabling HFD measurement')
+            self.measure_hfds = False
+
+        if command == 'on':
+            return 'Enabling image HFD measurement'
+        elif command == 'off':
+            return 'Disabling image HFD measurement'
 
     def set_temperature(self, target_temp, ut_list):
         """Set the camera's temperature."""

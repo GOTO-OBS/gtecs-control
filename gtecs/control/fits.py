@@ -16,7 +16,7 @@ import numpy as np
 
 from . import misc
 from . import params
-from .analysis import measure_image_hfd
+from .analysis import get_focus_region, measure_image_hfd
 from .astronomy import get_lst, night_startdate
 from .daemons import daemon_info
 from .flags import Status
@@ -117,15 +117,25 @@ def make_fits(image_data, ut, all_info, compress=False,
         hdu.header['STDCNTS '] = (np.std(image_data), 'Std of image counts')
 
     if measure_hfds:
+        binning = int(hdu.header['XBINNING'])  # should always be the same as YBINNING
         if hfd_regions is None:
-            hfd_regions = [None]
+            hfd_regions = [get_focus_region(binning)]
+        if len(hfd_regions) > 10:
+            log.warning('Too many image regions ({}), restricting to 10.'.format(len(hfd_regions)))
         for i, region in enumerate(hfd_regions):
-            hfd, hfd_std = measure_image_hfd(image_data,
-                                             region=region,
-                                             filter_width=15,
-                                             verbose=False)
-            hdu.header['MEDHFD{}'.format(i)] = hfd
-            hdu.header['STDHFD{}'.format(i)] = hfd_std
+            try:
+                hfd, hfd_std = measure_image_hfd(image_data.astype('int32'),
+                                                 region=region,
+                                                 filter_width=15 // binning,
+                                                 verbose=False)
+                # NB HFDs are returned in binned pixels
+                hfd *= binning
+                hfd_std *= binning
+                log.debug(f'Measured image HFD: {hfd:.2f} +/- {hfd_std:.2f}')
+                hdu.header['MEDHFD{}'.format(i)] = hfd
+                hdu.header['STDHFD{}'.format(i)] = hfd_std
+            except Exception:
+                log.exception('Could not measure image HFDs')
 
     return hdu
 

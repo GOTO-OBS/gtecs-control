@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from . import params
-from .analysis import measure_image_hfd
+from .analysis import get_focus_region, measure_image_hfd
 from .observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
                         move_focusers, set_focuser_positions)
 
@@ -23,23 +23,6 @@ class RestoreFocusCloser(NeatCloser):
         """Restore the original focus."""
         print('Interrupt caught: Restoring original focus positions...')
         set_focuser_positions(self.positions)
-
-
-def get_focus_region(binning=1):
-    """Define an annulus region used when measuring the focus position."""
-    xlen = 8304 // binning
-    ylen = 6220 // binning
-    width = 1000 // binning
-    region = [(slice(int(xlen / 6), int(xlen / 6) + width),
-               slice(int(ylen / 6), int(5 * ylen / 6))),
-              (slice(int(5 * xlen / 6) - width, int(5 * xlen / 6)),
-               slice(int(ylen / 6), int(5 * ylen / 6))),
-              (slice(int(xlen / 6) + width, int(5 * xlen / 6) - width),
-               slice(int(5 * ylen / 6) - width, int(5 * ylen / 6))),
-              (slice(int(xlen / 6) + width, int(5 * xlen / 6) - width),
-               slice(int(ylen / 6), int(ylen / 6) + width))
-              ]
-    return region
 
 
 def get_focus_params():
