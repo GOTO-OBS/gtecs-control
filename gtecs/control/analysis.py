@@ -4,7 +4,6 @@ from concurrent.futures import ProcessPoolExecutor
 
 from astropy.convolution import Gaussian2DKernel
 from astropy.stats import gaussian_fwhm_to_sigma
-from astropy.stats.sigma_clipping import sigma_clipped_stats
 
 import numpy as np
 
@@ -187,7 +186,11 @@ def measure_image_fwhm(data, region=None, filter_width=15, threshold=5, verbose=
         print('Found {} objects with measurable FWHMs'.format(len(fwhms)))
 
     # Get median and standard deviation over all extracted objects
-    mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhms, sigma=2.5, maxiters=10)
+    # NB Used to use astropy.stats.sigma_clipping.sigma_clipped_stats, but it's slow
+    #    (see https://stackoverflow.com/questions/56563544)
+    # mean_fwhm, median_fwhm, std_fwhm = sigma_clipped_stats(fwhms, sigma=2.5, maxiters=10)
+    median_fwhm = np.median(fwhms)
+    std_fwhm = fwhms[fwhms - fwhms.mean() < 2.5 * fwhms.std()].std()
 
     return median_fwhm, std_fwhm
 
@@ -250,6 +253,10 @@ def measure_image_hfd(data, region=None, filter_width=15, threshold=5,
         print('Found {} objects with measurable HFDs'.format(len(all_hfds)))
 
     # Get median and standard deviation over all extracted objects
-    mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(all_hfds, sigma=2.5, maxiters=10)
+    # NB Used to use astropy.stats.sigma_clipping.sigma_clipped_stats, but it's slow
+    #    (see https://stackoverflow.com/questions/56563544)
+    # mean_hfd, median_hfd, std_hfd = sigma_clipped_stats(all_hfds, sigma=2.5, maxiters=10)
+    median_hfd = np.median(all_hfds)
+    std_hfd = all_hfds[all_hfds - all_hfds.mean() < 2.5 * all_hfds.std()].std()
 
     return median_hfd, std_hfd
