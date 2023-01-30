@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A script to provide control over the exq daemon."""
 
+import json
 import os
 import sys
 
@@ -83,7 +84,7 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
         elif info_type == 'raw':
-            print(reply)
+            print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -106,7 +107,7 @@ def query(command, args):
             # exptime filter binning [object] [imgtype]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[1].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[2])
             if len(args) == 3:
                 target = 'NA'
@@ -123,7 +124,7 @@ def query(command, args):
             # uts exptime filter binning [object] [imgtype]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'
@@ -157,7 +158,7 @@ def query(command, args):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'
@@ -175,7 +176,7 @@ def query(command, args):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[3].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[4])
             if len(args) == 5:
                 target = 'NA'
@@ -208,7 +209,7 @@ def query(command, args):
             nexp = int(args[0])
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'
@@ -226,7 +227,7 @@ def query(command, args):
             nexp = int(args[0])
             ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
-            filt_list = misc.valid_strings(args[3].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[3].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[4])
             if len(args) == 5:
                 target = 'NA'
@@ -260,7 +261,7 @@ def query(command, args):
             # exptime filter binning [object]
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            filt_list = misc.valid_strings(args[1].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[1].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[2])
             if len(args) == 3:
                 target = 'NA'
@@ -272,7 +273,7 @@ def query(command, args):
             # uts exptime filter binning [object]
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            filt_list = misc.valid_strings(args[2].split(','), params.FILTER_LIST + ['X'])
+            filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
             if len(args) == 4:
                 target = 'NA'

@@ -13,12 +13,14 @@ from argparse import ArgumentParser, ArgumentTypeError
 
 from astropy.time import Time
 
-from gtecs.common.system import NeatCloser
 from gtecs.control import params
+from gtecs.control.analysis import get_focus_region
 from gtecs.control.catalogs import focus_star
-from gtecs.control.focusing import get_best_focus_position, measure_focus
+from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
+                                    measure_focus)
 from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
-                                     prepare_for_images, set_focuser_positions, slew_to_radec)
+                                     prepare_for_images, set_focuser_positions,
+                                     slew_to_altaz, slew_to_radec)
 
 from matplotlib import pyplot as plt
 from matplotlib.collections import PatchCollection
@@ -35,19 +37,6 @@ from scipy.optimize import curve_fit
 
 
 DEFAULT_NFV = 4
-
-
-class RestoreFocusCloser(NeatCloser):
-    """Restore the original focus positions if anything goes wrong."""
-
-    def __init__(self, positions):
-        super().__init__(taskname='Script')
-        self.positions = positions
-
-    def tidy_up(self):
-        """Restore the original focus."""
-        print('Interrupt caught: Restoring original focus positions...')
-        set_focuser_positions(self.positions)
 
 
 def calculate_positions(range_frac, steps, scale_factors=None):
@@ -89,10 +78,10 @@ def calculate_positions(range_frac, steps, scale_factors=None):
     return pd.DataFrame(all_positions)
 
 
-def estimate_time(steps, num_exp, exp_time, binning, corners=False):
+def estimate_time(steps, num_exp, exp_time, binning, n_regions=1):
     """Estimate how long it will take to complete the run."""
     READOUT_TIME_PER_EXPOSURE = 30 / (binning ** 2)
-    ANALYSIS_TIME_PER_EXPOSURE = 15 if not corners else 30  # it takes longer with more regions
+    ANALYSIS_TIME_PER_EXPOSURE = 20 + 2 * n_regions  # it takes longer with more regions
     MOVING_TIME_PER_STEP = 20
     FAR_MOVING_TIME = 40  # Time to move out and back from the extreme ends of the run
 
@@ -264,9 +253,12 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
             ax.text(0.02, 0.915, 'UT{}'.format(ut), fontweight='bold',
                     bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
                     transform=ax.transAxes, ha='left', zorder=2)
-            ax.text(0.98, 0.915, params.UT_DICT[ut]['OTA']['SERIAL'], fontweight='bold',
-                    bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
-                    transform=ax.transAxes, ha='right', zorder=2)
+            try:
+                ax.text(0.98, 0.915, params.UT_DICT[ut]['OTA']['SERIAL'], fontweight='bold',
+                        bbox={'fc': 'w', 'lw': 0, 'alpha': 0.9},
+                        transform=ax.transAxes, ha='right', zorder=2)
+            except KeyError:
+                pass
 
         except Exception:
             print('UT{}: Error making HFD plot'.format(ut))
@@ -282,7 +274,7 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
     plt.show()
 
 
-def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_plot=True):
+def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=None, save_plot=True):
     """Plot the results of the focus run with measure_corners=True."""
     uts = list(set(list(df.index)))
     if finish_time is None:
@@ -417,9 +409,11 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
             ax.add_collection(pc)
 
             # Plot contour
-            points_x = [8304 / 2, 0, 8304, 0, 8304]
-            points_y = [6220 / 2, 0, 0, 6220, 6220]
-            grid_x, grid_y = np.meshgrid(np.linspace(0, 8304, 20), np.linspace(0, 6220, 20))
+            xlen = 8304 // binning
+            ylen = 6220 // binning
+            points_x = [xlen / 2, 0, xlen, 0, xlen]
+            points_y = [ylen / 2, 0, 0, ylen, ylen]
+            grid_x, grid_y = np.meshgrid(np.linspace(0, xlen, 20), np.linspace(0, ylen, 20))
             cross_pos_fit = griddata((points_x, points_y), cross_pos_relative, (grid_x, grid_y),
                                      method='cubic')
             pcm = ax.contourf(grid_x, grid_y, cross_pos_fit, zorder=-2, alpha=0.3, levels=6)
@@ -431,8 +425,8 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
             cb.ax.tick_params(labelsize=7)
 
             # Set limits & labels
-            ax.set_xlim(0, 8304)
-            ax.set_ylim(0, 6220)
+            ax.set_xlim(0, xlen)
+            ax.set_ylim(0, ylen)
             ax.tick_params(left=False, labelleft=False, bottom=False, labelbottom=False)
 
         except Exception:
@@ -450,7 +444,7 @@ def plot_corners(df, fit_df, region_slices, nfvs=None, finish_time=None, save_pl
 
 
 def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
-        measure_corners=False, go_to_best=False,
+        use_annulus_region=True, measure_corners=False, go_to_best=False, zenith=False,
         no_slew=False, no_analysis=False, no_plot=False, no_confirm=False):
     """Run the focus run routine."""
     # Get the positions for the run
@@ -460,7 +454,29 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                      for ut in params.AUTOFOCUS_PARAMS}
     positions = calculate_positions(range_frac, steps, scale_factors)
 
-    total_time = estimate_time(steps, num_exp, exptime, binning, measure_corners)
+    # Define measurement regions
+    if use_annulus_region:
+        # Measure sources in an annulus around the centre
+        regions = [get_focus_region(binning)]
+    elif measure_corners:
+        # Measure 5 corner regions independently
+        regions = [(slice(2500 // binning, 6000 // binning),  # centre (same as default)
+                    slice(1500 // binning, 4500 // binning)),
+                   (slice(200 // binning, 2500 // binning),   # bottom-left
+                    slice(100 // binning, 1500 // binning)),
+                   (slice(6000 // binning, 8000 // binning),  # bottom-right
+                    slice(100 // binning, 1500 // binning)),
+                   (slice(200 // binning, 2500 // binning),   # top-left
+                    slice(4500 // binning, 6000 // binning)),
+                   (slice(6000 // binning, 8000 // binning),  # top-right
+                    slice(4500 // binning, 6000 // binning)),
+                   ]
+    else:
+        # Stick to the default central region
+        regions = [(slice(2500 // binning, 6000 // binning),
+                    slice(1500 // binning, 4500 // binning))]
+
+    total_time = estimate_time(steps, num_exp, exptime, binning, len(regions))
     print('ESTIMATED TIME TO COMPLETE RUN: {:.1f} min'.format(total_time / 60))
 
     # Confirm
@@ -479,12 +495,17 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
 
     # Slew to a focus star
     if not no_slew:
-        star = focus_star(Time.now())
         print('~~~~~~')
-        print('Slewing to target {}...'.format(star))
-        target_name = star.name
-        coordinate = star.coord_now()
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        if zenith:
+            print('Slewing to zenith...')
+            target_name = 'Focus run'
+            slew_to_altaz(89.9, 0, timeout=120)
+        else:
+            star = focus_star(Time.now())
+            print('Slewing to target {}...'.format(star))
+            target_name = star.name
+            coordinate = star.coord_now()
+            slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
         print('Reached target')
     else:
         target_name = 'Focus run'
@@ -493,17 +514,6 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     print('~~~~~~')
     initial_positions = get_focuser_positions()
     print('Initial positions:', initial_positions)
-
-    # Define measurement regions
-    if measure_corners:
-        regions = [(slice(2500, 6000), slice(1500, 4500)),  # centre (default)
-                   (slice(200, 2500), slice(100, 1500)),    # bottom-left
-                   (slice(6000, 8000), slice(100, 1500)),   # bottom-right
-                   (slice(200, 2500), slice(4500, 6000)),   # top-left
-                   (slice(6000, 8000), slice(4500, 6000)),  # top-right
-                   ]
-    else:
-        regions = None
 
     # Measure the HFDs at each position calculated earlier
     all_data = []
@@ -563,7 +573,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
             for ut in sorted(set(df.index))
             }
     print('Fit results:')
-    if not measure_corners:
+    if len(regions) == 1:
         fit_df = fit_to_data(df, nfvs)
         print(fit_df)
     else:
@@ -585,15 +595,15 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     if not no_plot:
         print('~~~~~~')
         print('Plotting results...')
-        if not measure_corners:
+        if len(regions) == 1:
             plot_results(df, fit_df, nfvs, finish_time)
         else:
             # Still make both plots
             plot_results(df[df['region'] == 0], fit_df[fit_df['region'] == 0], nfvs, finish_time)
-            plot_corners(df, fit_df, regions, nfvs, finish_time)
+            plot_corners(df, fit_df, regions, binning, nfvs, finish_time)
 
     # Get best positions
-    if not measure_corners:
+    if len(regions) == 1:
         best_focus = fit_df['cross_pos'].to_dict()
     else:
         # for now take the best position in the central region (region 0)
@@ -638,46 +648,69 @@ if __name__ == '__main__':
         return x
 
     parser = ArgumentParser(description='Take a series of exposures at different focus positions.')
-    parser.add_argument('steps', type=int, default=5,
+    # Mandatory arguments
+    parser.add_argument('steps',
+                        type=int, default=5,
                         help=('how many exposures to take either side of the current position '
                               '(eg steps=5 gives 11 in total: 5 + 1 in the centre + 5)'),
                         )
-    parser.add_argument('-r', '--range', type=restricted_float, default=0.035,
-                        help=('fraction of the focuser range to run over '
-                              '(range 0-1, default=0.035)'),
+    # Optional arguments
+    parser.add_argument('-r', '--range',
+                        type=restricted_float, default=0.035,
+                        help=('fraction of the focuser range to run over'
+                              ' (range 0-1, default=%(default)f)'),
                         )
-    parser.add_argument('-n', '--numexp', type=int, default=2,
-                        help=('number of exposures to take at each position (default=3)')
+    parser.add_argument('-n', '--numexp',
+                        type=int, default=2,
+                        help=('number of exposures to take at each position'
+                              ' (default=%(default)d)'),
                         )
-    parser.add_argument('-t', '--exptime', type=float, default=2,
-                        help=('exposure time to use (default=2s)')
+    parser.add_argument('-t', '--exptime',
+                        type=float, default=5,
+                        help=('exposure time, in seconds'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
-                        help=('filter to use (default=L)')
+    parser.add_argument('-f', '--filter',
+                        type=str, default='L',
+                        help=('filter to use'
+                              ' (default=%(default)s)')
                         )
-    parser.add_argument('-b', '--binning', type=int, default=1,
-                        help=('image binning factor (default=1)')
+    parser.add_argument('-b', '--binning',
+                        type=int, default=1,
+                        help=('image binning factor'
+                              ' (default=%(default)d)')
                         )
-    parser.add_argument('--corners', action='store_true',
+    # Flags
+    parser.add_argument('--corners',
+                        action='store_true',
                         help=('measure focus position in the corners as well as the centre')
                         )
-    parser.add_argument('--go-to-best', action='store_true',
+    parser.add_argument('--go-to-best',
+                        action='store_true',
                         help=('when the run is complete move to the best focus position')
                         )
-    parser.add_argument('--no-slew', action='store_true',
-                        help=('do not slew to a focus star (stay at current position)')
+    parser.add_argument('--zenith',
+                        action='store_true',
+                        help=('slew to zenith instead of a focus star')
                         )
-    parser.add_argument('--no-analysis', action='store_true',
+    parser.add_argument('--no-slew',
+                        action='store_true',
+                        help=('do not slew (stay at current position)')
+                        )
+    parser.add_argument('--no-analysis',
+                        action='store_true',
                         help=('do not analyse the image HFDs, just take them and quit')
                         )
-    parser.add_argument('--no-plot', action='store_true',
+    parser.add_argument('--no-plot',
+                        action='store_true',
                         help=('do not display plot of results')
                         )
-    parser.add_argument('--no-confirm', action='store_true',
+    parser.add_argument('--no-confirm',
+                        action='store_true',
                         help=('skip confirmation (needed if running automatically)')
                         )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     steps = args.steps
     range_frac = args.range
     num_exp = args.numexp
@@ -686,6 +719,7 @@ if __name__ == '__main__':
     binning = args.binning
     measure_corners = args.corners
     go_to_best = args.go_to_best
+    zenith = args.zenith
     no_slew = args.no_slew
     no_analysis = args.no_analysis
     no_plot = args.no_plot
@@ -695,8 +729,20 @@ if __name__ == '__main__':
     initial_positions = get_focuser_positions()
     try:
         RestoreFocusCloser(initial_positions)
-        run(steps, range_frac, num_exp, exptime, filt, binning,
-            measure_corners, go_to_best, no_slew, no_analysis, no_plot, no_confirm)
+        run(steps,
+            range_frac=range_frac,
+            num_exp=num_exp,
+            exptime=exptime,
+            filt=filt,
+            binning=binning,
+            measure_corners=measure_corners,
+            go_to_best=go_to_best,
+            zenith=zenith,
+            no_slew=no_slew,
+            no_analysis=no_analysis,
+            no_plot=no_plot,
+            no_confirm=no_confirm
+            )
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions)

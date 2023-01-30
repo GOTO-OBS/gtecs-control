@@ -226,16 +226,17 @@ class Pilot:
         self.scheduler_updating = False
 
         # hardware to keep track of and fix if necessary
-        self.hardware = {'dome': monitors.DomeMonitor('closed', log=self.log),
-                         'mnt': monitors.MntMonitor('parked', log=self.log),
-                         'power': monitors.PowerMonitor(log=self.log),
-                         'cam': monitors.CamMonitor('cool', log=self.log),
-                         'ota': monitors.OTAMonitor('closed', log=self.log),
-                         'filt': monitors.FiltMonitor(log=self.log),
-                         'foc': monitors.FocMonitor(log=self.log),
-                         'exq': monitors.ExqMonitor(log=self.log),
-                         'conditions': monitors.ConditionsMonitor(log=self.log),
-                         }
+        self.hardware = {
+            'dome': monitors.DomeMonitor('closed', log=self.log),
+            'mnt': monitors.MntMonitor(params.MOUNT_CLASS, 'parked', log=self.log),
+            'power': monitors.PowerMonitor(params.POWER_UNITS, log=self.log),
+            'cam': monitors.CamMonitor(params.UTS_WITH_CAMERAS, 'cool', log=self.log),
+            'ota': monitors.OTAMonitor(params.UTS_WITH_COVERS, 'closed', log=self.log),
+            'filt': monitors.FiltMonitor(params.UTS_WITH_FILTERWHEELS, log=self.log),
+            'foc': monitors.FocMonitor(params.UTS_WITH_FOCUSERS, log=self.log),
+            'exq': monitors.ExqMonitor(log=self.log),
+            'conditions': monitors.ConditionsMonitor(log=self.log),
+        }
         self.current_errors = {k: set() for k in self.hardware.keys()}
 
         # store system mode
@@ -270,6 +271,11 @@ class Pilot:
 
             if not self.startup_complete:
                 self.log.debug('hardware checks suspended until after startup')
+                await asyncio.sleep(sleep_time)
+                continue
+
+            if self.running_script == 'BADCOND':
+                self.log.debug('hardware checks suspended during BADCOND routine')
                 await asyncio.sleep(sleep_time)
                 continue
 
@@ -411,40 +417,46 @@ class Pilot:
             if self.paused:
                 reasons = [k for k in self.whypause if self.whypause[k]]
 
-                # log why we're paused
+                # Log why we're paused
                 self.log.info('pilot paused ({})'.format(', '.join(reasons)))
                 self.log.debug('pause times: {}'.format(self.time_paused))
 
-                # track the time paused for each reason (this is reset whenever the system unpauses)
+                # Track the time paused for each reason
+                # (this is reset whenever the system unpauses)
                 for reason in reasons:
                     self.time_paused[reason] += sleep_time
 
-                # check if we're ONLY paused due to bad conditions
-                # this means the script won't run if there's a hardware error or we're in manual
-                if not self.whypause['hardware'] and not self.whypause['manual']:
-                    # only start checking after the sun has set and we've finished normal darks
-                    if (self.startup_complete and get_sunalt(Time.now()) < 0 and
-                            not (self.tasks_pending or self.running_script)):
-                        # check the time since the script last ran
-                        delta = self.time_paused['conditions'] - self.bad_conditions_tasks_timer
-                        if delta > params.BAD_CONDITIONS_TASKS_PERIOD:
-                            paused_hours = self.time_paused['conditions'] / (60 * 60)
-                            self.log.debug('bad conditions timer: {:.2f}h'.format(paused_hours))
+                # Check if we're paused due to bad conditions, and how long
+                if self.whypause['conditions']:
+                    delta = self.time_paused['conditions'] - self.bad_conditions_tasks_timer
+                    if delta > params.BAD_CONDITIONS_TASKS_PERIOD:
+                        # We've been paused for long enough to start the bad conditions tasks
+                        paused_hours = self.time_paused['conditions'] / (60 * 60)
+                        self.log.debug('bad conditions timer: {:.2f}h'.format(paused_hours))
 
-                            # here we can run an obs script during poor weather
+                        if self.whypause['hardware'] or self.whypause['manual']:
+                            # We don't want to start the script if we're paused for another reason
+                            self.log.debug('bad conditions tasks suspended while otherwise paused')
+                        elif self.tasks_pending or self.running_script:
+                            # We don't want to start the script if we're running something else
+                            # (though since we're paused this should only be another BADCOND,
+                            #  but if it's been this long something is very wrong...)
+                            self.log.debug('bad conditions tasks suspended until script finished')
+                        elif not self.startup_complete:
+                            # We don't want to start the script until after startup
+                            self.log.debug('bad conditions tasks suspended until after startup')
+                        elif get_sunalt(Time.now()) > self.obs_start_sunalt:
+                            # We don't want to start the script until after dark
+                            self.log.debug('bad conditions tasks suspended until dark time')
+                        else:
+                            # Finally we should now be safe to start the script
                             self.log.info('running bad conditions tasks')
-                            # Note we want to be able to move the mount, so we have to set the
-                            # monitor status to 'tracking' here.
-                            # This means we can't park during the darks, which is annoying
-                            # (because that would count as a hardware error).
-                            # So we have to park again in start_script() once the script finishes.
-                            if not self.mount_is_tracking:
-                                await self.unpark_mount()
+                            # Note hardware checks are disabled while BADCOND is running,
+                            # otherwise we'd have trouble with moving the mount or the mirror
+                            # covers because they'd be in the "wrong" position
                             asyncio.ensure_future(self.start_script('BADCOND',
                                                                     'badConditionsTasks.py',
-                                                                    args=[3]))
-
-                            # save the counter
+                                                                    args=['3']))
                             self.bad_conditions_tasks_timer = self.time_paused['conditions']
 
             await asyncio.sleep(sleep_time)
@@ -493,13 +505,9 @@ class Pilot:
         if not restart:
             await self.wait_for_sunalt(self.startup_sunalt, 'STARTUP')
 
-        # 1) Startup (skip if we're restarting)
-        if not restart:
-            if not self.startup_complete:
-                await self.startup()
-        else:
-            # Need to mark startup complete here, since the startup function won't
-            self.startup_complete = True
+        # 1) Startup (even if we're restarting, it shouldn't take long but skip the report)
+        if not self.startup_complete:
+            await self.startup(send_report=not restart)
         self.log.info('startup complete')
 
         # Wait for first successful hardware check
@@ -569,8 +577,8 @@ class Pilot:
             A name for this process. Prepended to output from process.
         script : str
             The Python script to execute.
-        args : list, optional
-            Arguments to the script.
+        args : list of str, optional
+            Arguments to the script (must be strings).
         protocol : `gtecs.control.pilot.TaskProtocol`, optional
             Protocol used to process output from Process
             Default is `LoggedProtocol`
@@ -595,12 +603,13 @@ class Pilot:
         # create the process coroutine
         loop = asyncio.get_event_loop()
         with pkg_resources.path('gtecs.control._obs_scripts', script) as path:
-            cmd = [str(path), *args] if args is not None else [str(path)]
+            cmd = [str(path), *[str(a) for a in args]] if args is not None else [str(path)]
             proc = loop.subprocess_exec(factory, params.PYTHON_EXE, '-u', *cmd,
                                         stdin=None)
 
         # start the process and get transport and protocol for control of it
         self.log.info('starting {}'.format(name))
+        self.log.debug('> {}'.format(' '.join(cmd)))
         self.running_script = name
         self.running_script_transport, self.running_script_protocol = await proc
 
@@ -638,11 +647,6 @@ class Pilot:
             self.log.debug('pointing {} was {}'.format(self.current_pointing['id'],
                                                        self.current_status,
                                                        ))
-        elif name == 'BADCOND':
-            # if BADCOND has just finished and we're still paused then park the mount again
-            if (self.paused and not self.whypause['hardware'] and not self.whypause['manual'] and
-                    self.mount_is_tracking):
-                self.park_mount()
 
         return retcode, result
 
@@ -691,55 +695,94 @@ class Pilot:
                  'script': 'takeBiasesAndDarks.py',
                  'args': [str(params.NUM_DARKS)],
                  }
-        # xdarks = {'name': 'XDARKS',
-        #           'sunalt': 1,
-        #           'late_sunalt': 0,
-        #           'script': 'takeExtraDarks.py',
-        #           'args': [],
-        #           }
+        if params.PILOT_TAKE_EXTRA_DARKS:
+            darks['args'].append('-x')
 
-        # self.daytime_tasks = [darks, xdarks]
         self.daytime_tasks = [darks]
 
         # open
         self.open_sunalt = -4
 
         # evening tasks: done after opening the dome, before observing starts
+        target_n = int(Time.now().jd) % len(params.FLATS_TARGET_COUNTS)
+        target_counts = params.FLATS_TARGET_COUNTS[target_n]
         flats_e = {'name': 'FLATS',
                    'sunalt': -4.5,
                    'late_sunalt': -7,
                    'script': 'takeFlats.py',
-                   'args': ['EVE'],
+                   'args': ['EVE',
+                            '-c', str(target_counts),
+                            '-n', str(params.NUM_FLATS),
+                            '-f', str(params.FLATS_FILTERS),
+                            ],
                    }
         autofoc = {'name': 'FOC',
                    'sunalt': -11,
                    'late_sunalt': None,  # Always autofocus if opening late
                    'script': 'autoFocus.py',
-                   'args': ['-n', '1', '-t', '5'],
+                   'args': ['-n', '1',
+                            '-t', '5',
+                            ],
                    }
+        if not params.AUTOFOCUS_SLACK_REPORTS:  # This is ugly, these should all be in a config file
+            autofoc['args'].append('--no-report')
+        focrun_e = {'name': 'FOCRUN',
+                    'sunalt': -13,
+                    'late_sunalt': -14,
+                    'script': 'takeFocusRun.py',
+                    'args': ['4',
+                             '-r', '0.02',
+                             '-n', '1',
+                             '-t', '5',
+                             '--zenith',
+                             '--no-analysis',
+                             '--no-confirm',
+                             ],
+                    }
 
-        self.evening_tasks = [flats_e, autofoc]
+        if not params.PILOT_TAKE_FOCRUNS:
+            self.evening_tasks = [flats_e, autofoc]
+        else:
+            self.evening_tasks = [flats_e, autofoc, focrun_e]
 
         # observing
-        self.obs_start_sunalt = -12
-        self.obs_stop_sunalt = -12  # -14 WITH FOCRUN
+        if not params.PILOT_TAKE_FOCRUNS:
+            self.obs_start_sunalt = -12
+            self.obs_stop_sunalt = -12
+        else:
+            # Need extra time at start and end
+            self.obs_start_sunalt = -15
+            self.obs_stop_sunalt = -15
 
         # morning tasks: done after observing, before closing the dome
-        # foc_run = {'name': 'FOCRUN',
-        #           'sunalt': -14.5,
-        #           'late_sunalt': -13,
-        #           'script': 'takeFocusRun.py',
-        #           'args': ['1000', '100', 'n'],
-        #           }
+        focrun_m = {'name': 'FOCRUN',
+                    'sunalt': -14,
+                    'late_sunalt': -13,
+                    'script': 'takeFocusRun.py',
+                    'args': ['4',
+                             '-r', '0.02',
+                             '-n', '1',
+                             '-t', '5',
+                             '--zenith',
+                             '--no-analysis',
+                             '--no-confirm',
+                             ],
+                    }
         flats_m = {'name': 'FLATS',
                    'sunalt': -10,
                    'late_sunalt': -7.55,
                    'script': 'takeFlats.py',
-                   'args': ['MORN'],
+                   'args': ['MORN',
+                            '-c', str(target_counts),
+                            '-n', str(params.NUM_FLATS),
+                            '-f', str(params.FLATS_FILTERS),
+                            ],
                    }
 
-        # self.morning_tasks = [foc_run, flats_m]
-        self.morning_tasks = [flats_m]
+        if not params.PILOT_TAKE_FOCRUNS:
+            self.morning_tasks = [flats_m]
+        else:
+            self.morning_tasks = [focrun_m, flats_m]
 
         # close sunalt
         # (NB we usually finish early, this is the limit used for the night countdown)
@@ -759,6 +802,7 @@ class Pilot:
             self.log.info('next task: {}'.format(name))
 
             # wait for the right sun altitude
+            # TODO: if we haven't reached the late sunalt we should retry if it fails, esp autofocus
             can_start = await self.wait_for_sunalt(sunalt, name, rising,
                                                    late_sunalt if not ignore_late else None)
 
@@ -886,6 +930,10 @@ class Pilot:
             self.log.warning('limiting last_obs_sunalt to {}'.format(until_sunalt))
             last_obs_sunalt = until_sunalt
 
+        last_focrun_time = time.time()
+        focrun_count = 0
+        focrun_positions = [(70, 0), (70, 90), (70, 180), (70, 270), (89.9, 0)]
+
         request_pointing = True
         finishing = False
 
@@ -988,6 +1036,37 @@ class Pilot:
 
             self.scheduler_updating = False
 
+            if params.PILOT_TAKE_FOCRUNS:
+                # NB we could use this same logic to periodically refocus, if necessary
+                time_since_last_run = time.time() - last_focrun_time
+                if (time_since_last_run > params.FOCRUN_PERIOD and
+                        not (self.tasks_pending or self.running_script)):
+                    self.log.debug('focus run timer: {:.2f}h'.format(time_since_last_run / 60 / 60))
+                    self.log.info('taking focus run')
+                    # loop through positions
+                    position = focrun_positions[focrun_count]
+                    execute_command(f'mnt slew_altaz {position[0]:d} {position[1]:d}')
+                    # wait for mount to slew
+                    while True:
+                        await asyncio.sleep(5)
+                        mount_status = self.hardware['mnt'].get_hardware_status()
+                        self.log.debug('mount is {}'.format(mount_status))
+                        if mount_status == 'tracking':
+                            break
+                    # wait for the script to finish, blocking the observing loop
+                    focrun_args = ['4',
+                                   '-r', '0.02',
+                                   '-n', '1',
+                                   '-t', '5',
+                                   '--no-slew',
+                                   '--no-analysis',
+                                   '--no-confirm',
+                                   ]
+                    await self.start_script('FOCRUN-X', 'takeFocusRun.py', args=focrun_args)
+                    # done
+                    last_focrun_time = time.time()
+                    focrun_count += 1
+
             # Exit the loop if we didn't request a pointing.
             # We still want the above scheduler communication to happen if we're paused.
             # If we were observing then pausing should have killed OBS, which will have flagged the
@@ -1036,13 +1115,17 @@ class Pilot:
                     else:
                         # We weren't doing anything, either we just finished one or we were parked
                         if not self.mount_is_tracking:
+                            send_slack_msg('Pilot is resuming observations')
                             await self.unpark_mount()
 
                     # Start the new pointing
                     self.log.debug('starting pointing {}'.format(new_pointing['id']))
-                    asyncio.ensure_future(self.start_script('OBS',
-                                                            'observe.py',
-                                                            args=[str(new_pointing['id'])]))
+                    args = [str(new_pointing['id'])]
+                    if params.OBS_ADJUST_FOCUS:
+                        args.append('--refocus')
+                    elif params.OBS_FOCUS_TEMP_COMPENSATION:
+                        args.append('--temp-compensation')
+                    asyncio.ensure_future(self.start_script('OBS', 'observe.py', args=args))
                     self.current_start_time = time.time()
                     self.current_pointing = new_pointing
                     self.current_status = 'running'
@@ -1055,7 +1138,7 @@ class Pilot:
                     # the scheduler on the next loop.
                     await self.cancel_running_script('obs parking')
                     self.park_mount()
-                    send_slack_msg('Pilot has nothing to observe!')
+                    # send_slack_msg('Pilot has nothing to observe!')
 
             await asyncio.sleep(5)
 
@@ -1098,8 +1181,8 @@ class Pilot:
                     await self.cancel_running_script('bad conditions')
 
                 # always make sure we're closed and parked
+                # (though the dome should already be closing itself)
                 await self.close_dome()
-                self.park_mount()
 
                 # reset the timer for bad conditions tasks to zero
                 self.bad_conditions_tasks_timer = 0
@@ -1219,7 +1302,7 @@ class Pilot:
         self.log.info('finished for tonight')
 
     # Startup and shutdown commands
-    async def startup(self):
+    async def startup(self, send_report=True):
         """Start up the system.
 
         Runs the startup script, sets the startup_complete flag and sends the startup report
@@ -1232,7 +1315,8 @@ class Pilot:
         self.startup_complete = True
 
         # send the startup report
-        send_startup_report(msg='*Pilot reports startup complete*')
+        if send_report:
+            send_startup_report(msg='*Pilot reports startup complete*')
 
         self.log.debug('startup process complete')
 

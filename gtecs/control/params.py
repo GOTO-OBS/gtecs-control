@@ -59,6 +59,7 @@ COMMAND_DEBUG = config['COMMAND_DEBUG']
 ############################################################
 # Daemon parameters
 PYRO_TIMEOUT = config['PYRO_TIMEOUT']
+PYRO_LOGFILE = config['PYRO_LOGFILE']
 DAEMON_CHECK_PERIOD = config['DAEMON_CHECK_PERIOD']
 DAEMON_SLEEP_TIME = config['DAEMON_SLEEP_TIME']
 
@@ -90,6 +91,13 @@ for ut in UT_DICT:
         raise ValueError('No interface defined for UT{}'.format(ut))
 
     # Check hardware dicts
+    if 'OTA' not in UT_DICT[ut]:
+        # All UTs should have an OTA, by definition...
+        raise ValueError('UT {} does not have an OTA defined'.format(ut))
+    if 'MIRROR_COVER' not in UT_DICT[ut]['OTA']:
+        UT_DICT[ut]['OTA']['MIRROR_COVER'] = False
+    else:
+        UT_DICT[ut]['OTA']['MIRROR_COVER'] = UT_DICT[ut]['OTA']['MIRROR_COVER'] != '0'
     for hw_class in ['CAMERA', 'FOCUSER', 'FILTERWHEEL']:
         # Add any `None`s for any missing hardware
         if hw_class not in UT_DICT[ut]:
@@ -100,11 +108,25 @@ for ut in UT_DICT:
             if 'CLASS' not in UT_DICT[ut][hw_class]:
                 raise ValueError('{} for UT {} does not have a valid class'.format(hw_class, ut))
 
+    # Define available filters
+    if UT_DICT[ut]['FILTERWHEEL'] is not None:
+        if UT_DICT[ut]['FILTERWHEEL']['CLASS'] in ['None', 'Static', 'Fixed']:
+            # This UT has a "static" filter wheel, so a fixed filter which be given
+            UT_DICT[ut]['FILTERS'] = [UT_DICT[ut]['FILTERWHEEL']['FILTER']]
+            UT_DICT[ut]['FILTERWHEEL'] = None
+        else:
+            # This UT has a filter wheel with multiple filters
+            UT_DICT[ut]['FILTERS'] = UT_DICT[ut]['FILTERWHEEL']['FILTERS']
+    else:
+        # No filter wheel or fixed filter, so just set to Clear
+        UT_DICT[ut]['FILTERS'] = ['C']
+
 UTS = sorted(UT_DICT)
 UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA'] is not None]
 UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER'] is not None]
 UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not None]
-UTS_WITH_COVERS = [ut for ut in UTS_WITH_FOCUSERS if UT_DICT[ut]['FOCUSER']['CLASS'] == 'ASA']
+UTS_WITH_COVERS = [ut for ut in UTS if UT_DICT[ut]['OTA']['MIRROR_COVER'] is True]
+ALL_FILTERS = sorted({filt for ut in UTS for filt in UT_DICT[ut]['FILTERS']})
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
               for interface_id in DAEMONS
@@ -119,14 +141,10 @@ MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
 WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']
 WEATHER_STATIC = config['WEATHER_STATIC']
 WEATHER_INTERVAL = config['WEATHER_INTERVAL']
-
-EXTERNAL_WEATHER_SOURCES = config['EXTERNAL_WEATHER_SOURCES']
-INTERNAL_WEATHER_SOURCES = config['INTERNAL_WEATHER_SOURCES']
-INTERNAL_WEATHER_FUNCTION = config['INTERNAL_WEATHER_FUNCTION']
+WEATHER_SOURCES = config['WEATHER_SOURCES']
 
 CONDITIONS_JSON_LOCATION = config['CONDITIONS_JSON_LOCATION']
-ROOMALERT_IP = config['ROOMALERT_IP']
-INTDAEMON_URI = config['INTDAEMON_URI']
+DOMEALERT_URI = config['DOMEALERT_URI']
 RAINDAEMON_URI = config['RAINDAEMON_URI']
 
 # Rain
@@ -210,6 +228,8 @@ MOUNT_PORT = config['MOUNT_PORT']
 MOUNT_DEBUG = config['MOUNT_DEBUG']
 FAKE_MOUNT = config['FAKE_MOUNT']
 
+FAKE_MOUNT_PARKING = config['FAKE_MOUNT_PARKING']
+
 MIN_ELEVATION = config['MIN_ELEVATION']
 MAX_HOURANGLE = config['MAX_HOURANGLE']
 
@@ -221,14 +241,98 @@ FAKE_FLI = config['FAKE_FLI']
 FAKE_ASA = config['FAKE_ASA']
 
 ############################################################
-# Filter wheel parameters
-FILTER_LIST = config['FILTER_LIST']
+# Camera parameters
+MIN_EXPOSURE_DELAY = config['MIN_EXPOSURE_DELAY']
+SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
+FRAMETYPE_LIST = config['FRAMETYPE_LIST']
+CAM_IMAGING_TEMPERATURE = config['CAM_IMAGING_TEMPERATURE']
+CAM_STANDBY_TEMPERATURE = config['CAM_STANDBY_TEMPERATURE']
+COMPRESS_IMAGES = config['COMPRESS_IMAGES']
+MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 
 ############################################################
-# Focuser parameters
+# Exposure Queue parameters
+EXQ_DITHERING = config['EXQ_DITHERING']
+DITHERING_DURATION = config['DITHERING_DURATION']
+
+############################################################
+# Power parameters
+POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
+POWER_CHECK_SCRIPT = '_power_status'
+POWER_UNITS = config['POWER_UNITS']
+POWER_GROUPS = config['POWER_GROUPS']
+DASHBOARD_ALLOWED_OUTLETS = config['DASHBOARD_ALLOWED_OUTLETS']
+OBSERVING_OFF_OUTLETS = config['OBSERVING_OFF_OUTLETS']
+
+############################################################
+# Dome parameters
+FAKE_DOME = config['FAKE_DOME']
+DOME_DEBUG = config['DOME_DEBUG']
+
+DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
+DOME_LOCATION = config['DOME_LOCATION']
+
+DOME_IGNORE_SWITCH_ERRORS = config['DOME_IGNORE_SWITCH_ERRORS']
+
+DOME_HEARTBEAT_LOCATION = config['DOME_HEARTBEAT_LOCATION']
+DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
+
+HATCH_OPEN_DELAY = config['HATCH_OPEN_DELAY']
+
+QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
+QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
+
+DOME_OPEN_NORTH_TIME = config['DOME_OPEN_NORTH_TIME']
+DOME_OPEN_SOUTH_TIME = config['DOME_OPEN_SOUTH_TIME']
+DOME_CLOSE_NORTH_TIME = config['DOME_CLOSE_NORTH_TIME']
+DOME_CLOSE_SOUTH_TIME = config['DOME_CLOSE_SOUTH_TIME']
+DOME_MOVE_TIMEOUT = config['DOME_MOVE_TIMEOUT']
+DOME_MOVE_TIMESTEP = config['DOME_MOVE_TIMESTEP']
+
+DOME_STUTTER_TIME = config['DOME_STUTTER_TIME']
+DOME_STUTTER_TIMESTEP = config['DOME_STUTTER_TIMESTEP']
+
+DOME_HAS_BUMPERGUARD = config['DOME_HAS_BUMPERGUARD']
+DOME_WINDSHIELD_PERMITTED = config['DOME_WINDSHIELD_PERMITTED']
+DOME_WINDSHIELD_POSITION = config['DOME_WINDSHIELD_POSITION']
+
+EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
+
+############################################################
+# Scheduler parameters
+SCHEDULER_HOST = config['SCHEDULER_HOST']
+SCHEDULER_PORT = config['SCHEDULER_PORT']
+
+############################################################
+# Pilot parameters
+NUM_DARKS = config['NUM_DARKS']
+PILOT_TAKE_EXTRA_DARKS = config['PILOT_TAKE_EXTRA_DARKS']
+
+NUM_FLATS = config['NUM_FLATS']
+FLATS_FILTERS = config['FLATS_FILTERS']
+if FLATS_FILTERS == 'all':  # default
+    FLATS_FILTERS = ','.join(ALL_FILTERS)
+FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
+
+OBS_ADJUST_FOCUS = config['OBS_ADJUST_FOCUS']
+OBS_FOCUS_TEMP_COMPENSATION = config['OBS_FOCUS_TEMP_COMPENSATION']
+OBS_FOCUS_IMAGES = config['OBS_FOCUS_IMAGES']
+
+AUTOFOCUS_SLACK_REPORTS = config['AUTOFOCUS_SLACK_REPORTS']
+
+PILOT_TAKE_FOCRUNS = config['PILOT_TAKE_FOCRUNS']
+FOCRUN_PERIOD = config['FOCRUN_PERIOD']
+
+BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
+
+############################################################
+# Day marshal parameters
+IERS_A_URL = config['IERS_A_URL']
+IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
+
+############################################################
+# Obs script parameters
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
-# Only UTs with focusers should have params here, but not necessarily all of them
-# Also we need to be careful with types
 AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
                     for ut in AUTOFOCUS_PARAMS
                     if int(ut) in UTS_WITH_FOCUSERS}
@@ -262,92 +366,6 @@ for ut in AUTOFOCUS_PARAMS:
     AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
     AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
     AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = float(AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'])
-FOCUS_SLACK_REPORTS = config['FOCUS_SLACK_REPORTS']
-FOCUS_COMPENSATION_TEST = config['FOCUS_COMPENSATION_TEST']
-FOCUS_COMPENSATION_VERBOSE = config['FOCUS_COMPENSATION_VERBOSE']
-
-############################################################
-# Camera parameters
-MIN_EXPOSURE_DELAY = config['MIN_EXPOSURE_DELAY']
-SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
-FRAMETYPE_LIST = config['FRAMETYPE_LIST']
-CCD_TEMP = config['CCD_TEMP']
-COMPRESS_IMAGES = config['COMPRESS_IMAGES']
-MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
-
-############################################################
-# Exposure Queue parameters
-EXQ_DITHERING = config['EXQ_DITHERING']
-DITHERING_DIRECTION = config['DITHERING_DIRECTION']
-DITHERING_DURATION = config['DITHERING_DURATION']
-
-############################################################
-# Power parameters
-POWER_CHECK_PERIOD = config['POWER_CHECK_PERIOD']
-POWER_CHECK_SCRIPT = '_power_status'
-POWER_UNITS = config['POWER_UNITS']
-POWER_GROUPS = config['POWER_GROUPS']
-DASHBOARD_ALLOWED_OUTLETS = config['DASHBOARD_ALLOWED_OUTLETS']
-OBSERVING_OFF_OUTLETS = config['OBSERVING_OFF_OUTLETS']
-
-############################################################
-# Dome parameters
-FAKE_DOME = config['FAKE_DOME']
-DOME_DEBUG = config['DOME_DEBUG']
-
-DOME_CHECK_PERIOD = config['DOME_CHECK_PERIOD']
-DOME_LOCATION = config['DOME_LOCATION']
-
-ARDUINO_LOCATION = config['ARDUINO_LOCATION']
-if ARDUINO_LOCATION == 'unknown':
-    ARDUINO_LOCATION = None
-DOME_IGNORE_SWITCH_ERRORS = config['DOME_IGNORE_SWITCH_ERRORS']
-
-DOME_HEARTBEAT_LOCATION = config['DOME_HEARTBEAT_LOCATION']
-DOME_HEARTBEAT_PERIOD = config['DOME_HEARTBEAT_PERIOD']
-
-HATCH_OPEN_DELAY = config['HATCH_OPEN_DELAY']
-
-QUICK_CLOSE_BUTTON = config['QUICK_CLOSE_BUTTON']
-QUICK_CLOSE_BUTTON_PORT = config['QUICK_CLOSE_BUTTON_PORT']
-
-DOME_OPEN_NORTH_TIME = config['DOME_OPEN_NORTH_TIME']
-DOME_OPEN_SOUTH_TIME = config['DOME_OPEN_SOUTH_TIME']
-DOME_CLOSE_NORTH_TIME = config['DOME_CLOSE_NORTH_TIME']
-DOME_CLOSE_SOUTH_TIME = config['DOME_CLOSE_SOUTH_TIME']
-DOME_MOVE_TIMEOUT = config['DOME_MOVE_TIMEOUT']
-DOME_MOVE_TIMESTEP = config['DOME_MOVE_TIMESTEP']
-
-DOME_STUTTER_TIME = config['DOME_STUTTER_TIME']
-DOME_STUTTER_TIMESTEP = config['DOME_STUTTER_TIMESTEP']
-
-DOME_HAS_BUMPERGUARD = config['DOME_HAS_BUMPERGUARD']
-
-DEHUMIDIFIER_IP = config['DEHUMIDIFIER_IP']
-DEHUMIDIFIER_PORT = config['DEHUMIDIFIER_PORT']
-
-EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
-
-############################################################
-# Obs script parameters
-FLATS_SKYMEANTARGET_EVEN = config['FLATS_SKYMEANTARGET_EVEN']
-FLATS_SKYMEANTARGET_ODD = config['FLATS_SKYMEANTARGET_ODD']
-FLATS_NUM = config['FLATS_NUM']
-FLATS_MAXEXPTIME = config['FLATS_MAXEXPTIME']
-FLATS_STEPSIZE = config['FLATS_STEPSIZE']
-
-IERS_A_URL = config['IERS_A_URL']
-IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
-
-########################################################################
-# Scheduler parameters
-SCHEDULER_HOST = config['SCHEDULER_HOST']
-SCHEDULER_PORT = config['SCHEDULER_PORT']
-
-############################################################
-# Pilot parameters
-NUM_DARKS = config['NUM_DARKS']
-BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 
 ############################################################
 # Slack bot parameters

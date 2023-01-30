@@ -8,6 +8,8 @@ import threading
 import time
 import urllib
 
+import Pyro4
+
 import serial  # noqa: I900
 
 from .power import ETHPDU
@@ -189,6 +191,10 @@ class FakeDome:
         if self.status[side] in ['opening', 'closing']:
             return
 
+        # limit move fraction
+        if frac > 1:
+            frac = 1
+
         # start output thread
         if not self.output_thread_running:
             if self.log:
@@ -228,6 +234,8 @@ class AstroHavenDome:
         Connection IP for the Arduino with additional switches
     roomalert_ip : str, optional
         Connection IP for the RoomAlert with additional switches
+    domealert_uri : str, optional
+        Pyro URI for the DomeAlert with additional switches
 
     log : logger, optional
         logger to log to
@@ -238,7 +246,8 @@ class AstroHavenDome:
 
     """
 
-    def __init__(self, port, arduino_ip=None, roomalert_ip=None, log=None, log_debug=False):
+    def __init__(self, port, arduino_ip=None, roomalert_ip=None, domealert_uri=None,
+                 log=None, log_debug=False):
         self.serial_port = port
         self.serial_baudrate = 9600
         self.serial_timeout = 1
@@ -251,8 +260,14 @@ class AstroHavenDome:
             roomalert_ip = 'http://' + roomalert_ip
         self.roomalert_ip = roomalert_ip
 
-        if arduino_ip and roomalert_ip:
-            raise ValueError('Either `arduino_ip` or `roomalert_ip` can be given, but not both.')
+        if domealert_uri and not domealert_uri.startswith('PYRO'):
+            domealert_uri = 'PYRO:' + domealert_uri
+        self.domealert_uri = domealert_uri
+
+        if ((arduino_ip and roomalert_ip) or
+                (arduino_ip and domealert_uri) or
+                (roomalert_ip and domealert_uri)):
+            raise ValueError('Only one source of switches should be given.')
 
         # Create a logger if one isn't given
         if log is None:
@@ -450,6 +465,30 @@ class AstroHavenDome:
                        }
         return switch_dict
 
+    def _read_domealert(self):
+        with Pyro4.Proxy(self.domealert_uri) as pyro_daemon:
+            pyro_daemon._pyroSerializer = 'serpent'
+            data = pyro_daemon.last_measurement()
+
+        if self.log and self.log_debug:
+            self.log.debug('domealert RECV:"{}"'.format(data))
+
+        if 'hatch_closed' not in data or data['hatch_closed_valid'] is False:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'north_shutter_open' not in data or data['north_shutter_open_valid'] is False:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'south_shutter_open' not in data or data['south_shutter_open_valid'] is False:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+        if 'shutters_closed' not in data or data['shutters_closed_valid'] is False:
+            raise ValueError('Unexpected switch status: {}'.format(data))
+
+        switch_dict = {'all_closed': bool(data['shutters_closed']),
+                       'north_open': bool(data['north_shutter_open']),
+                       'south_open': bool(data['south_shutter_open']),
+                       'hatch_closed': bool(data['hatch_closed']),
+                       }
+        return switch_dict
+
     def _read_switches(self, attempts=3):
         attempts_remaining = attempts
         while attempts_remaining:
@@ -458,6 +497,8 @@ class AstroHavenDome:
                     switch_dict = self._read_arduino()
                 elif self.roomalert_ip is not None:
                     switch_dict = self._read_roomalert()
+                elif self.domealert_uri is not None:
+                    switch_dict = self._read_domealert()
                 else:
                     switch_dict = None
                 self._parse_switch_status(switch_dict)
@@ -702,6 +743,10 @@ class AstroHavenDome:
         # Don't interrupt!
         if self.status[side] in ['opening', 'closing']:
             return
+
+        # limit move fraction
+        if frac > 1:
+            frac = 1
 
         # start output thread
         if not self.output_thread_running:
@@ -962,7 +1007,7 @@ class FakeDehumidifier:
         return self._status
 
 
-class Dehumidifier:
+class ETH002Dehumidifier:
     """Dehumidifier class (using a ETH002 relay)."""
 
     def __init__(self, address, port):
@@ -982,3 +1027,32 @@ class Dehumidifier:
     def status(self):
         """Get the dehumidifier status."""
         return self.power.status()[0]
+
+
+class Dehumidifier:
+    """Dehumidifier class (using Paul's DomeAlert)."""
+
+    def __init__(self, uri):
+        self.uri = uri
+
+    def _proxy(self):
+        proxy = Pyro4.Proxy(self.uri)
+        proxy._pyroSerializer = 'serpent'
+        return proxy
+
+    def on(self):
+        """Turn on the dehumidifier."""
+        with self._proxy() as proxy:
+            proxy.set_relay(True)
+
+    def off(self):
+        """Turn off the dehumidifier."""
+        with self._proxy() as proxy:
+            proxy.set_relay(False)
+
+    @property
+    def status(self):
+        """Get the dehumidifier status."""
+        with self._proxy() as proxy:
+            status = proxy.get_relay()
+        return status

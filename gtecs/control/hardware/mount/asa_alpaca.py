@@ -42,7 +42,9 @@ class DDM500:
 
     """
 
-    def __init__(self, address, port, api_version=1, device_number=0, log=None, log_debug=False):
+    def __init__(self, address, port, api_version=1, device_number=0,
+                 fake_parking=False,
+                 log=None, log_debug=False):
         self.address = address
         self.port = port
         self.api_version = api_version
@@ -50,6 +52,10 @@ class DDM500:
         self.base_url = f'http://{address}:{port}/api/v{api_version}/telescope/{device_number}/'
         self.client_id = random.randint(0, 2**32)
         self.transaction_count = 0
+
+        # These are to acocunt for errors in AutoSlew which mean we can't use the park functions
+        self._fake_parking = fake_parking
+        self._fake_parked = False
 
         self._status_update_time = 0
 
@@ -277,6 +283,8 @@ class DDM500:
     @property
     def parked(self):
         """Return if the mount is currently parked."""
+        if self._fake_parking:
+            return self._fake_parked
         self._update_status()
         return self._parked
 
@@ -405,12 +413,32 @@ class DDM500:
         """Start tracking at the siderial rate."""
         self._http_put('tracking', {'Tracking': True})
 
+    def _stop_tracking(self):
+        """Stop the mount tracking if we're faking parking."""
+        time.sleep(2)  # So it should have started moving
+        while True:
+            if self.status == 'Tracking':
+                self.halt()
+                break
+            time.sleep(0.5)
+        time.sleep(2)  # So it's stopped
+        self._fake_parked = True
+
     def park(self):
         """Move mount to park position."""
+        if self._fake_parking:
+            # Need to fake a move to a default park position
+            self.slew_to_altaz(alt=40, az=0)
+            t = threading.Thread(target=self._stop_tracking)
+            t.start()
+            return
         self._http_put('park')
 
     def unpark(self):
         """Unpark the mount so it can accept slew commands."""
+        if self._fake_parking:
+            self._fake_parked = False
+            return
         self._http_put('unpark')
 
     def halt(self):

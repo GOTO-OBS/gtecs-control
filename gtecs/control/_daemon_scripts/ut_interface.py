@@ -4,6 +4,7 @@
 import argparse
 import json
 import multiprocessing as mp
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -61,7 +62,7 @@ class UTInterfaceDaemon(BaseDaemon):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
 
-        while(self.running):
+        while self.running:
             self.loop_time = time.time()
 
             # system check
@@ -73,7 +74,7 @@ class UTInterfaceDaemon(BaseDaemon):
                 self._connect()
 
                 # If there is an error then the connection failed.
-                # Keep looping, it should retry the connection until it's sucsessful
+                # Keep looping, it should retry the connection until it's successful
                 if self.hardware_error:
                     continue
 
@@ -177,7 +178,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         # Try to connect only if neither UTs are connected. We set the focuser_hubs
                         # dict in __init__ to match the two UTs by port.
                         hub_uts = self.focuser_hubs[hw_params['PORT']]
-                        # Always try to connect to the lower UT number, to simplfy things.
+                        # Always try to connect to the lower UT number, to simplify things.
                         if ut == min(hub_uts):
                             focuser = FocusLynxHub.locate_device(hw_params['PORT'])
                         else:
@@ -239,7 +240,7 @@ class UTInterfaceDaemon(BaseDaemon):
                         if 'SERIAL' not in hw_params:
                             raise ValueError('Missing serial number')
                         if 'PORT' in hw_params:
-                            # Deal with unserialized hardware
+                            # Deal with non-serialised hardware
                             filterwheel = FLIFilterWheel.locate_device(hw_params['PORT'])
                             filterwheel.serial_number = hw_params['SERIAL']
                         else:
@@ -274,7 +275,7 @@ class UTInterfaceDaemon(BaseDaemon):
         self._check_errors()
 
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info
@@ -284,9 +285,16 @@ class UTInterfaceDaemon(BaseDaemon):
         temp_info['uptime'] = self.loop_time - self.start_time
 
         temp_info['interface_id'] = self.daemon_id
+        temp_info['uts'] = list(self.uts)
 
+        # Get OTA info
+        temp_info['ota_uts'] = [ut for ut in self.ota_params if self.ota_params[ut] is not None]
+        temp_info['ota_params'] = self.ota_params
         temp_info['ota_serials'] = {ut: self.ota_params[ut]['SERIAL'] for ut in self.ota_params}
 
+        # Get Camera info
+        temp_info['cam_uts'] = [ut for ut in self.cam_params if self.cam_params[ut] is not None]
+        temp_info['cam_params'] = self.cam_params
         temp_info['cam_serials'] = {}
         for ut in self.cameras:
             # Get info from each camera
@@ -304,6 +312,9 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
+        # Get Focuser info
+        temp_info['foc_uts'] = [ut for ut in self.foc_params if self.foc_params[ut] is not None]
+        temp_info['foc_params'] = self.foc_params
         temp_info['foc_serials'] = {}
         for ut in self.focusers:
             # Get info from each focuser
@@ -321,6 +332,9 @@ class UTInterfaceDaemon(BaseDaemon):
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
 
+        # Get Filter Wheel info
+        temp_info['filt_uts'] = [ut for ut in self.filt_params if self.filt_params[ut] is not None]
+        temp_info['filt_params'] = self.filt_params
         temp_info['filt_serials'] = {}
         for ut in self.filterwheels:
             # Get info from each filterwheel
@@ -337,13 +351,6 @@ class UTInterfaceDaemon(BaseDaemon):
                     hw_name = 'filterwheel_{}'.format(ut)
                     if hw_name not in self.bad_hardware:
                         self.bad_hardware.add(hw_name)
-
-        # Get other internal info
-        temp_info['uts'] = list(self.uts)
-        temp_info['ota_params'] = self.ota_params
-        temp_info['cam_params'] = self.cam_params
-        temp_info['foc_params'] = self.foc_params
-        temp_info['filt_params'] = self.filt_params
 
         # Write debug log line
         # NONE, nothing really changes
@@ -567,14 +574,14 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def fetch_exposure(self, ut):
         """Fetch the image."""
-        self.log.info('Camera {} fetching image'.format(ut))
+        self.log.info('Camera {} fetching image (from fetch_exposure)'.format(ut))
         return self.cameras[ut].fetch_image()
 
     def fetch_exposures(self):
         """Fetch images from all cameras."""
         images = {}
         for ut in self.uts:
-            self.log.info('Camera {} fetching image'.format(ut))
+            self.log.info('Camera {} fetching image (from fetch_exposures)'.format(ut))
             try:
                 images[ut] = self.cameras[ut].fetch_image()
             except IndexError:
@@ -592,30 +599,72 @@ class UTInterfaceDaemon(BaseDaemon):
             filename = glance_location(ut, tel_number)
 
         self.log.info('Camera {} saving image to {}'.format(ut, filename))
-        save_fits(hdu, filename, log=self.log, confirm=False)
-        self.log.info('Camera {} saved image'.format(ut))
+        save_fits(hdu, filename, log=self.log, log_debug=True, fancy_log=False)
+        # Check that the file was created
+        exists = os.path.isfile(filename)
+        if exists:
+            self.log.info('Camera {} saved image'.format(ut))
+        else:
+            self.log.warning('Camera {} did not save image correctly'.format(ut))
 
-    def save_exposure(self, ut, all_info, compress=False, method='proc'):
+    def save_exposure(self, ut, all_info, compress=False, measure_hfds=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
-        self.log.info('Camera {} fetching image'.format(ut))
+        self.log.info('Camera {} fetching image (from save_exposure)'.format(ut))
         image_data = self.cameras[ut].fetch_image()
-        hdu = make_fits(image_data, ut, all_info, compress, log=self.log)
+        if image_data is None:
+            self.log.error(f'Camera {ut} failed to write image (nothing returned)')
+            return None
+
+        hdu = make_fits(image_data, ut, all_info,
+                        compress=compress,
+                        measure_hfds=measure_hfds,
+                        log=self.log)
 
         if method == 'proc':
             # Start image saving in a new process
             p = mp.Process(target=self._write_fits, args=[hdu])
             p.start()
+            p.join()  # Note this means we're not actually running in parallel
+            self.log.info(f'Camera {ut} saving complete')
         elif method == 'thread':
             # Start image saving in a new thread
             t = threading.Thread(target=self._write_fits, args=[hdu])
             t.daemon = True
             t.start()
+            # self.log.info(f'Camera {ut} saving complete')  # No log, we return before it finishes
+        elif method == 'thread2':
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                pool.map(self._write_fits, [hdu])
         else:
             # Just save directly here
             self._write_fits(hdu)
+            self.log.info(f'Camera {ut} saving complete')
 
         # return the image header
         return hdu.header
+
+    def save_exposures(self, all_info, compress=False, measure_hfds=False, method='proc'):
+        """Fetch the image data and save to a FITS file."""
+        self.log.info('Fetching images from all cameras (from save_exposures)')
+
+        image_data = self.fetch_exposures()
+        hdus = {ut: make_fits(image_data[ut], ut, all_info,
+                              compress=compress,
+                              measure_hfds=measure_hfds,
+                              log=self.log)
+                for ut in image_data}
+
+        if method == 'pool':
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                pool.map(self._write_fits, [hdus[ut] for ut in hdus])
+        else:
+            # Just save directly here
+            for ut in hdus:
+                self._write_fits(hdus[ut])
+                self.log.info(f'Camera {ut} saving complete')
+
+        # return the image headers
+        return {ut: hdus[ut].header for ut in hdus}
 
     def abort_exposure(self, ut):
         """Abort current exposure."""
@@ -624,7 +673,8 @@ class UTInterfaceDaemon(BaseDaemon):
 
     def clear_exposure_queue(self, ut):
         """Clear exposure queue."""
-        self.log.info('Camera {} clearing exposure queue'.format(ut))
+        n = self.get_camera_queue_length(ut)
+        self.log.info('Camera {} clearing {} images from exposure queue'.format(ut, n))
         self.cameras[ut].image_queue.clear()
 
     def set_camera_temp(self, target_temp, ut):
@@ -663,7 +713,7 @@ class UTInterfaceDaemon(BaseDaemon):
         self.cameras[ut].set_image_size(x, y, dx, dy)
 
     def get_camera_info(self, ut):
-        """Return camera infomation dictionary."""
+        """Return camera information dictionary."""
         return self.cameras[ut].get_info()
 
     def get_camera_state(self, ut):
@@ -674,6 +724,10 @@ class UTInterfaceDaemon(BaseDaemon):
         """Return True if data is available."""
         return self.cameras[ut].dataAvailable
 
+    def get_camera_queue_length(self, ut):
+        """Get the number of images in the image queue."""
+        return len(self.cameras[ut].image_queue)
+
     def get_camera_time_remaining(self, ut):
         """Return exposure time remaining."""
         return self.cameras[ut].get_exposure_timeleft() / 1000.
@@ -683,7 +737,7 @@ class UTInterfaceDaemon(BaseDaemon):
         return self.cameras[ut].get_temperature(temp_type)
 
     def get_camera_cooler_power(self, ut):
-        """Return peltier cooler power."""
+        """Return Peltier cooler power."""
         return self.cameras[ut].get_cooler_power()
 
     def get_camera_image_size(self, ut):

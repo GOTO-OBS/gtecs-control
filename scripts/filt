@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A script to provide control over the filt daemon."""
 
+import json
 import os
 import sys
 
@@ -82,7 +83,7 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
         elif info_type == 'raw':
-            print(reply)
+            print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -101,17 +102,17 @@ def query(command, args):
         # parse arguments
         if len(args) == 1:
             # filt set <filt>
-            filt = args[0].upper()
+            filt = args[0]
             filt_dict = {ut: filt for ut in params.UTS_WITH_FILTERWHEELS}
         elif len(args) == 2 and len(args[1]) == 1:
             # filt set <ut>[,<ut>...] <filt>
             ut_list = [int(x) for x in args[0].split(',')]
-            filt = args[1].upper()
+            filt = args[1]
             filt_dict = {ut: filt for ut in ut_list}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # filt set <ut>[,<ut>...] <filt>[,<filt>...]
             ut_list = [int(x) for x in args[0].split(',')]
-            filt_list = [x.upper() for x in args[1].split(',')]
+            filt_list = args[1].split(',')
             filt_dict = {ut: filt for ut, filt in zip(ut_list, filt_list)}
         else:
             raise errors.InputError('Invalid arguments')
@@ -135,11 +136,9 @@ def query(command, args):
 
     # Other functions
     elif command in ['list', 'ls']:
-        # send command
-        reply = daemons.daemon_function('filt', 'get_info', [False])
         # print response
-        for ut in params.UTS_WITH_FILTERWHEELS:
-            print('UT{} filters: {}'.format(ut, ','.join(reply[ut]['filters'])))
+        for ut in sorted(params.UT_DICT):
+            print('UT{} filters: {}'.format(ut, ','.join(params.UT_DICT[ut]['FILTERS'])))
 
     # Unrecognized function
     else:
@@ -149,7 +148,7 @@ def query(command, args):
 def print_info(info):
     """Print the full info dict."""
     print('#### FILTER WHEEL INFO ####')
-    for ut in params.UTS_WITH_FILTERWHEELS:
+    for ut in info['uts']:
         print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         if info[ut]['status'] != 'Moving':
             print('Status: {}'.format(info[ut]['status']))
@@ -161,6 +160,7 @@ def print_info(info):
             print('Status: {} ({})'.format(info[ut]['status'], info[ut]['remaining']))
             print('Current filter:     N/A')
         print('Current filter num: {}'.format(info[ut]['current_filter_num']))
+        print('Filters:            {}'.format(','.join(info[ut]['filters'])))
         print('Current motor pos:  {}'.format(info[ut]['current_pos']))
         print('Serial number:      {}'.format(info[ut]['serial_number']))
         print('Hardware class:     {}'.format(info[ut]['hw_class']))
@@ -172,7 +172,7 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS_WITH_FILTERWHEELS:
+    for ut in info['uts']:
         print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
         if info[ut]['status'] != 'Moving':
             if not info[ut]['homed']:

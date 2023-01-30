@@ -174,7 +174,7 @@ def radec_from_altaz(alt_deg, az_deg, time=None, location=None):
     return (radec_coords.ra.degree, radec_coords.dec.degree)
 
 
-def get_sunalt(time=None):
+def get_sunalt(time=None, location=None):
     """Calculate the altitude of the Sun at the given time.
 
     Parameters
@@ -182,6 +182,9 @@ def get_sunalt(time=None):
     time : `~astropy.time.Time`, optional
         time to check
         default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
 
     Returns
     -------
@@ -190,15 +193,16 @@ def get_sunalt(time=None):
     """
     if time is None:
         time = Time.now()
+    if location is None:
+        location = observatory_location()
+
     sun = get_sun(time)
-    loc = observatory_location()
-    altaz_frame = AltAz(obstime=time, location=loc)
+    altaz_frame = AltAz(obstime=time, location=location)
     altaz_coo = sun.transform_to(altaz_frame)
     return altaz_coo.alt.degree
 
 
-@u.quantity_input(horizon=u.deg)
-def get_night_times(time, site=None, horizon=-15 * u.deg):
+def get_night_times(time=None, location=None, horizon=-15):
     """Calculate the night start and stop times for a given time.
 
     If the time is during the night the times for that night are returned.
@@ -206,11 +210,12 @@ def get_night_times(time, site=None, horizon=-15 * u.deg):
 
     Parameters
     ----------
-    time : `astropy.time.Time`
+    time : `astropy.time.Time`, optional
         night starting date
-    site : `astropy.coordinates.EarthLocation`
-        the site to consider
-        Default uses observatory_location() (defaults to La Palma)
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
     horizon : float, optional
         horizon below which night is defined
         default is -15 degrees
@@ -221,44 +226,61 @@ def get_night_times(time, site=None, horizon=-15 * u.deg):
         The time the Sun sets and rises for the selected night
 
     """
-    if site is None:
-        site = observatory_location()
-
-    observer = Observer(location=site)
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+    observer = Observer(location=location)
 
     if observer.is_night(time, horizon=horizon):
         # The time is during the night
-        sun_set_time = observer.sun_set_time(time, which='previous', horizon=horizon)
+        sun_set_time = observer.sun_set_time(time, which='previous', horizon=horizon * u.deg)
     else:
         # The time is during the day
-        sun_set_time = observer.sun_set_time(time, which='next', horizon=horizon)
-    sun_rise_time = observer.sun_rise_time(sun_set_time, which='next', horizon=horizon)
+        sun_set_time = observer.sun_set_time(time, which='next', horizon=horizon * u.deg)
+    sun_rise_time = observer.sun_rise_time(sun_set_time, which='next', horizon=horizon * u.deg)
 
     return sun_set_time, sun_rise_time
 
 
-def twilight_length(date):
+def twilight_length(time=None, location=None, horizon=-15):
     """Twilight length for night starting on given date.
 
     Parameters
     ----------
-    date : string
-        night starting date (YYYY-MM-DD)
+    time : `astropy.time.Time`, optional
+        night starting date
+        default = Time.now()
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
+    horizon : float, optional
+        horizon below which night is defined
+        default is -15 degrees
 
     Returns
     -------
-    twilength : `astropy.units.Quantity`
-        length of astronomical twilight
+    twilight_length : float
+        length of astronomical twilight in minutes
 
     """
-    noon = Time(date + ' 12:00:00')
-    observer = Observer(location=observatory_location())
-    sun_set_time = observer.sun_set_time(noon, which='next')
-    twilight_end = observer.sun_set_time(noon, which='next', horizon=-18 * u.deg)
-    return (twilight_end - sun_set_time).to(u.min)
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+    observer = Observer(location=location)
+
+    if observer.is_night(time, horizon=0 * u.deg):
+        # The time is after twilight has started
+        twilight_start = observer.sun_set_time(time, which='previous', horizon=0 * u.deg)
+    else:
+        # The time is during the day
+        twilight_start = observer.sun_set_time(time, which='next', horizon=0 * u.deg)
+    twilight_end = observer.sun_set_time(twilight_start, which='next', horizon=horizon * u.deg)
+    return (twilight_end - twilight_start).to(u.min).value
 
 
-def local_midnight(date):
+def local_midnight(date, location=None):
     """Find the UT time of local midnight.
 
     Parameters
@@ -266,14 +288,21 @@ def local_midnight(date):
     date : string
         night starting date (YYYY-MM-DD)
 
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
+
     Returns
     -------
     midnight : `astropy.time.Time`
         time of local midnight in UT
 
     """
+    if location is None:
+        location = observatory_location()
+    observer = Observer(location=location)
+
     noon = Time(date + ' 12:00:00')
-    observer = Observer(location=observatory_location())
     return observer.midnight(noon, 'next')
 
 
@@ -286,7 +315,7 @@ def night_startdate():
 
 
 @u.quantity_input(sunalt=u.deg)
-def sunalt_time(date, sunalt, eve=True):
+def sunalt_time(date, sunalt, eve=True, location=None):
     """Find the time when the sun is at sunalt.
 
     Parameters
@@ -298,13 +327,20 @@ def sunalt_time(date, sunalt, eve=True):
     eve : bool
         True for an evening calculation, false for morning
 
+    location : `~astropy.coordinates.EarthLocation`, optional
+        observatory location
+        default = observatory_location()
+
     Returns
     -------
-    goTime : `astropy.time.Time`
+    time : `astropy.time.Time`
         time when sun is at that altitude
 
     """
-    observer = Observer(location=observatory_location())
+    if location is None:
+        location = observatory_location()
+    observer = Observer(location=location)
+
     if eve:
         start = Time(date + ' 12:00:00')
         return observer.sun_set_time(start, which='next', horizon=sunalt)
@@ -500,7 +536,7 @@ def get_moon_params(time=None):
 
 
 def get_moon_distance(ra_deg, dec_deg, time):
-    """Get the angular seperation of the given coordinates from the Moon at the given time.
+    """Get the angular separation of the given coordinates from the Moon at the given time.
 
     Parameters
     ----------
@@ -516,7 +552,7 @@ def get_moon_distance(ra_deg, dec_deg, time):
     Returns
     -------
     sep : float or np.ndarray
-        angular seperations in degrees
+        angular separation in degrees
 
     """
     if time is None:

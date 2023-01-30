@@ -9,18 +9,24 @@ from argparse import ArgumentParser
 from gtecs.common.system import NeatCloser, execute_command
 from gtecs.control import params
 from gtecs.control.daemons import daemon_function
-from gtecs.control.focusing import refocus
+from gtecs.control.focusing import (focus_temp_compensation, get_focuser_positions, refocus,
+                                    set_focuser_positions)
 from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
 from gtecs.control.observing import (prepare_for_images, slew_to_radec,
                                      wait_for_exposure_queue, wait_for_mount)
 from gtecs.control.scheduling import get_pointing_info
 
 
-def handle_interrupt(pointing_id, start_time, min_time):
+def handle_interrupt(pointing_id, start_time, min_time, initial_focus=None):
     """Long and return the correct error code depending on min time."""
     print('Interrupt caught')
     elapsed_time = time.time() - start_time
     print('Elapsed time: {:.0f}s'.format(elapsed_time))
+
+    if initial_focus is not None:
+        print('Restoring original focus positions...')
+        set_focuser_positions(initial_focus)  # No need to wait
+
     if min_time is None:
         # Return retcode 1
         print('Pointing {} was interrupted'.format(pointing_id))
@@ -41,28 +47,28 @@ def handle_interrupt(pointing_id, start_time, min_time):
 class InterruptedPointingCloser(NeatCloser):
     """A class to neatly handle shutdown requests."""
 
-    def __init__(self, pointing_id, start_time, min_time=None):
-        super().__init__(taskname='Script')
+    def __init__(self, pointing_id, start_time, min_time=None, initial_focus=None):
+        super().__init__('Script')
         self.pointing_id = pointing_id
         self.start_time = start_time
         self.min_time = min_time
+        self.initial_focus = initial_focus
 
     def tidy_up(self):
         """Mark the Pointing correctly."""
-        retcode = handle_interrupt(self.pointing_id, self.start_time, self.min_time)
+        retcode = handle_interrupt(
+            self.pointing_id,
+            self.start_time,
+            self.min_time,
+            self.initial_focus,
+        )
         sys.exit(retcode)
 
 
-def run(pointing_id):
+def run(pointing_id, adjust_focus=False, temp_compensation=False):
     """Run the observe routine."""
     # make sure hardware is ready
     prepare_for_images()
-    refocus(params.FOCUS_COMPENSATION_TEST, params.FOCUS_COMPENSATION_VERBOSE)
-
-    # Clear & pause queue to make sure
-    execute_command('exq clear')
-    execute_command('exq pause')
-    execute_command('cam abort')
 
     # Get the Pointing information from the scheduler
     pointing_info = get_pointing_info(pointing_id)
@@ -70,13 +76,35 @@ def run(pointing_id):
     start_time = time.time()
 
     # Catch any interrupts or exceptions from now on
-    InterruptedPointingCloser(pointing_id, start_time, min_time=pointing_info['min_time'])
+    if adjust_focus or temp_compensation:
+        # If the script is interrupted we need the closer to restore the original focus positions.
+        initial_positions = get_focuser_positions()
+        InterruptedPointingCloser(pointing_id, start_time, min_time=pointing_info['min_time'],
+                                  initial_focus=initial_positions)
+    else:
+        InterruptedPointingCloser(pointing_id, start_time, min_time=pointing_info['min_time'])
+
     try:
-        # Start slew
+        # Slew the mount (timeout 120s)
         print('Moving to target')
         slew_to_radec(pointing_info['ra'], pointing_info['dec'])
+        wait_for_mount(pointing_info['ra'], pointing_info['dec'], timeout=120)
+        print('In position')
 
-        # Add exposures while slewing to save time
+        # Adjust focus first, if requested
+        if adjust_focus or temp_compensation:
+            try:
+                if adjust_focus:
+                    refocus(take_test_images=params.OBS_FOCUS_IMAGES)
+                elif temp_compensation:
+                    focus_temp_compensation(take_images=params.OBS_FOCUS_IMAGES, verbose=True)
+            except Exception:
+                # We can reset but don't interrupt the pointing
+                print('Error caught: Restoring original focus positions...')
+                set_focuser_positions(initial_positions, timeout=60)
+                print('Focus reset, continuing with observing routine')
+
+        # Add pointing exposures
         print('Adding exposures to queue')
         if len(pointing_info['exposure_sets']) == 0:
             raise ValueError('No exposure sets found')
@@ -118,11 +146,8 @@ def run(pointing_id):
             # Add to time estimate
             time_estimate += (expset_info['exptime'] + 30) * expset_info['num_exp']
 
-        # Wait for the mount to slew (timeout 120s)
-        wait_for_mount(pointing_info['ra'], pointing_info['dec'], timeout=120)
-
-        print('In position: starting exposures')
         # Resume the queue
+        print('Starting exposures')
         execute_command('exq resume')
 
         # Wait for the queue to empty
@@ -141,7 +166,25 @@ def run(pointing_id):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Observe the given database pointing.')
-    parser.add_argument('pointing_id', type=int, help='Pointing Database ID')
-    args = parser.parse_args()
+    # Mandatory arguments
+    parser.add_argument('pointing_id',
+                        type=int,
+                        help='Pointing Database ID',
+                        )
+    # Flags
+    parser.add_argument('--refocus', action='store_true',
+                        help=('adjust the focus position before the exposure starts')
+                        )
+    parser.add_argument('--temp-compensation', action='store_true',
+                        help=('adjust the focus position to compensate for temperature changes')
+                        )
 
-    run(args.pointing_id)
+    args = parser.parse_args()
+    pointing_id = args.pointing_id
+    adjust_focus = args.refocus
+    temp_compensation = args.temp_compensation
+
+    if adjust_focus and temp_compensation:
+        raise ValueError('Cannot include both --refocus and --temp-compensation flags')
+
+    run(pointing_id, adjust_focus, temp_compensation)

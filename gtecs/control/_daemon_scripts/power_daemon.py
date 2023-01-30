@@ -43,7 +43,7 @@ class PowerDaemon(BaseDaemon):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
 
-        while(self.running):
+        while self.running:
             self.loop_time = time.time()
 
             # system check
@@ -222,7 +222,7 @@ class PowerDaemon(BaseDaemon):
         self._check_errors()
 
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info

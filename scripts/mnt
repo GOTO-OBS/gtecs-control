@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A script to provide control over the mnt daemon."""
 
+import json
 import os
 import sys
 
@@ -86,7 +87,7 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
         elif info_type == 'raw':
-            print(reply)
+            print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -305,6 +306,24 @@ def query(command, args):
         reply = daemons.daemon_function('mnt', 'slew_to_altaz', [alt_deg, az_deg])
         print(reply)
 
+    elif command == 'sync':
+        # parse arguments
+        if len(args) == 2:
+            # decimal ra and dec
+            ra_deg = float(args[0])
+            dec_deg = float(args[1])
+            ra_hrs = ra_deg * 24 / 360
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'sync_to_radec', [ra_hrs, dec_deg])
+        print(reply)
+
+    elif command == 'clear_error':
+        # send command
+        reply = daemons.daemon_function('mnt', 'clear_error')
+        print(reply)
+
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
@@ -437,11 +456,11 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Mount commands:',
-          '  ra h m s                       set target ra',
-          '  dec d m s                      set target dec',
+          '  ra [h m s | deg]               set target ra (hms or decimal deg)',
+          '  dec [d m s | deg]              set target dec (dms or decimal deg)',
           '  target name                    set target as named object (can include spaces)',
           '  clear                          clear the stored target',
-          '  slew [ra dec]                  slew to target or given ra/dec',
+          '  slew [ra dec]                  slew to target or given ra/dec (in decimal deg)',
           '  slew_altaz alt az              slew to given alt/az, then track at siderial rate',
           '  slew_altaz_target alt az       slew to given alt/az, then "track" alt/az position',
           '  track                          start tracking',
@@ -449,10 +468,12 @@ def print_instructions():
           '  park                           enter park state',
           '  unpark                         leave park state',
           '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
-          '  offset [N|E|S|W dist]          offset in direction by dist (in arcsec)',
-          '  guide [N|E|S|W duration]       pulse guide in direction for duration (in ms)',
+          '  offset N|E|S|W dist            offset in direction by dist (in arcsec)',
+          '  guide N|E|S|W duration         pulse guide in direction for duration (in ms)',
+          '  sync ra dec                    sync current position to given ra/dec (in decimal deg)',
           '  blinky on|off                  turn on or off blinky mode (SiTech only)',
           '  motors on|off                  turn on or off the mount motors (ASA only)',
+          '  clear_error                    clear any current mount errors (ASA only)',
           '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
           '  log [stdout]                   print daemon log (tail alias)',
           'Control commands:',

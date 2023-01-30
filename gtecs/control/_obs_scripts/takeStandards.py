@@ -19,7 +19,8 @@ def run():
     airmasses = [1.0, 1.0, 1.3, 1.3, 1.8, 1.8]
     colours = [-0.5, 1, -0.5, 1, -0.5, 1.0]
     # use set so we don't duplicate observations
-    stars = {standard_star(Time.now(), airmass, colour)
+    now = Time.now()
+    stars = {standard_star(airmass, colour, time=now)
              for airmass, colour in zip(airmasses, colours)}
     print('Starting standard star routine')
     for star in stars:
@@ -30,7 +31,7 @@ def run():
         slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
 
         # take 20 second exposures in all filters
-        take_image_set(20, params.FILTER_LIST, name, imgtype='STD')
+        take_image_set(20, ['L', 'R', 'G', 'B', 'C'], name, imgtype='STD')
 
     print('Done')
 

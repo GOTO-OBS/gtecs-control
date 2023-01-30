@@ -79,7 +79,7 @@ class ConditionsDaemon(BaseDaemon):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
 
-        while(self.running):
+        while self.running:
             self.loop_time = time.time()
 
             # system check
@@ -111,7 +111,7 @@ class ConditionsDaemon(BaseDaemon):
 
     # Internal functions
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info
@@ -125,7 +125,7 @@ class ConditionsDaemon(BaseDaemon):
             weather = {}
 
             # Get the weather from the local stations
-            for source in params.EXTERNAL_WEATHER_SOURCES:
+            for source in params.WEATHER_SOURCES:
                 try:
                     weather_dict = conditions.get_vaisala(source)
                 except Exception:
@@ -174,7 +174,6 @@ class ConditionsDaemon(BaseDaemon):
                     weather_dict['windmax'] = -999
 
                 # Store the dict
-                weather_dict['type'] = 'external'
                 weather[source] = weather_dict
 
             # Get the W1m rain boards reading
@@ -191,115 +190,6 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.error('Error getting weather from "rain"')
                     self.log.debug('', exc_info=True)
                     self.log.warning('Using vaisala station rain measurements')
-
-            # Get the internal conditions from the RoomAlert
-            for source in params.INTERNAL_WEATHER_SOURCES:
-                try:
-                    if params.INTERNAL_WEATHER_FUNCTION == 'roomalert':
-                        weather_dict = conditions.get_roomalert(source)
-                    elif params.INTERNAL_WEATHER_FUNCTION == 'intdaemon':
-                        weather_dict = conditions.get_internal(source)
-                    else:
-                        raise ValueError('Invalid internal weather function: "{}"'.format(
-                            params.INTERNAL_WEATHER_FUNCTION))
-                except Exception:
-                    self.log.error('Error getting weather from "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-                    weather_dict = {'temperature': -999,
-                                    'humidity': -999,
-                                    'update_time': -999,
-                                    'dt': -999,
-                                    }
-
-                # Format source key if it's the same as an external one
-                if source in params.EXTERNAL_WEATHER_SOURCES:
-                    source += '_int'
-
-                # Save a history of temperature readings so we can detect glitches
-                try:
-                    if (self.info and source in self.info['weather'] and
-                            'temperature_history' in self.info['weather'][source] and
-                            self.info['weather'][source]['temperature_history'] != -999):
-                        temperature_history = self.info['weather'][source]['temperature_history']
-                    else:
-                        temperature_history = []
-                    # remove old readings (limit to 5 mins) and any invalid values
-                    temperature_history = [hist for hist in temperature_history
-                                           if (hist[0] > self.loop_time - 300 and hist[1] != -999)]
-                    # compare to the most recent readings
-                    median = np.median([hist[1] for hist in temperature_history])
-                    if (abs(weather_dict['temperature'] - median) > 1 or
-                            weather_dict['humidity'] == -999):
-                        # It's very unlikely to have changed by more than 1 degree that quickly...
-                        self.log.debug('Temperature glitch: {} vs {} ({})'.format(
-                            weather_dict['temperature'], median, temperature_history))
-                        # Just keep the previous value, if there is one
-                        if (self.info and source in self.info['weather'] and
-                                'temperature' in self.info['weather'][source]):
-                            old_temperature = self.info['weather'][source]['temperature']
-                            weather_dict['temperature'] = old_temperature
-                    else:
-                        # add the new reading to the history
-                        temperature_history.append((self.loop_time, weather_dict['temperature']))
-                    # save the history
-                    weather_dict['temperature_history'] = temperature_history
-                except Exception:
-                    self.log.error('Error checking temperature for "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-
-                # Save a history of humidity readings so we can detect glitches
-                try:
-                    if (self.info and source in self.info['weather'] and
-                            'humidity_history' in self.info['weather'][source] and
-                            self.info['weather'][source]['humidity_history'] != -999):
-                        humidity_history = self.info['weather'][source]['humidity_history']
-                    else:
-                        humidity_history = []
-                    # remove old readings (limit to 5 mins) and any invalid values
-                    humidity_history = [hist for hist in humidity_history
-                                        if (hist[0] > self.loop_time - 300 and hist[1] != -999)]
-                    # compare to the most recent readings
-                    median = np.median([hist[1] for hist in humidity_history])
-                    if (abs(weather_dict['humidity'] - median) > 20 or
-                            weather_dict['humidity'] == -999):
-                        # It's very unlikely to have changed by more than 20% that quickly...
-                        self.log.debug('Humidity glitch: {} vs {} ({})'.format(
-                            weather_dict['humidity'], median, humidity_history))
-                        # Just keep the previous value, if there is one
-                        if (self.info and source in self.info['weather'] and
-                                'humidity' in self.info['weather'][source]):
-                            old_humidity = self.info['weather'][source]['humidity']
-                            weather_dict['humidity'] = old_humidity
-                    else:
-                        # add the new reading to the history
-                        humidity_history.append((self.loop_time, weather_dict['humidity']))
-                    # save the history
-                    weather_dict['humidity_history'] = humidity_history
-                except Exception:
-                    self.log.error('Error checking humidity for "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-
-                # Store the dict
-                weather_dict['type'] = 'internal'
-                weather[source] = weather_dict
-
-            # Get the internal conditions from Paul's extra board
-            if params.INTDAEMON_URI != 'none':
-                source = 'board_int'
-                try:
-                    weather_dict = conditions.get_SHT35()
-                except Exception:
-                    self.log.error('Error getting weather from "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-                    weather_dict = {'temperature': -999,
-                                    'humidity': -999,
-                                    'update_time': -999,
-                                    'dt': -999,
-                                    }
-
-                # Store the dict
-                weather_dict['type'] = 'internal'
-                weather[source] = weather_dict
 
             temp_info['weather'] = {}
             for source in weather:
@@ -330,6 +220,19 @@ class ConditionsDaemon(BaseDaemon):
             self.log.error('Failed to get weather info')
             self.log.debug('', exc_info=True)
             temp_info['weather'] = None
+
+        # Get the internal conditions from Paul's DomeAlert
+        try:
+            internal_dict = conditions.get_domealert()
+        except Exception:
+            self.log.error('Failed to get internal info')
+            self.log.debug('', exc_info=True)
+            internal_dict = {'temperature': -999,
+                             'humidity': -999,
+                             'update_time': -999,
+                             'dt': -999,
+                             }
+        temp_info['internal'] = internal_dict
 
         # Get seeing and dust from the TNG webpage
         try:
@@ -455,19 +358,11 @@ class ConditionsDaemon(BaseDaemon):
         windmax = np.array([weather[source]['windmax'] for source in weather
                             if 'windmax' in weather[source]])
         ext_temperature = np.array([weather[source]['temperature'] for source in weather
-                                    if ('temperature' in weather[source] and
-                                        weather[source]['type'] == 'external')])
+                                    if 'temperature' in weather[source]])
         ext_humidity = np.array([weather[source]['humidity'] for source in weather
-                                if ('humidity' in weather[source] and
-                                    weather[source]['type'] == 'external')])
+                                if 'humidity' in weather[source]])
         dew_point = np.array([weather[source]['dew_point'] for source in weather
                              if 'dew_point' in weather[source]])
-        int_temperature = np.array([weather[source]['temperature'] for source in weather
-                                    if ('temperature' in weather[source] and
-                                        weather[source]['type'] == 'internal')])
-        int_humidity = np.array([weather[source]['humidity'] for source in weather
-                                 if ('humidity' in weather[source] and
-                                     weather[source]['type'] == 'internal')])
 
         rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
@@ -476,6 +371,11 @@ class ConditionsDaemon(BaseDaemon):
         ext_temperature = ext_temperature[ext_temperature != -999]
         ext_humidity = ext_humidity[ext_humidity != -999]
         dew_point = dew_point[dew_point != -999]
+
+        # Internal
+        int_temperature = np.array(self.info['internal']['temperature'])
+        int_humidity = np.array(self.info['internal']['humidity'])
+
         int_temperature = int_temperature[int_temperature != -999]
         int_humidity = int_humidity[int_humidity != -999]
 

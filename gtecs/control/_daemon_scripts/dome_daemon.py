@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Daemon to control an AstroHaven dome."""
 
-import subprocess
 import threading
 import time
 
@@ -12,8 +11,9 @@ from gtecs.control import errors
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Conditions, Status
-from gtecs.control.hardware.dome import AstroHavenDome, Dehumidifier, DomeHeartbeat
-from gtecs.control.hardware.dome import FakeDehumidifier, FakeDome, FakeHeartbeat
+from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
+from gtecs.control.hardware.dome import Dehumidifier, ETH002Dehumidifier, FakeDehumidifier
+from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
 from gtecs.control.observing import get_conditions
 from gtecs.control.slack import send_slack_msg
 
@@ -78,7 +78,7 @@ class DomeDaemon(BaseDaemon):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
 
-        while(self.running):
+        while self.running:
             self.loop_time = time.time()
 
             # system check
@@ -117,11 +117,12 @@ class DomeDaemon(BaseDaemon):
                     # Check if we need to turn on/off the dehumidifier
                     self._autodehum_check()
 
-                    # Check if we should enable shielding due to high wind
-                    self._autoshield_check()
+                    if params.DOME_WINDSHIELD_PERMITTED:
+                        # Check if we should enable shielding due to high wind
+                        self._autoshield_check()
 
-                    # Check if we need to raise the shields
-                    self._windshield_check()
+                        # Check if we need to raise the shields
+                        self._windshield_check()
 
             # control functions
             # open dome
@@ -369,10 +370,9 @@ class DomeDaemon(BaseDaemon):
             else:
                 try:
                     self.dome = AstroHavenDome(params.DOME_LOCATION,
-                                               params.ARDUINO_LOCATION,
-                                               params.ROOMALERT_IP,
-                                               self.log,
-                                               params.DOME_DEBUG,
+                                               domealert_uri=params.DOMEALERT_URI,
+                                               log=self.log,
+                                               log_debug=params.DOME_DEBUG,
                                                )
                     self.log.info('Connected to dome')
                     if 'dome' in self.bad_hardware:
@@ -446,11 +446,22 @@ class DomeDaemon(BaseDaemon):
             if params.FAKE_DOME:
                 self.dehumidifier = FakeDehumidifier()
                 self.log.info('Connected to dehumidifier')
+            elif 'DEHUMIDIFIER' in params.POWER_UNITS:
+                try:
+                    dehumidifier_address = params.POWER_UNITS['DEHUMIDIFIER']['IP']
+                    dehumidifier_port = int(params.POWER_UNITS['DEHUMIDIFIER']['PORT'])
+                    self.dehumidifier = ETH002Dehumidifier(dehumidifier_address, dehumidifier_port)
+                    self.log.info('Connected to dehumidifier')
+                    if 'dehumidifier' in self.bad_hardware:
+                        self.bad_hardware.remove('dehumidifier')
+                except Exception:
+                    self.dehumidifier = None
+                    if 'dehumidifier' not in self.bad_hardware:
+                        self.log.exception('Failed to connect to dehumidifier')
+                        self.bad_hardware.add('dehumidifier')
             else:
                 try:
-                    dehumidifier_address = params.DEHUMIDIFIER_IP
-                    dehumidifier_port = params.DEHUMIDIFIER_PORT
-                    self.dehumidifier = Dehumidifier(dehumidifier_address, dehumidifier_port)
+                    self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
                     self.log.info('Connected to dehumidifier')
                     if 'dehumidifier' in self.bad_hardware:
                         self.bad_hardware.remove('dehumidifier')
@@ -464,7 +475,7 @@ class DomeDaemon(BaseDaemon):
         self._check_errors()
 
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info
@@ -529,19 +540,11 @@ class DomeDaemon(BaseDaemon):
         try:
             conditions = get_conditions(timeout=10)
             # Windspeed - take the maximum gust from all stations
-            windspeed = np.max([conditions[source]['windmax']
-                                for source in conditions
-                                if conditions[source]['type'] == 'external'])
-            # Internal - take mean of internal sensors
-            int_temperature = np.mean([conditions[source]['temperature']
-                                       for source in conditions
-                                       if conditions[source]['type'] == 'internal'])
-            int_humidity = np.mean([conditions[source]['humidity']
-                                    for source in conditions
-                                    if conditions[source]['type'] == 'internal'])
-            temp_info['windspeed'] = windspeed
-            temp_info['temperature'] = int_temperature
-            temp_info['humidity'] = int_humidity
+            temp_info['windspeed'] = np.max([conditions['weather'][source]['windmax']
+                                             for source in conditions['weather']])
+            # Internal
+            temp_info['temperature'] = conditions['internal']['temperature']
+            temp_info['humidity'] = conditions['internal']['humidity']
         except Exception:
             self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)
@@ -720,7 +723,7 @@ class DomeDaemon(BaseDaemon):
             if self.hatch_open_time == 0:
                 self.hatch_open_time = self.loop_time
             if (self.info['mode'] == 'robotic' and
-                    (self.loop_time - self.hatch_opened_time) > params.HATCH_OPEN_DELAY):
+                    (self.loop_time - self.hatch_open_time) > params.HATCH_OPEN_DELAY):
                 lockdown = True
                 reason = 'hatch open in robotic mode'
                 reasons.append(reason)
@@ -872,6 +875,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Autoshield disabled while no connection to dome')
             return
 
+        if not params.DOME_WINDSHIELD_PERMITTED:
+            # windshield mode is disabled system-wide
+            return
+
         if (isinstance(self.info, dict) and
                 (self.info.get('windspeed') is None or self.info['windspeed'] == -999)):
             # Note dict.get() returns None if it is not in the dictionary
@@ -904,6 +911,10 @@ class DomeDaemon(BaseDaemon):
             self.log.warning('Shielding disabled while no connection to dome')
             return
 
+        if not params.DOME_WINDSHIELD_PERMITTED:
+            # windshield mode is disabled system-wide
+            return
+
         # Safety check: never move in engineering mode
         if self.info['mode'] == 'engineering':
             return
@@ -929,7 +940,7 @@ class DomeDaemon(BaseDaemon):
             # Partially close the dome
             self.close_flag = 1
             self.move_side = 'both'
-            self.move_frac = 0.3
+            self.move_frac = params.DOME_WINDSHIELD_POSITION
 
         elif (self.shielding and not self.windshield_enabled and
               (self.info['north'] == 'part_open' or self.info['south'] == 'part_open') and
@@ -946,17 +957,12 @@ class DomeDaemon(BaseDaemon):
     def _sound_alarm(self):
         """Sound the dome siren."""
         if not self.alarm_enabled:
+            # TODO: we should have a separate override for automatic moves
             return
 
-        if params.ARDUINO_LOCATION is not None:
-            # Sound the alarm though the curl command
-            # We don't actually care about the output, the request triggers the siren
-            command = 'curl -s {}?s5'.format(params.ARDUINO_LOCATION)
-            subprocess.getoutput(command)
-        else:
-            # Sound the alarm through the heartbeat box
-            # Note the heartbeat siren always sounds for 5s
-            self.heartbeat.sound_alarm()
+        # Sound the alarm through the heartbeat box
+        # Note the heartbeat siren always sounds for 5s
+        self.heartbeat.sound_alarm()
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
@@ -1272,6 +1278,8 @@ class DomeDaemon(BaseDaemon):
             return 'Windshielding is already enabled'
         elif command == 'off' and not windshield_enabled:
             return 'Windshielding is already disabled'
+        elif command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
+            return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
 
         # Set flag
         if command == 'on':
@@ -1303,6 +1311,8 @@ class DomeDaemon(BaseDaemon):
         if command == 'on':
             if self.info['mode'] == 'engineering':
                 raise errors.HardwareStatusError('Cannot enable autoshield in engineering mode')
+            elif not params.DOME_WINDSHIELD_PERMITTED:
+                return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
             elif self.autoshield_enabled:
                 return 'Autoshield is already enabled'
         else:

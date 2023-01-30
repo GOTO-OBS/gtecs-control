@@ -9,7 +9,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from gtecs.common import logging
-from gtecs.common.system import execute_command, get_pid, make_pid_file
+from gtecs.common.system import execute_command, get_pid, kill_process, make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
 from gtecs.control.daemons import daemon_info
@@ -39,6 +39,21 @@ def run(test=False):
             break
         time.sleep(2)
 
+    # Check that the pilot has shutdown, and try to kill it if it hasn't
+    pid = get_pid('pilot')
+    if pid:
+        print('Pilot is still running (PID {})'.format(pid))
+        send_slack_msg('Pilot did not shut down correctly!')
+        kill_process('pilot')
+        time.sleep(5)
+        pid = get_pid('pilot')
+        if not pid:
+            print('Pilot killed')
+            send_slack_msg('Pilot killed')
+        else:
+            print('Pilot is still running (PID {})'.format(pid))
+            send_slack_msg('Pilot could not be killed!')
+
     # Check the dome status
     confirmed_closed = False
     try:
@@ -67,8 +82,6 @@ def run(test=False):
         try:
             # Try sending the command
             log.warning('Sending dome close command')
-            execute_command('dome restart')
-            time.sleep(5)
             execute_command('dome close')
 
             # Wait for the dome to (hopefully) close
@@ -85,6 +98,8 @@ def run(test=False):
                 # UH-OH
                 msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
                 log.warning('The dome is still not closed!')
+                # Try restarting the daemon before we try again
+                execute_command('dome restart')
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
@@ -103,12 +118,6 @@ def run(test=False):
             execute_command(command, timeout=120)
         else:
             execute_command("ssh {} '{}'".format(host, command), timeout=120)
-
-    # Restart the RoomAlert
-    log.info('Rebooting RoomAlert')
-    execute_command('power off poe')
-    time.sleep(5)
-    execute_command('power on poe')
 
     log.info('Done')
 

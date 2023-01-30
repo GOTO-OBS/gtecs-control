@@ -16,7 +16,7 @@ import numpy as np
 
 from . import misc
 from . import params
-from .analysis import measure_image_hfd
+from .analysis import get_focus_region, measure_image_hfd
 from .astronomy import get_lst, night_startdate
 from .daemons import daemon_info
 from .flags import Status
@@ -117,36 +117,54 @@ def make_fits(image_data, ut, all_info, compress=False,
         hdu.header['STDCNTS '] = (np.std(image_data), 'Std of image counts')
 
     if measure_hfds:
+        binning = int(hdu.header['XBINNING'])  # should always be the same as YBINNING
         if hfd_regions is None:
-            hfd_regions = [None]
+            hfd_regions = [get_focus_region(binning)]
+        if len(hfd_regions) > 10:
+            log.warning('Too many image regions ({}), restricting to 10.'.format(len(hfd_regions)))
         for i, region in enumerate(hfd_regions):
-            hfd, hfd_std = measure_image_hfd(image_data,
-                                             filter_width=15,
-                                             region=region,
-                                             verbose=False)
-            hdu.header['MEDHFD{}'.format(i)] = hfd
-            hdu.header['STDHFD{}'.format(i)] = hfd_std
+            try:
+                hfd, hfd_std = measure_image_hfd(image_data.astype('int32'),
+                                                 region=region,
+                                                 filter_width=15 // binning,
+                                                 verbose=False)
+                # NB HFDs are returned in binned pixels
+                hfd *= binning
+                hfd_std *= binning
+                log.debug(f'Measured image HFD: {hfd:.2f} +/- {hfd_std:.2f}')
+                hdu.header['MEDHFD{}'.format(i)] = hfd
+                hdu.header['STDHFD{}'.format(i)] = hfd_std
+            except Exception:
+                log.exception('Could not measure image HFDs')
 
     return hdu
 
 
-def save_fits(hdu, filename, log=None, confirm=True):
+def save_fits(hdu, filename, log=None, log_debug=False, fancy_log=True):
     """Save a FITS HDU to a file."""
     # Remove any existing file
     try:
         os.remove(filename)
+        if log and log_debug:
+            log.debug(f'Removed {filename} as it already existed')
     except FileNotFoundError:
         pass
 
     # Create the hdulist
     if not isinstance(hdu, fits.PrimaryHDU):
+        if log and log_debug:
+            log.debug('Creating HDUList as Primary HDU with no PrimaryHDU instance')
         hdulist = fits.HDUList([fits.PrimaryHDU(), hdu])
     else:
+        if log and log_debug:
+            log.debug('Creating HDUList as standard HDU with built-in PrimaryHDU instance')
         hdulist = fits.HDUList([hdu])
 
     # Write to a tmp file, then move it once it's finished (removes the need for .done files)
     try:
         hdulist.writeto(filename + '.tmp')
+        if log and log_debug:
+            log.debug(f'Wrote file to {filename+".tmp"}')
     except Exception:
         if log is None:
             raise
@@ -154,8 +172,10 @@ def save_fits(hdu, filename, log=None, confirm=True):
         log.debug('', exc_info=True)
     else:
         os.rename(filename + '.tmp', filename)
+        if log and log_debug:
+            log.debug(f'Moved file to {filename}')
 
-    if confirm:
+    if fancy_log:
         # Log image being saved
         ut = hdu.header['UT      ']
         interface_id = params.UT_DICT[ut]['INTERFACE']
@@ -173,6 +193,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     """Get all info dicts from the running daemons, and other common info."""
     info_time = Time.now()
     all_info = {}
+    bad_info = []
 
     # Camera daemon
     all_info['cam'] = cam_info
@@ -194,6 +215,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.error(f'Failed to fetch "{daemon_id}" info')
             log.debug('', exc_info=True)
             all_info[daemon_id] = None
+            bad_info.append(daemon_id)
 
     threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log, log_debug))
                for daemon_id in ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']]
@@ -324,20 +346,18 @@ def get_all_info(cam_info, log=None, log_debug=False):
             all_info['mnt']['position_error_info'] = None
             all_info['mnt']['tracking_error_info'] = None
             all_info['mnt']['motor_current_info'] = None
+            bad_info.append('mnt_history')
 
     # Conditions sources
     if all_info['conditions'] is not None:
         try:
             # Select external source
-            ext_source = params.EXTERNAL_WEATHER_SOURCES[0]
+            ext_source = params.WEATHER_SOURCES[0]
             ext_weather = all_info['conditions']['weather'][ext_source].copy()
             all_info['conditions']['weather_ext'] = ext_weather
 
             # Select internal source
-            int_source = params.INTERNAL_WEATHER_SOURCES[0]
-            if int_source in params.EXTERNAL_WEATHER_SOURCES:
-                int_source += '_int'
-            int_weather = all_info['conditions']['weather'][int_source].copy()
+            int_weather = all_info['conditions']['internal'].copy()
             all_info['conditions']['weather_int'] = int_weather
 
         except Exception:
@@ -347,6 +367,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.debug('', exc_info=True)
             all_info['conditions']['weather_ext'] = None
             all_info['conditions']['weather_int'] = None
+            bad_info.append('conditions_sources')
 
     # Conditions history
     if all_info['conditions'] is not None and all_info['conditions']['weather_ext'] is not None:
@@ -385,6 +406,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.error('Failed to calculate conditions history info')
             log.debug('', exc_info=True)
             all_info['conditions']['weather_ext']['windgust_history_info'] = None
+            bad_info.append('conditions_history')
 
     # Database
     if cam_info['current_exposure']['set_id'] is not None:
@@ -416,6 +438,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             log.error('Failed to fetch database info')
             log.debug('', exc_info=True)
             all_info['db'] = None
+            bad_info.append('database')
     else:
         db_info = {}
         db_info['from_database'] = False
@@ -446,7 +469,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
 
     all_info['params'] = params_info
 
-    return all_info
+    return all_info, bad_info
 
 
 def update_header(header, ut, all_info, log=None):
@@ -620,7 +643,7 @@ def update_header(header, ut, all_info, log=None):
         if info['wait_time'] is not None:
             wait_time = info['wait_time']
         else:
-            wait_time ='NA'
+            wait_time = 'NA'
         if info['valid_time'] is not None:
             valid_time = info['valid_time']
         else:
@@ -896,8 +919,8 @@ def update_header(header, ut, all_info, log=None):
         if ut not in params_info['uts_with_filterwheels']:
             filt_serial = 'None'
             filt_class = 'NA'
-            filt_filter = 'C'
-            filt_filters = 'C'
+            filt_filter = params_info['ut_dict'][ut]['FILTERS'][0]
+            filt_filters = ','.join(params_info['ut_dict'][ut]['FILTERS'])  # Should only be one?
             filt_num = 'NA'
             filt_pos = 'NA'
             filt_move_time = 'NA'
@@ -910,7 +933,7 @@ def update_header(header, ut, all_info, log=None):
                 filt_filter = 'UNHOMED'
             else:
                 filt_filter = info['current_filter']
-            filt_filters = ','.join(info['filters'])
+            filt_filters = ','.join(params_info['ut_dict'][ut]['FILTERS'])
             filt_num = info['current_filter_num']
             filt_pos = info['current_pos']
             filt_move_time = info['last_move_time']

@@ -67,6 +67,7 @@ def prepare_for_images(open_covers=True):
     - ensure any lights in the dome are turned off
     - ensure the exposure queue is empty
     - ensure the filter wheels are homed
+    - ensure the cameras are not exposing and have no images to read out
     - ensure the cameras are not windowed
     - ensure the cameras are at operating temperature
     - ensure the mount motors are on
@@ -83,15 +84,21 @@ def prepare_for_images(open_covers=True):
     if not exposure_queue_is_empty():
         print('Clearing exposure queue')
         execute_command('exq clear')
+        start_time = time.time()
         while not exposure_queue_is_empty():
             time.sleep(0.5)
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Exposure queue timed out')
 
     # Home the filter wheels
     if not filters_are_homed():
         print('Homing filters')
         execute_command('filt home')
+        start_time = time.time()
         while not filters_are_homed():
             time.sleep(0.5)
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Filter wheels timed out')
 
     # Set the focusers
     if not focusers_are_set():
@@ -99,6 +106,23 @@ def prepare_for_images(open_covers=True):
         execute_command('foc move 10')
         time.sleep(4)
         execute_command('foc move -10')
+        start_time = time.time()
+        while not focusers_are_set():
+            time.sleep(0.5)
+            if (time.time() - start_time) > 60:
+                raise TimeoutError('Focusers timed out')
+
+    # Make sure the cameras aren't exposing
+    if not cameras_are_empty():
+        print('Aborting ongoing exposures')
+        execute_command('cam abort')
+        time.sleep(3)
+        execute_command('cam clear')
+        start_time = time.time()
+        while not cameras_are_empty():
+            time.sleep(0.5)
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Cameras timed out')
 
     # Reset the cameras to full-frame exposures
     if not cameras_are_fullframe():
@@ -109,9 +133,12 @@ def prepare_for_images(open_covers=True):
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
         print('Cooling cameras')
-        execute_command('cam temp {}'.format(params.CCD_TEMP))
+        execute_command('cam temp cool')
+        start_time = time.time()
         while not cameras_are_cool():
             time.sleep(0.5)
+            if (time.time() - start_time) > 600:
+                raise TimeoutError('Camera cooling timed out')
 
     # Start the mount motors (but remain parked, or in whatever position we're in)
     if not mount_motors_are_on():
@@ -124,22 +151,28 @@ def prepare_for_images(open_covers=True):
         if not mirror_covers_are_open():
             print('Opening mirror covers')
             execute_command('ota open')
+            start_time = time.time()
             while not mirror_covers_are_open():
                 time.sleep(0.5)
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mirror covers timed out')
     else:
         # Close the mirror covers (for darks etc...)
         if not mirror_covers_are_closed():
             print('Closing mirror covers')
             execute_command('ota close')
+            start_time = time.time()
             while not mirror_covers_are_closed():
                 time.sleep(0.5)
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mirror covers timed out')
 
 
 def get_mirror_cover_positions():
     """Find the current mirror cover positions."""
     ota_info = daemon_info('ota')
     positions = {}
-    for ut in params.UTS_WITH_COVERS:
+    for ut in ota_info['uts_with_covers']:
         positions[ut] = ota_info[ut]['position']
     return positions
 
@@ -147,18 +180,14 @@ def get_mirror_cover_positions():
 def mirror_covers_are_open():
     """Return true if all of the covers are open."""
     positions = get_mirror_cover_positions()
-
     covers_open = [positions[ut] == 'full_open' for ut in positions]
-
     return np.all(covers_open)
 
 
 def mirror_covers_are_closed():
     """Return true if all of the covers are closed."""
     positions = get_mirror_cover_positions()
-
     covers_closed = [positions[ut] == 'closed' for ut in positions]
-
     return np.all(covers_closed)
 
 
@@ -181,7 +210,7 @@ def wait_for_mirror_covers(opening=True, timeout=None):
 
         try:
             ota_info = daemon_info('ota', force_update=True)
-            positions = [ota_info[ut]['position'] for ut in params.UTS_WITH_COVERS]
+            positions = [ota_info[ut]['position'] for ut in ota_info['uts_with_covers']]
             if opening is True and np.all(positions[ut] == 'full_open' for ut in positions):
                 reached_position = True
             if opening is False and np.all(positions[ut] == 'closed' for ut in positions):
@@ -198,27 +227,27 @@ def wait_for_mirror_covers(opening=True, timeout=None):
 
 def get_focuser_positions(uts=None):
     """Find the current focuser positions."""
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
     foc_info = daemon_info('foc', force_update=True)
+    if uts is None:
+        uts = foc_info['uts']
     positions = {ut: foc_info[ut]['current_pos'] for ut in uts}
     return positions
 
 
 def get_focuser_limits(uts=None):
     """Find the maximum focuser position limit."""
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
     foc_info = daemon_info('foc', force_update=True)
+    if uts is None:
+        uts = foc_info['uts']
     limits = {ut: foc_info[ut]['limit'] for ut in uts}
     return limits
 
 
 def focusers_are_ready(uts=None):
     """Return true if none of the focusers are moving."""
-    if uts is None:
-        uts = params.UTS_WITH_FOCUSERS
     foc_info = daemon_info('foc', force_update=True)
+    if uts is None:
+        uts = foc_info['uts']
     ready = [foc_info[ut]['status'] == 'Ready' for ut in uts]
     return np.all(ready)
 
@@ -328,8 +357,8 @@ def wait_for_focusers(target_positions, timeout=None):
 def get_focuser_temperatures():
     """Get the current temperature and the temperature when the focusers last moved."""
     foc_info = daemon_info('foc')
-    curr_temp = {ut: foc_info[ut]['current_temp'] for ut in params.UTS_WITH_FOCUSERS}
-    prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in params.UTS_WITH_FOCUSERS}
+    curr_temp = {ut: foc_info[ut]['current_temp'] for ut in foc_info['uts']}
+    prev_temp = {ut: foc_info[ut]['last_move_temp'] for ut in foc_info['uts']}
     return curr_temp, prev_temp
 
 
@@ -351,9 +380,15 @@ def get_mount_position():
     return ra, dec
 
 
+def mount_is_parked():
+    """Check if the mount motors are enabled."""
+    mnt_info = daemon_info('mnt', force_update=True)
+    return mnt_info['status'] == 'Parked'
+
+
 def mount_motors_are_on():
     """Check if the mount motors are enabled."""
-    mnt_info = daemon_info('mnt', force_update=False)
+    mnt_info = daemon_info('mnt', force_update=True)
     return mnt_info['motors_on']
 
 
@@ -483,23 +518,8 @@ def wait_for_mount_parking(timeout=None):
         raise TimeoutError('Mount timed out')
 
 
-def random_offset(distance):
-    """Make an offset of the given distance in a random direction.
-
-    Parameters
-    ----------
-    distance : float
-        offset distance in arcseconds
-
-    """
-    direction = np.random.choice(['N', 'E', 'S', 'W'])
-    execute_command('mnt offset {} {}'.format(direction, distance))
-    # wait a short while for it to move
-    time.sleep(2)
-
-
 def offset(direction, distance):
-    """Make a offset of the given distance in the given direction .
+    """Offset the mount by the given distance in the given direction.
 
     Parameters
     ----------
@@ -515,7 +535,7 @@ def offset(direction, distance):
 
 
 def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None,
-                       get_headers=False):
+                       get_data=True, get_headers=False):
     """Take a single exposure set, then open the images and return the image data.
 
     Parameters
@@ -535,6 +555,8 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     uts : list of ints, default=`None`
         if given, the UTs to take the exposures with
         uts=`None` (the default) will take images on all UTs
+    get_data : bool, default=True
+        return the image data arrays (takes time)
     get_headers : bool, default=False
         return the image headers instead of the full data arrays (much faster)
 
@@ -542,17 +564,19 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     -------
     data : dict
         a dictionary of the image data or headers, with the UT numbers as keys
+        if both get_data and get_headers are False then just return the run number and image number
+        if both are True return a tuple (data_dict, header_dict)
 
     """
     # Find the current image count, so we know what to wait for
-    img_num = get_image_count()
+    img_num = get_image_count() + 1
 
     # Create the command string
     if uts is not None:
-        uts = [str(int(ut)) for ut in uts if ut in params.UTS_WITH_CAMERAS]
+        uts = [int(ut) for ut in uts if ut in params.UTS_WITH_CAMERAS]
         if len(uts) == 0:
             raise ValueError('Invalid UT values (not in {})'.format(params.UTS_WITH_CAMERAS))
-        ut_string = ','.join(uts)
+        ut_string = ','.join([str(ut) for ut in uts])
         exq_command = 'exq {} {} {:.1f} {} {} "{}" {}'.format('image' if not glance else 'glance',
                                                               ut_string,
                                                               exptime,
@@ -576,23 +600,39 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     execute_command(exq_command)
     execute_command('exq resume')
 
-    # Wait for the camera daemon to finish saving the images
-    wait_for_images(img_num + 1, exptime + 60)
-    time.sleep(2)
+    if not get_data and not get_headers:
+        # Wait for exposures to finish, but not to save
+        wait_for_readout(img_num, exptime + 60)
 
+        # Just return the run and images numbers to do something else with
+        if not glance:
+            return get_run_number(), img_num
+        else:
+            return 'glance', img_num
+
+    # Otherwise we need to wait for the images to be saved
+    wait_for_images(img_num, exptime + 60)
+
+    if get_data:
+        if not glance:
+            # Use the run number, should be safer than the last modified which has messed up before
+            # (perhaps due to the Warwick archiver?)
+            run_number = get_run_number()
+            image_data = get_image_data(run_number, uts=uts, timeout=90)
+        else:
+            image_data = get_glance_data(uts=uts, timeout=90)
+        if not get_headers:
+            return image_data
     if get_headers:
-        return daemon_function('cam', 'get_latest_headers')
-
-    # Fetch the data
-    if not glance:
-        # Get the run number, it should be safer than the last modified which has messed up before
-        # (perhaps due to the Warwick archiver?)
-        run_number = get_run_number()
-        data = get_image_data(run_number=run_number, timeout=60)
-    else:
-        data = get_glance_data(timeout=60)
-
-    return data
+        # Get the headers from the camera daemon
+        headers = get_image_headers(img_num, 30)
+        if uts is not None:
+            headers = {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
+        if not get_data:
+            return headers
+        else:
+            # Return both
+            return image_data, headers
 
 
 def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
@@ -633,7 +673,7 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
 
 def outlets_are_off(outlets):
     """Check if the given power outlets are off."""
-    power_info = daemon_info('power', force_update=False)
+    power_info = daemon_info('power', force_update=True)
     all_status = {outlet: power_info[unit][outlet]
                   for unit in power_info if 'status' in unit
                   for outlet in power_info[unit]}
@@ -642,34 +682,40 @@ def outlets_are_off(outlets):
 
 def exposure_queue_is_empty():
     """Check if the image queue is empty."""
-    exq_info = daemon_info('exq', force_update=False)
+    exq_info = daemon_info('exq', force_update=True)
     return exq_info['queue_length'] == 0
 
 
 def filters_are_homed():
     """Check if all the filter wheels are homed."""
-    filt_info = daemon_info('filt', force_update=False)
-    return all(filt_info[ut]['homed'] for ut in params.UTS_WITH_FILTERWHEELS)
+    filt_info = daemon_info('filt', force_update=True)
+    return all(filt_info[ut]['homed'] for ut in filt_info['uts'])
 
 
 def focusers_are_set():
     """Check if all the focusers are set."""
-    foc_info = daemon_info('foc', force_update=False)
-    return all(foc_info[ut]['status'] != 'UNSET' for ut in params.UTS_WITH_FOCUSERS)
+    foc_info = daemon_info('foc', force_update=True)
+    return all(foc_info[ut]['status'] != 'UNSET' for ut in foc_info['uts'])
+
+
+def cameras_are_empty():
+    """Check if all of the cameras are ready to expose."""
+    cam_info = daemon_info('cam', force_update=True)
+    return all((cam_info[ut]['status'] != 'Exposing') and (cam_info[ut]['in_queue'] == 0)
+               for ut in cam_info['uts'])
 
 
 def cameras_are_cool():
     """Check if all the cameras are below the target temperature."""
-    target_temp = params.CCD_TEMP
-    cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['ccd_temp'] < target_temp + 0.1 for ut in params.UTS_WITH_CAMERAS)
+    cam_info = daemon_info('cam', force_update=True)
+    return all(cam_info[ut]['ccd_temp'] < cam_info[ut]['target_temp'] + 1
+               for ut in cam_info['uts'])
 
 
 def cameras_are_fullframe():
     """Check if all the cameras are set to take full-frame exposures."""
-    cam_info = daemon_info('cam', force_update=False)
-    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area']
-               for ut in params.UTS_WITH_CAMERAS)
+    cam_info = daemon_info('cam', force_update=True)
+    return all(cam_info[ut]['window_area'] == cam_info[ut]['full_area'] for ut in cam_info['uts'])
 
 
 def wait_for_exposure_queue(timeout=None):
@@ -715,6 +761,32 @@ def get_run_number():
     return cam_info['latest_run_number']
 
 
+def get_image_headers(target_image_number, timeout=None):
+    """Get the image headers for the given exposure."""
+    start_time = time.time()
+    finished = False
+    timed_out = False
+    while not finished and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            image_num, headers = daemon_function('cam', 'get_latest_headers')
+            if image_num >= target_image_number:
+                # Either these are the headers we wanted, or we missed them
+                finished = True
+        except Exception:
+            raise
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Cameras timed out')
+    if image_num > target_image_number:
+        raise ValueError('A new exposure has already overriden the image headers, open the file')
+    return headers
+
+
 def wait_for_images(target_image_number, timeout=None):
     """With a set of exposures underway, wait for the cameras to finish saving.
 
@@ -736,7 +808,41 @@ def wait_for_images(target_image_number, timeout=None):
             cam_info = daemon_info('cam', force_update=True)
             done = [(cam_info[ut]['status'] == 'Ready' and
                      int(cam_info['num_taken']) == int(target_image_number))
-                    for ut in params.UTS_WITH_CAMERAS]
+                    for ut in cam_info['uts']]
+            if np.all(done):
+                finished = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Cameras timed out')
+
+
+def wait_for_readout(target_image_number, timeout=None):
+    """With a set of exposures underway, wait for the cameras to finish exposing (but not saving).
+
+    Parameters
+    ----------
+    target_image_number : int
+        camera image number to wait for
+    timeout : float
+        time in seconds after which to timeout. None to wait forever
+
+    """
+    start_time = time.time()
+    finished = False
+    timed_out = False
+    while not finished and not timed_out:
+        time.sleep(0.5)
+
+        try:
+            cam_info = daemon_info('cam', force_update=True)
+            done = [(cam_info[ut]['status'] == 'Reading' and
+                     int(cam_info['num_taken']) == int(target_image_number) - 1)  # not finished yet
+                    for ut in cam_info['uts']]
             if np.all(done):
                 finished = True
         except Exception:
@@ -752,19 +858,4 @@ def wait_for_images(target_image_number, timeout=None):
 def get_conditions(timeout=30):
     """Get the current conditions values."""
     conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
-    return conditions_info['weather']
-
-
-def get_internal_conditions(timeout=30):
-    """Get the current internal conditions (temperature and humidity).
-
-    If there are more than one internal sensors then this function
-    returns the mean temperature and humidity values.
-
-    """
-    conditions_info = daemon_info('conditions', force_update=False, timeout=timeout)
-    weather = conditions_info['weather']
-    int_sources = [source for source in weather if weather[source]['type'] == 'internal']
-    int_temperature = np.mean([weather[source]['temperature'] for source in int_sources])
-    int_humidity = np.mean([weather[source]['humidity'] for source in int_sources])
-    return {'temperature': int_temperature, 'humidity': int_humidity}
+    return conditions_info

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A script to provide control over the OTA daemon."""
 
+import json
 import os
 import sys
 
@@ -82,7 +83,7 @@ def query(command, args):
         elif info_type == 'verbose':
             print_info(reply)
         elif info_type == 'raw':
-            print(reply)
+            print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -147,12 +148,14 @@ def query(command, args):
 def print_info(info):
     """Print the full info dict."""
     print('#### OTA INFO ####')
-    for ut in params.UTS:
+    for ut in info['uts']:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
         print('Serial number:  {}'.format(info[ut]['serial_number']))
         print('Hardware class: {}'.format(info[ut]['hw_class']))
-        if ut in params.UTS_WITH_COVERS:
+        if ut in info['uts_with_covers']:
             print('Mirror cover:   {}'.format(info[ut]['position'].capitalize()))
+        else:
+            print('Mirror cover:   NA')
         print('~~~~~~~')
     print('Uptime: {:.1f}s'.format(info['uptime']))
     print('Timestamp: {}'.format(info['timestamp']))
@@ -161,9 +164,12 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    for ut in params.UTS_WITH_COVERS:
+    for ut in info['uts']:
         print('OTA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
-        print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
+        if ut in info['uts_with_covers']:
+            print('  Mirror cover: [{}]'.format(info[ut]['position'].capitalize()))
+        else:
+            print('  Mirror cover: [NA]')
 
 
 def print_instructions():

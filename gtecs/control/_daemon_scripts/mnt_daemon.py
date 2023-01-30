@@ -43,6 +43,7 @@ class MntDaemon(BaseDaemon):
         self.set_target_flag = 0
         self.offset_flag = 0
         self.guide_flag = 0
+        self.sync_flag = 0
 
         # mount variables
         self.target_ra = None
@@ -59,6 +60,8 @@ class MntDaemon(BaseDaemon):
         self.guide_duration = None
         self.trackrate_ra = 0
         self.trackrate_dec = 0
+        self.sync_ra = None
+        self.sync_dec = None
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -70,7 +73,7 @@ class MntDaemon(BaseDaemon):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
 
-        while(self.running):
+        while self.running:
             self.loop_time = time.time()
 
             # system check
@@ -95,7 +98,10 @@ class MntDaemon(BaseDaemon):
                     continue
 
                 # Check if the mount has passed the limits and should stop
-                self._limit_check()
+                # This is a nice idea, but including the Slewing status means we can never get
+                # out if it triggers. You'd need to be able to detect if it's moving towards
+                # or away form the limit, and that's tricky.
+                # self._limit_check()
 
             # control functions
             # slew to target
@@ -279,6 +285,26 @@ class MntDaemon(BaseDaemon):
                 self.guide_duration = None
                 self.force_check_flag = True
 
+            # sync
+            if self.sync_flag:
+                try:
+                    sync_alt, sync_az = altaz_from_radec(
+                        self.sync_ra * 360 / 24, self.sync_dec)
+                    sync_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
+                        self.sync_ra * 360 / 24, self.sync_dec, sync_alt, sync_az)
+                    self.log.info('Syncing position from {} to {}'.format(
+                        self._pos_str(), sync_str))
+                    c = self.mount.sync_radec(self.sync_ra, self.sync_dec)
+                    if c:
+                        self.log.info(c)
+                except Exception:
+                    self.log.error('sync_to_radec command failed')
+                    self.log.debug('', exc_info=True)
+                self.sync_flag = 0
+                self.sync_ra = None
+                self.sync_dec = None
+                self.force_check_flag = True
+
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
@@ -305,6 +331,7 @@ class MntDaemon(BaseDaemon):
                 elif params.MOUNT_CLASS == 'ASA':
                     self.mount = DDM500(params.MOUNT_HOST,
                                         params.MOUNT_PORT,
+                                        fake_parking=params.FAKE_MOUNT_PARKING,
                                         log=self.log,
                                         log_debug=params.MOUNT_DEBUG,
                                         )
@@ -314,7 +341,7 @@ class MntDaemon(BaseDaemon):
                                            log=self.log,
                                            log_debug=params.MOUNT_DEBUG,
                                            )
-                    # try resetting the device connetion to clear any errors
+                    # try resetting the device connection to clear any errors
                     self.mount.disconnect()
                     time.sleep(0.5)
                     self.mount.connect()
@@ -333,7 +360,7 @@ class MntDaemon(BaseDaemon):
         self._check_errors()
 
     def _get_info(self):
-        """Get the latest status info from the heardware."""
+        """Get the latest status info from the hardware."""
         temp_info = {}
 
         # Get basic daemon info
@@ -491,9 +518,11 @@ class MntDaemon(BaseDaemon):
         # Write debug log line
         try:
             if not self.info:
-                self.log.debug('Mount is {}'.format(temp_info['status']))
+                self.log.debug('Mount is {} [{}]'.format(temp_info['status'],
+                                                         self._pos_str(temp_info)))
             elif temp_info['status'] != self.info['status']:
-                self.log.debug('Mount is {}'.format(temp_info['status']))
+                self.log.debug('Mount is {} [{}]'.format(temp_info['status'],
+                                                         self._pos_str(temp_info)))
         except Exception:
             self.log.error('Could not write current status')
 
@@ -526,19 +555,22 @@ class MntDaemon(BaseDaemon):
         elif (self.targeting == 'altaz' and
                 self.target_alt is not None and self.target_az is not None):
             now = Time.now()
+            location = observatory_location()
             current_coord = AltAz(alt=self.mount.alt * u.deg, az=self.mount.az * u.deg,
-                                  obstime=now, location=observatory_location())
+                                  obstime=now, location=location)
             target_coord = AltAz(alt=self.target_alt * u.deg, az=self.target_az * u.deg,
-                                 obstime=now, location=observatory_location())
+                                 obstime=now, location=location)
             return current_coord.separation(target_coord).deg
         else:
             return None
 
-    def _pos_str(self):
+    def _pos_str(self, info=None):
         """Return a simple string reporting the current position."""
+        if info is None:
+            info = self.info
         pos_str = '{:.4f} {:.4f} ({:.2f} {:.2f})'.format(
-            self.info['mount_ra'] * 360 / 24, self.info['mount_dec'],
-            self.info['mount_alt'], self.info['mount_az'])
+            info['mount_ra'] * 360 / 24, info['mount_dec'],
+            info['mount_alt'], info['mount_az'])
         return pos_str
 
     # Control functions
@@ -931,6 +963,37 @@ class MntDaemon(BaseDaemon):
         self.guide_flag = 1
 
         return 'Pulse guiding'
+
+    def sync_to_radec(self, ra, dec):
+        """Set current pointing to given RA and Dec coordinates."""
+        # Check input
+        if not (0 <= ra < 24):
+            raise ValueError('RA in hours must be between 0 and 24')
+        if not (-90 <= dec <= 90):
+            raise ValueError('Dec in degrees must be between -90 and +90')
+
+        # Set values
+        self.sync_ra = ra
+        self.sync_dec = dec
+
+        # Set flag
+        self.force_check_flag = True
+        self.sync_flag = 1
+
+        return 'Syncing position to given coordinates'
+
+    def clear_error(self):
+        """Clear any mount errors."""
+        if not isinstance(self.mount, DDM500):
+            raise NotImplementedError('Only ASA mounts allow errors to be cleared')
+
+        self.log.info('Clearing mount error')
+        self.log.debug(f'Current error: "{self.info["error_status"]}"')
+        c = self.mount.clear_error()
+        if c:
+            self.log.info(c)
+
+        return 'Cleared any errors'
 
 
 if __name__ == '__main__':

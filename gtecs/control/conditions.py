@@ -188,6 +188,34 @@ def get_internal(source):
     return weather_dict
 
 
+def get_domealert():
+    """Get internal readings from Paul's dome alert board."""
+    with Pyro4.Proxy(params.DOMEALERT_URI) as pyro_daemon:
+        pyro_daemon._pyroSerializer = 'serpent'
+        info = pyro_daemon.last_measurement()
+
+    weather_dict = {}
+
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
+    weather_dict['dt'] = int(dt.to('second').value)
+
+    try:
+        if info['internal_temp_valid']:
+            weather_dict['temperature'] = info['internal_temp']
+        else:
+            weather_dict['temperature'] = -999
+        if info['internal_humidity_valid']:
+            weather_dict['humidity'] = info['internal_humidity']
+        else:
+            weather_dict['humidity'] = -999
+    except Exception:
+        weather_dict['temperature'] = -999
+        weather_dict['humidity'] = -999
+
+    return weather_dict
+
+
 def get_SHT35():
     """Get internal readings from Paul's SHT35 board."""
     with Pyro4.Proxy(params.INTDAEMON_URI) as pyro_daemon:
@@ -196,8 +224,8 @@ def get_SHT35():
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - weather_dict['update_time']
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     try:

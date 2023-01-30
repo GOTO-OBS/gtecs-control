@@ -84,25 +84,39 @@ def run(n_alt, n_az, num_exp, exp_list, filt, min_moonsep):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Take images at a range of pointings.')
-    parser.add_argument('n_alt', type=int, nargs='?', default=2,
-                        help='number of altitude rows (default=2)')
-    parser.add_argument('n_az', type=int, nargs='?', default=2,
-                        help='number of aximuth rows (default=2)')
-    parser.add_argument('-n', '--numexp', type=int, default=1,
-                        help=('number of exposures to take for each exposure time (default=1)')
+    # Optional arguments
+    parser.add_argument('n_alt',
+                        type=int, nargs='?', default=2,
+                        help=('number of altitude rows'
+                              ' (default=%(default)d)'),
                         )
-    parser.add_argument('-t', '--exptime', type=str, default='30,60,90',
-                        help=('exposure time(s) to use (comma-separated, default=30,60,90)')
+    parser.add_argument('n_az',
+                        type=int, nargs='?', default=2,
+                        help=('number of azimuth rows'
+                              ' (default=%(default)d)'),
                         )
-    parser.add_argument('-f', '--filter', type=str, choices=params.FILTER_LIST, default='L',
-                        help=('filter to use (default=L)')
+    parser.add_argument('-n', '--numexp',
+                        type=int, default=1,
+                        help=('number of exposures to take for each exposure time'
+                              ' (default=%(default)d)'),
                         )
-    parser.add_argument('-m', '--minmoonsep', type=float, default=30,
-                        help=('minimum distance to stay from the Moon (default=30 deg)')
+    parser.add_argument('-t', '--exptime',
+                        type=str, default='30,60,90',
+                        help=('exposure time(s), in seconds'
+                              ' (comma-separated, default=%(default)s)')
+                        )
+    parser.add_argument('-f', '--filter',
+                        type=str, default='L',
+                        help=('filter to use'
+                              ' (default=%(default)s)'),
+                        )
+    parser.add_argument('-m', '--minmoonsep',
+                        type=float, default=30,
+                        help=('minimum distance to stay from the Moon, in degrees'
+                              ' (default=%(default)d)'),
                         )
 
     args = parser.parse_args()
-
     n_alt = args.n_alt
     n_az = args.n_az
     num_exp = args.numexp
