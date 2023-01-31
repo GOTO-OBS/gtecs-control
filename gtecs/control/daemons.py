@@ -46,22 +46,11 @@ class BaseDaemon(ABC):
     """
 
     def __init__(self, daemon_id):
-        if daemon_id not in params.DAEMONS:
-            raise ValueError('daemon_id not defined in params')
         self.daemon_id = daemon_id
-        self.params = params.DAEMONS[self.daemon_id].copy()
-
         self.running = True
         self.start_time = time.time()
 
-        self.pinglife = self.params['PINGLIFE'] if 'PINGLIFE' in self.params else -1
-        self.loop_time = self.start_time  # should be updated within the main control loop
-
         self.info = None
-
-        self.check_period = params.DAEMON_CHECK_PERIOD
-        self.check_time = 0
-        self.force_check_flag = True
 
         self.dependencies = set()
         self.dependency_error = False
@@ -93,10 +82,9 @@ class BaseDaemon(ABC):
         """
         return self.running
 
-    def _run(self):
+    def _run(self, host, port, pinglife=10, timeout=5):
         """Start the daemon as a Pyro daemon, and run until shutdown."""
-        host = self.params['HOST']
-        port = int(self.params['PORT'])
+        self.pinglife = pinglife
 
         # Check the Pyro address is available
         try:
@@ -109,7 +97,7 @@ class BaseDaemon(ABC):
         # Start the daemon
         with Pyro4.Daemon(host, port) as pyro_daemon:
             uri = pyro_daemon.register(self, objectId=self.daemon_id)
-            Pyro4.config.COMMTIMEOUT = params.PYRO_TIMEOUT
+            Pyro4.config.COMMTIMEOUT = timeout
 
             # Start request loop
             self.log.info('Daemon registered at {}'.format(uri))
