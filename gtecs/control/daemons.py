@@ -116,7 +116,13 @@ class BaseDaemon(ABC):
         """
         timestamp = time.time()
         for dependency_id in self.dependencies:
-            if not daemon_is_alive(dependency_id):
+            try:
+                with daemon_proxy(dependency_id) as daemon:
+                    is_alive = bool(daemon.get_status() == 'running')
+            except Exception:
+                is_alive = False
+
+            if not is_alive:
                 if dependency_id not in self.bad_dependencies:
                     if dependency_id not in self.pending_bad_dependencies:
                         # Require two failed checks until we go into error state
@@ -220,11 +226,6 @@ class BaseDaemon(ABC):
         self.running = False
 
 
-def daemon_is_running(daemon_id, host='127.0.0.1'):
-    """Check if a daemon is running."""
-    return get_pid(daemon_id, host) is not None
-
-
 def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEOUT):
     """Get a proxy connection to the given daemon."""
     if daemon_id in params.DAEMONS:
@@ -238,40 +239,24 @@ def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEO
     return proxy
 
 
-def get_daemon_status(daemon_id):
-    """Get a daemon's current status."""
+def check_daemon(daemon_id):
+    """Check the status of a daemon."""
     host = params.DAEMONS[daemon_id]['HOST']
-    if not daemon_is_running(daemon_id, host):
+    pid = get_pid(daemon_id, host)
+    if pid is None:
         raise errors.DaemonConnectionError('Daemon not running on {}'.format(host))
 
     # Can't use daemon_function due to recursion
     with daemon_proxy(daemon_id) as daemon:
         try:
-            return daemon.get_status()
+            status = daemon.get_status()
         except Exception:
-            return 'status_error'
+            status = 'status_error'
 
-
-def daemon_is_alive(daemon_id):
-    """Quickly check if a daemon is running and reports no errors."""
-    try:
-        with daemon_proxy(daemon_id) as daemon:
-            return bool(daemon.get_status() == 'running')
-    except Exception:
-        return False
-
-
-def check_daemon(daemon_id):
-    """Check the status of a daemon."""
-    host = params.DAEMONS[daemon_id]['HOST']
-    pid = get_pid(daemon_id, host)
     runstr = 'Daemon running on {} (PID {})'.format(host, pid)
-
-    status = get_daemon_status(daemon_id)
 
     if status == 'running':
         return runstr
-
     elif status == 'status_error':
         errstr = runstr + ' but cannot read status.'
     elif status == 'running_error':
@@ -313,7 +298,7 @@ def daemon_info(daemon_id, force_update=True, timeout=30):
 def start_daemon(daemon_id, args=None):
     """Start a daemon (unless it is already running)."""
     host = params.DAEMONS[daemon_id]['HOST']
-    if daemon_is_running(daemon_id):
+    if get_pid(daemon_id, host) is not None:
         try:
             check_daemon(daemon_id)  # Will raise status error if found
             return 'Daemon already running on {} (PID {})'.format(host, get_pid(daemon_id, host))
@@ -361,7 +346,7 @@ def start_daemon(daemon_id, args=None):
 def shutdown_daemon(daemon_id):
     """Shut a daemon down nicely."""
     host = params.DAEMONS[daemon_id]['HOST']
-    if not daemon_is_running(daemon_id, host):
+    if get_pid(daemon_id, host) is None:
         return 'Daemon not running on {}'.format(host)
 
     try:
@@ -376,7 +361,7 @@ def shutdown_daemon(daemon_id):
     time.sleep(1)
     start_time = time.time()
     while True:
-        if not daemon_is_running(daemon_id):
+        if get_pid(daemon_id, host) is None:
             return 'Daemon shut down on {}'.format(host)
         if time.time() - start_time > 4:
             pid = get_pid(daemon_id, host)
@@ -388,7 +373,7 @@ def shutdown_daemon(daemon_id):
 def kill_daemon(daemon_id):
     """Kill a daemon (should be used as a last resort)."""
     host = params.DAEMONS[daemon_id]['HOST']
-    if not daemon_is_running(daemon_id, host):
+    if get_pid(daemon_id, host) is None:
         return 'Daemon not running on {}'.format(host)
 
     try:
@@ -399,7 +384,7 @@ def kill_daemon(daemon_id):
     time.sleep(1)
     start_time = time.time()
     while True:
-        if not daemon_is_running(daemon_id, host):
+        if get_pid(daemon_id, host) is None:
             return 'Daemon killed on {}'.format(host)
         if time.time() - start_time > 4:
             pid = get_pid(daemon_id, host)

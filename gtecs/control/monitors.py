@@ -4,10 +4,10 @@ import logging
 import time
 from abc import ABC, abstractmethod
 
-from gtecs.common.system import execute_command
+from gtecs.common.system import execute_command, get_pid
 
 from . import params
-from .daemons import daemon_is_running, daemon_proxy
+from .daemons import daemon_proxy
 from .errors import RecoveryError
 
 # Daemon statuses
@@ -139,7 +139,7 @@ class BaseMonitor(ABC):
     def is_running(self):
         """Check if the daemon is running."""
         try:
-            return daemon_is_running(self.daemon_id)
+            return get_pid(self.daemon_id) is not None
         except Exception:
             return False
 
