@@ -12,6 +12,10 @@ from gtecs.common.system import get_local_ip
 ############################################################
 # Load and validate config file
 config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.control.conf'])
+if config['REMOTE_CONFIG'] != 'localhost':
+    # Try again with the remote host
+    config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.control.conf'],
+                                                   remote_host=config['REMOTE_CONFIG'])
 
 ############################################################
 # Module parameters

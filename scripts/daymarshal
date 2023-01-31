@@ -117,7 +117,7 @@ def run(test=False):
         if host == params.LOCAL_HOST:
             execute_command(command, timeout=120)
         else:
-            execute_command("ssh {} '{}'".format(host, command), timeout=120)
+            execute_command("ssh {} '{}'".format(host, command), timeout=120)  # TODO: use fabric?
 
     log.info('Done')
 

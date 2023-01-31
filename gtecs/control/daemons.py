@@ -340,7 +340,7 @@ def start_daemon(daemon_id, args=None):
         args = ''
     command_string = ' '.join((params.PYTHON_EXE, process_path, args))
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
-        command_string = "ssh {} '{}'".format(host, command_string)
+        command_string = "ssh {} '{}'".format(host, command_string)  # TODO: use fabric?
     if params.COMMAND_DEBUG:
         print(command_string)
 
