@@ -20,15 +20,6 @@ class ExqDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('exq')
 
-        # exq is dependent on cam and filt
-        # those also depend on the interfaces, so logically exq does too,
-        # but it's a waste of time to check them here
-        self.dependencies.add('cam')
-        self.dependencies.add('filt')
-        if params.EXQ_DITHERING:
-            # with dithering it's also dependent on mnt
-            self.dependencies.add('mnt')
-
         # exposure queue variables
         self.paused = True  # start paused
         self.exp_queue = ExposureQueue()
@@ -54,6 +45,12 @@ class ExqDaemon(BaseDaemon):
                 f.close()
         with open(self.set_number_file, 'r') as f:
             self.latest_set_number = int(f.read())
+
+        # dependencies
+        self.dependencies.add('cam')
+        self.dependencies.add('filt')
+        if params.EXQ_DITHERING:
+            self.dependencies.add('mnt')
 
         # start control thread
         t = threading.Thread(target=self._control_thread)

@@ -202,7 +202,8 @@ def print_info(info):
     """Print the full info dict."""
     print('###### FOCUSER INFO #######')
     for ut in info['uts']:
-        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
+        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
+        print('FOCUSER {} ({}:{})'.format(ut, host, port))
         print('Status: {}'.format(info[ut]['status']), end='')
         if info[ut]['remaining'] > 0:
             print(' ({})'.format(info[ut]['remaining']))
@@ -222,12 +223,13 @@ def print_info(info):
 
 def print_info_s(info):
     """Print the info dict in a compact way."""
-    l = max(len(str(info[ut]['limit'])) for ut in info['uts'])
+    lim = max(len(str(info[ut]['limit'])) for ut in info['uts'])
     for ut in info['uts']:
-        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
+        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
+        print('FOCUSER {} ({}:{})'.format(ut, host, port), end=' ')
         if info[ut]['status'] != 'Moving':
-            cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], l)
-            limit = '{:<{}d}'.format(info[ut]['limit'], l)
+            cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], lim)
+            limit = '{:<{}d}'.format(info[ut]['limit'], lim)
             print('  Current position: {}/{}'.format(cur_pos, limit), end=' ')
             print('  [{}]'.format(info[ut]['status']))
         else:

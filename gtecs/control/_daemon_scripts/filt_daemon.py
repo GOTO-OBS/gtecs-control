@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control filter wheels via the UT interface daemons."""
+"""Daemon to control filter wheels."""
 
 import threading
 import time
@@ -19,10 +19,6 @@ class FiltDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('filt')
 
-        # filt is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
-
         # command flags
         self.set_filter_flag = 0
         self.home_filter_flag = 0
@@ -30,10 +26,16 @@ class FiltDaemon(BaseDaemon):
         # filter wheel variables
         self.uts = params.UTS_WITH_FILTERWHEELS.copy()
         self.active_uts = []
+        self.interfaces = {f'filt{ut}' for ut in self.uts}
+
         self.new_filter = {ut: '' for ut in self.uts}
         self.filters = {ut: params.UT_DICT[ut]['FILTERS'] for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
+
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -72,20 +74,18 @@ class FiltDaemon(BaseDaemon):
             if self.set_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         new_filter_num = self.filters[ut].index(self.new_filter[ut])
-
-                        self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
-                                      ut, interface_id, self.new_filter[ut], new_filter_num))
+                        self.log.info('Moving filter wheel {} to {} ({})'.format(
+                                      ut, self.new_filter[ut], new_filter_num))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.set_filter_pos(new_filter_num, ut)
+                            with daemon_proxy(f'filt{ut}') as interface:
+                                c = interface.move_filterwheel(new_filter_num)
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface filt{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_filter command failed')
@@ -98,19 +98,15 @@ class FiltDaemon(BaseDaemon):
             if self.home_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Homing filter wheel {} ({})'.format(
-                                      ut, interface_id))
-
+                        self.log.info('Homing filter wheel {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.home_filter(ut)
+                            with daemon_proxy(f'filt{ut}') as interface:
+                                c = interface.home_filterwheel()
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface filt{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('home_filter command failed')
@@ -140,17 +136,15 @@ class FiltDaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
-
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_filter_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_filter_class(ut)
-                    ut_info['remaining'] = interface.get_filter_steps_remaining(ut)
-                    ut_info['current_filter_num'] = interface.get_filter_number(ut)
+                ut_info['interface_id'] = f'filt{ut}'
+                with daemon_proxy(f'filt{ut}') as interface:
+                    ut_info['serial_number'] = interface.get_serial_number()
+                    ut_info['hw_class'] = interface.get_class()
+                    ut_info['remaining'] = interface.get_steps_remaining()
+                    ut_info['current_filter_num'] = interface.get_position()
                     ut_info['current_filter'] = self.filters[ut][ut_info['current_filter_num']]
-                    ut_info['current_pos'] = interface.get_filter_position(ut)
-                    ut_info['homed'] = interface.get_filter_homed(ut)
+                    ut_info['current_pos'] = interface.get_motor_position()
+                    ut_info['homed'] = interface.get_homed()
 
                 if ut_info['remaining'] > 0:
                     ut_info['status'] = 'Moving'

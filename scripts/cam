@@ -259,7 +259,8 @@ def print_info(info):
     """Print the full info dict."""
     print('####### CAMERA INFO #######')
     for ut in info['uts']:
-        print('CAMERA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
+        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
+        print('CAMERA {} ({}:{})'.format(ut, host, port))
         if info[ut]['status'] != 'Exposing':
             print('Status: {}'.format(info[ut]['status']))
         else:
@@ -293,7 +294,8 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in info['uts']:
-        print('CAMERA {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
+        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
+        print('CAMERA {} ({}:{})'.format(ut, host, port), end=' ')
         if info[ut]['status'] != 'Exposing':
             print('  Temp: {:6.2f}C'.format(info[ut]['ccd_temp']), end=' ')
             print('  [{}]'.format(info[ut]['status']))

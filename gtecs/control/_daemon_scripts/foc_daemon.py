@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control focusers  via the UT interface daemons."""
+"""Daemon to control focusers."""
 
 import threading
 import time
@@ -20,10 +20,6 @@ class FocDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('foc')
 
-        # foc is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
-
         # command flags
         self.move_focuser_flag = 0
         self.set_focuser_flag = 0
@@ -34,12 +30,18 @@ class FocDaemon(BaseDaemon):
         # focuser variables
         self.uts = params.UTS_WITH_FOCUSERS.copy()
         self.active_uts = []
+        self.interfaces = {f'foc{ut}' for ut in self.uts}
+
         self.move_steps = {ut: 0 for ut in self.uts}
         self.set_position = {ut: 0 for ut in self.uts}
         self.sync_position = {ut: 0 for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
         self.last_move_temp = {ut: None for ut in self.uts}
+
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -78,26 +80,23 @@ class FocDaemon(BaseDaemon):
             if self.move_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         move_steps = self.move_steps[ut]
                         current_pos = self.info[ut]['current_pos']
                         new_pos = current_pos + move_steps
-
-                        s = 'Moving focuser {} ({}) ' .format(ut, interface_id)
-                        s += '{:+d} steps from {} to {} (moving)'.format(
-                            move_steps, current_pos, new_pos)
+                        s = 'Moving focuser {} {:+d} steps from {} to {} (moving)'.format(
+                            ut, move_steps, current_pos, new_pos)
                         self.log.info(s)
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.move_focuser(move_steps, ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.move_focuser(move_steps)
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
                             self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('move_focuser command failed')
@@ -110,31 +109,28 @@ class FocDaemon(BaseDaemon):
             if self.set_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         new_pos = self.set_position[ut]
                         current_pos = self.info[ut]['current_pos']
                         move_steps = new_pos - current_pos
-
-                        s = 'Moving focuser {} ({}) ' .format(ut, interface_id)
-                        s += '{:+d} steps from {} to {} (setting)'.format(
-                            move_steps, current_pos, new_pos)
+                        s += 'Moving focuser {} {:+d} steps from {} to {} (setting)'.format(
+                            ut, move_steps, current_pos, new_pos)
                         self.log.info(s)
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
+                            with daemon_proxy(f'foc{ut}') as interface:
                                 # Only the ASA focusers have explicit set commands,
                                 # the others we just do moves
                                 if self.info[ut]['can_set']:
-                                    c = interface.set_focuser(new_pos, ut)
+                                    c = interface.set_focuser(new_pos)
                                 else:
-                                    c = interface.move_focuser(move_steps, ut)
+                                    c = interface.move_focuser(move_steps)
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
                             self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_focuser command failed')
@@ -147,14 +143,11 @@ class FocDaemon(BaseDaemon):
             if self.home_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Homing focuser {} ({})'.format(
-                                      ut, interface_id))
+                        self.log.info('Homing focuser {}'.format(ut))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.home_focuser(ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.home_focuser()
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
@@ -163,7 +156,7 @@ class FocDaemon(BaseDaemon):
                             self.move_steps[ut] = 0
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                 except Exception:
@@ -177,14 +170,11 @@ class FocDaemon(BaseDaemon):
             if self.stop_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Stopping focuser {} ({})'.format(
-                                      ut, interface_id))
+                        self.log.info('Stopping focuser {}'.format(ut))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.stop_focuser(ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.stop_focuser()
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
@@ -193,7 +183,7 @@ class FocDaemon(BaseDaemon):
                             self.move_steps[ut] = 0
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                 except Exception:
@@ -207,19 +197,17 @@ class FocDaemon(BaseDaemon):
             if self.sync_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         position = self.sync_position[ut]
-
-                        self.log.info('Syncing focuser position to {}'.format(position))
+                        self.log.info('Syncing focuser {} position to {}'.format(ut, position))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.sync_focuser(position, ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.sync_focuser(position)
                                 if c:
                                     self.log.info(c)
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('sync_focuser command failed')
@@ -263,31 +251,30 @@ class FocDaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
+                ut_info['interface_id'] = f'foc{ut}'
 
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_focuser_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_focuser_class(ut)
-                    ut_info['current_pos'] = interface.get_focuser_position(ut)
-                    ut_info['limit'] = interface.get_focuser_limit(ut)
-                    ut_info['can_set'] = interface.focuser_can_set(ut)
-                    ut_info['can_stop'] = interface.focuser_can_stop(ut)
-                    ut_info['can_sync'] = interface.focuser_can_sync(ut)
+                with daemon_proxy(f'foc{ut}') as interface:
+                    ut_info['serial_number'] = interface.get_serial_number()
+                    ut_info['hw_class'] = interface.get_class()
+                    ut_info['current_pos'] = interface.get_position()
+                    ut_info['limit'] = interface.get_limit()
+                    ut_info['can_set'] = interface.can_set()
+                    ut_info['can_stop'] = interface.can_stop()
+                    ut_info['can_sync'] = interface.can_sync()
                     try:
-                        ut_info['remaining'] = interface.get_focuser_steps_remaining(ut)
+                        ut_info['remaining'] = interface.get_steps_remaining()
                     except NotImplementedError:
                         # The ASA H400s don't store steps remaining
                         ut_info['remaining'] = 0
                     try:
-                        ut_info['int_temp'] = interface.get_focuser_temp('internal', ut)
-                        ut_info['ext_temp'] = interface.get_focuser_temp('external', ut)
+                        ut_info['int_temp'] = interface.get_temp('internal')
+                        ut_info['ext_temp'] = interface.get_temp('external')
                     except NotImplementedError:
                         # The ASA H400s don't have temperature sensors
                         ut_info['int_temp'] = None
                         ut_info['ext_temp'] = None
                     try:
-                        ut_info['status'] = interface.get_focuser_status(ut)
+                        ut_info['status'] = interface.get_focuser_status()
                     except NotImplementedError:
                         # The FLI focusers don't have a status
                         if ut_info['remaining'] > 0:
@@ -350,7 +337,8 @@ class FocDaemon(BaseDaemon):
             # Check the new position is a valid input
             try:
                 new_pos = int(new_position[ut])
-                assert new_pos == new_position[ut]
+                if new_pos != new_position[ut]:
+                    raise ValueError
             except Exception:
                 s = '"{}" is not a valid integer'.format(new_position[ut])
                 retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
@@ -411,7 +399,8 @@ class FocDaemon(BaseDaemon):
             # Check the new position is a valid input
             try:
                 steps = int(move_steps[ut])
-                assert steps == move_steps[ut]
+                if steps != move_steps[ut]:
+                    raise ValueError
             except Exception:
                 s = '"{}" is not a valid integer'.format(move_steps[ut])
                 retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
@@ -544,7 +533,8 @@ class FocDaemon(BaseDaemon):
             # Check the new position is a valid input
             try:
                 sync_pos = int(position[ut])
-                assert sync_pos == position[ut]
+                if sync_pos != position[ut]:
+                    raise ValueError
             except Exception:
                 s = '"{}" is not a valid integer'.format(position[ut])
                 retstrs.append('Focuser {}: '.format(ut) + errortxt(s))

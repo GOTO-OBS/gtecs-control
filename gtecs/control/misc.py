@@ -10,9 +10,7 @@ def valid_ints(array, allowed):
     for i in array:
         if i == '':
             pass
-        elif not i.isdigit():
-            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
-        elif i not in [str(x) for x in allowed]:
+        elif (not i.isdigit()) or (i not in [str(x) for x in allowed]):
             print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
         elif int(i) not in valid:
             valid += [int(i)]
@@ -26,10 +24,10 @@ def valid_strings(array, allowed):
     for i in array:
         if i == '':
             pass
-        elif i.upper() not in [str(x) for x in allowed]:
+        elif i not in [str(x) for x in allowed]:
             print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
-        elif i.upper() not in valid:
-            valid += [i.upper()]
+        elif i not in valid:
+            valid += [i]
     return valid
 
 

@@ -178,15 +178,14 @@ def save_fits(hdu, filename, log=None, log_debug=False, fancy_log=True):
     if fancy_log:
         # Log image being saved
         ut = hdu.header['UT      ']
-        interface_id = params.UT_DICT[ut]['INTERFACE']
         if not hdu.header['GLANCE  ']:
             expstr = 'Exposure r{:07d}'.format(int(hdu.header['RUN     ']))
         else:
             expstr = 'Glance'
         if log:
-            log.info('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
+            log.info('{}: Saved exposure from camera {}'.format(expstr, ut))
         else:
-            print('{}: Saved exposure from camera {} ({})'.format(expstr, ut, interface_id))
+            print('{}: Saved exposure from camera {}'.format(expstr, ut))
 
 
 def get_all_info(cam_info, log=None, log_debug=False):
@@ -523,9 +522,6 @@ def update_header(header, ut, all_info, log=None):
 
     header['UTMASK  '] = (params_info['ut_mask'], 'Run UT mask integer')
     header['UTMASKBN'] = (params_info['ut_string'], 'Run UT mask binary string')
-
-    interface_id = params_info['ut_dict'][ut]['INTERFACE']
-    header['INTERFAC'] = (interface_id, 'System interface code')
 
     header['SWVN    '] = (params_info['version'], 'Software version number')
 

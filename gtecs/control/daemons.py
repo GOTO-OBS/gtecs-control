@@ -1,5 +1,6 @@
 """Generic G-TeCS daemon classes & functions."""
 
+import importlib.resources as pkg_resources
 import os
 import subprocess
 import time
@@ -226,13 +227,27 @@ class BaseDaemon(ABC):
         self.running = False
 
 
-def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEOUT):
-    """Get a proxy connection to the given daemon."""
+def get_daemon_host(daemon_id):
+    """Get the host (and port) for the given daemon."""
     if daemon_id in params.DAEMONS:
         host = params.DAEMONS[daemon_id]['HOST']
         port = params.DAEMONS[daemon_id]['PORT']
-    if host is None or port is None:
-        raise ValueError('Daemon "{}" not found, no host/port given'.format(daemon_id))
+    elif daemon_id in params.INTERFACES:
+        host = params.INTERFACES[daemon_id]['HOST']
+        port = params.INTERFACES[daemon_id]['PORT']
+    else:
+        raise ValueError('Daemon "{}" not found'.format(daemon_id))
+
+    return host, port
+
+
+def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEOUT):
+    """Get a proxy connection to the given daemon."""
+    try:
+        host, port = get_daemon_host(daemon_id)
+    except ValueError:
+        if host is None or port is None:
+            raise ValueError('Daemon "{}" not found, no host/port given'.format(daemon_id))
     address = 'PYRO:{}@{}:{}'.format(daemon_id, host, port)
     proxy = Pyro4.Proxy(address)
     proxy._pyroTimeout = timeout
@@ -241,10 +256,11 @@ def daemon_proxy(daemon_id=None, host=None, port=None, timeout=params.PYRO_TIMEO
 
 def check_daemon(daemon_id):
     """Check the status of a daemon."""
-    host = params.DAEMONS[daemon_id]['HOST']
+    host, port = get_daemon_host(daemon_id)
     pid = get_pid(daemon_id, host)
     if pid is None:
-        raise errors.DaemonConnectionError('Daemon not running on {}'.format(host))
+        errstr = 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
+        raise errors.DaemonConnectionError(errstr)
 
     # Can't use daemon_function due to recursion
     with daemon_proxy(daemon_id) as daemon:
@@ -253,7 +269,7 @@ def check_daemon(daemon_id):
         except Exception:
             status = 'status_error'
 
-    runstr = 'Daemon running on {} (PID {})'.format(host, pid)
+    runstr = 'Daemon {} running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
 
     if status == 'running':
         return runstr
@@ -295,25 +311,39 @@ def daemon_info(daemon_id, force_update=True, timeout=30):
     return daemon_function(daemon_id, 'get_info', args=[force_update], timeout=timeout)
 
 
-def start_daemon(daemon_id, args=None):
+def start_daemon(daemon_id):
     """Start a daemon (unless it is already running)."""
-    host = params.DAEMONS[daemon_id]['HOST']
-    if get_pid(daemon_id, host) is not None:
+    host, port = get_daemon_host(daemon_id)
+    pid = get_pid(daemon_id, host)
+    if pid is not None:
         try:
             check_daemon(daemon_id)  # Will raise status error if found
-            return 'Daemon already running on {} (PID {})'.format(host, get_pid(daemon_id, host))
+            return 'Daemon {} already running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
         except Exception:
-            print('Daemon already running but reports error:')
+            print('Daemon {} already running but reports error:'.format(daemon_id))
             raise
 
-    process_path = params.DAEMONS[daemon_id]['PROCESS_PATH']
-    if args is not None:
-        args = ' '.join([str(arg) for arg in args])
+    if daemon_id in params.DAEMONS:
+        ut = None
+        script = f'{daemon_id}_daemon.py'
+    elif daemon_id.startswith('cam'):
+        ut = int(daemon_id.split('cam')[1])
+        script = 'cam_interface.py'
+    elif daemon_id.startswith('foc'):
+        ut = int(daemon_id.split('foc')[1])
+        script = 'foc_interface.py'
+    elif daemon_id.startswith('filt'):
+        ut = int(daemon_id.split('filt')[1])
+        script = 'filt_interface.py'
     else:
-        args = ''
-    command_string = ' '.join((params.PYTHON_EXE, process_path, args))
+        raise ValueError('Daemon "{}" not found'.format(daemon_id))
+
+    with pkg_resources.path('gtecs.control._daemon_scripts', script) as path:
+        command_string = f'{params.PYTHON_EXE} {str(path)}'
+    if ut is not None:
+        command_string += f' {ut}'
     if host not in ['127.0.0.1', params.LOCAL_HOST]:
-        command_string = "ssh {} '{}'".format(host, command_string)  # TODO: use fabric?
+        command_string = f"ssh {host} '{command_string}'"  # TODO: use fabric?
     if params.COMMAND_DEBUG:
         print(command_string)
 
@@ -331,23 +361,25 @@ def start_daemon(daemon_id, args=None):
     start_time = time.time()
     while True:
         pid = get_pid(daemon_id, host)
-        if pid:
+        if pid is not None:
             try:
                 check_daemon(daemon_id)  # Will raise status error if found
-                return 'Daemon started on {} (PID {})'.format(host, pid)
+                return 'Daemon {} started on {}:{} (PID {})'.format(daemon_id, host, port, pid)
             except Exception:
-                print('Daemon started but reports error:')
+                print('Daemon {} started but reports error:'.format(daemon_id))
                 raise
         if time.time() - start_time > 4:
-            raise errors.DaemonConnectionError('Daemon did not start, check logs')
+            errstr = 'Daemon {} did not start, check logs'.format(daemon_id)
+            raise errors.DaemonConnectionError(errstr)
         time.sleep(0.5)
 
 
 def shutdown_daemon(daemon_id):
     """Shut a daemon down nicely."""
-    host = params.DAEMONS[daemon_id]['HOST']
-    if get_pid(daemon_id, host) is None:
-        return 'Daemon not running on {}'.format(host)
+    host, port = get_daemon_host(daemon_id)
+    pid = get_pid(daemon_id, host)
+    if pid is None:
+        return 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
 
     try:
         with daemon_proxy(daemon_id) as daemon:
@@ -361,20 +393,21 @@ def shutdown_daemon(daemon_id):
     time.sleep(1)
     start_time = time.time()
     while True:
-        if get_pid(daemon_id, host) is None:
-            return 'Daemon shut down on {}'.format(host)
+        pid = get_pid(daemon_id, host)
+        if pid is None:
+            return 'Daemon {} shut down on {}:{}'.format(daemon_id, host, port)
         if time.time() - start_time > 4:
-            pid = get_pid(daemon_id, host)
-            errstr = 'Daemon still running on {} (PID {})'.format(host, pid)
+            errstr = 'Daemon {} still running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
             raise errors.DaemonConnectionError(errstr)
         time.sleep(0.5)
 
 
 def kill_daemon(daemon_id):
     """Kill a daemon (should be used as a last resort)."""
-    host = params.DAEMONS[daemon_id]['HOST']
-    if get_pid(daemon_id, host) is None:
-        return 'Daemon not running on {}'.format(host)
+    host, port = get_daemon_host(daemon_id)
+    pid = get_pid(daemon_id, host)
+    if pid is None:
+        return 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
 
     try:
         kill_process(daemon_id, host, verbose=params.COMMAND_DEBUG)
@@ -384,21 +417,21 @@ def kill_daemon(daemon_id):
     time.sleep(1)
     start_time = time.time()
     while True:
-        if get_pid(daemon_id, host) is None:
-            return 'Daemon killed on {}'.format(host)
+        pid = get_pid(daemon_id, host)
+        if pid is None:
+            return 'Daemon {} killed on {}:{}'.format(daemon_id, host, port)
         if time.time() - start_time > 4:
-            pid = get_pid(daemon_id, host)
-            errstr = 'Daemon still running on {} (PID {})'.format(host, pid)
+            errstr = 'Daemon {} still running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
             raise errors.DaemonConnectionError(errstr)
         time.sleep(0.5)
 
 
-def restart_daemon(daemon_id, args=None, wait_time=1):
+def restart_daemon(daemon_id, wait_time=1):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
     reply = shutdown_daemon(daemon_id)
     print(reply)
 
     time.sleep(wait_time)
 
-    reply = start_daemon(daemon_id, args=args)
+    reply = start_daemon(daemon_id)
     return reply

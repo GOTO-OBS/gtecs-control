@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control OTA hardware (e.g. mirror covers) via the UT interface daemons."""
+"""Daemon to control OTA hardware (e.g. mirror covers)."""
 
 import threading
 import time
@@ -19,10 +19,6 @@ class OTADaemon(BaseDaemon):
     def __init__(self):
         super().__init__('ota')
 
-        # ota is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
-
         # command flags
         self.open_cover_flag = 0
         self.close_cover_flag = 0
@@ -32,8 +28,13 @@ class OTADaemon(BaseDaemon):
         self.uts = params.UTS.copy()
         self.uts_with_covers = params.UTS_WITH_COVERS.copy()
         self.active_uts = []
+        self.interfaces = {f'foc{ut}' for ut in self.uts_with_covers}
 
         self.last_move_time = {ut: None for ut in self.uts}
+
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -72,19 +73,15 @@ class OTADaemon(BaseDaemon):
             if self.open_cover_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Opening mirror cover {} ({})'.format(ut, interface_id))
-
+                        self.log.info('Opening mirror cover {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.open_mirror_cover(ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.open_cover()
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
-
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('open_cover command failed')
@@ -97,19 +94,15 @@ class OTADaemon(BaseDaemon):
             if self.close_cover_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Closing mirror cover {} ({})'.format(ut, interface_id))
-
+                        self.log.info('Closing mirror cover {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.close_mirror_cover(ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.close_cover()
                                 if c:
                                     self.log.info(c)
                             self.last_move_time[ut] = self.loop_time
-
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('close_cover command failed')
@@ -122,18 +115,14 @@ class OTADaemon(BaseDaemon):
             if self.stop_cover_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Stopping mirror cover {} ({})'.format(ut, interface_id))
-
+                        self.log.info('Stopping mirror cover {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.stop_mirror_cover(ut)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                c = interface.stop_cover()
                                 if c:
                                     self.log.info(c)
-
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('stop_cover command failed')
@@ -164,18 +153,15 @@ class OTADaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
-
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_ota_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_ota_class(ut)
-                    if ut in self.uts_with_covers:
-                        ut_info['position'] = interface.get_mirror_cover_position(ut)
+                ut_info['interface_id'] = f'foc{ut}'
+                if ut in self.uts_with_covers:
+                    with daemon_proxy(f'foc{ut}') as interface:
+                        ut_info['position'] = interface.get_cover_position()
                         # See `H400.get_cover_position`
-                    else:
-                        ut_info['position'] = 'NA'
-
+                else:
+                    ut_info['position'] = 'NA'
+                ut_info['serial_number'] = params.UT_DICT[ut]['OTA']['SERIAL']
+                ut_info['hw_class'] = params.UT_DICT[ut]['OTA']['CLASS']
                 ut_info['last_move_time'] = self.last_move_time[ut]
 
                 temp_info[ut] = ut_info

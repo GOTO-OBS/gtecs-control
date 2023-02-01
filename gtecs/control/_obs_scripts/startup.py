@@ -54,9 +54,8 @@ def run():
     # Make all the other daemons are running
     # Note we can't shutdown and restart, because the daemons will die when this script ends
     for daemon_id in list(params.DAEMONS):
-        if daemon_id not in params.INTERFACES:
-            execute_command('{} start'.format(daemon_id))
-            time.sleep(1)
+        execute_command('{} start'.format(daemon_id))
+        time.sleep(1)
 
     time.sleep(4)
 

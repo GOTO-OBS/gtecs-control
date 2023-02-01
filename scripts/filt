@@ -149,7 +149,8 @@ def print_info(info):
     """Print the full info dict."""
     print('#### FILTER WHEEL INFO ####')
     for ut in info['uts']:
-        print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
+        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
+        print('FILTER WHEEL {} ({}:{})'.format(ut, host, port))
         if info[ut]['status'] != 'Moving':
             print('Status: {}'.format(info[ut]['status']))
             if not info[ut]['homed']:
@@ -173,7 +174,8 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for ut in info['uts']:
-        print('FILTER WHEEL {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
+        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
+        print('FILTER WHEEL {} ({}:{})'.format(ut, host, port), end=' ')
         if info[ut]['status'] != 'Moving':
             if not info[ut]['homed']:
                 print('Current filter: UNHOMED', end=' ')

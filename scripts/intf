@@ -9,55 +9,9 @@ from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import errors
+from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.style import errortxt
-
-
-def get_args(interface_id):
-    """Format the arguments to send to the interface script.
-
-    See also `parse_args()` in ut_interface.py.
-    """
-    args = [interface_id]
-    for ut in params.INTERFACES[interface_id]:
-        args.append('--ut')
-
-        # UT number
-        args.append(ut)
-
-        # OTA details
-        if params.UT_DICT[ut]['OTA'] is not None:
-            hw_str = json.dumps(params.UT_DICT[ut]['OTA'], separators=(',', ':'))
-            hw_str = hw_str.replace('{', '\\{')
-            hw_str = hw_str.replace('}', '\\}')
-            hw_str = hw_str.replace('"', '\\"')
-            args.append('ota={}'.format(hw_str))
-
-        # Camera details
-        if params.UT_DICT[ut]['CAMERA'] is not None:
-            hw_str = json.dumps(params.UT_DICT[ut]['CAMERA'], separators=(',', ':'))
-            hw_str = hw_str.replace('{', '\\{')
-            hw_str = hw_str.replace('}', '\\}')
-            hw_str = hw_str.replace('"', '\\"')
-            args.append('cam={}'.format(hw_str))
-
-        # Focuser details
-        if params.UT_DICT[ut]['FOCUSER'] is not None:
-            hw_str = json.dumps(params.UT_DICT[ut]['FOCUSER'], separators=(',', ':'))
-            hw_str = hw_str.replace('{', '\\{')
-            hw_str = hw_str.replace('}', '\\}')
-            hw_str = hw_str.replace('"', '\\"')
-            args.append('foc={}'.format(hw_str))
-
-        # Filter wheel details
-        if params.UT_DICT[ut]['FILTERWHEEL'] is not None:
-            hw_str = json.dumps(params.UT_DICT[ut]['FILTERWHEEL'], separators=(',', ':'))
-            hw_str = hw_str.replace('{', '\\{')
-            hw_str = hw_str.replace('}', '\\}')
-            hw_str = hw_str.replace('"', '\\"')
-            args.append('filt={}'.format(hw_str))
-
-    return args
 
 
 def query(command, args):
@@ -71,43 +25,149 @@ def query(command, args):
 
     # Primary daemon control
     elif command == 'start':
-        for daemon_id in sorted(params.INTERFACES):
-            try:
-                reply = daemons.start_daemon(daemon_id, args=get_args(daemon_id))
-                print(reply)
-            except Exception as error:
-                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        # parse arguments
+        if len(args) == 0:
+            ut_list = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 1:
+            if args[0] in ['cam', 'foc', 'filt']:
+                ut_list = params.UTS
+                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
+            else:
+                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 2:
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
+        else:
+            raise errors.InputError('Invalid arguments')
+
+        for ut in ut_list:
+            for hw in hw_list:
+                interface_id = f'{hw}{ut}'
+                if interface_id not in params.INTERFACES:
+                    continue
+                try:
+                    reply = daemons.start_daemon(interface_id)
+                    print(reply)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'shutdown':
-        for daemon_id in sorted(params.INTERFACES):
-            try:
-                reply = daemons.shutdown_daemon(daemon_id)
-                print(reply)
-            except Exception as error:
-                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        # parse arguments
+        if len(args) == 0:
+            ut_list = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 1:
+            if args[0] in ['cam', 'foc', 'filt']:
+                ut_list = params.UTS
+                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
+            else:
+                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 2:
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
+        else:
+            raise errors.InputError('Invalid arguments')
+
+        for ut in ut_list:
+            for hw in hw_list:
+                interface_id = f'{hw}{ut}'
+                if interface_id not in params.INTERFACES:
+                    continue
+                try:
+                    reply = daemons.shutdown_daemon(interface_id)
+                    print(reply)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'restart':
-        for daemon_id in sorted(params.INTERFACES):
-            try:
-                reply = daemons.restart_daemon(daemon_id, args=get_args(daemon_id))
-            except Exception as error:
-                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        # parse arguments
+        if len(args) == 0:
+            ut_list = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 1:
+            if args[0] in ['cam', 'foc', 'filt']:
+                ut_list = params.UTS
+                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
+            else:
+                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 2:
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
+        else:
+            raise errors.InputError('Invalid arguments')
+
+        for ut in ut_list:
+            for hw in hw_list:
+                interface_id = f'{hw}{ut}'
+                if interface_id not in params.INTERFACES:
+                    continue
+                try:
+                    reply = daemons.restart_daemon(interface_id)
+                    print(reply)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'kill':
-        for daemon_id in sorted(params.INTERFACES):
-            try:
-                reply = daemons.kill_daemon(daemon_id)
-                print(reply)
-            except Exception as error:
-                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        # parse arguments
+        if len(args) == 0:
+            ut_list = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 1:
+            if args[0] in ['cam', 'foc', 'filt']:
+                ut_list = params.UTS
+                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
+            else:
+                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 2:
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
+        else:
+            raise errors.InputError('Invalid arguments')
+
+        for ut in ut_list:
+            for hw in hw_list:
+                interface_id = f'{hw}{ut}'
+                if interface_id not in params.INTERFACES:
+                    continue
+                try:
+                    reply = daemons.kill_daemon(interface_id)
+                    print(reply)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command in ['check', 'ping']:
-        for daemon_id in sorted(params.INTERFACES):
-            try:
-                reply = daemons.check_daemon(daemon_id)
-                print(reply)
-            except Exception as error:
-                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        # parse arguments
+        if len(args) == 0:
+            ut_list = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 1:
+            if args[0] in ['cam', 'foc', 'filt']:
+                ut_list = params.UTS
+                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
+            else:
+                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                hw_list = ['cam', 'foc', 'filt']
+        elif len(args) == 2:
+            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
+        else:
+            raise errors.InputError('Invalid arguments')
+
+        for ut in ut_list:
+            for hw in hw_list:
+                interface_id = f'{hw}{ut}'
+                if interface_id not in params.INTERFACES:
+                    continue
+                try:
+                    reply = daemons.check_daemon(interface_id)
+                    print(reply)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command in ['info', 'status']:
         # parse arguments
@@ -130,22 +190,28 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply_list = []
-        for daemon_id in sorted(params.INTERFACES):
-            try:
-                reply = daemons.daemon_function(daemon_id, 'get_info', args=[force])
-                if not reply:
-                    raise ValueError('No info returned, check daemon')
-                reply_list.append(reply)
-            except Exception as error:
-                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        all_info = {}
+        for ut in params.UTS:
+            ut_info = []
+            for hw in ['cam', 'foc', 'filt']:
+                interface_id = f'{hw}{ut}'
+                if interface_id not in params.INTERFACES:
+                    continue
+                try:
+                    reply = daemons.daemon_function(interface_id, 'get_info', args=[force])
+                    if not reply:
+                        raise ValueError('No info returned, check daemon')
+                    ut_info.append(reply)
+                except Exception as error:
+                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+            all_info[ut] = ut_info
         # print response
         if info_type == 'verbose':
-            for reply in reply_list:
-                print_info(reply)
+            print_info(all_info)
         elif info_type == 'raw':
-            for reply in reply_list:
-                print(json.dumps(reply, indent=2, default=repr))
+            for ut in params.UTS:
+                for reply in all_info[ut]:
+                    print(json.dumps(reply, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -154,72 +220,58 @@ def query(command, args):
             args.remove('stdout')
         else:
             stdout = False
-        # TODO: add ability to select only one log to show
-        for daemon_id in sorted(params.INTERFACES):
-            # parse arguments
-            if stdout:
-                log_file = daemon_id + '-stdout.log'
-            else:
-                log_file = daemon_id + '.log'
-            log_path = logging.get_log_path() / log_file
-            tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-            # send command
-            execute_long_command(tail_command)
+        if args[0] in ['cam', 'foc', 'filt']:
+            hw_list = [args[0]]
+            args.remove(args[0])
+
+        for i, ut in enumerate(params.UTS):
+            for j, hw in enumerate(hw_list):
+                interface_id = f'{hw}{ut}'
+                # parse arguments
+                if stdout:
+                    log_file = interface_id + '-stdout.log'
+                else:
+                    log_file = interface_id + '.log'
+                log_path = logging.get_log_path() / log_file
+                tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
+                # send command
+                if i + j > 0:
+                    print('~~~~~~~~~~~~~~~~~~~~~~')
+                execute_long_command(tail_command)
 
     # Unrecognized function
     else:
         raise errors.InputError('Unrecognized command "{}"'.format(command))
 
 
-def print_info(info):
+def print_info(all_info):
     """Print the full info dict."""
-    print('INTERFACE {} ({}):'.format(info['daemon_id'], params.DAEMONS[info['daemon_id']]['HOST']))
-    print('   OTAs:          ', end='\t')
-    for ut in info['uts']:
-        if ut in info['ota_serials']:
-            print('{}: {: <16}'.format(ut, info['ota_serials'][ut]), end='  ')
-        else:
-            print('{}: {: <16}'.format(ut, '----'), end='  ')
-    print('')
-    print('   Cameras:       ', end='\t')
-    for ut in info['uts']:
-        if ut in info['cam_serials']:
-            print('{}: {: <16}'.format(ut, info['cam_serials'][ut]), end='  ')
-        else:
-            print('{}: {: <16}'.format(ut, '----'), end='  ')
-    print('')
-    print('   Focusers:      ', end='\t')
-    for ut in info['uts']:
-        if ut in info['foc_serials']:
-            print('{}: {: <16}'.format(ut, info['foc_serials'][ut]), end='  ')
-        else:
-            print('{}: {: <16}'.format(ut, '----'), end='  ')
-    print('')
-    print('   Filter Wheels: ', end='\t')
-    for ut in info['uts']:
-        if ut in info['filt_serials']:
-            print('{}: {: <16}'.format(ut, info['filt_serials'][ut]), end='  ')
-        else:
-            print('{}: {: <16}'.format(ut, '----'), end='  ')
-    print('')
+    for ut in all_info:
+        if len(all_info[ut]) > 0:
+            print(f"UT {ut} ({params.UT_DICT[ut]['INTERFACE_HOST']}):")
+        for info in all_info[ut]:
+            host, port = daemons.get_daemon_host(info['daemon_id'])
+            print('  {:>5} ({}:{}): {}'.format(info['daemon_id'], host, port, info['serial']))
+
+    return
 
 
 def print_instructions():
     """Print instructions for using the daemon."""
     print('Usage: intf command [options]',
           'Daemon commands:',
-          '  start                          start the interfaces',
-          '  shutdown                       shutdown the interfaces',
-          '  restart                        restart the interfaces',
-          '  kill                           kill the interfaces',
-          '  check/ping                     check the interfaces for errors',
+          '  start [uts] [cam|foc|filt]         start the interfaces',
+          '  shutdown [uts] [cam|foc|filt]      shutdown the interfaces',
+          '  restart  [uts] [cam|foc|filt]      restart the interfaces',
+          '  kill [uts] [cam|foc|filt]          kill the interfaces',
+          '  check/ping [uts] [cam|foc|filt]    check the interfaces for errors',
           'Interface commands:',
-          '  info/status [-r] [-f]          report current status [raw/force-update]',
-          '  log [stdout]                   print daemon log (tail alias)',
+          '  info/status [-r] [-f]              report current status [raw/force-update]',
+          '  log [stdout] [cam|foc|filt]        print daemon log (tail alias)',
           'Control commands:',
-          '  i                              enter interactive mode',
-          '  q/exit                         quit interactive mode',
-          '  ?/help                         print these instructions',
+          '  i                                  enter interactive mode',
+          '  q/exit                             quit interactive mode',
+          '  ?/help                             print these instructions',
           sep='\n')
 
 

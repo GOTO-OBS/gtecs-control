@@ -1,6 +1,5 @@
 """Package parameters."""
 
-import importlib.resources as pkg_resources
 import os
 import sys
 
@@ -77,28 +76,17 @@ DAEMONS = config['DAEMONS']
 for daemon_id in DAEMONS:
     if DAEMONS[daemon_id]['HOST'] == 'localhost':
         DAEMONS[daemon_id]['HOST'] = LOCAL_HOST
-    with pkg_resources.path('gtecs.control._daemon_scripts', DAEMONS[daemon_id]['PROCESS']) as path:
-        DAEMONS[daemon_id]['PROCESS_PATH'] = str(path)
 
 UT_DICT = config['UTS']
 # UT IDs should be integers
 UT_DICT = {int(ut): d for ut, d in UT_DICT.items()}
 for ut in UT_DICT:
-    # Add UT to interface list
-    if 'INTERFACE' in UT_DICT[ut]:
-        interface_id = UT_DICT[ut]['INTERFACE']
-        if interface_id in DAEMONS:
-            if 'UTS' in DAEMONS[interface_id]:
-                # Add and sort
-                DAEMONS[interface_id]['UTS'].append(ut)
-                DAEMONS[interface_id]['UTS'] = sorted(DAEMONS[interface_id]['UTS'])
-            else:
-                # Just add
-                DAEMONS[interface_id]['UTS'] = [ut]
-        else:
-            raise ValueError('Can not find interface "{}" for UT{}'.format(interface_id, ut))
-    else:
-        raise ValueError('No interface defined for UT{}'.format(ut))
+    # Get interface host
+    if 'INTERFACE_HOST' not in UT_DICT[ut]:
+        # raise ValueError('No interface host defined for UT{}'.format(ut))
+        UT_DICT[ut]['INTERFACE_HOST'] = 'localhost'
+    if UT_DICT[ut]['INTERFACE_HOST'] == 'localhost':
+        UT_DICT[ut]['INTERFACE_HOST'] = LOCAL_HOST
 
     # Check hardware dicts
     if 'OTA' not in UT_DICT[ut]:
@@ -138,9 +126,18 @@ UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not N
 UTS_WITH_COVERS = [ut for ut in UTS if UT_DICT[ut]['OTA']['MIRROR_COVER'] == 1]
 ALL_FILTERS = sorted({filt for ut in UTS for filt in UT_DICT[ut]['FILTERS']})
 
-INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
-              for interface_id in DAEMONS
-              if 'UTS' in DAEMONS[interface_id]}
+BASE_INTERFACE_PORT = config['BASE_INTERFACE_PORT']
+INTERFACES = {}
+for ut in UTS:
+    if ut in UTS_WITH_CAMERAS:
+        INTERFACES[f'cam{ut}'] = {'HOST': UT_DICT[ut]['INTERFACE_HOST'],
+                                  'PORT': BASE_INTERFACE_PORT + 10 + ut}
+    if ut in UTS_WITH_FOCUSERS or ut in UTS_WITH_COVERS:
+        INTERFACES[f'foc{ut}'] = {'HOST': UT_DICT[ut]['INTERFACE_HOST'],
+                                  'PORT': BASE_INTERFACE_PORT + 20 + ut}
+    if ut in UTS_WITH_FILTERWHEELS:
+        INTERFACES[f'filt{ut}'] = {'HOST': UT_DICT[ut]['INTERFACE_HOST'],
+                                   'PORT': BASE_INTERFACE_PORT + 30 + ut}
 
 DASHBOARD_IP = config['DASHBOARD_IP']
 
@@ -248,12 +245,8 @@ MAX_HOURANGLE = config['MAX_HOURANGLE']
 MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 ############################################################
-# Interface parameters
-FAKE_FLI = config['FAKE_FLI']
-FAKE_ASA = config['FAKE_ASA']
-
-############################################################
 # Camera parameters
+FAKE_INTF = config['FAKE_INTF']
 MIN_EXPOSURE_DELAY = config['MIN_EXPOSURE_DELAY']
 SAVE_IMAGES_LOCALLY = config['SAVE_IMAGES_LOCALLY']
 FRAMETYPE_LIST = config['FRAMETYPE_LIST']
