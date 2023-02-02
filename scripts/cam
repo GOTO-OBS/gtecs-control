@@ -363,7 +363,10 @@ if __name__ == '__main__':
 
     command, *args = sys.argv[1:]
     if command != 'i':
-        query(command, args)
+        try:
+            query(command, args)
+        except Exception as error:
+            print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
     else:
         # Interactive mode
         while True:

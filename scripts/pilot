@@ -10,6 +10,7 @@ from gtecs.control import errors
 from gtecs.control.flags import Status
 from gtecs.control.pilot import run
 from gtecs.control.slack import send_slack_msg
+from gtecs.control.style import errortxt
 
 
 def query(command, args):
@@ -102,4 +103,7 @@ if __name__ == '__main__':
         sys.exit()
 
     command, *args = sys.argv[1:]
-    query(command, args)
+    try:
+        query(command, args)
+    except Exception as error:
+        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
