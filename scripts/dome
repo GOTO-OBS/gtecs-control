@@ -47,7 +47,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -76,22 +75,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'dome-stdout.log'
             args.remove('stdout')
@@ -99,12 +95,10 @@ def query(command, args):
             log_file = 'dome.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'open':
-        # parse arguments
         if len(args) == 0:
             side = 'both'
             fraction = 1
@@ -119,7 +113,6 @@ def query(command, args):
             fraction = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
         if not 0 < fraction <= 1:
             raise errors.InputError('Fraction must be between 0 and 1')
         side = side.lower()
@@ -131,14 +124,12 @@ def query(command, args):
             side += '_side'
         if side not in ['a_side', 'b_side', 'both']:
             raise errors.InputError('Invalid side: {}'.format(side))
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.open_dome(side, fraction)
             print(reply)
 
     elif command == 'close':
-        # parse arguments
         if len(args) == 0:
             side = 'both'
             fraction = 1
@@ -153,7 +144,6 @@ def query(command, args):
             fraction = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
         if not 0 < fraction <= 1:
             raise errors.InputError('Fraction must be between 0 and 1')
         side = side.lower()
@@ -165,52 +155,44 @@ def query(command, args):
             side += '_side'
         if side not in ['a_side', 'b_side', 'both']:
             raise errors.InputError('Invalid side: {}'.format(side))
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.close_dome(side, fraction)
             print(reply)
 
     elif command in ['halt', 'stop', 'abort']:
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.halt_dome()
             print(reply)
 
     elif command == 'reset':
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.reset_bumperguard()
             print(reply)
 
     elif command in ['dehumidifier', 'dehumid', 'dehum']:
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.override_dehumidifier(command)
             print(reply)
 
     elif command == 'autodehum':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.set_autodehum(command)
             print(reply)
 
     elif command == 'autoclose':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
             timeout = None
@@ -219,55 +201,46 @@ def query(command, args):
             timeout = float(args[1]) * 60  # timeout in minutes
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.set_autoclose(command, timeout)
             print(reply)
 
     elif command in ['windshield', 'shield']:
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.override_windshield(command)
             print(reply)
 
     elif command == 'autoshield':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.set_autoshield(command)
             print(reply)
 
     elif command == 'alarm':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.set_alarm(command)
             print(reply)
 
     elif command == 'heartbeat':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
             reply = daemon.set_heartbeat(command)

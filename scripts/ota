@@ -44,7 +44,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -73,22 +72,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('ota')
         with daemons.daemon_proxy('ota') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'ota-stdout.log'
             args.remove('stdout')
@@ -96,12 +92,10 @@ def query(command, args):
             log_file = 'ota.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'open':
-        # parse arguments
         if len(args) == 0:
             # ota open
             ut_list = params.UTS_WITH_COVERS
@@ -110,14 +104,12 @@ def query(command, args):
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('ota')
         with daemons.daemon_proxy('ota') as daemon:
             reply = daemon.open_covers(ut_list)
             print(reply)
 
     elif command == 'close':
-        # parse arguments
         if len(args) == 0:
             # ota close
             ut_list = params.UTS_WITH_COVERS
@@ -126,14 +118,12 @@ def query(command, args):
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('ota')
         with daemons.daemon_proxy('ota') as daemon:
             reply = daemon.close_covers(ut_list)
             print(reply)
 
     elif command == 'stop':
-        # parse arguments
         if len(args) == 0:
             # ota stop
             ut_list = params.UTS_WITH_COVERS
@@ -142,7 +132,6 @@ def query(command, args):
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('ota')
         with daemons.daemon_proxy('ota') as daemon:
             reply = daemon.stop_covers(ut_list)

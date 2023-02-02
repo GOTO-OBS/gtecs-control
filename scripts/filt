@@ -44,7 +44,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -73,22 +72,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('filt')
         with daemons.daemon_proxy('filt') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'filt-stdout.log'
             args.remove('stdout')
@@ -96,12 +92,10 @@ def query(command, args):
             log_file = 'filt.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'set':
-        # parse arguments
         if len(args) == 1:
             # filt set <filt>
             filt = args[0]
@@ -118,14 +112,12 @@ def query(command, args):
             filt_dict = {ut: filt for ut, filt in zip(ut_list, filt_list)}
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('filt')
         with daemons.daemon_proxy('filt') as daemon:
             reply = daemon.set_filters(filt_dict)
             print(reply)
 
     elif command == 'home':
-        # parse arguments
         if len(args) == 0:
             # filt home
             ut_list = params.UTS_WITH_FILTERWHEELS
@@ -134,15 +126,12 @@ def query(command, args):
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('filt')
         with daemons.daemon_proxy('filt') as daemon:
             reply = daemon.home_filters(ut_list)
             print(reply)
 
-    # Other functions
     elif command in ['list', 'ls']:
-        # print response
         for ut in sorted(params.UT_DICT):
             print('UT{} filters: {}'.format(ut, ','.join(params.UT_DICT[ut]['FILTERS'])))
 

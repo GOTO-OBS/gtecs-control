@@ -59,11 +59,9 @@ def query(command, args):
         if not get_pid('pilot'):
             print('Pilot is not running')
             return
-
         kill_process('pilot')
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'pilot' + '-stdout.log'
             args.remove('stdout')
@@ -71,7 +69,6 @@ def query(command, args):
             log_file = 'pilot' + '.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-
         execute_long_command(tail_command)
 
     # Unrecognized function

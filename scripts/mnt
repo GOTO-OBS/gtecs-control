@@ -50,7 +50,6 @@ def query(command, args):
         reply = daemons.check_daemon('mnt')
         print(reply)
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -79,22 +78,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'mnt-stdout.log'
             args.remove('stdout')
@@ -102,12 +98,10 @@ def query(command, args):
             log_file = 'mnt.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'target':
-        # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
@@ -127,21 +121,17 @@ def query(command, args):
             print(f'RA: {coords.ra.deg:.4f} Dec: {coords.dec.deg:.4f}')
         else:
             raise errors.InputError('Invalid arguments')
-        # send commands
-        daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.set_target(coords)
             print(reply)
 
     elif command == 'clear':
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.clear_target()
             print(reply)
 
     elif command == 'slew':
-        # parse arguments
         if len(args) == 0:
             # slew to already set target
             coords = None
@@ -152,14 +142,12 @@ def query(command, args):
             coords = SkyCoord(ra_deg * u.deg, dec_deg * u.deg)
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.slew(coords)
             print(reply)
 
     elif command in ['slew_altaz', 'altaz']:
-        # parse arguments
         if len(args) == 2:
             # decimal alt and az
             alt = float(args[0])
@@ -172,14 +160,12 @@ def query(command, args):
             coords = SkyCoord(coords).transform_to('icrs')
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.slew(coords)
             print(reply)
 
     elif command in ['slew_altaz_target', 'altaz_target']:
-        # parse arguments
         if len(args) == 2:
             alt = float(args[0])
             if alt == 90:  # We don't want to go to the exact zenith
@@ -189,7 +175,6 @@ def query(command, args):
                            obstime=Time.now(), location=observatory_location())
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.slew(coords)
@@ -220,33 +205,28 @@ def query(command, args):
             print(reply)
 
     elif command == 'offset':
-        # parse arguments
         if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
             direction = args[0].upper()
             distance = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.offset(direction, distance)
             print(reply)
 
     elif command in ['pulseguide', 'pulse_guide', 'guide']:
-        # parse arguments
         if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
             direction = args[0].upper()
             duration = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.pulse_guide(direction, duration)
             print(reply)
 
     elif command == 'sync':
-        # parse arguments
         if len(args) == 2:
             # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
@@ -254,14 +234,12 @@ def query(command, args):
             coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.sync_mount(coords)
             print(reply)
 
     elif command == 'set_offset':
-        # parse arguments
         if len(args) == 2:
             # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
@@ -269,21 +247,18 @@ def query(command, args):
             coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.set_position_offset(coords)
             print(reply)
 
     elif command == 'clear_offset':
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.clear_position_offset()
             print(reply)
 
     elif command == 'trackrate':
-        # parse arguments
         if len(args) == 1 and args[0].lower() == 'reset':
             ra_rate = 0
             dec_rate = 0
@@ -292,42 +267,36 @@ def query(command, args):
             dec_rate = float(args[1])
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.set_trackrate(ra_rate, dec_rate)
             print(reply)
 
     elif command == 'blinky':
-        # parse arguments
         if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
             activate = True
         elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
             activate = False
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.blinky(activate)
             print(reply)
 
     elif command == 'motors':
-        # parse arguments
         if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
             activate = True
         elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
             activate = False
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.power_motors(activate)
             print(reply)
 
     elif command == 'clear_error':
-        # send command
         daemons.check_daemon('mnt')
         with daemons.daemon_proxy('mnt') as daemon:
             reply = daemon.clear_error()

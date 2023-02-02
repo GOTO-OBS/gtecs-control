@@ -45,7 +45,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -74,22 +73,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('foc')
         with daemons.daemon_proxy('foc') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'foc-stdout.log'
             args.remove('stdout')
@@ -97,12 +93,10 @@ def query(command, args):
             log_file = 'foc.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'set':
-        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
             # foc set <pos>
             pos = int(args[0])
@@ -119,14 +113,12 @@ def query(command, args):
             pos_dict = {ut: pos for ut, pos in zip(ut_list, pos_list)}
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('foc')
         with daemons.daemon_proxy('foc') as daemon:
             reply = daemon.set_focusers(pos_dict)
             print(reply)
 
     elif command == 'move':
-        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
             # foc move <steps>
             steps = int(args[0])
@@ -143,14 +135,12 @@ def query(command, args):
             steps_dict = {ut: steps for ut, steps in zip(ut_list, steps_list)}
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('foc')
         with daemons.daemon_proxy('foc') as daemon:
             reply = daemon.move_focusers(steps_dict)
             print(reply)
 
     elif command == 'home':
-        # parse arguments
         if len(args) == 0:
             # foc home
             ut_list = params.UTS_WITH_FOCUSERS
@@ -159,14 +149,12 @@ def query(command, args):
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('foc')
         with daemons.daemon_proxy('foc') as daemon:
             reply = daemon.home_focusers(ut_list)
             print(reply)
 
     elif command in ['stop', 'halt', 'abort']:
-        # parse arguments
         if len(args) == 0:
             # foc stop
             ut_list = params.UTS_WITH_FOCUSERS
@@ -175,14 +163,12 @@ def query(command, args):
             ut_list = [int(x) for x in args[0].split(',')]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('foc')
         with daemons.daemon_proxy('foc') as daemon:
             reply = daemon.stop_focusers(ut_list)
             print(reply)
 
     elif command == 'sync':
-        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
             # foc sync <position>
             position = int(args[0])
@@ -199,7 +185,6 @@ def query(command, args):
             position_dict = {ut: position for ut, position in zip(ut_list, position_list)}
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('foc')
         with daemons.daemon_proxy('foc') as daemon:
             reply = daemon.sync_focusers(position_dict)

@@ -45,7 +45,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'verbose'
             force = False
@@ -64,20 +63,17 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'conditions-stdout.log'
             args.remove('stdout')
@@ -85,48 +81,40 @@ def query(command, args):
             log_file = 'conditions.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'update':
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             reply = daemon.update()
             print(reply)
 
     elif command == 'ignore':
-        # parse arguments
         if len(args) == 1:
             flags = args[0].split(',')
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             reply = daemon.ignore_flags(flags)
             print(reply)
 
     elif command == 'enable':
-        # parse arguments
         if len(args) == 1:
             flags = args[0].split(',')
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             reply = daemon.enable_flags(flags)
             print(reply)
 
     elif command == 'override':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             if command.lower() == 'on':
@@ -138,28 +126,24 @@ def query(command, args):
             print(reply)
 
     elif command == 'pause':
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             reply = daemon.set_override()
         print(reply)
 
     elif command in ['resume', 'unpause']:
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             reply = daemon.clear_override()
             print(reply)
 
     elif command == 'limits':
-        # parse arguments
         if len(args) == 0:
             force = False
         elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('conditions')
         with daemons.daemon_proxy('conditions') as daemon:
             info = daemon.get_info(force)

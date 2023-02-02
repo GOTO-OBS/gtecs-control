@@ -45,7 +45,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -74,22 +73,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'cam-stdout.log'
             args.remove('stdout')
@@ -97,12 +93,10 @@ def query(command, args):
             log_file = 'cam.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'image':
-        # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
@@ -115,14 +109,12 @@ def query(command, args):
             imgtype = 'MANUAL'
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.take_image(exptime, binning, imgtype, ut_list)
             print(reply)
 
     elif command == 'glance':
-        # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
@@ -135,14 +127,12 @@ def query(command, args):
             imgtype = 'GLANCE'
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.take_glance(exptime, binning, imgtype, ut_list)
             print(reply)
 
     elif command == 'dark':
-        # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             ut_list = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
@@ -155,14 +145,12 @@ def query(command, args):
             imgtype = 'DARK'
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.take_dark(exptime, binning, imgtype, ut_list)
             print(reply)
 
     elif command == 'bias':
-        # parse arguments
         if len(args) == 1:
             ut_list = params.UTS_WITH_CAMERAS
             exptime = 0.0
@@ -175,42 +163,36 @@ def query(command, args):
             imgtype = 'BIAS'
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.take_dark(exptime, binning, imgtype, ut_list)
             print(reply)
 
     elif command == 'abort':
-        # parse arguments
         if len(args) == 0:
             ut_list = params.UTS_WITH_CAMERAS
         elif len(args) == 1:
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.abort_exposure(ut_list)
             print(reply)
 
     elif command == 'clear':
-        # parse arguments
         if len(args) == 0:
             ut_list = params.UTS_WITH_CAMERAS
         elif len(args) == 1:
             ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.clear_queue(ut_list)
             print(reply)
 
     elif command == 'window':
-        # parse arguments
         if len(args) == 1 and args[0] in ['full', 'reset', 'clear']:
             ut_list = params.UTS_WITH_CAMERAS
             target_window = None
@@ -227,7 +209,6 @@ def query(command, args):
             target_window = (int(args[1]), int(args[2]), int(args[3]), int(args[4]))
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             if target_window is not None:
@@ -237,19 +218,16 @@ def query(command, args):
             print(reply)
 
     elif command == 'measure_hfds':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.measure_image_hfds(command)
             print(reply)
 
     elif command == 'temp':
-        # parse arguments
         if len(args) == 1:
             ut_list = params.UTS_WITH_CAMERAS
             target_temp = args[0]
@@ -258,7 +236,6 @@ def query(command, args):
             target_temp = args[1]
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:
             reply = daemon.set_temperature(target_temp, ut_list)

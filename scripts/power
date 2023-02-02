@@ -44,7 +44,6 @@ def query(command, args):
         print(reply)
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -73,22 +72,19 @@ def query(command, args):
             force = True
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('power')
         with daemons.daemon_proxy('power') as daemon:
             info = daemon.get_info(force)
-        # print response
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            elif info_type == 'simple':
+                print_info_s(info)
+            elif info_type == 'verbose':
+                print_info(info)
+            elif info_type == 'raw':
+                print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'power-stdout.log'
             args.remove('stdout')
@@ -96,12 +92,10 @@ def query(command, args):
             log_file = 'power.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command in ['on', 'off', 'reboot']:
-        # parse arguments
         if len(args) == 1:
             unit = None
             outlets = args[0].split(',')
@@ -110,7 +104,6 @@ def query(command, args):
             outlets = args[1].split(',')
         else:
             raise errors.InputError('Invalid arguments')
-        # send command
         daemons.check_daemon('power')
         with daemons.daemon_proxy('power') as daemon:
             if command == 'on':
@@ -122,7 +115,6 @@ def query(command, args):
             print(reply)
 
     elif command in ['list', 'ls', 'outlets']:
-        # print info
         print_outlets(params.POWER_UNITS, params.POWER_GROUPS)
 
     # Unrecognized function
