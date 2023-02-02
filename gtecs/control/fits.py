@@ -18,7 +18,7 @@ from . import misc
 from . import params
 from .analysis import get_focus_region, measure_image_hfd
 from .astronomy import get_lst, night_startdate
-from .daemons import daemon_info
+from .daemons import daemon_proxy
 from .flags import Status
 from .scheduling import get_pointing_info
 
@@ -205,7 +205,8 @@ def get_all_info(cam_info, log=None, log_debug=False):
             if log and log_debug:
                 log.debug(f'Fetching "{daemon_id}" info')
             force_update = bool(daemon_id != 'conditions')
-            all_info[daemon_id] = daemon_info(daemon_id, force_update, timeout=60)
+            with daemon_proxy(daemon_id, timeout=60) as daemon:
+                all_info[daemon_id] = daemon.get_info(force_update)
             if log and log_debug:
                 log.debug(f'Fetched "{daemon_id}" info')
         except Exception:

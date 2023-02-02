@@ -89,9 +89,9 @@ class FocDaemon(BaseDaemon):
 
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.move_focuser(move_steps)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.move_focuser(move_steps)
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                             self.last_move_temp[ut] = self.info[ut]['current_temp']
 
@@ -121,11 +121,11 @@ class FocDaemon(BaseDaemon):
                                 # Only the ASA focusers have explicit set commands,
                                 # the others we just do moves
                                 if self.info[ut]['can_set']:
-                                    c = interface.set_focuser(new_pos)
+                                    reply = interface.set_focuser(new_pos)
                                 else:
-                                    c = interface.move_focuser(move_steps)
-                                if c:
-                                    self.log.info(c)
+                                    reply = interface.move_focuser(move_steps)
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                             self.last_move_temp[ut] = self.info[ut]['current_temp']
 
@@ -147,9 +147,9 @@ class FocDaemon(BaseDaemon):
 
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.home_focuser()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.home_focuser()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
 
                             # mark that it's homing
@@ -174,9 +174,9 @@ class FocDaemon(BaseDaemon):
 
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.stop_focuser()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.stop_focuser()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
 
                             # mark that it's stopped
@@ -202,9 +202,9 @@ class FocDaemon(BaseDaemon):
 
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.sync_focuser(position)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.sync_focuser(position)
+                                if reply:
+                                    self.log.info(reply)
 
                         except Exception:
                             self.log.error('No response from interface foc{}'.format(ut))

@@ -167,9 +167,9 @@ class DomeDaemon(BaseDaemon):
                                 if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
                                     time.sleep(5)
 
-                                c = self.dome.open_side(side, self.move_frac)
-                                if c:
-                                    self.log.info(c)
+                                reply = self.dome.open_side(side, self.move_frac)
+                                if reply:
+                                    self.log.info(reply)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
                                 self.force_check_flag = True
@@ -247,9 +247,9 @@ class DomeDaemon(BaseDaemon):
                                 if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
                                     time.sleep(5)
 
-                                c = self.dome.close_side(side, self.move_frac)
-                                if c:
-                                    self.log.info(c)
+                                reply = self.dome.close_side(side, self.move_frac)
+                                if reply:
+                                    self.log.info(reply)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
                                 self.force_check_flag = True
@@ -293,9 +293,9 @@ class DomeDaemon(BaseDaemon):
                 try:
                     try:
                         self.log.info('Halting dome')
-                        c = self.dome.halt()
-                        if c:
-                            self.log.info(c)
+                        reply = self.dome.halt()
+                        if reply:
+                            self.log.info(reply)
                     except Exception:
                         self.log.error('Failed to halt dome')
                         self.log.debug('', exc_info=True)
@@ -319,12 +319,12 @@ class DomeDaemon(BaseDaemon):
                 try:
                     if self.heartbeat_enabled:
                         self.log.info('Enabling heartbeat')
-                        c = self.heartbeat.enable()
+                        reply = self.heartbeat.enable()
                     else:
                         self.log.info('Disabling heartbeat')
-                        c = self.heartbeat.disable()
-                    if c:
-                        self.log.info(c)
+                        reply = self.heartbeat.disable()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('set heartbeat command failed')
                     self.log.debug('', exc_info=True)
@@ -335,9 +335,9 @@ class DomeDaemon(BaseDaemon):
             if self.dehumidifier_on_flag:
                 try:
                     self.log.info('Turning dehumidifer on')
-                    c = self.dehumidifier.on()
-                    if c:
-                        self.log.info(c)
+                    reply = self.dehumidifier.on()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('dehumidifer on command failed')
                     self.log.debug('', exc_info=True)
@@ -348,9 +348,9 @@ class DomeDaemon(BaseDaemon):
             if self.dehumidifier_off_flag:
                 try:
                     self.log.info('Turning dehumidifer off')
-                    c = self.dehumidifier.off()
-                    if c:
-                        self.log.info(c)
+                    reply = self.dehumidifier.off()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('dehumidifer off command failed')
                     self.log.debug('', exc_info=True)

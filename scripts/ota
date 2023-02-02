@@ -74,16 +74,18 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('ota', 'get_info', args=[force])
+        daemons.check_daemon('ota')
+        with daemons.daemon_proxy('ota') as daemon:
+            info = daemon.get_info(force)
         # print response
-        if not reply:
+        if not info:
             raise ValueError('No info returned, check daemon')
         elif info_type == 'simple':
-            print_info_s(reply)
+            print_info_s(info)
         elif info_type == 'verbose':
-            print_info(reply)
+            print_info(info)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -109,8 +111,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('ota', 'open_covers', [ut_list])
-        print(reply)
+        daemons.check_daemon('ota')
+        with daemons.daemon_proxy('ota') as daemon:
+            reply = daemon.open_covers(ut_list)
+            print(reply)
 
     elif command == 'close':
         # parse arguments
@@ -123,8 +127,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('ota', 'close_covers', [ut_list])
-        print(reply)
+        daemons.check_daemon('ota')
+        with daemons.daemon_proxy('ota') as daemon:
+            reply = daemon.close_covers(ut_list)
+            print(reply)
 
     elif command == 'stop':
         # parse arguments
@@ -137,8 +143,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('ota', 'stop_covers', [ut_list])
-        print(reply)
+        daemons.check_daemon('ota')
+        with daemons.daemon_proxy('ota') as daemon:
+            reply = daemon.stop_covers(ut_list)
+            print(reply)
 
     # Unrecognized function
     else:

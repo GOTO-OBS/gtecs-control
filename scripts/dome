@@ -77,16 +77,18 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('dome', 'get_info', args=[force])
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            info = daemon.get_info(force)
         # print response
-        if not reply:
+        if not info:
             raise ValueError('No info returned, check daemon')
         elif info_type == 'simple':
-            print_info_s(reply)
+            print_info_s(info)
         elif info_type == 'verbose':
-            print_info(reply)
+            print_info(info)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -130,8 +132,10 @@ def query(command, args):
         if side not in ['a_side', 'b_side', 'both']:
             raise errors.InputError('Invalid side: {}'.format(side))
         # send command
-        reply = daemons.daemon_function('dome', 'open_dome', [side, fraction])
-        print(reply)
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.open_dome(side, fraction)
+            print(reply)
 
     elif command == 'close':
         # parse arguments
@@ -162,18 +166,24 @@ def query(command, args):
         if side not in ['a_side', 'b_side', 'both']:
             raise errors.InputError('Invalid side: {}'.format(side))
         # send command
-        reply = daemons.daemon_function('dome', 'close_dome', [side, fraction])
-        print(reply)
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.close_dome(side, fraction)
+            print(reply)
 
     elif command in ['halt', 'stop', 'abort']:
         # send command
-        reply = daemons.daemon_function('dome', 'halt_dome')
-        print(reply)
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.halt_dome()
+            print(reply)
 
     elif command == 'reset':
         # send command
-        reply = daemons.daemon_function('dome', 'reset_bumperguard')
-        print(reply)
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.reset_bumperguard()
+            print(reply)
 
     elif command in ['dehumidifier', 'dehumid', 'dehum']:
         # parse arguments
@@ -185,8 +195,10 @@ def query(command, args):
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
         # send command
-        reply = daemons.daemon_function('dome', 'override_dehumidifier', [command])
-        print(reply)
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.override_dehumidifier(command)
+            print(reply)
 
     elif command == 'autodehum':
         # parse arguments
@@ -197,8 +209,11 @@ def query(command, args):
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function('dome', 'set_autodehum', [command])
-        print(reply)
+        # send command
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.set_autodehum(command)
+            print(reply)
 
     elif command == 'autoclose':
         # parse arguments
@@ -213,8 +228,11 @@ def query(command, args):
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function('dome', 'set_autoclose', [command, timeout])
-        print(reply)
+        # send command
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.set_autoclose(command, timeout)
+            print(reply)
 
     elif command in ['windshield', 'shield']:
         # parse arguments
@@ -226,8 +244,10 @@ def query(command, args):
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
         # send command
-        reply = daemons.daemon_function('dome', 'override_windshield', [command])
-        print(reply)
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.override_windshield(command)
+            print(reply)
 
     elif command == 'autoshield':
         # parse arguments
@@ -238,8 +258,11 @@ def query(command, args):
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function('dome', 'set_autoshield', [command])
-        print(reply)
+        # send command
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.set_autoshield(command)
+            print(reply)
 
     elif command == 'alarm':
         # parse arguments
@@ -250,8 +273,11 @@ def query(command, args):
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function('dome', 'set_alarm', [command])
-        print(reply)
+        # send command
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.set_alarm(command)
+            print(reply)
 
     elif command == 'heartbeat':
         # parse arguments
@@ -262,8 +288,11 @@ def query(command, args):
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function('dome', 'set_heartbeat', [command])
-        print(reply)
+        # send command
+        daemons.check_daemon('dome')
+        with daemons.daemon_proxy('dome') as daemon:
+            reply = daemon.set_heartbeat(command)
+            print(reply)
 
     # Unrecognized function
     else:

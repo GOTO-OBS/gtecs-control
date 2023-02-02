@@ -74,16 +74,18 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('filt', 'get_info', args=[force])
+        daemons.check_daemon('filt')
+        with daemons.daemon_proxy('filt') as daemon:
+            info = daemon.get_info(force)
         # print response
-        if not reply:
+        if not info:
             raise ValueError('No info returned, check daemon')
         elif info_type == 'simple':
-            print_info_s(reply)
+            print_info_s(info)
         elif info_type == 'verbose':
-            print_info(reply)
+            print_info(info)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -117,8 +119,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('filt', 'set_filters', [filt_dict])
-        print(reply)
+        daemons.check_daemon('filt')
+        with daemons.daemon_proxy('filt') as daemon:
+            reply = daemon.set_filters(filt_dict)
+            print(reply)
 
     elif command == 'home':
         # parse arguments
@@ -131,8 +135,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('filt', 'home_filters', [ut_list])
-        print(reply)
+        daemons.check_daemon('filt')
+        with daemons.daemon_proxy('filt') as daemon:
+            reply = daemon.home_filters(ut_list)
+            print(reply)
 
     # Other functions
     elif command in ['list', 'ls']:

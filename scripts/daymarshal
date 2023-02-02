@@ -12,7 +12,7 @@ from gtecs.common import logging
 from gtecs.common.system import execute_command, get_pid, kill_process, make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
-from gtecs.control.daemons import daemon_info
+from gtecs.control.daemons import daemon_proxy, restart_daemon
 from gtecs.control.flags import Status
 from gtecs.control.observing import wait_for_dome
 from gtecs.control.slack import send_dome_report, send_slack_msg
@@ -57,8 +57,9 @@ def run(test=False):
     # Check the dome status
     confirmed_closed = False
     try:
-        dome_info = daemon_info('dome')
-        dome_status = dome_info['dome']
+        with daemon_proxy('dome') as daemon:
+            info = daemon.get_info(force_update=True)
+        dome_status = info['dome']
         if dome_status == 'closed':
             msg = '*Day marshal confirmed dome is closed*'
             log.info('Dome confirmed closed')
@@ -82,14 +83,17 @@ def run(test=False):
         try:
             # Try sending the command
             log.warning('Sending dome close command')
-            execute_command('dome close')
+            with daemon_proxy('dome') as daemon:
+                reply = daemon.close_dome()
+                print(reply)
 
             # Wait for the dome to (hopefully) close
             wait_for_dome(target_position='closed', timeout=120)
 
             # Check again
-            dome_info = daemon_info('dome')
-            dome_status = dome_info['dome']
+            with daemon_proxy('dome') as daemon:
+                info = daemon.get_info(force_update=True)
+            dome_status = info['dome']
             if dome_status == 'closed':
                 msg = '*Day marshal has closed the dome*'
                 log.info('Dome confirmed closed')
@@ -99,7 +103,7 @@ def run(test=False):
                 msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
                 log.warning('The dome is still not closed!')
                 # Try restarting the daemon before we try again
-                execute_command('dome restart')
+                restart_daemon('dome')
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)

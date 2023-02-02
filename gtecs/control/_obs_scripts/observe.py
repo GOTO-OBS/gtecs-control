@@ -6,9 +6,9 @@ import time
 import traceback
 from argparse import ArgumentParser
 
-from gtecs.common.system import NeatCloser, execute_command
+from gtecs.common.system import NeatCloser
 from gtecs.control import params
-from gtecs.control.daemons import daemon_function
+from gtecs.control.daemons import daemon_proxy
 from gtecs.control.focusing import (focus_temp_compensation, get_focuser_positions, refocus,
                                     set_focuser_positions)
 from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
@@ -118,7 +118,6 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
                 ut_list = params.UTS_WITH_CAMERAS
 
             # Add to queue
-            # Use the daemon_function to include database IDs, rather than execute_command()
             args = [ut_list,
                     expset_info['exptime'],
                     expset_info['num_exp'],
@@ -131,24 +130,19 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
                     expset_info['id'],
                     pointing_info['id'],
                     ]
-            daemon_function('exq', 'add', args=args)
-
-            # Print like execute_command()
-            print('exq add', ' '.join([str(a) for a in args]) + ':')
-            msg = '> Added {}{:.0f}s {} exposure{}'.format(
-                '{}x '.format(expset_info['num_exp']) if expset_info['num_exp'] > 1 else '',
-                expset_info['exptime'],
-                expset_info['filt'].upper() if expset_info['filt'] else 'X',
-                's' if expset_info['num_exp'] > 1 else '',
-            )
-            print(msg)
+            print('adding exposure:', ' '.join([str(a) for a in args]) + ':')
+            with daemon_proxy('exq') as daemon:
+                reply = daemon.add(*args)
+                print(reply)
 
             # Add to time estimate
             time_estimate += (expset_info['exptime'] + 30) * expset_info['num_exp']
 
         # Resume the queue
         print('Starting exposures')
-        execute_command('exq resume')
+        with daemon_proxy('exq') as daemon:
+            reply = daemon.resume()
+            print(reply)
 
         # Wait for the queue to empty
         # NB We deliberately use a pessimistic timeout, it will raise an error if it takes too long

@@ -3,7 +3,8 @@
 
 from argparse import ArgumentParser
 
-from gtecs.common.system import execute_command
+from gtecs.control import params
+from gtecs.control.daemons import daemon_proxy
 from gtecs.control.observing import prepare_for_images, wait_for_exposure_queue
 
 
@@ -27,15 +28,23 @@ def run(num_exp=5, extras=False):
 
     # TODO: Get set of exposure times from the database?
     #       We'd need a camera/exposure database...
-    execute_command('exq multbias {} 1'.format(num_exp))
-    execute_command('exq multdark {} 45 1'.format(num_exp))
-    execute_command('exq multdark {} 60 1'.format(num_exp))
-    execute_command('exq multdark {} 90 1'.format(num_exp))
-    execute_command('exq multdark {} 120 1'.format(num_exp))
-    if extras:
-        # take a few extra long dark frames to test for hot pixels
-        execute_command('exq multdark 2 600 1')
-    execute_command('exq resume')  # just in case
+
+    uts = params.UTS_WITH_CAMERAS
+    with daemon_proxy('exq') as daemon:
+        # Add 0 second biases
+        reply = daemon.add(uts, exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
+        print(reply)
+        # Add a range of darks
+        # TODO: this should be a param list (or args), match badConditionsTasks
+        for exptime in [45, 60, 90, 120]:
+            reply = daemon.add(uts, exptime=exptime, nexp=num_exp, frametype='dark', imgtype='DARK')
+            print(reply)
+        if extras:
+            reply = daemon.add(uts, exptime=600, nexp=2, frametype='dark', imgtype='DARK')
+            print(reply)
+        # Resume the queue if it's paused
+        reply = daemon.resume()
+        print(reply)
 
     # estimate a deliberately pessimistic timeout
     readout = 10

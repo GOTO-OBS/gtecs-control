@@ -1,6 +1,6 @@
 """Focusing utilities."""
 
-from gtecs.common.system import NeatCloser, execute_command
+from gtecs.common.system import NeatCloser
 
 import numpy as np
 
@@ -8,6 +8,7 @@ import pandas as pd
 
 from . import params
 from .analysis import get_focus_region, measure_image_hfd
+from .daemons import daemon_proxy
 from .observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
                         get_image_headers, move_focusers, set_focuser_positions, wait_for_focusers)
 
@@ -380,7 +381,9 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     #####################################################################################
     # Step 0: Turn on HFD measurement
-    execute_command('cam measure_hfds on')
+    with daemon_proxy('cam') as daemon:
+        reply = daemon.measure_image_hfds('on')
+        print(reply)
 
     # Step 1: Start to move out to the right (+ve steps), return immediately
     print('Moving to the right...')
@@ -442,7 +445,9 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     wait_for_focusers(bf_positions, timeout=60)
 
     # Step 14: Turn off HFD measurement
-    execute_command('cam measure_hfds off')
+    with daemon_proxy('cam') as daemon:
+        reply = daemon.measure_image_hfds('off')
+        print(reply)
 
     if reset:
         # Move back to the original position

@@ -75,16 +75,18 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('exq', 'get_info', args=[force])
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            info = daemon.get_info(force)
         # print response
-        if not reply:
+        if not info:
             raise ValueError('No info returned, check daemon')
         elif info_type == 'simple':
-            print_info_s(reply)
+            print_info_s(info)
         elif info_type == 'verbose':
-            print_info(reply)
+            print_info(info)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -144,10 +146,12 @@ def query(command, args):
         frametype = 'normal'
         glance = False
         # send command
-        for filt in filt_list:
-            arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-            reply = daemons.daemon_function('exq', 'add', arg_list)
-            print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            for filt in filt_list:
+                reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target,
+                                   imgtype, glance)
+                print(reply)
 
     elif command in ['multimage', 'multiimage', 'mimage']:
         # parse arguments
@@ -195,10 +199,12 @@ def query(command, args):
         frametype = 'normal'
         glance = False
         # send command
-        for filt in filt_list:
-            arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-            reply = daemons.daemon_function('exq', 'add', arg_list)
-            print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            for filt in filt_list:
+                reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target,
+                                   imgtype, glance)
+                print(reply)
 
     elif command in ['multcolimage', 'multicolimage', 'mcolimage', 'mcimage']:
         # parse arguments
@@ -246,12 +252,13 @@ def query(command, args):
         frametype = 'normal'
         glance = False
         # send command
-        for _ in range(nexp):
-            for filt in filt_list:
-                arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
-                            glance]
-                reply = daemons.daemon_function('exq', 'add', arg_list)
-                print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            for _ in range(nexp):
+                for filt in filt_list:
+                    reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target,
+                                       imgtype, glance)
+                    print(reply)
 
     elif command == 'glance':
         # parse arguments
@@ -289,10 +296,12 @@ def query(command, args):
         imgtype = 'GLANCE'
         glance = True
         # send command
-        for filt in filt_list:
-            arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-            reply = daemons.daemon_function('exq', 'add', arg_list)
-            print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            for filt in filt_list:
+                reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target,
+                                   imgtype, glance)
+                print(reply)
 
     elif command == 'dark':
         # parse arguments
@@ -318,9 +327,11 @@ def query(command, args):
         imgtype = 'DARK'
         glance = False
         # send command
-        arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-        reply = daemons.daemon_function('exq', 'add', arg_list)
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
+                               glance)
+            print(reply)
 
     elif command in ['multdark', 'multidark', 'mdark']:
         # parse arguments
@@ -347,9 +358,11 @@ def query(command, args):
         imgtype = 'DARK'
         glance = False
         # send command
-        arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-        reply = daemons.daemon_function('exq', 'add', arg_list)
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
+                               glance)
+            print(reply)
 
     elif command == 'bias':
         # parse arguments
@@ -374,9 +387,11 @@ def query(command, args):
         imgtype = 'BIAS'
         glance = False
         # send command
-        arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-        reply = daemons.daemon_function('exq', 'add', arg_list)
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
+                               glance)
+            print(reply)
 
     elif command in ['multbias', 'multibias', 'mbias']:
         # parse arguments
@@ -402,17 +417,23 @@ def query(command, args):
         imgtype = 'BIAS'
         glance = False
         # send command
-        arg_list = [ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance]
-        reply = daemons.daemon_function('exq', 'add', arg_list)
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
+                               glance)
+            print(reply)
 
     elif command == 'pause':
-        reply = daemons.daemon_function('exq', 'pause')
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.pause()
+            print(reply)
 
     elif command in ['resume', 'unpause']:
-        reply = daemons.daemon_function('exq', 'resume')
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.resume()
+            print(reply)
 
     elif command in ['get', 'list', 'ls']:
         # parse arguments
@@ -423,17 +444,19 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        if list_type == 'simple':
-            reply = daemons.daemon_function('exq', 'get_simple')
-        elif list_type == 'verbose':
-            reply = daemons.daemon_function('exq', 'get')
-        else:
-            raise errors.InputError('Invalid arguments')
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            if list_type == 'simple':
+                reply = daemon.get_simple()
+            else:
+                reply = daemon.get()
+            print(reply)
 
     elif command == 'clear':
-        reply = daemons.daemon_function('exq', 'clear')
-        print(reply)
+        daemons.check_daemon('exq')
+        with daemons.daemon_proxy('exq') as daemon:
+            reply = daemon.clear()
+            print(reply)
 
     # Unrecognized function
     else:

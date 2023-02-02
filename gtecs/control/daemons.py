@@ -262,7 +262,6 @@ def check_daemon(daemon_id):
         errstr = 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
         raise errors.DaemonConnectionError(errstr)
 
-    # Can't use daemon_function due to recursion
     with daemon_proxy(daemon_id) as daemon:
         try:
             status = daemon.get_status()
@@ -290,25 +289,6 @@ def check_daemon(daemon_id):
         errstr = runstr + ' but reports unknown status: {}.'.format(status)
 
     raise errors.DaemonStatusError(errstr)
-
-
-def daemon_function(daemon_id, function_name, args=None, timeout=30):
-    """Run a given function on a daemon."""
-    check_daemon(daemon_id)  # Will raise an error if one occurs
-
-    with daemon_proxy(daemon_id, timeout=timeout) as daemon:
-        try:
-            function = getattr(daemon, function_name)
-        except AttributeError:
-            raise NotImplementedError('Invalid function')
-        if args is None:
-            args = []
-        return function(*args)
-
-
-def daemon_info(daemon_id, force_update=True, timeout=30):
-    """Get a daemon's info dict."""
-    return daemon_function(daemon_id, 'get_info', args=[force_update], timeout=timeout)
 
 
 def start_daemon(daemon_id):

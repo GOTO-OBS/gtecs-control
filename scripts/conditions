@@ -65,14 +65,16 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('conditions', 'get_info', args=[force])
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            info = daemon.get_info(force)
         # print response
-        if not reply:
+        if not info:
             raise ValueError('No info returned, check daemon')
         elif info_type == 'verbose':
-            print_info(reply)
+            print_info(info)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -89,8 +91,10 @@ def query(command, args):
     # Daemon functions
     elif command == 'update':
         # send command
-        reply = daemons.daemon_function('conditions', 'update')
-        print(reply)
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            reply = daemon.update()
+            print(reply)
 
     elif command == 'ignore':
         # parse arguments
@@ -99,8 +103,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('conditions', 'ignore_flags', args=[flags])
-        print(reply)
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            reply = daemon.ignore_flags(flags)
+            print(reply)
 
     elif command == 'enable':
         # parse arguments
@@ -109,8 +115,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('conditions', 'enable_flags', args=[flags])
-        print(reply)
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            reply = daemon.enable_flags(flags)
+            print(reply)
 
     elif command == 'override':
         # parse arguments
@@ -122,21 +130,27 @@ def query(command, args):
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
         # send command
-        if command.lower() == 'on':
-            reply = daemons.daemon_function('conditions', 'set_override')
-        else:
-            reply = daemons.daemon_function('conditions', 'clear_override')
-        print(reply)
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            if command.lower() == 'on':
+                reply = daemon.set_override()
+            else:
+                reply = daemon.clear_override()
+            print(reply)
 
     elif command == 'pause':
         # send command
-        reply = daemons.daemon_function('conditions', 'set_override')
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            reply = daemon.set_override()
         print(reply)
 
     elif command in ['resume', 'unpause']:
         # send command
-        reply = daemons.daemon_function('conditions', 'clear_override')
-        print(reply)
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            reply = daemon.clear_override()
+            print(reply)
 
     elif command == 'limits':
         # parse arguments
@@ -147,12 +161,13 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('conditions', 'get_info', args=[force])
-        # print response
-        if not reply:
-            raise ValueError('No info returned, check daemon')
-        else:
-            print_limits(reply)
+        daemons.check_daemon('conditions')
+        with daemons.daemon_proxy('conditions') as daemon:
+            info = daemon.get_info(force)
+            if not info:
+                raise ValueError('No info returned, check daemon')
+            else:
+                print_limits(info)
 
     # Unrecognized function
     else:

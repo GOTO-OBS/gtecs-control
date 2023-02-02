@@ -76,9 +76,9 @@ class OTADaemon(BaseDaemon):
                         self.log.info('Opening mirror cover {}'.format(ut))
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.open_cover()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.open_cover()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
                             self.log.error('No response from interface foc{}'.format(ut))
@@ -97,9 +97,9 @@ class OTADaemon(BaseDaemon):
                         self.log.info('Closing mirror cover {}'.format(ut))
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.close_cover()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.close_cover()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
                             self.log.error('No response from interface foc{}'.format(ut))
@@ -118,9 +118,9 @@ class OTADaemon(BaseDaemon):
                         self.log.info('Stopping mirror cover {}'.format(ut))
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
-                                c = interface.stop_cover()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.stop_cover()
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
                             self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)

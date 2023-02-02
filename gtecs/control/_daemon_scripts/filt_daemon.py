@@ -80,9 +80,9 @@ class FiltDaemon(BaseDaemon):
 
                         try:
                             with daemon_proxy(f'filt{ut}') as interface:
-                                c = interface.move_filterwheel(new_filter_num)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.move_filterwheel(new_filter_num)
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
                             self.log.error('No response from interface filt{}'.format(ut))
@@ -101,9 +101,9 @@ class FiltDaemon(BaseDaemon):
                         self.log.info('Homing filter wheel {}'.format(ut))
                         try:
                             with daemon_proxy(f'filt{ut}') as interface:
-                                c = interface.home_filterwheel()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.home_filterwheel()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
                             self.log.error('No response from interface filt{}'.format(ut))

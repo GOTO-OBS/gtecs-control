@@ -4,42 +4,61 @@
 import sys
 import time
 
-from gtecs.common.system import execute_command
+from gtecs.control import misc
 from gtecs.control import params
+from gtecs.control.daemons import (check_daemon, kill_daemon, restart_daemon,
+                                   shutdown_daemon, start_daemon)
 
 
 if __name__ == '__main__':
-    if sys.argv[1] in ['start', 'shutdown', 'kill', 'ping']:
-        if len(sys.argv) > 2:
-            daemons = sys.argv[2:]
-        else:
-            daemons = list(params.DAEMONS)
-            daemons.append('intf')
-
-        # handle dependencies
-        if 'exq' in daemons:
-            # exq needs to start after cam and filt and shutdown first
-            if sys.argv[1] == 'start':
-                daemons.remove('exq')
-                daemons.append('exq')
-            elif sys.argv[1] == 'shutdown':
-                # move to front
-                daemons.remove('exq')
-                daemons.insert(0, 'exq')
-        if 'intf' in daemons:
-            # interfaces need to start before the daemons and shutdown after
-            if sys.argv[1] == 'start':
-                # move to front
-                daemons.remove('intf')
-                daemons.insert(0, 'intf')
-            elif sys.argv[1] == 'shutdown':
-                # move to back
-                daemons.remove('intf')
-                daemons.append('intf')
-
-        for d in daemons:
-            command = '{} {}'.format(d, sys.argv[1])
-            execute_command(command)
-            time.sleep(1)
+    command = sys.argv[1]
+    all_daemons = list(params.DAEMONS) + list(params.INTERFACES)
+    if len(sys.argv) == 3:
+        daemons = sorted(misc.valid_strings(sys.argv[2].split(','), all_daemons))
+    elif len(sys.argv) > 3:
+        daemons = sorted(sys.argv[2:])
     else:
-        print('Valid commands: start, shutdown, kill, ping')
+        daemons = sorted(all_daemons)
+
+    if command == 'start':
+        for daemon_id in daemons:
+            try:
+                start_daemon(daemon_id)
+            except Exception as error:
+                print(f'{type(error).__name__}: "{error}"')
+            time.sleep(1)
+
+    elif command == 'shutdown':
+        for daemon_id in daemons:
+            try:
+                shutdown_daemon(daemon_id)
+            except Exception as error:
+                print(f'{type(error).__name__}: "{error}"')
+            time.sleep(1)
+
+    elif command == 'kill':
+        for daemon_id in daemons:
+            try:
+                kill_daemon(daemon_id)
+            except Exception as error:
+                print(f'{type(error).__name__}: "{error}"')
+            time.sleep(1)
+
+    elif command == 'restart':
+        for daemon_id in daemons:
+            try:
+                restart_daemon(daemon_id)
+            except Exception as error:
+                print(f'{type(error).__name__}: "{error}"')
+            time.sleep(1)
+
+    elif command == 'ping':
+        for daemon_id in daemons:
+            try:
+                check_daemon(daemon_id)
+            except Exception as error:
+                print(f'{type(error).__name__}: "{error}"')
+            time.sleep(1)
+
+    else:
+        print(f'"{command}" not in valid commands (start, shutdown, restart, kill, ping)')

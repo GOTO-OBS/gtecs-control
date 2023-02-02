@@ -75,16 +75,18 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('cam', 'get_info', args=[force])
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            info = daemon.get_info(force)
         # print response
-        if not reply:
+        if not info:
             raise ValueError('No info returned, check daemon')
         elif info_type == 'simple':
-            print_info_s(reply)
+            print_info_s(info)
         elif info_type == 'verbose':
-            print_info(reply)
+            print_info(info)
         elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         # parse arguments
@@ -114,9 +116,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, ut_list]
-        reply = daemons.daemon_function('cam', 'take_image', arg_list)
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.take_image(exptime, binning, imgtype, ut_list)
+            print(reply)
 
     elif command == 'glance':
         # parse arguments
@@ -133,9 +136,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, ut_list]
-        reply = daemons.daemon_function('cam', 'take_glance', arg_list)
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.take_glance(exptime, binning, imgtype, ut_list)
+            print(reply)
 
     elif command == 'dark':
         # parse arguments
@@ -152,9 +156,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, ut_list]
-        reply = daemons.daemon_function('cam', 'take_dark', arg_list)
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.take_dark(exptime, binning, imgtype, ut_list)
+            print(reply)
 
     elif command == 'bias':
         # parse arguments
@@ -171,9 +176,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        arg_list = [exptime, binning, imgtype, ut_list]
-        reply = daemons.daemon_function('cam', 'take_dark', arg_list)
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.take_dark(exptime, binning, imgtype, ut_list)
+            print(reply)
 
     elif command == 'abort':
         # parse arguments
@@ -184,8 +190,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('cam', 'abort_exposure', [ut_list])
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.abort_exposure(ut_list)
+            print(reply)
 
     elif command == 'clear':
         # parse arguments
@@ -196,8 +204,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('cam', 'clear_queue', [ut_list])
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.clear_queue(ut_list)
+            print(reply)
 
     elif command == 'window':
         # parse arguments
@@ -218,11 +228,13 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        if target_window is not None:
-            reply = daemons.daemon_function('cam', 'set_window', [*target_window, ut_list])
-        else:
-            reply = daemons.daemon_function('cam', 'remove_window', [ut_list])
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            if target_window is not None:
+                reply = daemon.set_window(*target_window, ut_list)
+            else:
+                reply = daemon.remove_window(ut_list)
+            print(reply)
 
     elif command == 'measure_hfds':
         # parse arguments
@@ -233,8 +245,11 @@ def query(command, args):
         # check arguments
         if not command.lower() in ['on', 'off']:
             raise errors.InputError("Command must be 'on' or 'off'")
-        reply = daemons.daemon_function('cam', 'measure_image_hfds', [command])
-        print(reply)
+        # send command
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.measure_image_hfds(command)
+            print(reply)
 
     elif command == 'temp':
         # parse arguments
@@ -247,8 +262,10 @@ def query(command, args):
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('cam', 'set_temperature', [target_temp, ut_list])
-        print(reply)
+        daemons.check_daemon('cam')
+        with daemons.daemon_proxy('cam') as daemon:
+            reply = daemon.set_temperature(target_temp, ut_list)
+            print(reply)
 
     # Unrecognized function
     else:

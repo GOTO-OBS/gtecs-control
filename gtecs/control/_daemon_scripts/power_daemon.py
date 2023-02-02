@@ -80,9 +80,9 @@ class PowerDaemon(BaseDaemon):
                             name = 'ALL'
                         self.log.info('Powering on {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
-                        c = power.on(outlet)
-                        if c:
-                            self.log.info(c)
+                        reply = power.on(outlet)
+                        if reply:
+                            self.log.info(reply)
                 except Exception:
                     self.log.error('on command failed')
                     self.log.debug('', exc_info=True)
@@ -100,9 +100,9 @@ class PowerDaemon(BaseDaemon):
                             name = 'ALL'
                         self.log.info('Powering off {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
-                        c = power.off(outlet)
-                        if c:
-                            self.log.info(c)
+                        reply = power.off(outlet)
+                        if reply:
+                            self.log.info(reply)
                 except Exception:
                     self.log.error('off command failed')
                     self.log.debug('', exc_info=True)
@@ -120,9 +120,9 @@ class PowerDaemon(BaseDaemon):
                             name = 'ALL'
                         self.log.info('Rebooting {} outlet {} ({})'.format(unit, outlet, name))
                         power = self.power_units[unit]
-                        c = power.reboot(outlet)
-                        if c:
-                            self.log.info(c)
+                        reply = power.reboot(outlet)
+                        if reply:
+                            self.log.info(reply)
                 except Exception:
                     self.log.error('reboot command failed')
                     self.log.debug('', exc_info=True)

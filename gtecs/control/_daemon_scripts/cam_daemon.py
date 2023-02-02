@@ -124,26 +124,26 @@ class CamDaemon(BaseDaemon):
                         try:
                             with daemon_proxy(f'cam{ut}') as interface:
                                 # set exposure time and frame type
-                                c = interface.set_exposure(exptime_ms, frametype)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.set_exposure(exptime_ms, frametype)
+                                if reply:
+                                    self.log.info(reply)
                                 # set binning factor
-                                c = interface.set_binning(binning, binning)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.set_binning(binning, binning)
+                                if reply:
+                                    self.log.info(reply)
                                 # set window
                                 if self.target_window[ut] is None:
                                     # we need to set the default to full-frame here, since on
                                     # startup the cameras default to the active area only
-                                    c = interface.set_window_full()
+                                    reply = interface.set_window_full()
                                 else:
                                     # if the area isn't None then it should have been set by the
                                     # set_window function, however it could be forgotten
                                     # if the cameras are rebooted
                                     x, y, dx, dy = self.target_window[ut]
-                                    c = interface.set_window(x, y, dx, dy)
-                                if c:
-                                    self.log.info(c)
+                                    reply = interface.set_window(x, y, dx, dy)
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
                             self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
@@ -158,9 +158,9 @@ class CamDaemon(BaseDaemon):
                                 # save the exact start time for each camera
                                 self.exposure_start_time[ut] = time.time()
                                 # start the exposure
-                                c = interface.start_exposure()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.start_exposure()
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
                             self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
@@ -262,9 +262,9 @@ class CamDaemon(BaseDaemon):
                                       expstr, ut))
                         try:
                             with daemon_proxy(f'cam{ut}') as interface:
-                                c = interface.abort_exposure()
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.abort_exposure()
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
                             self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
@@ -329,12 +329,12 @@ class CamDaemon(BaseDaemon):
                         try:
                             with daemon_proxy(f'cam{ut}') as interface:
                                 if self.target_window[ut] is None:
-                                    c = interface.set_window_full()
+                                    reply = interface.set_window_full()
                                 else:
                                     x, y, dx, dy = self.target_window[ut]
-                                    c = interface.set_window(x, y, dx, dy)
-                                if c:
-                                    self.log.info(c)
+                                    reply = interface.set_window(x, y, dx, dy)
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
                             self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
@@ -354,9 +354,9 @@ class CamDaemon(BaseDaemon):
                             ut, target_temp))
                         try:
                             with daemon_proxy(f'cam{ut}') as interface:
-                                c = interface.set_temp(target_temp)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.set_temp(target_temp)
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
                             self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)

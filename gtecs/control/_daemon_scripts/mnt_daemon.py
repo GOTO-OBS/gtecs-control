@@ -130,11 +130,11 @@ class MntDaemon(BaseDaemon):
                         msg += f'to mount position ({self._pos_str(coord)})'
                         self.log.debug(msg)
                     if isinstance(coord, SkyCoord):
-                        c = self.mount.slew_to_radec(coord.ra.hourangle, coord.dec.deg)
+                        reply = self.mount.slew_to_radec(coord.ra.hourangle, coord.dec.deg)
                     elif isinstance(coord, AltAz):
-                        c = self.mount.slew_to_altaz(coord.alt.deg, coord.az.deg)
-                    if c:
-                        self.log.info(c)
+                        reply = self.mount.slew_to_altaz(coord.alt.deg, coord.az.deg)
+                    if reply:
+                        self.log.info(reply)
                     self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('slew command failed')
@@ -147,9 +147,9 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Starting tracking')
                     self.log.debug(f'current position: {self._pos_str()}')
-                    c = self.mount.track()
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.track()
+                    if reply:
+                        self.log.info(reply)
                     self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('track command failed')
@@ -162,9 +162,9 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Halting mount')
                     self.log.debug(f'current position: {self._pos_str()}')
-                    c = self.mount.halt()
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.halt()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('halt command failed')
                     self.log.debug('', exc_info=True)
@@ -176,9 +176,9 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Parking mount')
                     self.log.debug(f'current position: {self._pos_str()}')
-                    c = self.mount.park()
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.park()
+                    if reply:
+                        self.log.info(reply)
                     self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('park command failed')
@@ -193,9 +193,9 @@ class MntDaemon(BaseDaemon):
                 try:
                     self.log.info('Unparking mount')
                     self.log.debug(f'current position: {self._pos_str()}')
-                    c = self.mount.unpark()
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.unpark()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('unpark command failed')
                     self.log.debug('', exc_info=True)
@@ -208,9 +208,9 @@ class MntDaemon(BaseDaemon):
                     msg = f'Offsetting {self.offset_direction} {self.offset_distance} arcsec'
                     self.log.info(msg)
                     self.log.debug(f'current position: {self._pos_str()}')
-                    c = self.mount.offset(self.offset_direction, self.offset_distance)
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.offset(self.offset_direction, self.offset_distance)
+                    if reply:
+                        self.log.info(reply)
                     self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('offset command failed')
@@ -226,9 +226,9 @@ class MntDaemon(BaseDaemon):
                     msg = f'Pulse guiding {self.guide_direction} for {self.guide_duration} ms'
                     self.log.info(msg)
                     self.log.debug(f'current position: {self._pos_str()}')
-                    c = self.mount.pulse_guide(self.guide_direction, self.guide_duration)
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.pulse_guide(self.guide_direction, self.guide_duration)
+                    if reply:
+                        self.log.info(reply)
                     self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('pulse_guide command failed')
@@ -250,9 +250,9 @@ class MntDaemon(BaseDaemon):
                         msg = f'Offset desired position ({self._pos_str(self.target)}) '
                         msg += f'to mount position ({self._pos_str(coord)})'
                         self.log.debug(msg)
-                    c = self.mount.sync_radec(coord.ra.hourangle, coord.dec.deg)
-                    if c:
-                        self.log.info(c)
+                    reply = self.mount.sync_radec(self.sync_ra, self.sync_dec)
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('sync_to_radec command failed')
                     self.log.debug('', exc_info=True)
@@ -1022,9 +1022,9 @@ class MntDaemon(BaseDaemon):
 
         self.log.info('Clearing mount error')
         self.log.debug(f'Current error: "{self.info["error_status"]}"')
-        c = self.mount.clear_error()
-        if c:
-            self.log.info(c)
+        reply = self.mount.clear_error()
+        if reply:
+            self.log.info(reply)
         self.clear_error_flag = 1
 
         return 'Cleared any errors'
