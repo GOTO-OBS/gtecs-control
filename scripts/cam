@@ -242,9 +242,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('cam')
         with daemons.daemon_proxy('cam') as daemon:

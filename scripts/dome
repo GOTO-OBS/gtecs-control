@@ -191,9 +191,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
@@ -206,9 +203,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
@@ -225,9 +219,6 @@ def query(command, args):
             timeout = float(args[1]) * 60  # timeout in minutes
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
@@ -240,9 +231,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
@@ -255,9 +243,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
@@ -270,9 +255,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
@@ -285,9 +267,6 @@ def query(command, args):
             command = args[0]
         else:
             raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
         # send command
         daemons.check_daemon('dome')
         with daemons.daemon_proxy('dome') as daemon:
