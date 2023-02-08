@@ -7,10 +7,9 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon
-from gtecs.control.flags import Conditions, Status
+from gtecs.control.daemons import BaseDaemon, HardwareError
+from gtecs.control.flags import Conditions, ModeError, Status
 from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
 from gtecs.control.hardware.dome import Dehumidifier, ETH002Dehumidifier, FakeDehumidifier
 from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
@@ -360,7 +359,6 @@ class DomeDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _connect(self):
@@ -991,360 +989,235 @@ class DomeDaemon(BaseDaemon):
     # Control functions
     def open_dome(self, side='both', frac=1):
         """Open the dome."""
-        # Check restrictions
         if self.lockdown:
-            raise errors.HardwareStatusError('Dome is in lockdown')
-
-        # Check input
+            raise HardwareError('Dome is in lockdown')
         if side not in ['a_side', 'b_side', 'both']:
             raise ValueError('Side must be one of "a_side", "b_side" or "both"')
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
-
-        # Check current status
         if self.open_flag:
-            return 'The dome is already opening'
+            # TODO: If we're already opening we assume that's fine, but what if it's not as far?
+            #       Should we compare and override?
+            raise HardwareError('Dome is already opening')
         elif self.close_flag:
             # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
+
         self.wait_for_info()
         a_side_status = self.info['a_side']
         b_side_status = self.info['b_side']
         if side == 'a_side' and a_side_status == 'full_open':
-            return 'The "a" side is already fully open'
+            return  # TODO: Some sort of HardwareAlreadyThere code?
         elif side == 'b_side' and b_side_status == 'full_open':
-            return 'The "b"" side is already fully open'
+            return
         elif side == 'both':
             if a_side_status == 'full_open' and b_side_status == 'full_open':
-                return 'The dome is already fully open'
+                return
             elif a_side_status == 'full_open' and b_side_status != 'full_open':
                 side = 'b_side'
             elif a_side_status != 'full_open' and b_side_status == 'full_open':
                 side = 'a_side'
 
-        # Set values
+        self.log.info(f'Starting: Opening dome ({side} {frac})')
         self.move_side = side
         self.move_frac = frac
-
-        # Set flag
-        self.log.info('Starting: Opening dome')
         self.open_flag = 1
-
-        return 'Opening dome'
 
     def close_dome(self, side='both', frac=1):
         """Close the dome."""
-        # Check input
         if side not in ['a_side', 'b_side', 'both']:
             raise ValueError('Side must be one of "a_side", "b_side" or "both"')
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
-
-        # Check current status
         if self.close_flag:
-            return 'The dome is already closing'
+            # TODO: If we're already closing we assume that's fine, but what if it's not as far?
+            #       Should we compare and override?
+            raise HardwareError('The dome is already closing')
         elif self.open_flag:
             # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
+
         self.wait_for_info()
         a_side_status = self.info['a_side']
         b_side_status = self.info['b_side']
         if side == 'a_side' and a_side_status == 'closed':
-            return 'The "a" side is already fully closed'
+            return
         elif side == 'b_side' and b_side_status == 'closed':
-            return 'The "b" side is already fully closed'
+            return
         elif side == 'both':
             if a_side_status == 'closed' and b_side_status == 'closed':
-                return 'The dome is already fully closed'
+                return
             elif a_side_status != 'closed' and b_side_status == 'closed':
                 side = 'a_side'
             elif a_side_status == 'closed' and b_side_status != 'closed':
                 side = 'b_side'
 
-        # Set values
+        self.log.info(f'Starting: Closing dome ({side} {frac})')
         self.move_side = side
         self.move_frac = frac
-
-        # Set flag
-        self.log.info('Starting: Closing dome')
         self.close_flag = 1
-
-        return 'Closing dome'
 
     def halt_dome(self):
         """Stop the dome moving."""
-        # Set flag
+        self.log.info('Starting: Halting dome')
         self.halt_flag = 1
-
-        return 'Halting dome'
 
     def override_dehumidifier(self, command):
         """Turn the dehumidifier on or off manually."""
-        # Check input
         if not params.DOME_HAS_DEHUMIDIFIER:
             raise ValueError('Dome has no dehumidifer')
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        dehumidifier_on = self.info['dehumidifier_on']
-        currently_open = self.info['dome'] != 'closed'
-        if command == 'on' and currently_open:
-            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
-        elif command == 'on' and dehumidifier_on:
-            return 'Dehumidifier is already on'
-        elif command == 'off' and not dehumidifier_on:
-            return 'Dehumidifier is already off'
-
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.info['dehumidifier_on']:
             self.log.info('Turning on dehumidifier (manual command)')
             self.dehumidifier_on_flag = 1
-        elif command == 'off':
+        elif command == 'off' and self.info['dehumidifier_on']:
             self.log.info('Turning off dehumidifier (manual command)')
             self.dehumidifier_off_flag = 1
 
-        if command == 'on':
-            s = 'Turning on dehumidifier'
-            if self.autodehum_enabled:
-                s += ' (autodehum is enabled, so the daemon may turn it off again)'
-            return s
-        elif command == 'off':
-            s = 'Turning off dehumidifier'
-            if self.autodehum_enabled:
-                s += ' (autodehum is enabled, so the daemon may turn it on again)'
-            return s
-
     def set_autodehum(self, command):
         """Enable or disable the dome automatically turning the dehumidifier on and off."""
-        # Check input
         if not params.DOME_HAS_DEHUMIDIFIER:
             raise ValueError('Dome has no dehumidifer')
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autodehum in engineering mode')
-            elif self.autodehum_enabled:
-                return 'Autodehum is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autodehum in robotic mode')
-            elif not self.autodehum_enabled:
-                return 'Autodehum is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autodehum in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autodehum in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.autodehum_enabled:
             self.log.info('Enabling autodehum')
             self.autodehum_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.autodehum_enabled:
             self.log.info('Disabling autodehum')
             self.autodehum_enabled = False
 
-        if command == 'on':
-            return 'Enabling autodehum, the dehumidifier will turn on and off automatically'
-        elif command == 'off':
-            return 'Disabling autodehum, the dehumidifier will NOT turn on or off automatically'
-
     def set_autoclose(self, command, timeout=None):
         """Enable or disable the dome autoclosing in bad conditions."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
         if timeout is not None and not isinstance(timeout, (int, float)):
-            raise ValueError("Timeout must be a number (time in seconds)")
+            raise ValueError('Timeout must be a number (time in seconds)')
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
-            elif self.autoclose_enabled:
-                return 'Autoclose is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            elif not self.autoclose_enabled and timeout == self.autoclose_timeout:
-                return 'Autoclose is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autoclose in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autoclose in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.autoclose_enabled:
             self.log.info('Enabling autoclose')
             self.autoclose_enabled = True
             self.autoclose_timeout = None
-        elif command == 'off':
-            msg = 'Disabling autoclose'
+        elif command == 'off' and (self.autoclose_enabled or timeout != self.autoclose_timeout):
+            log_str = 'Disabling autoclose'
             if timeout is not None:
-                msg += f' for {timeout / 60:.1f} minutes'
-            self.log.info(msg)
+                log_str += f' for {timeout / 60:.1f} minutes'
+            self.log.info(log_str)
             self.autoclose_enabled = False
             if timeout is not None:
                 self.autoclose_timeout = time.time() + timeout
             else:
                 self.autoclose_timeout = None
 
-        if command == 'on':
-            return 'Enabling autoclose, dome will close in bad conditions'
-        elif command == 'off':
-            msg = 'Disabling autoclose'
-            if timeout is not None:
-                msg += f' for {timeout / 60:.1f} minutes'
-            msg += ', dome will NOT close in bad conditions'
-            return msg
-
     def set_alarm(self, command):
         """Enable or disable the dome alarm when moving."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
-            elif self.alarm_enabled:
-                return 'Alarm is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
-            elif not self.alarm_enabled:
-                return 'Alarm is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable alarm in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable alarm in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.alarm_enabled:
             self.log.info('Enabling alarm')
             self.alarm_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.alarm_enabled:
             self.log.info('Disabling alarm')
             self.alarm_enabled = False
 
-        if command == 'on':
-            return 'Enabling dome alarm'
-        elif command == 'off':
-            return 'Disabling dome alarm'
-
     def sound_alarm(self):
         """Sound the dome alarm."""
-        # Check current status
         self.wait_for_info()
         if not self.alarm_enabled:
-            raise errors.HardwareStatusError('Alarm is disabled')
+            raise HardwareError('Alarm is disabled')
 
-        # Just call the internal command
+        self.log.info('Sounding alarm')
         self._sound_alarm()
 
     def reset_bumperguard(self):
         """Reset the dome bumper guard."""
         if not params.DOME_HAS_BUMPERGUARD:
-            raise errors.HardwareStatusError('Dome does not have a bumper guard to reset')
+            raise HardwareError('Dome does not have a bumper guard to reset')
 
         self.dome.reset_bumperguard()
 
     def set_heartbeat(self, command):
         """Enable or disable the dome heartbeat system."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
-            raise errors.HardwareStatusError('Cannot enable heartbeat in engineering mode')
+            raise ModeError('Cannot enable heartbeat in engineering mode')
         elif command == 'off' and self.info['mode'] == 'manual':
-            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
+            raise ModeError('Cannot disable heartbeat in manual mode')
         elif command == 'off' and self.info['mode'] == 'robotic':
-            raise errors.HardwareStatusError('Cannot disable heartbeat in robotic mode')
+            raise ModeError('Cannot disable heartbeat in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.heartbeat_enabled:
             self.heartbeat_enabled = True
             self.heartbeat_set_flag = 1
-        elif command == 'off':
+        elif command == 'off' and self.heartbeat_enabled:
             self.heartbeat_enabled = False
             self.heartbeat_set_flag = 1
 
-        if command == 'on':
-            return 'Enabling dome heartbeat'
-        elif command == 'off':
-            return 'Disabling dome heartbeat'
-
     def override_windshield(self, command):
         """Turn windshielding on or off manually."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
-            raise errors.HardwareStatusError('Cannot enable windshielding in engineering mode')
-        windshield_enabled = self.info['windshield_enabled']
-        if command == 'on' and windshield_enabled:
-            return 'Windshielding is already enabled'
-        elif command == 'off' and not windshield_enabled:
-            return 'Windshielding is already disabled'
-        elif command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
-            return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
+            raise ModeError('Cannot enable windshielding in engineering mode')
+        if command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
+            raise HardwareError('Windshielding is disabled system-wide')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.windshield_enabled:
             self.log.info('Enabling windshield mode (manual command)')
             self.windshield_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.windshield_enabled:
             self.log.info('Disabling windshield mode (manual command)')
             self.windshield_enabled = False
 
-        if command == 'on':
-            s = 'Enabling windshield mode'
-            if self.autoshield_enabled:
-                s += ' (autoshield is enabled, so the daemon may turn it off again)'
-            return s
-        elif command == 'off':
-            s = 'Disabling windshield mode'
-            if self.autoshield_enabled:
-                s += ' (autoshield is enabled, so the daemon may turn it on again)'
-            return s
-
     def set_autoshield(self, command):
         """Enable or disable the dome automatically raising shields in high wind."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autoshield in engineering mode')
-            elif not params.DOME_WINDSHIELD_PERMITTED:
-                return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
-            elif self.autoshield_enabled:
-                return 'Autoshield is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autoshield in robotic mode')
-            elif not self.autoshield_enabled:
-                return 'Autoshield is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autoshield in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autoshield in robotic mode')
+        if command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
+            raise HardwareError('Windshielding is disabled system-wide')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.autoshield_enabled:
             self.log.info('Enabling autoshield')
             self.autoshield_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.autoshield_enabled:
             self.log.info('Disabling autoshield')
             self.autoshield_enabled = False
-
-        if command == 'on':
-            return 'Enabling autoshield, the dome will raise and lower shields automatically'
-        elif command == 'off':
-            return 'Disabling autoshield, the dome will NOT raise and lower shields automatically'
 
 
 if __name__ == '__main__':

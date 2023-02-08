@@ -9,9 +9,8 @@ from concurrent.futures import ThreadPoolExecutor
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, HardwareError, daemon_proxy
 from gtecs.control.exposures import Exposure
 from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
                                 image_location, make_fits, save_fits)
@@ -370,7 +369,6 @@ class CamDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -608,60 +606,59 @@ class CamDaemon(BaseDaemon):
     # Control functions
     def take_image(self, exptime, binning, imgtype, ut_list):
         """Take a normal frame with the camera."""
-        # Create exposure object
-        exposure = Exposure(ut_list, exptime,
-                            binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype.upper())
-
-        # Use the common function
+        exposure = Exposure(
+            ut_list,
+            exptime,
+            binning=binning,
+            frametype='normal',
+            target='NA',
+            imgtype=imgtype.upper(),
+        )
         return self.take_exposure(exposure)
 
     def take_dark(self, exptime, binning, imgtype, ut_list):
         """Take dark frame with the camera."""
-        # Create exposure object
-        exposure = Exposure(ut_list, exptime,
-                            binning=binning, frametype='dark',
-                            target='NA', imgtype=imgtype.upper())
-
-        # Use the common function
+        exposure = Exposure(
+            ut_list,
+            exptime,
+            binning=binning,
+            frametype='dark',
+            target='NA',
+            imgtype=imgtype.upper(),
+        )
         return self.take_exposure(exposure)
 
     def take_glance(self, exptime, binning, imgtype, ut_list):
         """Take a glance frame with the camera (no run number)."""
-        # Create exposure object
-        exposure = Exposure(ut_list, exptime,
-                            binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype.upper(),
-                            glance=True)
-
-        # Use the common function
+        exposure = Exposure(
+            ut_list,
+            exptime,
+            binning=binning,
+            frametype='normal',
+            target='NA',
+            imgtype=imgtype.upper(),
+            glance=True,
+        )
         return self.take_exposure(exposure)
 
     def take_exposure(self, exposure):
         """Take an exposure with the camera from an Exposure object."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         ut_list = exposure.ut_list
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         exptime = exposure.exptime
-        binning = exposure.binning
-        frametype = exposure.frametype
-
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
+        binning = exposure.binning
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
-
-        # Check current status
-        if self.exposure_state != 'none':
-            raise errors.HardwareStatusError('Cameras are already exposing')
+        frametype = exposure.frametype
+        if frametype not in ['normal', 'dark']:
+            raise ValueError('Invalid frame type: "{}"'.format(frametype))
+        if self.exposure_state != 'none' or len(self.active_uts) > 0:
+            raise HardwareError(f'Cameras are already exposing: {self.active_uts}')
 
         # Find and update run number, and store on the Exposure
         if not exposure.glance:
@@ -671,91 +668,46 @@ class CamDaemon(BaseDaemon):
             with open(self.run_number_file, 'w') as f:
                 f.write('{:d}'.format(new_run_number))
             exposure.run_number = new_run_number
-            exposure.expstr = 'exposure r{:07d}'.format(new_run_number)
+            exposure.expstr = f'exposure r{new_run_number:07d}'
             self.latest_run_number = new_run_number
         else:
             exposure.run_number = None
             exposure.expstr = 'glance'
 
-        # Set values
         self.current_exposure = exposure
         self.active_uts = sorted(ut_list)
-
-        # Set flag
         self.take_exposure_flag = 1
 
-        # Format return string
-        s = 'Taking {}:'.format(exposure.expstr)
-        for ut in ut_list:
-            argstr = '{:.1f}s, {:.0f}x{:.0f}, {}'.format(exptime, binning, binning, frametype)
-            s += '\n  '
-            s += 'Taking exposure {} on camera {}'.format(argstr, ut)
-        return s
+        return exposure.expstr
 
     def abort_exposure(self, ut_list):
         """Abort current exposure."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         if self.exposure_state != 'exposing':
-            return 'Cameras are not currently exposing'
+            raise HardwareError('Cameras are not currently exposing')
 
-        # Set values
         self.abort_uts = sorted([ut for ut in ut_list if ut in self.active_uts])
         self.clear_uts = self.abort_uts.copy()
-
-        # Set flag
         self.abort_exposure_flag = 1
         self.clear_queue_flag = 1
 
-        # Format return string
-        s = 'Aborting:'
-        for ut in ut_list:
-            s += '\n  '
-            if ut not in self.abort_uts:
-                s += 'Camera {} is not currently exposing'.format(ut)
-            else:
-                s += 'Aborting exposure on camera {}'.format(ut)
-        return s
-
     def clear_queue(self, ut_list):
         """Clear any leftover images in the camera memory."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
+        queue_length = {ut: self.info[ut]['in_queue'] for ut in ut_list}
         self.clear_uts = sorted(ut_list)
-
-        # Set flag
         self.clear_queue_flag = 1
 
-        # Format return string
-        s = 'Clearing:'
-        for ut in ut_list:
-            s += '\n  '
-            if self.info[ut]['in_queue'] == 0:
-                s += 'Camera {} has no images to clear'.format(ut)
-            else:
-                s += 'Clearing {} images from queue on camera {}'.format(
-                    self.info[ut]['in_queue'], ut)
-        return s
+        return queue_length
 
     def get_latest_headers(self):
         """Get the headers for the last completed exposure."""
@@ -766,102 +718,52 @@ class CamDaemon(BaseDaemon):
 
     def set_window(self, x, y, dx, dy, ut_list):
         """Set the camera's image window area."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if x < 0 or y < 0:
             raise ValueError('Coordinates must be >= 0')
         if dx < 1 or dy < 1:
-            raise ValueError('Width./height must be >= 1')
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise ValueError('Width/height must be >= 1')
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
         self.active_uts = sorted(ut_list)
         for ut in ut_list:
             self.target_window[ut] = (int(x), int(y), int(dx), int(dy))
-
-        # Set flag
         self.set_window_flag = 1
-
-        # Format return string
-        s = 'Setting:'
-        areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
-        for ut in ut_list:
-            s += '\n  '
-            s += 'Setting window on camera {} to {}'.format(ut, areastr)
-        return s
 
     def remove_window(self, ut_list):
         """Set the camera's image window area to full-frame."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
         self.active_uts = sorted(ut_list)
         for ut in ut_list:
             self.target_window[ut] = None
-
-        # Set flag
         self.set_window_flag = 1
-
-        # Format return string
-        s = 'Setting:'
-        for ut in ut_list:
-            s += '\n  '
-            s += 'Setting window on camera {} to full-frame'.format(ut)
-        return s
 
     def measure_image_hfds(self, command):
         """Enable or disable measuring image HFDs when saving."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
-        self.wait_for_info()
-        if command == 'on' and self.measure_hfds:
-            return 'Measuring HFDs is already enabled'
-        elif command == 'off' and not self.measure_hfds:
-            return 'Measuring HFDs is already disabled'
-
-        # Set flag
-        if command == 'on':
+        if command == 'on' and self.measure_hfds is False:
             self.log.info('Enabling HFD measurement')
             self.measure_hfds = True
-        elif command == 'off':
+        elif command == 'off' and self.measure_hfds is True:
             self.log.info('Disabling HFD measurement')
             self.measure_hfds = False
 
-        if command == 'on':
-            return 'Enabling image HFD measurement'
-        elif command == 'off':
-            return 'Disabling image HFD measurement'
-
     def set_temperature(self, target_temp, ut_list):
         """Set the camera's temperature."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if target_temp.lower() == 'cool':
             target_temp = self.cool_temp
         elif target_temp.lower() == 'warm':
@@ -879,22 +781,12 @@ class CamDaemon(BaseDaemon):
 
         # Check current status
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
         self.active_uts = sorted(ut_list)
         for ut in ut_list:
             self.target_temp[ut] = target_temp
-
-        # Set flag
         self.set_temp_flag = 1
-
-        # Format return string
-        s = 'Setting:'
-        for ut in ut_list:
-            s += '\n  '
-            s += 'Setting temperature on camera {} to {}'.format(ut, target_temp)
-        return s
 
     def is_exposing(self):
         """Return if the cameras are exposing.

@@ -7,11 +7,9 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, HardwareError, daemon_proxy
 from gtecs.control.observing import get_conditions
-from gtecs.control.style import errortxt
 
 
 class FocDaemon(BaseDaemon):
@@ -219,7 +217,6 @@ class FocDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -317,260 +314,124 @@ class FocDaemon(BaseDaemon):
     # Control functions
     def set_focusers(self, new_position):
         """Move focuser(s) to the given position(s)."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if not isinstance(new_position, dict):
             new_position = {ut: new_position for ut in self.uts}
+        if any(ut not in self.uts for ut in new_position):
+            raise ValueError(f'Invalid UTs: {[ut for ut in new_position if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(new_position):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(new_position[ut] < 0 for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position if new_position[ut] < 0}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(new_position[ut] > self.info[ut]['limit'] for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position
+                             if new_position[ut] > self.info[ut]['limit']}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in new_position):
+            bad_uts = [ut for ut in new_position
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the new position is a valid input
-            try:
-                new_pos = int(new_position[ut])
-                if new_pos != new_position[ut]:
-                    raise ValueError
-            except Exception:
-                s = '"{}" is not a valid integer'.format(new_position[ut])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the new position is within the focuser limit
-            if new_pos < 0 or new_pos > self.info[ut]['limit']:
-                s = 'New position {} is outside focuser limits (0-{})'.format(
-                    new_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # # Check the new position is different from the current position
-            # if new_pos == self.info[ut]['current_pos']:
-            #     s = 'Focuser is already at position {}'.format(new_pos)
-            #     retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-            #     continue
-
-            # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.set_position[ut] = new_pos
-            s = 'Focuser {}: Moving from {} to {} ({:+d} steps)'.format(
-                ut, self.info[ut]['current_pos'], self.set_position[ut],
-                self.set_position[ut] - self.info[ut]['current_pos'])
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(new_position)
+        self.set_position.update(new_position)
         self.set_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def move_focusers(self, move_steps):
         """Move focuser(s) by the given number of steps."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if not isinstance(move_steps, dict):
             move_steps = {ut: move_steps for ut in self.uts}
+        if any(ut not in self.uts for ut in move_steps):
+            raise ValueError(f'Invalid UTs: {[ut for ut in move_steps if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(move_steps):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        new_position = {ut: self.info[ut]['current_pos'] + move_steps[ut] for ut in move_steps}
+        if any(new_position[ut] < 0 for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position if new_position[ut] < 0}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(new_position[ut] > self.info[ut]['limit'] for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position
+                             if new_position[ut] > self.info[ut]['limit']}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in move_steps):
+            bad_uts = [ut for ut in move_steps
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the new position is a valid input
-            try:
-                steps = int(move_steps[ut])
-                if steps != move_steps[ut]:
-                    raise ValueError
-            except Exception:
-                s = '"{}" is not a valid integer'.format(move_steps[ut])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the new position is within the focuser limit
-            new_pos = self.info[ut]['current_pos'] + steps
-            if new_pos < 0 or new_pos > self.info[ut]['limit']:
-                s = 'New position {} is outside focuser limits (0-{})'.format(
-                    new_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # # Check the new position is different from the current position
-            # if new_pos == self.info[ut]['current_pos']:
-            #     s = 'Focuser is already at position {}'.format(new_pos)
-            #     retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-            #     continue
-
-            # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
-            s = 'Focuser {}: Moving {:+d} steps (from {} to {})'.format(
-                ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(move_steps)
+        self.move_steps.update(move_steps)
         self.move_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def home_focusers(self, ut_list=None):
         """Move focuser(s) to the home position."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if ut_list is None:
             ut_list = self.uts.copy()
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in ut_list):
+            bad_uts = [ut for ut in ut_list
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'Focuser {}: Moving to home position'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(ut_list)
         self.home_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def stop_focusers(self, ut_list=None):
         """Stop focuser(s) moving."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if ut_list is None:
             ut_list = self.uts.copy()
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(not self.info[ut]['can_stop'] for ut in ut_list):
+            bad_uts = [ut for ut in ut_list if not self.info[ut]['can_stop']]
+            raise HardwareError(f'Focusers do not a stop command: {bad_uts}')
 
-            # Check if the focuser has a stop command
-            if not self.info[ut]['can_stop']:
-                s = 'Focuser does not a stop command'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'Focuser {}: Stopping movement'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(ut_list)
         self.stop_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def sync_focusers(self, position):
         """Sync focuser(s) position to the given value."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if not isinstance(position, dict):
             position = {ut: position for ut in self.uts}
+        if any(ut not in self.uts for ut in position):
+            raise ValueError(f'Invalid UTs: {[ut for ut in position if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(position):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(not self.info[ut]['can_sync'] for ut in position):
+            bad_uts = [ut for ut in position if not self.info[ut]['can_sync']]
+            raise HardwareError(f'Focusers do not a sync command: {bad_uts}')
+        if any(position[ut] < 0 for ut in position):
+            bad_positions = {ut: position[ut] for ut in position if position[ut] < 0}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(position[ut] > self.info[ut]['limit'] for ut in position):
+            bad_positions = {ut: position[ut] for ut in position
+                             if position[ut] > self.info[ut]['limit']}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in position):
+            bad_uts = [ut for ut in position
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the new position is a valid input
-            try:
-                sync_pos = int(position[ut])
-                if sync_pos != position[ut]:
-                    raise ValueError
-            except Exception:
-                s = '"{}" is not a valid integer'.format(position[ut])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check if the focuser has a sync command
-            if not self.info[ut]['can_sync']:
-                s = 'Focuser does not a sync command'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the new position is within the focuser limit
-            if sync_pos < 0 or sync_pos > self.info[ut]['limit']:
-                s = 'New position {} is outside focuser limits (0-{})'.format(
-                    sync_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the focuser is not moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.sync_position[ut] = sync_pos
-            s = 'Focuser {}: Setting current position {} to {}'.format(
-                ut, self.info[ut]['current_pos'], sync_pos)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(position)
+        self.sync_position.update(position)
         self.sync_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
 
 if __name__ == '__main__':

@@ -7,10 +7,8 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
-from gtecs.control.style import errortxt
+from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, daemon_proxy
 
 
 class OTADaemon(BaseDaemon):
@@ -134,7 +132,6 @@ class OTADaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -192,120 +189,40 @@ class OTADaemon(BaseDaemon):
     # Control functions
     def open_covers(self, ut_list=None):
         """Open the mirror covers."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if ut_list is None:
             ut_list = self.uts_with_covers.copy()
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
 
-        self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the UT has a mirror cover
-            if ut not in self.uts_with_covers:
-                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the mirror cover is not already moving
-            # TODO: We can't do that, but does it matter?
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'OTA {}: Opening mirror cover'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(ut_list)
         self.open_cover_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def close_covers(self, ut_list=None):
         """Close the mirror covers."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if ut_list is None:
             ut_list = self.uts_with_covers.copy()
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
 
-        self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the UT has a mirror cover
-            if ut not in self.uts_with_covers:
-                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the mirror cover is not already moving
-            # TODO: We can't do that, but does it matter?
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'OTA {}: Closing mirror cover'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(ut_list)
         self.close_cover_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def stop_covers(self, ut_list=None):
         """Stop the mirror covers moving."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if ut_list is None:
             ut_list = self.uts_with_covers.copy()
-
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
+        if any(ut not in self.uts for ut in ut_list):
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
 
-            # Check the UT has a mirror cover
-            if ut not in self.uts_with_covers:
-                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check if the mirror cover is moving
-            # TODO: We can't do that, but does it matter?
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'OTA {}: Stopping mirror cover'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(ut_list)
         self.stop_cover_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
 
 if __name__ == '__main__':

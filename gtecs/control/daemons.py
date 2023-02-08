@@ -9,7 +9,6 @@ from abc import ABC, abstractmethod
 from gtecs.common import logging
 from gtecs.common.system import get_pid, kill_process
 
-from . import errors
 from . import params
 
 # Pyro configuration
@@ -21,6 +20,42 @@ import Pyro4  # noqa: I100
 Pyro4.config.SERIALIZER = 'pickle'  # IMPORTANT - Can serialize numpy arrays for images
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.REQUIRE_EXPOSE = False
+
+
+class DaemonError(Exception):
+    """Base class to be raised when a command to a daemon fails."""
+
+    pass
+
+
+class DaemonNotRunningError(DaemonError):
+    """To be raised when a daemon is not running."""
+
+    pass
+
+
+class DaemonStillRunningError(DaemonError):
+    """To be raised when a daemon is running and shouldn't be (e.g. we tried to kill it)."""
+
+    pass
+
+
+class DaemonStatusError(DaemonError):
+    """To be raised when a daemon status is not normal."""
+
+    pass
+
+
+class DaemonDependencyError(DaemonError):
+    """To be raised when a daemon is running but its dependencies are not responding."""
+
+    pass
+
+
+class HardwareError(DaemonError):
+    """To be raised when a daemon hardware has some invalid status."""
+
+    pass
 
 
 class BaseDaemon(ABC):
@@ -259,8 +294,7 @@ def check_daemon(daemon_id):
     host, port = get_daemon_host(daemon_id)
     pid = get_pid(daemon_id, host)
     if pid is None:
-        errstr = 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
-        raise errors.DaemonConnectionError(errstr)
+        raise DaemonNotRunningError(f'Daemon {daemon_id} not running on {host}:{port}')
 
     with daemon_proxy(daemon_id) as daemon:
         try:
@@ -268,40 +302,44 @@ def check_daemon(daemon_id):
         except Exception:
             status = 'status_error'
 
-    runstr = 'Daemon {} running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
-
     if status == 'running':
-        return runstr
-    elif status == 'status_error':
-        errstr = runstr + ' but cannot read status.'
-    elif status == 'running_error':
-        errstr = runstr + ' but is not active. (?)'
-    elif status.split(':')[0] == 'dependency_error':
+        return pid
+
+    error_str = f'Daemon {daemon_id} running on {host}:{port} (PID {pid})'
+
+    if status.split(':')[0] == 'dependency_error':
         bad_dependencies = status.split(':')[1]
-        errstr = runstr + ' but cannot connect to dependencies: {}.'.format(bad_dependencies)
-    elif status.split(':')[0] == 'hardware_error':
+        error_str += f' but cannot connect to dependencies: {bad_dependencies}.'
+        raise DaemonDependencyError(error_str)
+    if status.split(':')[0] == 'hardware_error':
         bad_hardware = status.split(':')[1]
-        errstr = runstr + ' but cannot connect to hardware: {}.'.format(bad_hardware)
+        error_str += f' but cannot connect to hardware: {bad_hardware}.'
+        raise HardwareError(error_str)
+
+    if status == 'status_error':
+        error_str += ' but cannot read status.'
+    elif status == 'running_error':
+        error_str += ' but is not active. (?)'
     elif status.split(':')[0] == 'ping_error':
-        pingtime = status.split(':')[1]
-        errstr = runstr + ' but last ping was {} ago.'.format(pingtime)
+        ping_time = status.split(':')[1]
+        error_str += f' but last ping was {ping_time:.1f}s ago.'
     else:
-        errstr = runstr + ' but reports unknown status: {}.'.format(status)
+        error_str += f' but reports unknown status: {status}.'
+    raise DaemonStatusError(error_str)
 
-    raise errors.DaemonStatusError(errstr)
 
-
-def start_daemon(daemon_id):
+def start_daemon(daemon_id, timeout=4):
     """Start a daemon (unless it is already running)."""
     host, port = get_daemon_host(daemon_id)
-    pid = get_pid(daemon_id, host)
-    if pid is not None:
-        try:
-            check_daemon(daemon_id)  # Will raise status error if found
-            return 'Daemon {} already running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
-        except Exception:
-            print('Daemon {} already running but reports error:'.format(daemon_id))
-            raise
+    try:
+        pid = check_daemon(daemon_id)
+        # If it's already running with no errors then that's fine
+        return pid
+    except DaemonNotRunningError:
+        # That's what we want!
+        pass
+    except Exception:
+        raise
 
     if daemon_id in params.DAEMONS:
         ut = None
@@ -316,7 +354,7 @@ def start_daemon(daemon_id):
         ut = int(daemon_id.split('filt')[1])
         script = 'filt_interface.py'
     else:
-        raise ValueError('Daemon "{}" not found'.format(daemon_id))
+        raise ValueError(f'Daemon {daemon_id} not found')
 
     with pkg_resources.path('gtecs.control._daemon_scripts', script) as path:
         command_string = f'{params.PYTHON_EXE} {str(path)}'
@@ -340,78 +378,67 @@ def start_daemon(daemon_id):
     time.sleep(1)
     start_time = time.time()
     while True:
-        pid = get_pid(daemon_id, host)
-        if pid is not None:
-            try:
-                check_daemon(daemon_id)  # Will raise status error if found
-                return 'Daemon {} started on {}:{} (PID {})'.format(daemon_id, host, port, pid)
-            except Exception:
-                print('Daemon {} started but reports error:'.format(daemon_id))
-                raise
-        if time.time() - start_time > 4:
-            errstr = 'Daemon {} did not start, check logs'.format(daemon_id)
-            raise errors.DaemonConnectionError(errstr)
-        time.sleep(0.5)
+        try:
+            pid = check_daemon(daemon_id)  # Will raise status error if found
+            return pid
+        except DaemonNotRunningError:
+            if time.time() - start_time > timeout:
+                raise DaemonNotRunningError(f'Daemon {daemon_id} failed to start on {host}:{port}')
+            else:
+                time.sleep(0.5)
+        except Exception:
+            raise
 
 
-def shutdown_daemon(daemon_id):
+def shutdown_daemon(daemon_id, kill=False, timeout=4):
     """Shut a daemon down nicely."""
     host, port = get_daemon_host(daemon_id)
-    pid = get_pid(daemon_id, host)
-    if pid is None:
-        return 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
+    try:
+        pid = check_daemon(daemon_id)
+    except DaemonNotRunningError:
+        # Great, saves us the trouble of shutting it down
+        return
+    except (DaemonStatusError, DaemonDependencyError):
+        pass  # we don't care if there's an error, we're shutting down anyway
+    except Exception:
+        raise
 
     try:
-        with daemon_proxy(daemon_id) as daemon:
-            daemon.shutdown()
-        # Have to connect again to close loop for some reason
-        with daemon_proxy(daemon_id):
-            daemon.prod()
+        if not kill:
+            with daemon_proxy(daemon_id) as daemon:
+                daemon.shutdown()
+            # Have to connect again to close loop for some reason
+            with daemon_proxy(daemon_id):
+                daemon.prod()
+        else:
+            kill_process(daemon_id, host, verbose=params.COMMAND_DEBUG)
     except Exception:
         pass
 
     time.sleep(1)
     start_time = time.time()
     while True:
-        pid = get_pid(daemon_id, host)
-        if pid is None:
-            return 'Daemon {} shut down on {}:{}'.format(daemon_id, host, port)
-        if time.time() - start_time > 4:
-            errstr = 'Daemon {} still running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
-            raise errors.DaemonConnectionError(errstr)
-        time.sleep(0.5)
+        try:
+            pid = check_daemon(daemon_id)
+            # If it hasn't raised an error that means it's running fine. That's bad!
+            err_str = f'Daemon {daemon_id} still running on {host}:{port} (PID {pid})'
+            raise DaemonStillRunningError(err_str)
+        except DaemonNotRunningError:
+            # That's what we want!
+            return
+        except (DaemonStillRunningError, DaemonStatusError, DaemonDependencyError):
+            # It's still running, and may or may not have an error
+            if time.time() - start_time > timeout:
+                raise
+            else:
+                time.sleep(0.5)
+        except Exception:
+            raise
 
 
-def kill_daemon(daemon_id):
-    """Kill a daemon (should be used as a last resort)."""
-    host, port = get_daemon_host(daemon_id)
-    pid = get_pid(daemon_id, host)
-    if pid is None:
-        return 'Daemon {} not running on {}:{}'.format(daemon_id, host, port)
-
-    try:
-        kill_process(daemon_id, host, verbose=params.COMMAND_DEBUG)
-    except Exception:
-        pass
-
-    time.sleep(1)
-    start_time = time.time()
-    while True:
-        pid = get_pid(daemon_id, host)
-        if pid is None:
-            return 'Daemon {} killed on {}:{}'.format(daemon_id, host, port)
-        if time.time() - start_time > 4:
-            errstr = 'Daemon {} still running on {}:{} (PID {})'.format(daemon_id, host, port, pid)
-            raise errors.DaemonConnectionError(errstr)
-        time.sleep(0.5)
-
-
-def restart_daemon(daemon_id, wait_time=1):
+def restart_daemon(daemon_id, wait_time=1, timeout=4):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
-    reply = shutdown_daemon(daemon_id)
-    print(reply)
-
+    shutdown_daemon(daemon_id, timeout=timeout)
     time.sleep(wait_time)
-
-    reply = start_daemon(daemon_id)
-    return reply
+    pid = start_daemon(daemon_id, timeout=timeout)
+    return pid

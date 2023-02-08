@@ -134,7 +134,6 @@ class PowerDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _connect(self):
@@ -422,51 +421,33 @@ class PowerDaemon(BaseDaemon):
     # Control functions
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)."""
-        # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
             raise ValueError('No valid outlets or groups')
 
-        # Set values
         self.current_outlets = outlets
         self.current_units = units
-
-        # Set flag
         self.on_flag = 1
-
-        return 'Turning on power'
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)."""
-        # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
             raise ValueError('No valid outlets or groups')
 
-        # Set values
         self.current_outlets = outlets
         self.current_units = units
-
-        # Set flag
         self.off_flag = 1
-
-        return 'Turning off power'
 
     def reboot(self, outlet_list, unit=''):
         """Reboot given outlet(s)."""
-        # Check input
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
             raise ValueError('No valid outlets or groups')
 
-        # Set values
         self.current_outlets = outlets
         self.current_units = units
-
-        # Set flag
         self.reboot_flag = 1
-
-        return 'Rebooting power'
 
     def dashboard_switch(self, outlet_name, enable, dashboard_username):
         """Switch a named switch parameter on or off from the web dashboard.
@@ -475,32 +456,26 @@ class PowerDaemon(BaseDaemon):
         and also has extra logging.
         See https://github.com/GOTO-OBS/g-tecs/issues/535 for details.
         """
-        # Check IP
         client_ip = self._get_client_ip()
         if client_ip != params.DASHBOARD_IP:
-            return False
-
-        # Check input
+            return 1
         if outlet_name not in params.DASHBOARD_ALLOWED_OUTLETS:
-            return False
+            return 1
         outlets, units = self._parse_input([outlet_name])
         if len(outlets) == 0:
-            return False
+            return 1
 
-        # Set values
+        if enable:
+            out_str = f'Web dashboard user {dashboard_username} turning on "{outlet_name}"'
+        else:
+            out_str = f'Web dashboard user {dashboard_username} turning off "{outlet_name}"'
+        self.log.info(out_str)
         self.current_outlets = outlets
         self.current_units = units
-
-        # Set flag
         if enable:
             self.on_flag = 1
         else:
             self.off_flag = 1
-
-        logstr = 'Web dashboard user {} turning {} "{}"'.format(
-            dashboard_username, 'on' if enable else 'off', outlet_name)
-        self.log.info(logstr)
-        return logstr
 
 
 if __name__ == '__main__':

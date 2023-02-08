@@ -132,8 +132,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
                     ]
             print('adding exposure:', ' '.join([str(a) for a in args]) + ':')
             with daemon_proxy('exq') as daemon:
-                reply = daemon.add(*args)
-                print(reply)
+                daemon.add(*args)
 
             # Add to time estimate
             time_estimate += (expset_info['exptime'] + 30) * expset_info['num_exp']
@@ -141,8 +140,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
         # Resume the queue
         print('Starting exposures')
         with daemon_proxy('exq') as daemon:
-            reply = daemon.resume()
-            print(reply)
+            daemon.resume()
 
         # Wait for the queue to empty
         # NB We deliberately use a pessimistic timeout, it will raise an error if it takes too long

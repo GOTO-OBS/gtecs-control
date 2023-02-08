@@ -84,8 +84,7 @@ def run(test=False):
             # Try sending the command
             log.warning('Sending dome close command')
             with daemon_proxy('dome') as daemon:
-                reply = daemon.close_dome()
-                print(reply)
+                daemon.close_dome()
 
             # Wait for the dome to (hopefully) close
             wait_for_dome(target_position='closed', timeout=120)

@@ -382,8 +382,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     #####################################################################################
     # Step 0: Turn on HFD measurement
     with daemon_proxy('cam') as daemon:
-        reply = daemon.measure_image_hfds('on')
-        print(reply)
+        daemon.measure_image_hfds('on')
 
     # Step 1: Start to move out to the right (+ve steps), return immediately
     print('Moving to the right...')
@@ -446,8 +445,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     # Step 14: Turn off HFD measurement
     with daemon_proxy('cam') as daemon:
-        reply = daemon.measure_image_hfds('off')
-        print(reply)
+        daemon.measure_image_hfds('off')
 
     if reset:
         # Move back to the original position

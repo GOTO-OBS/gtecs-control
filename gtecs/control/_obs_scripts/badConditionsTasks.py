@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 
 from gtecs.control import params
 from gtecs.control.daemons import daemon_proxy
-from gtecs.control.observing import (mount_is_parked, mirror_covers_are_closed, prepare_for_images,
+from gtecs.control.observing import (mirror_covers_are_closed, mount_is_parked, prepare_for_images,
                                      slew_to_altaz, wait_for_exposure_queue)
 
 
@@ -28,8 +28,7 @@ def run(nexp=3):
     # close the covers again for darks (we open to stop them sticking)
     print('Closing mirror covers')
     with daemon_proxy('ota') as daemon:
-        reply = daemon.close_covers()
-        print(reply)
+        daemon.close_covers()
     start_time = time.time()
     while not mirror_covers_are_closed():
         time.sleep(0.5)
@@ -38,9 +37,9 @@ def run(nexp=3):
 
     # move the mount around
     if mount_is_parked():
+        print('Unparking mount')
         with daemon_proxy('mnt') as daemon:
-            reply = daemon.unpark()
-            print(reply)
+            daemon.unpark()
         start_time = time.time()
         while mount_is_parked():
             time.sleep(1)
@@ -52,9 +51,9 @@ def run(nexp=3):
     print('Mount tests complete')
 
     # park again
+    print('Parking mount')
     with daemon_proxy('mnt') as daemon:
-        reply = daemon.park()
-        print(reply)
+        daemon.park()
     start_time = time.time()
     while not mount_is_parked():
         time.sleep(1)
@@ -64,17 +63,13 @@ def run(nexp=3):
     # take extra biases and darks
     uts = params.UTS_WITH_CAMERAS
     with daemon_proxy('exq') as daemon:
-        # Add 0 second biases
-        reply = daemon.add(uts, exptime=0.0, nexp=nexp, frametype='dark', imgtype='BIAS')
-        print(reply)
-        # Add a range of darks
+        print(f'Taking {nexp} bias exposures')
+        daemon.add(uts, exptime=0.0, nexp=nexp, frametype='dark', imgtype='BIAS')
         # TODO: this should be a param list (or args), match takeBiasesAndDarks
         for exptime in [60, 90, 120, 600]:
-            reply = daemon.add(uts, exptime=exptime, nexp=nexp, frametype='dark', imgtype='DARK')
-            print(reply)
-        # Resume the queue if it's paused
-        reply = daemon.resume()
-        print(reply)
+            print(f'Taking {nexp} {exptime:.0f}s dark exposures')
+            daemon.add(uts, exptime=exptime, nexp=nexp, frametype='dark', imgtype='DARK')
+        daemon.resume()
 
     # estimate a deliberately pessimistic timeout
     readout = 10

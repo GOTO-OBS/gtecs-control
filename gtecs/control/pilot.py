@@ -16,7 +16,6 @@ from gtecs.common.system import execute_command
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, sunalt_time
-from .errors import RecoveryError
 from .flags import Conditions, Status
 from .scheduling import update_schedule_pyro, update_schedule_server_async
 from .slack import send_slack_msg, send_startup_report, send_timing_report
@@ -297,9 +296,9 @@ class Pilot:
                     self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
                     try:
                         monitor.recover()  # Will log recovery commands
-                    except RecoveryError as err:
+                    except monitors.RecoveryError as error:
                         # Uh oh, we're out of options
-                        send_slack_msg(str(err))
+                        send_slack_msg(str(error))
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:

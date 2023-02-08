@@ -8,7 +8,6 @@ import sys
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
-from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control.style import errortxt
@@ -21,7 +20,7 @@ def query(command, args):
         print_instructions()
 
     elif command == 'i':
-        raise errors.InputError('Already in interactive mode')
+        raise ValueError('Already in interactive mode')
 
     # Primary daemon control
     elif command == 'start':
@@ -39,15 +38,16 @@ def query(command, args):
             ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
-            raise errors.InputError('Invalid arguments')
+            raise ValueError('Invalid arguments')
         for ut in ut_list:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
                     continue
                 try:
-                    reply = daemons.start_daemon(interface_id)
-                    print(reply)
+                    host, port = daemons.get_daemon_host(interface_id)
+                    pid = daemons.start_daemon(interface_id)
+                    print(f'Daemon {interface_id} started on {host}:{port} (PID {pid})')
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
@@ -66,15 +66,16 @@ def query(command, args):
             ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
-            raise errors.InputError('Invalid arguments')
+            raise ValueError('Invalid arguments')
         for ut in ut_list:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
                     continue
                 try:
-                    reply = daemons.shutdown_daemon(interface_id)
-                    print(reply)
+                    host, port = daemons.get_daemon_host(interface_id)
+                    daemons.shutdown_daemon(interface_id)
+                    print(f'Daemon {interface_id} shutdown on {host}:{port}')
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
@@ -93,15 +94,16 @@ def query(command, args):
             ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
-            raise errors.InputError('Invalid arguments')
+            raise ValueError('Invalid arguments')
         for ut in ut_list:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
                     continue
                 try:
-                    reply = daemons.restart_daemon(interface_id)
-                    print(reply)
+                    host, port = daemons.get_daemon_host(interface_id)
+                    pid = daemons.restart_daemon(interface_id)
+                    print(f'Daemon {interface_id} restarted on {host}:{port} (PID {pid})')
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
@@ -120,15 +122,16 @@ def query(command, args):
             ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
-            raise errors.InputError('Invalid arguments')
+            raise ValueError('Invalid arguments')
         for ut in ut_list:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
                     continue
                 try:
-                    reply = daemons.kill_daemon(interface_id)
-                    print(reply)
+                    host, port = daemons.get_daemon_host(interface_id)
+                    daemons.kill_daemon(interface_id)
+                    print(f'Daemon {interface_id} killed on {host}:{port}')
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
@@ -147,15 +150,16 @@ def query(command, args):
             ut_list = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
-            raise errors.InputError('Invalid arguments')
+            raise ValueError('Invalid arguments')
         for ut in ut_list:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
                     continue
                 try:
-                    reply = daemons.check_daemon(interface_id)
-                    print(reply)
+                    host, port = daemons.get_daemon_host(interface_id)
+                    pid = daemons.check_daemon(interface_id)
+                    print(f'Daemon {interface_id} is running on {host}:{port} (PID {pid})')
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
@@ -177,7 +181,7 @@ def query(command, args):
             info_type = 'raw'
             force = True
         else:
-            raise errors.InputError('Invalid arguments')
+            raise ValueError('Invalid arguments')
         all_info = {}
         for ut in params.UTS:
             ut_info = []
@@ -227,7 +231,7 @@ def query(command, args):
 
     # Unrecognized function
     else:
-        raise errors.InputError('Unrecognized command "{}"'.format(command))
+        raise ValueError('Unrecognized command "{}"'.format(command))
 
 
 def print_info(all_info):
@@ -262,6 +266,7 @@ def print_instructions():
 
 
 if __name__ == '__main__':
+    daemon_id = os.path.basename(__file__)
     if len(sys.argv) == 1:
         # No command: print help and exit
         print_instructions()
@@ -277,7 +282,7 @@ if __name__ == '__main__':
         # Interactive mode
         while True:
             try:
-                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+                interactive_input = input(f'{daemon_id}> ').split()
             except EOFError:
                 print()
                 sys.exit()

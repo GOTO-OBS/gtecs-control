@@ -17,7 +17,7 @@ from gtecs.control.conditions.internal import get_domealert_daemon
 from gtecs.control.conditions.local import get_vaisala_daemon, get_rain_daemon, get_rain_domealert
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.flags import Status
+from gtecs.control.flags import ModeError, Status
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -114,7 +114,6 @@ class ConditionsDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -700,88 +699,49 @@ class ConditionsDaemon(BaseDaemon):
     # Control functions
     def update(self):
         """Force a conditions update."""
-        # Set flag
         self.force_check_flag = 1
-
-        return 'Updating conditions'
 
     def ignore_flags(self, flags):
         """Add the given flags to the ignore list."""
-        # Check current status
         status = Status()
         if status.mode == 'robotic':
-            return 'Can not ignore flags in robotic mode'
+            raise ModeError('Can not ignore flags in robotic mode')
+        if any(flag not in self.flags for flag in flags):
+            bad_flags = [flag for flag in flags if flags not in self.flags]
+            raise ValueError(f'Invalid flags: {bad_flags}')
+        if 'override' in flags:
+            raise ValueError('"override" flag can not be ignored')
 
-        retstrs = []
+        self.log.info(f'Adding flags to ignored list: {flags}')
         for flag in flags:
-            # Check current status
-            if flag not in self.flags:
-                retstrs.append('"{}" is not a recognised flag'.format(flag))
-                continue
-            elif flag in self.ignored_flags:
-                retstrs.append('"{}" flag is already in the ignored list'.format(flag))
-                continue
-            elif flag == 'override':
-                retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
-                continue
-
-            # Set flag
             self.ignored_flags.append(flag)
-            retstrs.append('"{}" flag added to the ignored list'.format(flag))
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def enable_flags(self, flags):
         """Remove the given flags from the ignore list."""
-        # Check current status
         status = Status()
         if status.mode == 'robotic':
-            return 'All flags are enabled in robotic mode'
+            raise ModeError('All flags are enabled in robotic mode')
+        if any(flag not in self.flags for flag in flags):
+            bad_flags = [flag for flag in flags if flags not in self.flags]
+            raise ValueError(f'Invalid flags: {bad_flags}')
+        if 'override' in flags:
+            raise ValueError('"override" flag can not be ignored')
 
-        retstrs = []
+        self.log.info(f'Removing flags from ignored list: {flags}')
         for flag in flags:
-            # Check current status
-            if flag not in self.flags:
-                retstrs.append('"{}" is not a recognised flag'.format(flag))
-                continue
-            elif flag not in self.ignored_flags:
-                retstrs.append('"{}" flag is not in the ignored list'.format(flag))
-                continue
-            elif flag == 'override':
-                retstrs.append('"{}" flag can not be ignored (use "override on|off")'.format(flag))
-                continue
-
-            # Set flag
             self.ignored_flags.remove(flag)
-            retstrs.append('"{}" flag removed from the ignored list'.format(flag))
 
-        # Format return string
-        return '\n'.join(retstrs)
+    def set_override(self, command):
+        """Activate or clear the manual override flag."""
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
 
-    def set_override(self):
-        """Activate the manual override flag."""
-        # Check current status
-        if self.manual_override:
-            return 'Manual override is already enabled'
-
-        # Set flag
-        self.log.info('Enabling manual override')
-        self.manual_override = True
-
-        return 'Enabling conditions override flag'
-
-    def clear_override(self):
-        """Deactivate the manual override flag."""
-        # Check current status
-        if not self.manual_override:
-            return 'Manual override is already disabled'
-
-        # Set flag
-        self.log.info('Disabling manual override')
-        self.manual_override = False
-
-        return 'Disabling conditions override flag'
+        if command == 'on' and not self.manual_override:
+            self.log.info('Enabling manual override')
+            self.manual_override = True
+        elif command == 'off' and self.manual_override:
+            self.log.info('Disabling manual override')
+            self.manual_override = False
 
     def dashboard_override(self, enable, dashboard_username):
         """Activate or deactivate the manual override flag from the web dashboard.
@@ -790,21 +750,16 @@ class ConditionsDaemon(BaseDaemon):
         and also has extra logging.
         See https://github.com/GOTO-OBS/g-tecs/issues/535 for details.
         """
-        # Check IP
         client_ip = self._get_client_ip()
         if client_ip != params.DASHBOARD_IP:
-            return False
+            return 1
 
-        # Set flag
         if enable:
-            self.manual_override = True
+            out_str = f'Web dashboard user {dashboard_username} turning on manual override'
         else:
-            self.manual_override = False
-
-        logstr = 'Web dashboard user {} turning {} manual override'.format(
-            dashboard_username, 'on' if enable else 'off')
-        self.log.info(logstr)
-        return logstr
+            out_str = f'Web dashboard user {dashboard_username} turning off manual override'
+        self.log.info(out_str)
+        self.manual_override = enable
 
 
 if __name__ == '__main__':

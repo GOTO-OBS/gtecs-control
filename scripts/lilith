@@ -4,60 +4,69 @@
 import sys
 import time
 
+from gtecs.control import daemons
 from gtecs.control import misc
 from gtecs.control import params
-from gtecs.control.daemons import (check_daemon, kill_daemon, restart_daemon,
-                                   shutdown_daemon, start_daemon)
 
 
 if __name__ == '__main__':
     command = sys.argv[1]
     all_daemons = list(params.DAEMONS) + list(params.INTERFACES)
     if len(sys.argv) == 3:
-        daemons = sorted(misc.valid_strings(sys.argv[2].split(','), all_daemons))
+        daemon_ids = sorted(misc.valid_strings(sys.argv[2].split(','), all_daemons))
     elif len(sys.argv) > 3:
-        daemons = sorted(sys.argv[2:])
+        daemon_ids = sorted(sys.argv[2:])
     else:
-        daemons = sorted(all_daemons)
+        daemon_ids = sorted(all_daemons)
 
     if command == 'start':
-        for daemon_id in daemons:
+        for daemon_id in daemon_ids:
             try:
-                start_daemon(daemon_id)
+                host, port = daemons.get_daemon_host(daemon_id)
+                pid = daemons.start_daemon(daemon_id)
+                print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
             except Exception as error:
-                print(f'{type(error).__name__}: "{error}"')
+                print(error)
             time.sleep(1)
 
     elif command == 'shutdown':
-        for daemon_id in daemons:
+        for daemon_id in daemon_ids:
             try:
-                shutdown_daemon(daemon_id)
+                host, port = daemons.get_daemon_host(daemon_id)
+                daemons.shutdown_daemon(daemon_id)
+                print(f'Daemon {daemon_id} shutdown on {host}:{port}')
             except Exception as error:
-                print(f'{type(error).__name__}: "{error}"')
-            time.sleep(1)
-
-    elif command == 'kill':
-        for daemon_id in daemons:
-            try:
-                kill_daemon(daemon_id)
-            except Exception as error:
-                print(f'{type(error).__name__}: "{error}"')
+                print(error)
             time.sleep(1)
 
     elif command == 'restart':
-        for daemon_id in daemons:
+        for daemon_id in daemon_ids:
             try:
-                restart_daemon(daemon_id)
+                host, port = daemons.get_daemon_host(daemon_id)
+                pid = daemons.restart_daemon(daemon_id)
+                print(f'Daemon {daemon_id} restarted on {host}:{port} (PID {pid})')
             except Exception as error:
-                print(f'{type(error).__name__}: "{error}"')
+                print(error)
+            time.sleep(1)
+
+    elif command == 'kill':
+        for daemon_id in daemon_ids:
+            try:
+                host, port = daemons.get_daemon_host(daemon_id)
+                daemons.shutdown_daemon(daemon_id, kill=True)
+                print(f'Daemon {daemon_id} killed on {host}:{port}')
+            except Exception as error:
+                print(error)
             time.sleep(1)
 
     elif command == 'ping':
-        for daemon_id in daemons:
+        for daemon_id in daemon_ids:
             try:
-                check_daemon(daemon_id)
+                host, port = daemons.get_daemon_host(daemon_id)
+                pid = daemons.check_daemon(daemon_id)
+                print(f'Daemon {daemon_id} is running on {host}:{port} (PID {pid})')
             except Exception as error:
-                print(f'{type(error).__name__}: "{error}"')
+                print(error)
             time.sleep(1)
 
     else:

@@ -8,9 +8,8 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, daemon_proxy
 from gtecs.control.exposures import Exposure, ExposureQueue
 
 
@@ -21,6 +20,7 @@ class ExqDaemon(BaseDaemon):
         super().__init__('exq')
 
         # exposure queue variables
+        self.uts = params.UTS_WITH_CAMERAS.copy()
         self.paused = True  # start paused
         self.exp_queue = ExposureQueue()
         self.current_exposure = None
@@ -266,7 +266,6 @@ class ExqDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -332,14 +331,10 @@ class ExqDaemon(BaseDaemon):
             target='NA', imgtype='SCIENCE', glance=False,
             set_id=None, pointing_id=None):
         """Add exposures to the queue."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:  # WHY NOT DEFAULT TO ALL WITH_CAMS? OR self.uts?
-            if ut not in params.UTS_WITH_CAMERAS:
-                raise ValueError('Unit telescope ID not in list {}'.format(params.UTS_WITH_CAMERAS))
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if any(ut not in self.uts for ut in ut_list):  # TODO: Default to all (if ut_list=None)?
+            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt == 'X':
@@ -354,8 +349,8 @@ class ExqDaemon(BaseDaemon):
                 raise ValueError('Unknown filter: {}'.format(filt))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
+        if frametype not in ['normal', 'dark']:
+            raise ValueError('Invalid frame type: "{}"'.format(frametype))
 
         # Find and update set number
         with open(self.set_number_file, 'r') as f:
@@ -365,7 +360,6 @@ class ExqDaemon(BaseDaemon):
             f.write('{:d}'.format(new_set_number))
         self.latest_set_number = new_set_number
 
-        # Call the command
         for i in range(1, nexp + 1):
             exposure = Exposure(ut_list,
                                 exptime,
@@ -389,84 +383,47 @@ class ExqDaemon(BaseDaemon):
                 self.log.info('Added {:.0f}s {} glance, now {:.0f} in queue'.format(
                               exptime, filt if filt is not None else 'X', len(self.exp_queue)))
 
-        # Format return string
-        s = 'Added {}{:.0f}s {} {}{},'.format('{}x '.format(nexp) if nexp > 1 else '',
-                                              exptime,
-                                              filt if filt is not None else 'X',
-                                              'exposure' if not glance else 'glance',
-                                              's' if nexp > 1 else '',
-                                              )
-        s += ' now {} items in queue'.format(len(self.exp_queue))
-        if self.paused:
-            s += ' [paused]'
-        return s
-
     def clear(self):
         """Empty the exposure queue."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
 
-        # Call the command
-        num_in_queue = len(self.exp_queue)
+        queue_length = len(self.exp_queue)
+        self.log.info(f'Clearing {queue_length:.0f} items from queue')
         self.exp_queue.clear()
-
-        self.log.info('Cleared {} items from queue'.format(num_in_queue))
-        return 'Queue cleared'
+        return queue_length
 
     def get(self):
-        """Return info on exposures in the queue."""
-        # Check restrictions
+        """Fetch info on exposures in the queue."""
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
 
-        # Call the command
-        queue_info = self.exp_queue.get()
-
-        return queue_info
+        return self.exp_queue.get()
 
     def get_simple(self):
-        """Return simple info on exposures in the queue."""
-        # Check restrictions
+        """Fetch simple info on exposures in the queue."""
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
 
-        # Call the command
-        queue_info_simple = self.exp_queue.get_simple()
-
-        return queue_info_simple
+        return self.exp_queue.get_simple()
 
     def pause(self):
         """Pause the queue."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
 
-        # Check input
-        if self.paused:
-            return 'Queue already paused'
-
-        # Set values
-        self.paused = True
-
-        self.log.info('Queue paused')
-        return 'Queue paused'
+        if not self.paused:
+            self.log.info('Pausing queue')
+            self.paused = True
 
     def resume(self):
         """Unpause the queue."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
 
-        # Check input
-        if not self.paused:
-            return 'Queue already resumed'
-
-        # Set values
-        self.paused = False
-
-        self.log.info('Queue resumed')
-        return 'Queue resumed'
+        if self.paused:
+            self.log.info('Resuming queue')
+            self.paused = False
 
 
 if __name__ == '__main__':

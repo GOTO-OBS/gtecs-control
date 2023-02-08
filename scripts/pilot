@@ -6,7 +6,6 @@ import sys
 
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command, get_pid, kill_process, make_pid_file
-from gtecs.control import errors
 from gtecs.control.flags import Status
 from gtecs.control.pilot import run
 from gtecs.control.slack import send_slack_msg
@@ -73,7 +72,7 @@ def query(command, args):
 
     # Unrecognized function
     else:
-        raise errors.InputError('Unrecognized command "{}"'.format(command))
+        raise ValueError('Unrecognized command "{}"'.format(command))
 
 
 def print_instructions():

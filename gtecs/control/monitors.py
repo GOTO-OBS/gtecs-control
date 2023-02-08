@@ -8,7 +8,6 @@ from gtecs.common.system import execute_command, get_pid
 
 from . import params
 from .daemons import daemon_proxy
-from .errors import RecoveryError
 
 # Daemon statuses
 DAEMON_RUNNING = 'running'
@@ -89,6 +88,12 @@ ERROR_FILT_UNHOMED = 'FILT:NOT_HOMED'
 ERROR_FILT_MOVETIMEOUT = 'FILT:MOVING_TIMEOUT'
 ERROR_FOC_UNSET = 'FOC:NOT_SET'
 ERROR_FOC_MOVETIMEOUT = 'FOC:MOVING_TIMEOUT'
+
+
+class RecoveryError(Exception):
+    """To be used if a hardware monitor is out of recovery commands."""
+
+    pass
 
 
 class BaseMonitor(ABC):

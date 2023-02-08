@@ -79,16 +79,14 @@ def prepare_for_images(open_covers=True):
         print('Turning off dome lights')
         for outlet in params.OBSERVING_OFF_OUTLETS:
             with daemon_proxy('power') as daemon:
-                reply = daemon.off(outlet)
-                print(reply)
+                daemon.off(outlet)
             time.sleep(0.5)
 
     # Empty the exposure queue
     if not exposure_queue_is_empty():
         print('Clearing exposure queue')
         with daemon_proxy('exq') as daemon:
-            reply = daemon.clear()
-            print(reply)
+            daemon.clear()
         start_time = time.time()
         while not exposure_queue_is_empty():
             time.sleep(0.5)
@@ -99,8 +97,7 @@ def prepare_for_images(open_covers=True):
     if not filters_are_homed():
         print('Homing filters')
         with daemon_proxy('filt') as daemon:
-            reply = daemon.home_filters()
-            print(reply)
+            daemon.home_filters()
         start_time = time.time()
         while not filters_are_homed():
             time.sleep(0.5)
@@ -111,11 +108,9 @@ def prepare_for_images(open_covers=True):
     if not focusers_are_set():
         print('Setting focusers')
         with daemon_proxy('foc') as daemon:
-            reply = daemon.move_focusers(10)
-            print(reply)
+            daemon.move_focusers(10)
             time.sleep(4)
-            reply = daemon.move_focusers(-10)
-            print(reply)
+            daemon.move_focusers(-10)
         start_time = time.time()
         while not focusers_are_set():
             time.sleep(0.5)
@@ -126,11 +121,9 @@ def prepare_for_images(open_covers=True):
     if not cameras_are_empty():
         print('Aborting ongoing exposures')
         with daemon_proxy('cam') as daemon:
-            reply = daemon.abort_exposure()
-            print(reply)
+            daemon.abort_exposure()
             time.sleep(3)
-            reply = daemon.clear_queue()
-            print(reply)
+            daemon.clear_queue()
         start_time = time.time()
         while not cameras_are_empty():
             time.sleep(0.5)
@@ -141,16 +134,14 @@ def prepare_for_images(open_covers=True):
     if not cameras_are_fullframe():
         print('Setting cameras to full-frame')
         with daemon_proxy('cam') as daemon:
-            reply = daemon.remove_window()
-            print(reply)
+            daemon.remove_window()
         time.sleep(4)
 
     # Bring the CCDs down to temperature
     if not cameras_are_cool():
         print('Cooling cameras')
         with daemon_proxy('cam') as daemon:
-            reply = daemon.set_temperature('cool')
-            print(reply)
+            daemon.set_temperature('cool')
         start_time = time.time()
         while not cameras_are_cool():
             time.sleep(0.5)
@@ -161,8 +152,7 @@ def prepare_for_images(open_covers=True):
     if not mount_motors_are_on():
         print('Turning on mount motors')
         with daemon_proxy('mnt') as daemon:
-            reply = daemon.power_motors('on')
-            print(reply)
+            daemon.power_motors('on')
         time.sleep(4)
 
     if open_covers is True:
@@ -170,8 +160,7 @@ def prepare_for_images(open_covers=True):
         if not mirror_covers_are_open():
             print('Opening mirror covers')
             with daemon_proxy('ota') as daemon:
-                reply = daemon.open_covers()
-                print(reply)
+                daemon.open_covers()
             start_time = time.time()
             while not mirror_covers_are_open():
                 time.sleep(0.5)
@@ -182,8 +171,7 @@ def prepare_for_images(open_covers=True):
         if not mirror_covers_are_closed():
             print('Closing mirror covers')
             with daemon_proxy('ota') as daemon:
-                reply = daemon.close_covers()
-                print(reply)
+                daemon.close_covers()
             start_time = time.time()
             while not mirror_covers_are_closed():
                 time.sleep(0.5)
@@ -298,9 +286,9 @@ def set_focuser_positions(positions, wait=False, timeout=None):
     while not focusers_are_ready(uts=positions.keys()):
         time.sleep(0.5)
 
+    print('Setting focusers:', positions)
     with daemon_proxy('foc') as daemon:
-        reply = daemon.set_focusers(positions)
-        print(reply)
+        daemon.set_focusers(positions)
 
     if wait or timeout is not None:
         wait_for_focusers(positions, timeout)
@@ -330,9 +318,9 @@ def move_focusers(offsets, wait=False, timeout=None):
     start_positions = get_focuser_positions()
     finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
 
+    print('Moving focusers:', offsets)
     with daemon_proxy('foc') as daemon:
-        reply = daemon.move_focusers(offsets)
-        print(reply)
+        daemon.move_focusers(offsets)
 
     if wait or timeout is not None:
         wait_for_focusers(finish_positions, timeout)
@@ -442,14 +430,13 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
     if not within_mount_limits(ra, dec, Time.now()):
         raise ValueError('Target is outside of mount limits, cannot slew')
 
+    print('Slewing to {ra:.2f} {dec:.2f}')
     with daemon_proxy('mnt') as daemon:
         info = daemon.get_info(force_update=True)
         if info['status'] == 'Slewing':
-            reply = daemon.full_stop()
-            print(reply)
+            daemon.full_stop()
             time.sleep(2)
-            reply = daemon.slew_to_radec(ra * 24 / 360, dec)  # TODO: really should use SkyCoord
-            print(reply)
+            daemon.slew_to_radec(ra * 24 / 360, dec)  # TODO: really should use SkyCoord
 
     if wait or timeout is not None:
         wait_for_mount(ra, dec, timeout)
@@ -563,9 +550,9 @@ def offset(direction, distance):
         offset distance in arcseconds
 
     """
+    print(f'Offsetting mount {distance:.1f} deg {direction}')
     with daemon_proxy('mnt') as daemon:
-        reply = daemon.offset(direction.upper(), distance)
-        print(reply)
+        daemon.offset(direction.upper(), distance)
     # wait a short while for it to move
     time.sleep(2)
 
@@ -620,11 +607,10 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
 
     # Send the command
     with daemon_proxy('exq') as daemon:
-        reply = daemon.add(uts, exptime, 1, filt, binning,
-                           target=name, imgtype=imgtype, glance=glance)
-        print(reply)
-        reply = daemon.resume()
-        print(reply)
+        print(f'Taking {exptime:.0f}s {filt} {"exposure" if not glance else "glance"}')
+        daemon.add(uts, exptime, 1, filt, binning,
+                   target=name, imgtype=imgtype, glance=glance)
+        daemon.resume()
 
     if not get_data and not get_headers:
         # Wait for exposures to finish, but not to save
@@ -689,10 +675,9 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
     with daemon_proxy('exq') as daemon:
         for filt in filt_list:
             for exptime in exp_list:
-                reply = daemon.add(ut_list, exptime, 1, filt, 1, target=name, imgtype=imgtype)
-                print(reply)
-        reply = daemon.resume()
-        print(reply)
+                print(f'Taking {exptime:.0f}s {filt} exposure')
+                daemon.add(ut_list, exptime, 1, filt, 1, target=name, imgtype=imgtype)
+        daemon.resume()
 
     # estimate a deliberately pessimistic timeout
     readout = 30 * len(exp_list) * len(filt_list)

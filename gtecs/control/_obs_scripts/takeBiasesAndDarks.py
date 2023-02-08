@@ -31,20 +31,16 @@ def run(num_exp=5, extras=False):
 
     uts = params.UTS_WITH_CAMERAS
     with daemon_proxy('exq') as daemon:
-        # Add 0 second biases
-        reply = daemon.add(uts, exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
-        print(reply)
-        # Add a range of darks
+        print(f'Taking {num_exp} bias exposures')
+        daemon.add(uts, exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
         # TODO: this should be a param list (or args), match badConditionsTasks
         for exptime in [45, 60, 90, 120]:
-            reply = daemon.add(uts, exptime=exptime, nexp=num_exp, frametype='dark', imgtype='DARK')
-            print(reply)
+            print(f'Taking {num_exp} {exptime:.0f}s dark exposures')
+            daemon.add(uts, exptime=exptime, nexp=num_exp, frametype='dark', imgtype='DARK')
         if extras:
-            reply = daemon.add(uts, exptime=600, nexp=2, frametype='dark', imgtype='DARK')
-            print(reply)
-        # Resume the queue if it's paused
-        reply = daemon.resume()
-        print(reply)
+            print('Taking 2 extra 600s dark exposures')
+            daemon.add(uts, exptime=600, nexp=2, frametype='dark', imgtype='DARK')
+        daemon.resume()
 
     # estimate a deliberately pessimistic timeout
     readout = 10
