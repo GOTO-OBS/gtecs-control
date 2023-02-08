@@ -25,21 +25,21 @@ def query(command, args):
     # Primary daemon control
     elif command == 'start':
         if len(args) == 0:
-            ut_list = params.UTS
+            uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
             if args[0] in ['cam', 'foc', 'filt']:
-                ut_list = params.UTS
+                uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
-                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                uts = misc.valid_ints(args[0].split(','), params.UTS)
                 hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
             raise ValueError('Invalid arguments')
-        for ut in ut_list:
+        for ut in uts:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
@@ -53,21 +53,21 @@ def query(command, args):
 
     elif command == 'shutdown':
         if len(args) == 0:
-            ut_list = params.UTS
+            uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
             if args[0] in ['cam', 'foc', 'filt']:
-                ut_list = params.UTS
+                uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
-                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                uts = misc.valid_ints(args[0].split(','), params.UTS)
                 hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
             raise ValueError('Invalid arguments')
-        for ut in ut_list:
+        for ut in uts:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
@@ -81,21 +81,21 @@ def query(command, args):
 
     elif command == 'restart':
         if len(args) == 0:
-            ut_list = params.UTS
+            uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
             if args[0] in ['cam', 'foc', 'filt']:
-                ut_list = params.UTS
+                uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
-                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                uts = misc.valid_ints(args[0].split(','), params.UTS)
                 hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
             raise ValueError('Invalid arguments')
-        for ut in ut_list:
+        for ut in uts:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
@@ -109,21 +109,21 @@ def query(command, args):
 
     elif command == 'kill':
         if len(args) == 0:
-            ut_list = params.UTS
+            uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
             if args[0] in ['cam', 'foc', 'filt']:
-                ut_list = params.UTS
+                uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
-                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                uts = misc.valid_ints(args[0].split(','), params.UTS)
                 hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
             raise ValueError('Invalid arguments')
-        for ut in ut_list:
+        for ut in uts:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
@@ -137,21 +137,21 @@ def query(command, args):
 
     elif command in ['check', 'ping']:
         if len(args) == 0:
-            ut_list = params.UTS
+            uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
             if args[0] in ['cam', 'foc', 'filt']:
-                ut_list = params.UTS
+                uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
-                ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+                uts = misc.valid_ints(args[0].split(','), params.UTS)
                 hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS)
             hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
         else:
             raise ValueError('Invalid arguments')
-        for ut in ut_list:
+        for ut in uts:
             for hw in hw_list:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:

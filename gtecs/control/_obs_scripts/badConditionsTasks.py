@@ -4,7 +4,6 @@
 import time
 from argparse import ArgumentParser
 
-from gtecs.control import params
 from gtecs.control.daemons import daemon_proxy
 from gtecs.control.observing import (mirror_covers_are_closed, mount_is_parked, prepare_for_images,
                                      slew_to_altaz, wait_for_exposure_queue)
@@ -61,14 +60,13 @@ def run(nexp=3):
             raise TimeoutError('Mount parking timed out')
 
     # take extra biases and darks
-    uts = params.UTS_WITH_CAMERAS
     with daemon_proxy('exq') as daemon:
         print(f'Taking {nexp} bias exposures')
-        daemon.add(uts, exptime=0.0, nexp=nexp, frametype='dark', imgtype='BIAS')
+        daemon.add(exptime=0.0, nexp=nexp, frametype='dark', imgtype='BIAS')
         # TODO: this should be a param list (or args), match takeBiasesAndDarks
         for exptime in [60, 90, 120, 600]:
             print(f'Taking {nexp} {exptime:.0f}s dark exposures')
-            daemon.add(uts, exptime=exptime, nexp=nexp, frametype='dark', imgtype='DARK')
+            daemon.add(exptime=exptime, nexp=nexp, frametype='dark', imgtype='DARK')
         daemon.resume()
 
     # estimate a deliberately pessimistic timeout

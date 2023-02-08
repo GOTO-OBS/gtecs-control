@@ -102,38 +102,38 @@ def query(command, args, daemon_id):
     # Daemon functions
     elif command == 'open':
         if len(args) == 0:
-            ut_list = params.UTS_WITH_COVERS
+            uts = params.UTS_WITH_COVERS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_COVERS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_COVERS)
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.open_covers(ut_list)
+            daemon.open_covers(uts)
         print('Mirror covers opening')
 
     elif command == 'close':
         if len(args) == 0:
-            ut_list = params.UTS_WITH_COVERS
+            uts = params.UTS_WITH_COVERS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_COVERS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_COVERS)
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.close_covers(ut_list)
+            daemon.close_covers(uts)
         print('Mirror covers closing')
 
     elif command == 'stop':
         if len(args) == 0:
-            ut_list = params.UTS_WITH_COVERS
+            uts = params.UTS_WITH_COVERS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_COVERS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_COVERS)
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.stop_covers(ut_list)
+            daemon.stop_covers(uts)
         print('Mirror covers stopping')
 
     # Unrecognized function

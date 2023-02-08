@@ -3,7 +3,6 @@
 
 from argparse import ArgumentParser
 
-from gtecs.control import params
 from gtecs.control.daemons import daemon_proxy
 from gtecs.control.observing import prepare_for_images, wait_for_exposure_queue
 
@@ -29,17 +28,16 @@ def run(num_exp=5, extras=False):
     # TODO: Get set of exposure times from the database?
     #       We'd need a camera/exposure database...
 
-    uts = params.UTS_WITH_CAMERAS
     with daemon_proxy('exq') as daemon:
         print(f'Taking {num_exp} bias exposures')
-        daemon.add(uts, exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
+        daemon.add(exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
         # TODO: this should be a param list (or args), match badConditionsTasks
         for exptime in [45, 60, 90, 120]:
             print(f'Taking {num_exp} {exptime:.0f}s dark exposures')
-            daemon.add(uts, exptime=exptime, nexp=num_exp, frametype='dark', imgtype='DARK')
+            daemon.add(exptime=exptime, nexp=num_exp, frametype='dark', imgtype='DARK')
         if extras:
             print('Taking 2 extra 600s dark exposures')
-            daemon.add(uts, exptime=600, nexp=2, frametype='dark', imgtype='DARK')
+            daemon.add(exptime=600, nexp=2, frametype='dark', imgtype='DARK')
         daemon.resume()
 
     # estimate a deliberately pessimistic timeout

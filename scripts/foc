@@ -107,14 +107,14 @@ def query(command, args, daemon_id):
             pos_dict = {ut: pos for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
             # foc set <ut>[,<ut>...] <pos>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             pos = int(args[1])
-            pos_dict = {ut: pos for ut in ut_list}
+            pos_dict = {ut: pos for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # foc set <ut>[,<ut>...] <pos>[,<pos>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             pos_list = [int(x) for x in args[1].split(',')]
-            pos_dict = {ut: pos for ut, pos in zip(ut_list, pos_list)}
+            pos_dict = {ut: pos for ut, pos in zip(uts, pos_list)}
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
@@ -129,14 +129,14 @@ def query(command, args, daemon_id):
             steps_dict = {ut: steps for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
             # foc move <ut>[,<ut>...] <steps>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             steps = int(args[1])
-            steps_dict = {ut: steps for ut in ut_list}
+            steps_dict = {ut: steps for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # foc move <ut>[,<ut>...] <steps>[,<steps>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             steps_list = [int(x) for x in args[1].split(',')]
-            steps_dict = {ut: steps for ut, steps in zip(ut_list, steps_list)}
+            steps_dict = {ut: steps for ut, steps in zip(uts, steps_list)}
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
@@ -147,29 +147,29 @@ def query(command, args, daemon_id):
     elif command == 'home':
         if len(args) == 0:
             # foc home
-            ut_list = params.UTS_WITH_FOCUSERS
+            uts = params.UTS_WITH_FOCUSERS
         elif len(args) == 1:
             # foc home <ut>[,<ut>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.home_focusers(ut_list)
+            daemon.home_focusers(uts)
         print('Homing Focusers')
 
     elif command in ['stop', 'halt', 'abort']:
         if len(args) == 0:
             # foc stop
-            ut_list = params.UTS_WITH_FOCUSERS
+            uts = params.UTS_WITH_FOCUSERS
         elif len(args) == 1:
             # foc stop <ut>[,<ut>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.stop_focusers(ut_list)
+            daemon.stop_focusers(uts)
         print('Stopping Focusers')
 
     elif command == 'sync':
@@ -179,14 +179,14 @@ def query(command, args, daemon_id):
             position_dict = {ut: position for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
             # foc sync <ut>[,<ut>...] <position>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             position = int(args[1])
-            position_dict = {ut: position for ut in ut_list}
+            position_dict = {ut: position for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # foc sync <ut>[,<ut>...] <position>[,<position>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             position_list = [int(x) for x in args[1].split(',')]
-            position_dict = {ut: position for ut, position in zip(ut_list, position_list)}
+            position_dict = {ut: position for ut, position in zip(uts, position_list)}
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)

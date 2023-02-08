@@ -113,13 +113,12 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
             # Format UT mask
             if expset_info['ut_mask'] is not None:
                 ut_string = ut_mask_to_string(expset_info['ut_mask'])
-                ut_list = ut_string_to_list(ut_string)
+                uts = ut_string_to_list(ut_string)
             else:
-                ut_list = params.UTS_WITH_CAMERAS
+                uts = params.UTS_WITH_CAMERAS
 
             # Add to queue
-            args = [ut_list,
-                    expset_info['exptime'],
+            args = [expset_info['exptime'],
                     expset_info['num_exp'],
                     expset_info['filt'],
                     expset_info['binning'],
@@ -127,6 +126,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
                     pointing_info['name'],
                     'SCIENCE',
                     False,
+                    uts,
                     expset_info['id'],
                     pointing_info['id'],
                     ]

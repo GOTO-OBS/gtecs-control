@@ -367,40 +367,40 @@ class FocDaemon(BaseDaemon):
         self.move_steps.update(move_steps)
         self.move_focuser_flag = 1
 
-    def home_focusers(self, ut_list=None):
+    def home_focusers(self, uts=None):
         """Move focuser(s) to the home position."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if ut_list is None:
-            ut_list = self.uts.copy()
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         self.wait_for_info()
         if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
-               for ut in ut_list):
-            bad_uts = [ut for ut in ut_list
+               for ut in uts):
+            bad_uts = [ut for ut in uts
                        if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
             raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.home_focuser_flag = 1
 
-    def stop_focusers(self, ut_list=None):
+    def stop_focusers(self, uts=None):
         """Stop focuser(s) moving."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if ut_list is None:
-            ut_list = self.uts.copy()
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         self.wait_for_info()
-        if any(not self.info[ut]['can_stop'] for ut in ut_list):
-            bad_uts = [ut for ut in ut_list if not self.info[ut]['can_stop']]
+        if any(not self.info[ut]['can_stop'] for ut in uts):
+            bad_uts = [ut for ut in uts if not self.info[ut]['can_stop']]
             raise HardwareError(f'Focusers do not a stop command: {bad_uts}')
 
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.stop_focuser_flag = 1
 
     def sync_focusers(self, position):

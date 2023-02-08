@@ -136,8 +136,8 @@ class ExqDaemon(BaseDaemon):
                         try:
                             with daemon_proxy('filt') as daemon:
                                 info = daemon.get_info(force_update=False)
-                            filt_uts = [ut for ut in self.current_exposure.ut_list
-                                        if ut in info]  # only ones with filter wheels
+                            # exclude uts without filter wheels
+                            filt_uts = [ut for ut in self.current_exposure.uts if ut in info]
 
                             # Check if we need to home the filters
                             if all(info[ut]['homed'] for ut in filt_uts):
@@ -159,8 +159,7 @@ class ExqDaemon(BaseDaemon):
                     try:
                         with daemon_proxy('filt', timeout=10) as daemon:
                             info = daemon.get_info(force_update=True)
-                        filt_uts = [ut for ut in self.current_exposure.ut_list
-                                    if ut in info]
+                        filt_uts = [ut for ut in self.current_exposure.uts if ut in info]
 
                         # Continue when all the filters are homed
                         if all(info[ut]['homed'] for ut in filt_uts):
@@ -175,8 +174,7 @@ class ExqDaemon(BaseDaemon):
                     try:
                         with daemon_proxy('filt') as daemon:
                             info = daemon.get_info(force_update=False)
-                        filt_uts = [ut for ut in self.current_exposure.ut_list
-                                    if ut in info]
+                        filt_uts = [ut for ut in self.current_exposure.uts if ut in info]
 
                         # Check if we need to change the filters
                         if all(info[ut]['current_filter'] == self.current_exposure.filt
@@ -198,8 +196,7 @@ class ExqDaemon(BaseDaemon):
                     try:
                         with daemon_proxy('filt', timeout=10) as daemon:
                             info = daemon.get_info(force_update=True)
-                        filt_uts = [ut for ut in self.current_exposure.ut_list
-                                    if ut in info]
+                        filt_uts = [ut for ut in self.current_exposure.uts if ut in info]
 
                         # Continue when the filters are set
                         if all(info[ut]['current_filter'] == self.current_exposure.filt
@@ -289,7 +286,6 @@ class ExqDaemon(BaseDaemon):
         if self.current_exposure is not None:
             temp_info['exposing'] = True
             current_info = {}
-            current_info['ut_list'] = self.current_exposure.ut_list
             current_info['exptime'] = self.current_exposure.exptime
             current_info['filter'] = self.current_exposure.filt
             current_info['binning'] = self.current_exposure.binning
@@ -297,6 +293,7 @@ class ExqDaemon(BaseDaemon):
             current_info['target'] = self.current_exposure.target
             current_info['imgtype'] = self.current_exposure.imgtype
             current_info['glance'] = self.current_exposure.glance
+            current_info['uts'] = self.current_exposure.uts
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
             current_info['set_tot'] = self.current_exposure.set_tot
@@ -326,15 +323,12 @@ class ExqDaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def add(self, ut_list, exptime, nexp=1,
-            filt=None, binning=1, frametype='normal',
-            target='NA', imgtype='SCIENCE', glance=False,
+    def add(self, exptime, nexp=1, filt=None, binning=1, frametype='normal',
+            target='NA', imgtype='SCIENCE', glance=False, uts=None,
             set_id=None, pointing_id=None):
         """Add exposures to the queue."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if any(ut not in self.uts for ut in ut_list):  # TODO: Default to all (if ut_list=None)?
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
         if int(exptime) < 0:
             raise ValueError('Exposure time must be > 0')
         if filt == 'X':
@@ -344,13 +338,17 @@ class ExqDaemon(BaseDaemon):
             # Instead we'll just quietly remove it from the exposure.
             # When we set we'll move the filter wheels to that filter, while any static ones
             # will only be included here if the filter is the one we're asking for.
-            ut_list = [ut for ut in ut_list if filt in params.UT_DICT[ut]['FILTERS']]
-            if len(ut_list) == 0:
+            uts = [ut for ut in uts if filt in params.UT_DICT[ut]['FILTERS']]
+            if len(uts) == 0:
                 raise ValueError('Unknown filter: {}'.format(filt))
         if int(binning) < 1 or (int(binning) - binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
         if frametype not in ['normal', 'dark']:
             raise ValueError('Invalid frame type: "{}"'.format(frametype))
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         # Find and update set number
         with open(self.set_number_file, 'r') as f:
@@ -361,14 +359,14 @@ class ExqDaemon(BaseDaemon):
         self.latest_set_number = new_set_number
 
         for i in range(1, nexp + 1):
-            exposure = Exposure(ut_list,
-                                exptime,
+            exposure = Exposure(exptime,
                                 filt,
                                 binning,
                                 frametype,
                                 target.replace(';', ''),
                                 imgtype.replace(';', '').upper(),
                                 glance,
+                                uts,
                                 set_num=new_set_number,
                                 set_pos=i,
                                 set_tot=nexp,

@@ -106,14 +106,14 @@ def query(command, args, daemon_id):
             filt_dict = {ut: filt for ut in params.UTS_WITH_FILTERWHEELS}
         elif len(args) == 2 and len(args[1]) == 1:
             # filt set <ut>[,<ut>...] <filt>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             filt = args[1]
-            filt_dict = {ut: filt for ut in ut_list}
+            filt_dict = {ut: filt for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # filt set <ut>[,<ut>...] <filt>[,<filt>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             filt_list = args[1].split(',')
-            filt_dict = {ut: filt for ut, filt in zip(ut_list, filt_list)}
+            filt_dict = {ut: filt for ut, filt in zip(uts, filt_list)}
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
@@ -124,15 +124,15 @@ def query(command, args, daemon_id):
     elif command == 'home':
         if len(args) == 0:
             # filt home
-            ut_list = params.UTS_WITH_FILTERWHEELS
+            uts = params.UTS_WITH_FILTERWHEELS
         elif len(args) == 1:
             # filt home <ut>[,<ut>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.home_filters(ut_list)
+            daemon.home_filters(uts)
         print('Homing Filter Wheels')
 
     elif command in ['list', 'ls']:

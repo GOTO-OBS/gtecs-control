@@ -102,12 +102,12 @@ def query(command, args, daemon_id):
     # Daemon functions
     elif command == 'image':
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'MANUAL'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'MANUAL'
@@ -115,17 +115,17 @@ def query(command, args, daemon_id):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            expstr = daemon.take_image(exptime, binning, imgtype, ut_list)
+            expstr = daemon.take_image(exptime, binning, imgtype, uts)
         print(f'Taking exposure ({expstr})')
 
     elif command == 'glance':
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'GLANCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'GLANCE'
@@ -133,17 +133,17 @@ def query(command, args, daemon_id):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.take_glance(exptime, binning, imgtype, ut_list)
+            daemon.take_glance(exptime, binning, imgtype, uts)
         print('Taking glance exposure')
 
     elif command == 'dark':
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
             imgtype = 'DARK'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
             imgtype = 'DARK'
@@ -151,17 +151,17 @@ def query(command, args, daemon_id):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            expstr = daemon.take_dark(exptime, binning, imgtype, ut_list)
+            expstr = daemon.take_dark(exptime, binning, imgtype, uts)
         print(f'Taking dark exposure ({expstr})')
 
     elif command == 'bias':
         if len(args) == 1:
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = 0.0
             binning = float(args[0])
             imgtype = 'BIAS'
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = 0.0
             binning = float(args[1])
             imgtype = 'BIAS'
@@ -169,58 +169,58 @@ def query(command, args, daemon_id):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            expstr = daemon.take_dark(exptime, binning, imgtype, ut_list)
+            expstr = daemon.take_dark(exptime, binning, imgtype, uts)
         print(f'Taking bias exposure ({expstr})')
 
     elif command == 'abort':
         if len(args) == 0:
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.abort_exposure(ut_list)
+            daemon.abort_exposure(uts)
         print('Exposures aborted')
 
     elif command == 'clear':
         if len(args) == 0:
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
         elif len(args) == 1:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.clear_queue(ut_list)
+            daemon.clear_queue(uts)
         print('Image memory cleared')
 
     elif command == 'window':
         if len(args) == 1 and args[0] in ['full', 'reset', 'clear']:
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             target_window = None
         elif len(args) == 2 and args[1] in ['full', 'reset', 'clear']:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             target_window = None
         elif len(args) == 4 and (misc.is_num(args[0]) and misc.is_num(args[1]) and
                                  misc.is_num(args[2]) and misc.is_num(args[3])):
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             target_window = (int(args[0]), int(args[1]), int(args[2]), int(args[3]))
         elif len(args) == 5 and (misc.is_num(args[1]) and misc.is_num(args[2]) and
                                  misc.is_num(args[3]) and misc.is_num(args[4])):
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             target_window = (int(args[1]), int(args[2]), int(args[3]), int(args[4]))
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         if target_window is not None:
             with daemons.daemon_proxy(daemon_id) as daemon:
-                daemon.set_window(*target_window, ut_list)
+                daemon.set_window(*target_window, uts)
             print('Image window set to {:.0f},{:.0f},{:.0f},{:.0f}'.format(*target_window))
         else:
             with daemons.daemon_proxy(daemon_id) as daemon:
-                daemon.remove_window(ut_list)
+                daemon.remove_window(uts)
             print('Image window set to full-frame')
 
     elif command == 'measure_hfds':
@@ -239,16 +239,16 @@ def query(command, args, daemon_id):
 
     elif command == 'temp':
         if len(args) == 1:
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             target_temp = args[0]
         elif len(args) == 2:
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             target_temp = args[1]
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.set_temperature(target_temp, ut_list)
+            daemon.set_temperature(target_temp, uts)
         print(f'Target temperature set to {target_temp}\n')
 
     # Unrecognized function
@@ -269,7 +269,7 @@ def print_info(info):
             expstr = current_exposure['expstr']
             if 'exposure' in expstr:
                 expstr = expstr.split(' ')[1]
-            if current_exposure and ut in current_exposure['ut_list']:
+            if current_exposure and ut in current_exposure['uts']:
                 print('Status: {} {} ({:.2f}s)'.format(info[ut]['status'],
                                                        expstr,
                                                        info[ut]['remaining']))

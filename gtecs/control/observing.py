@@ -608,8 +608,8 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     # Send the command
     with daemon_proxy('exq') as daemon:
         print(f'Taking {exptime:.0f}s {filt} {"exposure" if not glance else "glance"}')
-        daemon.add(uts, exptime, 1, filt, binning,
-                   target=name, imgtype=imgtype, glance=glance)
+        daemon.add(exptime, 1, filt, binning,
+                   target=name, imgtype=imgtype, glance=glance, uts=uts)
         daemon.resume()
 
     if not get_data and not get_headers:
@@ -670,13 +670,11 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
         filt = [filt]
     filt_list = filt
 
-    ut_list = params.UTS_WITH_CAMERAS
-
     with daemon_proxy('exq') as daemon:
         for filt in filt_list:
             for exptime in exp_list:
                 print(f'Taking {exptime:.0f}s {filt} exposure')
-                daemon.add(ut_list, exptime, 1, filt, 1, target=name, imgtype=imgtype)
+                daemon.add(exptime, 1, filt, 1, target=name, imgtype=imgtype)
         daemon.resume()
 
     # estimate a deliberately pessimistic timeout

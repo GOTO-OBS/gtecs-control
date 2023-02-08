@@ -205,21 +205,21 @@ class FiltDaemon(BaseDaemon):
         self.new_filter.update(new_filter)
         self.set_filter_flag = 1
 
-    def home_filters(self, ut_list=None):
+    def home_filters(self, uts=None):
         """Move filter wheel(s) to the home position."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if ut_list is None:
-            ut_list = self.uts.copy()
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         self.wait_for_info()
-        if any(self.info[ut]['remaining'] > 0 for ut in ut_list):
-            bad_uts = [ut for ut in ut_list if self.info[ut]['remaining'] > 0]
+        if any(self.info[ut]['remaining'] > 0 for ut in uts):
+            bad_uts = [ut for ut in uts if self.info[ut]['remaining'] > 0]
             raise HardwareError(f'Filter Wheels are already moving: {bad_uts}')
 
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.home_filter_flag = 1
 
 

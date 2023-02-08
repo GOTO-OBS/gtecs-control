@@ -429,13 +429,13 @@ class CamDaemon(BaseDaemon):
             current_info = {}
             current_info['expstr'] = self.current_exposure.expstr
             current_info['run_number'] = self.current_exposure.run_number
-            current_info['ut_list'] = self.current_exposure.ut_list
             current_info['exptime'] = self.current_exposure.exptime
             current_info['binning'] = self.current_exposure.binning
             current_info['frametype'] = self.current_exposure.frametype
             current_info['target'] = self.current_exposure.target
             current_info['imgtype'] = self.current_exposure.imgtype
             current_info['glance'] = self.current_exposure.glance
+            current_info['uts'] = self.current_exposure.uts
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
             current_info['set_tot'] = self.current_exposure.set_tot
@@ -604,40 +604,48 @@ class CamDaemon(BaseDaemon):
         self.log.info('{}: Saving thread finished'.format(expstr))
 
     # Control functions
-    def take_image(self, exptime, binning, imgtype, ut_list):
+    def take_image(self, exptime, binning, imgtype, uts=None):
         """Take a normal frame with the camera."""
+        if uts is None:
+            uts = self.uts.copy()
         exposure = Exposure(
-            ut_list,
             exptime,
             binning=binning,
             frametype='normal',
             target='NA',
             imgtype=imgtype.upper(),
+            glance=False,
+            uts=uts,
         )
         return self.take_exposure(exposure)
 
-    def take_dark(self, exptime, binning, imgtype, ut_list):
+    def take_dark(self, exptime, binning, imgtype, uts=None):
         """Take dark frame with the camera."""
+        if uts is None:
+            uts = self.uts.copy()
         exposure = Exposure(
-            ut_list,
             exptime,
             binning=binning,
             frametype='dark',
             target='NA',
             imgtype=imgtype.upper(),
+            glance=False,
+            uts=uts,
         )
         return self.take_exposure(exposure)
 
-    def take_glance(self, exptime, binning, imgtype, ut_list):
+    def take_glance(self, exptime, binning, imgtype, uts=None):
         """Take a glance frame with the camera (no run number)."""
+        if uts is None:
+            uts = self.uts.copy()
         exposure = Exposure(
-            ut_list,
             exptime,
             binning=binning,
             frametype='normal',
             target='NA',
             imgtype=imgtype.upper(),
             glance=True,
+            uts=uts,
         )
         return self.take_exposure(exposure)
 
@@ -645,18 +653,15 @@ class CamDaemon(BaseDaemon):
         """Take an exposure with the camera from an Exposure object."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        ut_list = exposure.ut_list
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
-        exptime = exposure.exptime
-        if int(exptime) < 0:
+        if int(exposure.exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        binning = exposure.binning
-        if int(binning) < 1 or (int(binning) - binning) != 0:
+        if int(exposure.binning) < 1 or (int(exposure.binning) - exposure.binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        frametype = exposure.frametype
-        if frametype not in ['normal', 'dark']:
-            raise ValueError('Invalid frame type: "{}"'.format(frametype))
+        if exposure.frametype not in ['normal', 'dark']:
+            raise ValueError('Invalid frame type: "{}"'.format(exposure.frametype))
+        uts = exposure.uts
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
             raise HardwareError(f'Cameras are already exposing: {self.active_uts}')
 
@@ -675,36 +680,39 @@ class CamDaemon(BaseDaemon):
             exposure.expstr = 'glance'
 
         self.current_exposure = exposure
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.take_exposure_flag = 1
 
         return exposure.expstr
 
-    def abort_exposure(self, ut_list):
+    def abort_exposure(self, uts=None):
         """Abort current exposure."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
-        if self.exposure_state != 'exposing':
-            raise HardwareError('Cameras are not currently exposing')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        self.abort_uts = sorted([ut for ut in ut_list if ut in self.active_uts])
-        self.clear_uts = self.abort_uts.copy()
-        self.abort_exposure_flag = 1
-        self.clear_queue_flag = 1
+        if self.exposure_state == 'exposing':
+            self.abort_uts = sorted([ut for ut in uts if ut in self.active_uts])
+            self.clear_uts = self.abort_uts.copy()
+            self.abort_exposure_flag = 1
+            self.clear_queue_flag = 1
 
-    def clear_queue(self, ut_list):
+    def clear_queue(self, uts=None):
         """Clear any leftover images in the camera memory."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
             raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        queue_length = {ut: self.info[ut]['in_queue'] for ut in ut_list}
-        self.clear_uts = sorted(ut_list)
+        queue_length = {ut: self.info[ut]['in_queue'] for ut in uts}
+        self.clear_uts = sorted(uts)
         self.clear_queue_flag = 1
 
         return queue_length
@@ -716,7 +724,7 @@ class CamDaemon(BaseDaemon):
             time.sleep(0.1)
         return self.latest_headers
 
-    def set_window(self, x, y, dx, dy, ut_list):
+    def set_window(self, x, y, dx, dy, uts=None):
         """Set the camera's image window area."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
@@ -724,27 +732,31 @@ class CamDaemon(BaseDaemon):
             raise ValueError('Coordinates must be >= 0')
         if dx < 1 or dy < 1:
             raise ValueError('Width/height must be >= 1')
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
             raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        self.active_uts = sorted(ut_list)
-        for ut in ut_list:
+        self.active_uts = sorted(uts)
+        for ut in uts:
             self.target_window[ut] = (int(x), int(y), int(dx), int(dy))
         self.set_window_flag = 1
 
-    def remove_window(self, ut_list):
+    def remove_window(self, uts=None):
         """Set the camera's image window area to full-frame."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
             raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        self.active_uts = sorted(ut_list)
-        for ut in ut_list:
+        self.active_uts = sorted(uts)
+        for ut in uts:
             self.target_window[ut] = None
         self.set_window_flag = 1
 
@@ -760,7 +772,7 @@ class CamDaemon(BaseDaemon):
             self.log.info('Disabling HFD measurement')
             self.measure_hfds = False
 
-    def set_temperature(self, target_temp, ut_list):
+    def set_temperature(self, target_temp, uts=None):
         """Set the camera's temperature."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
@@ -775,16 +787,15 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Temperature must be a float or "cool" or "warm"')
             if not (-55 <= target_temp <= 45):
                 raise ValueError('Temperature must be between -55 and 45')
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
             raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        self.active_uts = sorted(ut_list)
-        for ut in ut_list:
+        self.active_uts = sorted(uts)
+        for ut in uts:
             self.target_temp[ut] = target_temp
         self.set_temp_flag = 1
 

@@ -187,41 +187,41 @@ class OTADaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def open_covers(self, ut_list=None):
+    def open_covers(self, uts=None):
         """Open the mirror covers."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if ut_list is None:
-            ut_list = self.uts_with_covers.copy()
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts_with_covers.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.open_cover_flag = 1
 
-    def close_covers(self, ut_list=None):
+    def close_covers(self, uts=None):
         """Close the mirror covers."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if ut_list is None:
-            ut_list = self.uts_with_covers.copy()
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if uts is None:
+            uts = self.uts_with_covers.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.close_cover_flag = 1
 
-    def stop_covers(self, ut_list=None):
+    def stop_covers(self, uts=None):
         """Stop the mirror covers moving."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if ut_list is None:
-            ut_list = self.uts_with_covers.copy()
+        if uts is None:
+            uts = self.uts_with_covers.copy()
         self.wait_for_info()
-        if any(ut not in self.uts for ut in ut_list):
-            raise ValueError(f'Invalid UTs: {[ut for ut in ut_list if ut not in self.uts]}')
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        self.active_uts = sorted(ut_list)
+        self.active_uts = sorted(uts)
         self.stop_cover_flag = 1
 
 

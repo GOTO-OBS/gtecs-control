@@ -456,7 +456,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     params_info['tel_number'] = params.TELESCOPE_NUMBER
 
     params_info['ut_dict'] = params.UT_DICT
-    ut_mask = misc.ut_list_to_mask(all_info['cam']['current_exposure']['ut_list'])
+    ut_mask = misc.ut_list_to_mask(all_info['cam']['current_exposure']['uts'])
     params_info['ut_mask'] = ut_mask
     params_info['ut_string'] = misc.ut_mask_to_string(ut_mask)
     params_info['uts_with_covers'] = params.UTS_WITH_COVERS

@@ -105,7 +105,7 @@ def query(command, args, daemon_id):
             raise ValueError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object] [imgtype]
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[2])
@@ -122,7 +122,7 @@ def query(command, args, daemon_id):
                 raise ValueError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # uts exptime filter binning [object] [imgtype]
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
@@ -146,8 +146,7 @@ def query(command, args, daemon_id):
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for filt in filt_list:
-                daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
-                           glance)
+                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
                 out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
@@ -166,7 +165,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # nexp exptime filter binning [object] [imgtype]
             nexp = int(args[0])
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
@@ -184,7 +183,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # nexp uts exptime filter binning [object] [imgtype]
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
             filt_list = misc.valid_strings(args[3].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[4])
@@ -207,8 +206,7 @@ def query(command, args, daemon_id):
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for filt in filt_list:
-                daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
-                           glance)
+                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
                 out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
@@ -227,7 +225,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and misc.is_num(args[3]):
             # nexp exptime filters binning [object] [imgtype]
             nexp = int(args[0])
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
@@ -245,7 +243,7 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[0]) and misc.is_num(args[2]) and misc.is_num(args[4]):
             # nexp uts exptime filters binning [object] [imgtype]
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
             filt_list = misc.valid_strings(args[3].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[4])
@@ -269,8 +267,8 @@ def query(command, args, daemon_id):
             info = daemon.get_info(force_update=False)
             for _ in range(nexp):
                 for filt in filt_list:
-                    daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
-                               glance)
+                    daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance,
+                               uts)
                 out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
@@ -288,7 +286,7 @@ def query(command, args, daemon_id):
             raise ValueError('Need at least: exptime filter binning')
         elif misc.is_num(args[0]) and misc.is_num(args[2]):
             # exptime filter binning [object]
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             filt_list = misc.valid_strings(args[1].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[2])
@@ -300,7 +298,7 @@ def query(command, args, daemon_id):
                 raise ValueError('Invalid arguments')
         elif misc.is_num(args[1]) and misc.is_num(args[3]):
             # uts exptime filter binning [object]
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             filt_list = misc.valid_strings(args[2].split(','), params.ALL_FILTERS + ['X'])
             binning = int(args[3])
@@ -320,8 +318,7 @@ def query(command, args, daemon_id):
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for filt in filt_list:
-                daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype,
-                           glance)
+                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
                 out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
@@ -339,12 +336,12 @@ def query(command, args, daemon_id):
             raise ValueError('Need at least: exptime binning')
         elif misc.is_num(args[0]) and misc.is_num(args[1]) and len(args) == 2:
             # exptime binning
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = int(args[1])
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # uts exptime binning
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = int(args[2])
         else:
@@ -358,7 +355,7 @@ def query(command, args, daemon_id):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-        daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance)
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
         out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
@@ -377,13 +374,13 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[1]) and misc.is_num(args[2]) and len(args) == 3:
             # nexp exptime binning
             nexp = int(args[0])
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             exptime = float(args[1])
             binning = int(args[2])
         elif misc.is_num(args[2]) and misc.is_num(args[3]) and len(args) == 4:
             # nexp uts exptime binning
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[2])
             binning = int(args[3])
         else:
@@ -396,7 +393,7 @@ def query(command, args, daemon_id):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance)
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
         out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
@@ -414,11 +411,11 @@ def query(command, args, daemon_id):
             raise ValueError('Need at least: binning')
         elif misc.is_num(args[0]) and len(args) == 1:
             # binning
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             binning = int(args[0])
         elif misc.is_num(args[1]) and len(args) == 2:
             # uts binning
-            ut_list = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             binning = int(args[1])
         else:
             raise ValueError('Invalid arguments')
@@ -432,7 +429,7 @@ def query(command, args, daemon_id):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance)
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
         out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
@@ -451,12 +448,12 @@ def query(command, args, daemon_id):
         elif misc.is_num(args[1]) and len(args) == 2:
             # nexp binning
             nexp = int(args[0])
-            ut_list = params.UTS_WITH_CAMERAS
+            uts = params.UTS_WITH_CAMERAS
             binning = int(args[1])
         elif misc.is_num(args[2]) and len(args) == 3:
             # nexp uts binning
             nexp = int(args[0])
-            ut_list = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
+            uts = misc.valid_ints(args[1].split(','), params.UTS_WITH_CAMERAS)
             binning = int(args[2])
         else:
             raise ValueError('Invalid arguments')
@@ -469,7 +466,7 @@ def query(command, args, daemon_id):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(ut_list, exptime, nexp, filt, binning, frametype, target, imgtype, glance)
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
         out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
@@ -529,7 +526,7 @@ def print_info(info):
     current_exposure = info['current_exposure']
     if current_exposure is not None:
         print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
-              current_exposure['ut_list'],
+              current_exposure['uts'],
               current_exposure['exptime'],
               current_exposure['filter'],
               current_exposure['binning'],
@@ -554,7 +551,7 @@ def print_info_s(info):
     current_exposure = info['current_exposure']
     if current_exposure is not None:
         print('   {}, {:.2f}, {}, {}, {}, {}, {}'.format(
-              current_exposure['ut_list'],
+              current_exposure['uts'],
               current_exposure['exptime'],
               current_exposure['filter'],
               current_exposure['binning'],
