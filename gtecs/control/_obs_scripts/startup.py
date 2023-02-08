@@ -12,9 +12,9 @@ These are hardware tasks to do BEFORE the dome opens:
 
 import time
 
-from gtecs.common.system import execute_command, restart_daemon, start_daemon
+from gtecs.common.system import execute_command
 from gtecs.control import params
-from gtecs.control.daemons import daemon_proxy
+from gtecs.control.daemons import daemon_proxy, start_daemon
 from gtecs.control.observing import (cameras_are_cool, filters_are_homed, focusers_are_set,
                                      mirror_covers_are_open, mount_is_parked)
 
@@ -40,14 +40,17 @@ def run():
 
     # Make sure the interfaces are started before the other daemons
     for interface_id in params.INTERFACES:
-        start_daemon(interface_id)
+        print(f'Starting daemon: {interface_id}')
+        start_daemon(interface_id, timeout=10)
+        time.sleep(1)
     time.sleep(10)
     execute_command('intf info')
 
     # Make all the other daemons are running
     # Note we can't shutdown and restart, because the daemons will die when this script ends
     for daemon_id in list(params.DAEMONS):
-        start_daemon(daemon_id)
+        print(f'Starting daemon: {daemon_id}')
+        start_daemon(daemon_id, timeout=10)
         time.sleep(1)
 
     time.sleep(4)
@@ -60,11 +63,10 @@ def run():
     time.sleep(1)
 
     # Restart the mount daemon, to reconnect to the mount, and make sure the motors are on
-    restart_daemon('mnt')
-    time.sleep(10)
     if params.MOUNT_CLASS == 'ASA':
         with daemon_proxy('mnt') as daemon:
             daemon.power_motors('on')
+        time.sleep(5)
     # Don't unpark the mount or set a target, we want to stay parked while opening
     # Instead make sure the mount is parked
     if not mount_is_parked():
@@ -94,6 +96,7 @@ def run():
     print('Homing filter wheels')
     with daemon_proxy('filt') as daemon:
         daemon.home_filters()
+    time.sleep(2)
     start_time = time.time()
     while not filters_are_homed():
         time.sleep(1)
@@ -107,6 +110,7 @@ def run():
         daemon.move_focusers(10)
         time.sleep(4)
         daemon.move_focusers(-10)
+    time.sleep(2)
     start_time = time.time()
     while not focusers_are_set():
         time.sleep(1)
@@ -126,6 +130,7 @@ def run():
         print('Closing mirror covers')
         with daemon_proxy('ota') as daemon:
             daemon.close_covers()
+        time.sleep(2)
         start_time = time.time()
         while mirror_covers_are_open():
             time.sleep(1)

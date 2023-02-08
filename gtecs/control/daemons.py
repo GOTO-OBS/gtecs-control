@@ -381,7 +381,7 @@ def start_daemon(daemon_id, timeout=4):
         try:
             pid = check_daemon(daemon_id)  # Will raise status error if found
             return pid
-        except DaemonNotRunningError:
+        except DaemonError:
             if time.time() - start_time > timeout:
                 raise DaemonNotRunningError(f'Daemon {daemon_id} failed to start on {host}:{port}')
             else:

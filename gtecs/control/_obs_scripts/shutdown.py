@@ -40,7 +40,9 @@ def run():
     try:
         with daemon_proxy('ota') as daemon:
             daemon.close_covers()
+        time.sleep(2)
         wait_for_mirror_covers(opening=False, timeout=60)
+        print('  Mirror covers closed')
     except Exception:
         print('Failed to close mirror covers, continuing with shutdown')
         traceback.print_exc()
@@ -51,6 +53,8 @@ def run():
     try:
         with daemon_proxy('cam') as daemon:
             daemon.set_temperature('warm')
+        # We don't need to wait for them to warm up
+        print('  Camera temperature set')
     except Exception:
         print('Failed to warm cameras, continuing with shutdown')
         traceback.print_exc()
@@ -61,7 +65,9 @@ def run():
     try:
         with daemon_proxy('mnt') as daemon:
             daemon.park()
+        time.sleep(2)
         wait_for_mount_parking(timeout=60)
+        print('  Mount parked')
     except Exception:
         print('Failed to park the mount, continuing with shutdown')
         traceback.print_exc()
@@ -72,7 +78,9 @@ def run():
     try:
         with daemon_proxy('dome') as daemon:
             daemon.close_dome()
+        time.sleep(2)
         wait_for_dome(target_position='closed', timeout=120)
+        print('  Dome closed')
     except TimeoutError:
         print('Failed to close the dome!')
         traceback.print_exc()
