@@ -140,6 +140,7 @@ DASHBOARD_IP = config['DASHBOARD_IP']
 ############################################################
 # Conditions parameters
 MAX_CONDITIONS_AGE = config['MAX_CONDITIONS_AGE']
+FAKE_CONDITIONS = config['FAKE_CONDITIONS']
 
 WEATHER_TIMEOUT = config['WEATHER_TIMEOUT']
 WEATHER_STATIC = config['WEATHER_STATIC']
