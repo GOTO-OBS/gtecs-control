@@ -129,19 +129,32 @@ class ConditionsDaemon(BaseDaemon):
                 try:
                     weather_dict = conditions.get_vaisala(source)
                 except Exception:
-                    self.log.error('Error getting weather from "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-                    weather_dict = {'temperature': -999,
-                                    'pressure': -999,
-                                    'windspeed': -999,
-                                    'winddir': -999,
-                                    'windgust': -999,
-                                    'humidity': -999,
-                                    'rain': -999,
-                                    'dew_point': -999,
-                                    'update_time': -999,
-                                    'dt': -999,
-                                    }
+                    if params.FAKE_CONDITIONS:
+                        weather_dict = {'temperature': 10,
+                                        'pressure': 800,
+                                        'windspeed': 5,
+                                        'winddir': 0,
+                                        'windgust': 10,
+                                        'humidity': 50,
+                                        'rain': False,
+                                        'dew_point': 10,
+                                        'update_time': Time.now().iso,
+                                        'dt': 0,
+                                        }
+                    else:
+                        self.log.error('Error getting weather from "{}"'.format(source))
+                        self.log.debug('', exc_info=True)
+                        weather_dict = {'temperature': -999,
+                                        'pressure': -999,
+                                        'windspeed': -999,
+                                        'winddir': -999,
+                                        'windgust': -999,
+                                        'humidity': -999,
+                                        'rain': -999,
+                                        'dew_point': -999,
+                                        'update_time': -999,
+                                        'dt': -999,
+                                        }
 
                 # Format source key
                 source = source.lower()
@@ -225,12 +238,19 @@ class ConditionsDaemon(BaseDaemon):
         try:
             internal_dict = conditions.get_domealert()
         except Exception:
-            self.log.error('Failed to get internal info')
-            self.log.debug('', exc_info=True)
-            internal_dict = {'temperature': -999,
-                             'humidity': -999,
-                             'update_time': -999,
-                             'dt': -999,
+            if params.FAKE_CONDITIONS:
+                internal_dict = {'temperature': 10,
+                                 'humidity': 25,
+                                 'update_time': Time.now().iso,
+                                 'dt': 0,
+                                 }
+            else:
+                self.log.error('Failed to get internal info')
+                self.log.debug('', exc_info=True)
+                internal_dict = {'temperature': -999,
+                                'humidity': -999,
+                                'update_time': -999,
+                                'dt': -999,
                              }
         temp_info['internal'] = internal_dict
 
@@ -243,13 +263,20 @@ class ConditionsDaemon(BaseDaemon):
             if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
                 tng_dict['dust'] = -999
         except Exception:
-            self.log.error('Failed to get TNG info')
-            self.log.debug('', exc_info=True)
-            tng_dict = {'seeing': -999,
-                        'seeing_dt': -999,
-                        'dust': -999,
-                        'dust_dt': -999,
-                        }
+            if params.FAKE_CONDITIONS:
+                tng_dict = {'seeing': 1.2,
+                            'seeing_dt': 0,
+                            'dust': 0,
+                            'dust_dt': 0,
+                            }
+            else:
+                self.log.error('Failed to get TNG info')
+                self.log.debug('', exc_info=True)
+                tng_dict = {'seeing': -999,
+                            'seeing_dt': -999,
+                            'dust': -999,
+                            'dust_dt': -999,
+                            }
         temp_info['tng'] = tng_dict
 
         # Get seeing from the ING RoboDIMM
@@ -259,11 +286,16 @@ class ConditionsDaemon(BaseDaemon):
             if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
                 dimm_dict['seeing'] = -999
         except Exception:
-            self.log.error('Failed to get DIMM info')
-            self.log.debug('', exc_info=True)
-            dimm_dict = {'seeing': -999,
-                         'dt': -999,
-                         }
+            if params.FAKE_CONDITIONS:
+                dimm_dict = {'seeing': 1.2,
+                             'dt': 0,
+                             }
+            else:
+                self.log.error('Failed to get DIMM info')
+                self.log.debug('', exc_info=True)
+                dimm_dict = {'seeing': -999,
+                             'dt': -999,
+                             }
         temp_info['robodimm'] = dimm_dict
 
         # Get info from the UPSs
@@ -272,37 +304,50 @@ class ConditionsDaemon(BaseDaemon):
             temp_info['ups_percent'] = ups_percent
             temp_info['ups_status'] = ups_status
         except Exception:
-            self.log.error('Failed to get UPS info')
-            self.log.debug('', exc_info=True)
-            temp_info['ups_percent'] = -999
-            temp_info['ups_status'] = -999
+            if params.FAKE_CONDITIONS:
+                temp_info['ups_percent'] = [100, 100]
+                temp_info['ups_status'] = [True, True]
+            else:
+                self.log.error('Failed to get UPS info')
+                self.log.debug('', exc_info=True)
+                temp_info['ups_percent'] = -999
+                temp_info['ups_status'] = -999
 
         # Get info from the link ping check
         try:
             pings = [conditions.check_ping(url) for url in params.LINK_URLS]
             temp_info['pings'] = pings
         except Exception:
-            self.log.error('Failed to get link info')
-            self.log.debug('', exc_info=True)
-            temp_info['pings'] = -999
+            if params.FAKE_CONDITIONS:
+                temp_info['pings'] = [True, True]
+            else:
+                self.log.error('Failed to get link info')
+                self.log.debug('', exc_info=True)
+                temp_info['pings'] = -999
 
         # Get info from the disk usage check
         try:
             free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH) * 100.
             temp_info['free_diskspace'] = free_diskspace
         except Exception:
-            self.log.error('Failed to get diskspace info')
-            self.log.debug('', exc_info=True)
-            temp_info['free_diskspace'] = -999
+            if params.FAKE_CONDITIONS:
+                temp_info['free_diskspace'] = 90
+            else:
+                self.log.error('Failed to get diskspace info')
+                self.log.debug('', exc_info=True)
+                temp_info['free_diskspace'] = -999
 
         # Get info from the satellite IR cloud image
         try:
             clouds = conditions.get_satellite_clouds() * 100
             temp_info['clouds'] = clouds
         except Exception:
-            self.log.error('Failed to get satellite clouds info')
-            self.log.debug('', exc_info=True)
-            temp_info['clouds'] = -999
+            if params.FAKE_CONDITIONS:
+                temp_info['clouds'] = 0
+            else:
+                self.log.error('Failed to get satellite clouds info')
+                self.log.debug('', exc_info=True)
+                temp_info['clouds'] = -999
 
         # Get current sun alt
         try:

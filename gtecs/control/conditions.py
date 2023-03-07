@@ -146,7 +146,7 @@ def get_roomalert(source):
     return weather_dict
 
 
-def get_internal(source):
+def get_roomalert2(source):
     """Get the internal conditions from the RoomAlert system."""
     url = 'http://{}/{}-roomalert'.format(params.CONDITIONS_JSON_LOCATION, source)
     outfile = os.path.join(params.FILE_PATH, '{}-roomalert.json'.format(source))
@@ -337,7 +337,7 @@ def get_tng():
 
     indata = download_data_from_url(url, outfile, verify=False)
     if len(indata) < 2 or '500 Internal Server Error' in indata:
-        raise IOError
+        raise IOError('Failed to connect to ING')
 
     try:
         data = json.loads(indata)
@@ -383,7 +383,10 @@ def get_robodimm():
     """Get the current readings from the ING RoboDIMM."""
     url = 'http://catserver.ing.iac.es/robodimm/robodimm.php'
     outfile = os.path.join(params.FILE_PATH, 'dimm.php')
+
     indata = download_data_from_url(url, outfile)
+    if 'DB Error: connect failed' in indata:
+        raise IOError('Failed to connect to RoboDIMM')
 
     try:
         indata = indata.replace('>', '>\n').split('\n')

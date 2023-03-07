@@ -16,7 +16,7 @@ from gtecs.control.astronomy import (altaz_from_radec, get_ha,
                                      observatory_location, radec_from_altaz,
                                      within_mount_limits)
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.mount import DDM500, DDM500SDK, FakeDDM500, SiTech
+from gtecs.control.hardware.mount import DDM500, FakeDDM500, SiTech
 
 
 class MntDaemon(BaseDaemon):
@@ -335,16 +335,6 @@ class MntDaemon(BaseDaemon):
                                         log=self.log,
                                         log_debug=params.MOUNT_DEBUG,
                                         )
-                elif params.MOUNT_CLASS == 'ASASDK':
-                    self.mount = DDM500SDK(params.MOUNT_HOST,
-                                           params.MOUNT_PORT,
-                                           log=self.log,
-                                           log_debug=params.MOUNT_DEBUG,
-                                           )
-                    # try resetting the device connection to clear any errors
-                    self.mount.disconnect()
-                    time.sleep(0.5)
-                    self.mount.connect()
                 else:
                     raise ValueError('Unknown mount class')
                 self.log.info('Connected to mount')
@@ -383,7 +373,7 @@ class MntDaemon(BaseDaemon):
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 # temp_info['nonsidereal'] = self.mount.nonsidereal
-            elif isinstance(self.mount, (DDM500, DDM500SDK, FakeDDM500)):
+            elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
                 temp_info['position_error'] = self.mount.position_error
                 temp_info['tracking_error'] = self.mount.tracking_error
@@ -460,7 +450,7 @@ class MntDaemon(BaseDaemon):
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 temp_info['nonsidereal'] = None
-            elif isinstance(self.mount, (DDM500, DDM500SDK, FakeDDM500)):
+            elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
                 temp_info['position_error'] = None
                 temp_info['tracking_error'] = None
@@ -597,8 +587,7 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked' and not isinstance(self.mount, DDM500SDK):
-            # SDK doesn't need to unpark before slewing
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -632,8 +621,7 @@ class MntDaemon(BaseDaemon):
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise errors.HardwareStatusError('Already slewing')
-        elif self.info['status'] == 'Parked' and not isinstance(self.mount, DDM500SDK):
-            # SDK doesn't need to unpark before slewing
+        elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked, need to unpark before slewing')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
@@ -660,12 +648,6 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Alt in degrees must be between 0 and 90')
         if not (0 <= az < 360):
             raise ValueError('Az in degrees must be between 0 and 360')
-
-        # ASA SDK count Az=0 from south, which is different from Astropy
-        if isinstance(self.mount, DDM500SDK):
-            az -= 180
-            if az < 0:
-                az += 360
 
         # Convert to RA/Dec and use that function instead.
         ra, dec = radec_from_altaz(alt, az, Time.now())
@@ -714,7 +696,7 @@ class MntDaemon(BaseDaemon):
 
     def set_trackrate(self, ra_rate=0, dec_rate=0):
         """Set tracking rate in RA and Dec in arcseconds per second (0=default)."""
-        if isinstance(self.mount, (DDM500, DDM500SDK, FakeDDM500)):
+        if isinstance(self.mount, (DDM500, FakeDDM500)):
             raise NotImplementedError('Mount trackrate command is not implemented')
 
         # Set values
@@ -758,7 +740,7 @@ class MntDaemon(BaseDaemon):
 
     def power_motors(self, activate):
         """Turn on or off the mount motors."""
-        if not isinstance(self.mount, (DDM500, DDM500SDK, FakeDDM500)):
+        if not isinstance(self.mount, (DDM500, FakeDDM500)):
             raise NotImplementedError('Only ASA mounts allow motors to be powered')
 
         # Check current status
@@ -817,7 +799,7 @@ class MntDaemon(BaseDaemon):
             if isinstance(self.mount, SiTech):
                 self.set_blinky = False
                 self.set_blinky_mode_flag = 1
-            elif isinstance(self.mount, (DDM500, DDM500SDK, FakeDDM500)):
+            elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 self.set_motor_power = True
                 self.set_motor_power_flag = 1
             time.sleep(0.2)
@@ -936,7 +918,7 @@ class MntDaemon(BaseDaemon):
 
     def pulse_guide(self, direction, duration):
         """Pulse guide in a specified (cardinal) direction for the given time."""
-        if not isinstance(self.mount, (DDM500, DDM500SDK, FakeDDM500)):
+        if not isinstance(self.mount, (DDM500, FakeDDM500)):
             raise NotImplementedError('Only ASA mounts mounts have pulse guiding implemented')
 
         # Check input
