@@ -6,15 +6,17 @@ import os
 import sys
 
 import astropy.units as u
-from astropy.coordinates import Angle, SkyCoord, get_body
+from astropy.coordinates import AltAz, Angle, SkyCoord, get_body
 from astropy.time import Time
 
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import errors
+from gtecs.control import misc
 from gtecs.control import params
 from gtecs.control import style
+from gtecs.control.astronomy import observatory_location
 from gtecs.control.style import errortxt
 
 
@@ -102,53 +104,91 @@ def query(command, args):
         execute_long_command(tail_command)
 
     # Daemon functions
+    elif command == 'target':
+        # parse arguments
+        if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
+            # decimal ra and dec (in degrees)
+            ra_deg = float(args[0])
+            dec_deg = float(args[1])
+            coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
+        elif len(args) >= 1:
+            # named target
+            name = ' '.join(args)
+            try:
+                coords = SkyCoord.from_name(name)
+            except Exception:
+                try:
+                    coords = get_body(name, Time.now())
+                except Exception:
+                    raise errors.InputError('Cannot find target "{}"'.format(name))
+            print('Found coordinates for "{}":'.format(name), end='  ')
+            print(f'RA: {coords.ra.deg:.4f} Dec: {coords.dec.deg:.4f}')
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send commands
+        reply = daemons.daemon_function('mnt', 'set_target', [coords])
+        print(reply)
+
+    elif command == 'clear':
+        # send command
+        reply = daemons.daemon_function('mnt', 'clear_target')
+        print(reply)
+
     elif command == 'slew':
         # parse arguments
         if len(args) == 0:
             # slew to already set target
-            reply = daemons.daemon_function('mnt', 'slew_to_radec')
-            print(reply)
+            coords = None
         elif len(args) == 2:
-            # decimal ra and dec
+            # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
             dec_deg = float(args[1])
-            ra_hrs = ra_deg * 24 / 360
-            # slew to given target
-            reply = daemons.daemon_function('mnt', 'slew_to_radec', [ra_hrs, dec_deg])
-            print(reply)
+            coords = SkyCoord(ra_deg * u.deg, dec_deg * u.deg)
         else:
             raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'slew', [coords])
+        print(reply)
+
+    elif command in ['slew_altaz', 'altaz']:
+        # parse arguments
+        if len(args) == 2:
+            # decimal alt and az
+            alt = float(args[0])
+            if alt == 90:  # We don't want to go to the exact zenith
+                alt = 89.99999
+            az = float(args[1])
+            coords = AltAz(alt=alt * u.deg, az=az * u.deg,
+                           obstime=Time.now(), location=observatory_location())
+            # Convert to RA/Dec and go to that position instead
+            coords = SkyCoord(coords).transform_to('icrs')
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'slew', [coords])
+        print(reply)
+
+    elif command in ['slew_altaz_target', 'altaz_target']:
+        # parse arguments
+        if len(args) == 2:
+            alt = float(args[0])
+            if alt == 90:  # We don't want to go to the exact zenith
+                alt = 89.99999
+            az = float(args[1])
+            coords = AltAz(alt=alt * u.deg, az=az * u.deg,
+                           obstime=Time.now(), location=observatory_location())
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'slew', [coords])
+        print(reply)
 
     elif command == 'track':
-        reply = daemons.daemon_function('mnt', 'start_tracking')
+        reply = daemons.daemon_function('mnt', 'track')
         print(reply)
 
     elif command in ['stop', 'halt', 'abort']:
-        reply = daemons.daemon_function('mnt', 'full_stop')
-        print(reply)
-
-    elif command == 'blinky':
-        # parse arguments
-        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
-            activate = True
-        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
-            activate = False
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'blinky', [activate])
-        print(reply)
-
-    elif command == 'motors':
-        # parse arguments
-        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
-            activate = True
-        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
-            activate = False
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'power_motors', [activate])
+        reply = daemons.daemon_function('mnt', 'halt')
         print(reply)
 
     elif command == 'park':
@@ -157,72 +197,6 @@ def query(command, args):
 
     elif command == 'unpark':
         reply = daemons.daemon_function('mnt', 'unpark')
-        print(reply)
-
-    elif command == 'ra':
-        # parse arguments
-        if len(args) == 1:
-            # decimal
-            ra_deg = float(args[0])
-            ra_hrs = ra_deg * 24 / 360
-        elif len(args) == 3:
-            # h m s
-            h = int(args[0])
-            m = int(args[1])
-            s = float(args[2])
-            ra_hrs = h + m / 60. + s / 3600.
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'set_target_ra', [ra_hrs])
-        print(reply)
-
-    elif command == 'dec':
-        # parse arguments
-        if len(args) == 1:
-            # decimal
-            dec_deg = float(args[0])
-        elif len(args) == 3:
-            # d m s
-            if args[0][0] == '-':
-                sign = '-'
-            else:
-                sign = '+'
-            d = int(args[0])
-            m = int(args[1])
-            s = float(args[2])
-            if sign == '+':
-                dec_deg = d + m / 60. + s / 3600.
-            else:  # NB d is negative
-                dec_deg = d - m / 60. - s / 3600.
-        elif len(args) == 4:
-            # + d m s
-            sign = args[0]
-            d = int(args[1])
-            m = int(args[2])
-            s = float(args[3])
-            if sign == '+':
-                dec_deg = d + m / 60. + s / 3600.
-            else:
-                dec_deg = -1 * (d + m / 60. + s / 3600.)
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'set_target_dec', [dec_deg])
-        print(reply)
-
-    elif command == 'trackrate':
-        # parse arguments
-        if len(args) == 1 and args[0].lower() == 'reset':
-            ra_rate = 0
-            dec_rate = 0
-        elif len(args) == 2:
-            ra_rate = float(args[0])
-            dec_rate = float(args[1])
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'set_trackrate', [ra_rate, dec_rate])
         print(reply)
 
     elif command == 'offset':
@@ -247,76 +221,55 @@ def query(command, args):
         reply = daemons.daemon_function('mnt', 'pulse_guide', [direction, duration])
         print(reply)
 
-    elif command == 'target':
-        # parse arguments
-        if len(args) == 1:
-            name = args[0]
-        elif len(args) > 1:
-            name = ' '.join(args)
-        else:
-            raise errors.InputError('Invalid arguments')
-        # find target
-        try:
-            coord = SkyCoord.from_name(name)
-        except Exception:
-            try:
-                coord = get_body(name, Time.now())
-            except Exception:
-                raise errors.InputError('Cannot find target "{}"'.format(name))
-        print('Found coordinates for "{}":'.format(name), end='  ')
-        print('RA: {:.4f}  Dec: {:.4f}'.format(coord.ra.hour, coord.dec.value))
-        # send commands
-        reply = daemons.daemon_function('mnt', 'set_target_ra', [coord.ra.hour])
-        print(reply)
-        reply = daemons.daemon_function('mnt', 'set_target_dec', [coord.dec.value])
-        print(reply)
-
-    elif command == 'clear':
-        # send command
-        reply = daemons.daemon_function('mnt', 'clear_target')
-        print(reply)
-
-    elif command in ['slew_altaz', 'altaz']:
-        # parse arguments
-        if len(args) == 2:
-            alt_deg = float(args[0])
-            if alt_deg == 90:
-                alt_deg = 89.99999
-            az_deg = float(args[1])
-            if az_deg == 360:
-                az_deg = 0
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'slew_to_altaz_sidereal', [alt_deg, az_deg])
-        print(reply)
-
-    elif command in ['slew_altaz_target', 'altaz_target']:
-        # parse arguments
-        if len(args) == 2:
-            alt_deg = float(args[0])
-            if alt_deg == 90:
-                alt_deg = 89.99999
-            az_deg = float(args[1])
-            if az_deg == 360:
-                az_deg = 0
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'slew_to_altaz', [alt_deg, az_deg])
-        print(reply)
-
     elif command == 'sync':
         # parse arguments
         if len(args) == 2:
-            # decimal ra and dec
+            # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
             dec_deg = float(args[1])
-            ra_hrs = ra_deg * 24 / 360
+            coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
         else:
             raise errors.InputError('Invalid arguments')
         # send command
-        reply = daemons.daemon_function('mnt', 'sync_to_radec', [ra_hrs, dec_deg])
+        reply = daemons.daemon_function('mnt', 'sync_mount', [coords])
+        print(reply)
+
+    elif command == 'trackrate':
+        # parse arguments
+        if len(args) == 1 and args[0].lower() == 'reset':
+            ra_rate = 0
+            dec_rate = 0
+        elif len(args) == 2:
+            ra_rate = float(args[0])
+            dec_rate = float(args[1])
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'set_trackrate', [ra_rate, dec_rate])
+        print(reply)
+
+    elif command == 'blinky':
+        # parse arguments
+        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
+            activate = True
+        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
+            activate = False
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'blinky', [activate])
+        print(reply)
+
+    elif command == 'motors':
+        # parse arguments
+        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
+            activate = True
+        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
+            activate = False
+        else:
+            raise errors.InputError('Invalid arguments')
+        # send command
+        reply = daemons.daemon_function('mnt', 'power_motors', [activate])
         print(reply)
 
     elif command == 'clear_error':
@@ -346,7 +299,7 @@ def print_info(info):
     print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
     print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
 
-    if info['targeting'] != 'altaz':
+    if info['target_alt'] is None:
         # Assume RA/Dec target, unless Alt/Az is set
         if info['target_ra'] is not None:
             ra = info['target_ra']
@@ -364,7 +317,7 @@ def print_info(info):
     print('Mount Alt:        {:7.3f} deg'.format(info['mount_alt']))
     print('Mount Az:         {:7.3f} deg'.format(info['mount_az']))
 
-    if info['targeting'] == 'altaz':
+    if info['target_alt'] is not None:
         print('Target Alt:       {:7.3f} deg'.format(info['target_alt']))
         print('Target Az:        {:7.3f} deg'.format(info['target_az']))
 
@@ -400,7 +353,7 @@ def print_info(info):
         print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
 
     print('~~~~~~~')
-    lst_str = Angle(info['lst'] * u.hour).to_string(sep=':', precision=1)
+    lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
     print('Sidereal Time:    {:>11}'.format(lst_str))
     print('Hour Angle:       {:+6.2f} h'.format(info['ha']))
 
@@ -456,9 +409,7 @@ def print_instructions():
           '  kill                           kill the daemon',
           '  check/ping                     check the daemon for errors',
           'Mount commands:',
-          '  ra [h m s | deg]               set target ra (hms or decimal deg)',
-          '  dec [d m s | deg]              set target dec (dms or decimal deg)',
-          '  target name                    set target as named object (can include spaces)',
+          '  target [ra dec]|name           set target to ra/dec (in decimal deg) or named object',
           '  clear                          clear the stored target',
           '  slew [ra dec]                  slew to target or given ra/dec (in decimal deg)',
           '  slew_altaz alt az              slew to given alt/az, then track at siderial rate',
@@ -467,10 +418,10 @@ def print_instructions():
           '  stop/halt/abort                stop moving (tracking/slewing)',
           '  park                           enter park state',
           '  unpark                         leave park state',
-          '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  offset N|E|S|W dist            offset in direction by dist (in arcsec)',
           '  guide N|E|S|W duration         pulse guide in direction for duration (in ms)',
           '  sync ra dec                    sync current position to given ra/dec (in decimal deg)',
+          '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
           '  blinky on|off                  turn on or off blinky mode (SiTech only)',
           '  motors on|off                  turn on or off the mount motors (ASA only)',
           '  clear_error                    clear any current mount errors (ASA only)',
