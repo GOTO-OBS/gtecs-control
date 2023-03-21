@@ -17,6 +17,8 @@ from gtecs.control.astronomy import (get_moon_distance, get_moon_params, get_sun
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.hardware.mount import DDM500, FakeDDM500, SiTech
 
+import numpy as np
+
 
 class MntDaemon(BaseDaemon):
     """Mount hardware daemon class."""
@@ -48,6 +50,7 @@ class MntDaemon(BaseDaemon):
         self.guide_direction = None
         self.guide_duration = None
         self.sync_position = None
+        self.position_offset = None
         self.trackrate_ra = 0
         self.trackrate_dec = 0
         self.set_blinky = False
@@ -102,10 +105,16 @@ class MntDaemon(BaseDaemon):
                 try:
                     msg = f'Slewing from {self._pos_str()} to {self._pos_str(self.target)}'
                     self.log.info(msg)
-                    if isinstance(self.target, SkyCoord):
-                        c = self.mount.slew_to_radec(self.target.ra.hourangle, self.target.dec.deg)
-                    elif isinstance(self.target, AltAz):
-                        c = self.mount.slew_to_altaz(self.target.alt.deg, self.target.az.deg)
+                    # Convert into mount position
+                    coord = self._offset_desired_to_mount(self.target)
+                    if self.position_offset is not None:
+                        msg = f'Offset desired position ({self._pos_str(self.target)}) '
+                        msg += f'to mount position ({self._pos_str(coord)})'
+                        self.log.debug(msg)
+                    if isinstance(coord, SkyCoord):
+                        c = self.mount.slew_to_radec(coord.ra.hourangle, coord.dec.deg)
+                    elif isinstance(coord, AltAz):
+                        c = self.mount.slew_to_altaz(coord.alt.deg, coord.az.deg)
                     if c:
                         self.log.info(c)
                     self.last_move_time = self.loop_time
@@ -217,9 +226,13 @@ class MntDaemon(BaseDaemon):
                     msg = f'Syncing position from {self._pos_str()}'
                     msg += f' to {self._pos_str(self.sync_position)}'
                     self.log.info(msg)
-                    c = self.mount.sync_radec(
-                        self.sync_position.ra.hourangle,
-                        self.sync_position.dec.deg)
+                    # Convert into mount position
+                    coord = self._offset_desired_to_mount(self.sync_position)
+                    if self.position_offset is not None:
+                        msg = f'Offset desired position ({self._pos_str(self.target)}) '
+                        msg += f'to mount position ({self._pos_str(coord)})'
+                        self.log.debug(msg)
+                    c = self.mount.sync_radec(coord.ra.hourangle, coord.dec.deg)
                     if c:
                         self.log.info(c)
                 except Exception:
@@ -340,11 +353,26 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_az'] = self.mount.az
 
             now = Time(temp_info['time'], format='unix')
-            lst = now.sidereal_time(kind='apparent', longitude=self.location).hourangle
-            temp_info['lst'] = lst
-            coords = SkyCoord(temp_info['mount_ra'], temp_info['mount_dec'], unit=(u.hour, u.deg))
-            ha = coords.transform_to(HADec(obstime=now, location=self.location)).ha.hourangle
-            temp_info['ha'] = ha
+            coords = SkyCoord(temp_info['mount_ra'] * u.hourangle, temp_info['mount_dec'] * u.deg)
+            coords_hadec = coords.transform_to(HADec(obstime=now, location=self.location))
+            temp_info['mount_ha'] = coords_hadec.ha.hourangle
+
+            if self.position_offset is None:
+                temp_info['pointing_ra'] = temp_info['mount_ra']
+                temp_info['pointing_dec'] = temp_info['mount_dec']
+                temp_info['pointing_alt'] = temp_info['mount_alt']
+                temp_info['pointing_az'] = temp_info['mount_az']
+                temp_info['pointing_ha'] = temp_info['mount_ha']
+            else:
+                # Need to convert using given offset
+                coords = self._offset_mount_to_desired(coords)
+                temp_info['pointing_ra'] = coords.ra.hourangle
+                temp_info['pointing_dec'] = coords.dec.deg
+                coords_altaz = coords.transform_to(AltAz(obstime=now, location=self.location))
+                temp_info['pointing_alt'] = coords_altaz.alt.deg
+                temp_info['pointing_az'] = coords_altaz.az.deg
+                coords_hadec = coords.transform_to(HADec(obstime=now, location=self.location))
+                temp_info['pointing_ha'] = coords_hadec.ha.hourangle
 
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
@@ -421,8 +449,12 @@ class MntDaemon(BaseDaemon):
             temp_info['mount_az'] = None
             temp_info['mount_ra'] = None
             temp_info['mount_dec'] = None
-            temp_info['lst'] = None
-            temp_info['ha'] = None
+            temp_info['mount_ha'] = None
+            temp_info['pointing_ra'] = None
+            temp_info['pointing_dec'] = None
+            temp_info['pointing_alt'] = None
+            temp_info['pointing_az'] = None
+            temp_info['pointing_ha'] = None
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 temp_info['nonsidereal'] = None
@@ -444,6 +476,10 @@ class MntDaemon(BaseDaemon):
         # Get astronomy info
         try:
             now = Time(temp_info['time'], format='unix')
+
+            lst = now.sidereal_time(kind='apparent', longitude=self.location).hourangle
+            temp_info['lst'] = lst
+
             sun_alt = get_sunalt(now)
             temp_info['sun_alt'] = sun_alt
 
@@ -452,17 +488,16 @@ class MntDaemon(BaseDaemon):
             temp_info['moon_ill'] = moon_ill
             temp_info['moon_phase'] = moon_phase
 
-            if temp_info['mount_ra'] is not None and temp_info['mount_dec'] is not None:
-                moon_dist = get_moon_distance(temp_info['mount_ra'] * 360 / 24,
-                                              temp_info['mount_dec'],
-                                              now,
-                                              )
+            if self.current_position is not None:
+                temp_info['moon_dist'] = get_moon_distance(self.current_position.ra.deg,
+                                                           self.current_position.dec.deg,
+                                                           now)
             else:
-                moon_dist = None
-            temp_info['moon_dist'] = moon_dist
+                temp_info['moon_dist'] = None
         except Exception:
             self.log.error('Failed to get astronomy info')
             self.log.debug('', exc_info=True)
+            temp_info['lst'] = None
             temp_info['sun_alt'] = None
             temp_info['moon_alt'] = None
             temp_info['moon_ill'] = None
@@ -520,10 +555,59 @@ class MntDaemon(BaseDaemon):
 
     @property
     def current_position(self):
-        """Get the current mount position as an Astropy SkyCoord."""
+        """Get the current pointing position as an Astropy SkyCoord."""
         if self.mount is None:
             return None
-        return SkyCoord(self.mount.ra, self.mount.dec, unit=(u.hour, u.deg))
+        coords = SkyCoord(self.mount.ra, self.mount.dec, unit=(u.hour, u.deg))
+        return self._offset_mount_to_desired(coords)
+
+    def _offset_desired_to_mount(self, coords):
+        """Use the internal offset to convert the desired coordinates to the mount position."""
+        if self.position_offset is None:
+            return coords
+        offset_distance, offset_angle = self.position_offset
+        # This is simple, since the distance and baring are always constant.
+        # We can't offset from AltAz, so we have to convert to ICRS first then back afterwards.
+        if isinstance(coords, SkyCoord):
+            new_coords = coords.directional_offset_by(offset_angle, offset_distance)
+        if isinstance(coords, AltAz):
+            coords_altaz = coords
+            coords = SkyCoord(coords_altaz).transform_to('icrs')
+            new_coords = coords.directional_offset_by(offset_angle, offset_distance)
+            new_coords.transform_to(AltAz(obstime=coords_altaz.obstime, location=self.location))
+        return new_coords
+
+    def _offset_mount_to_desired(self, coords):
+        """Use the internal offset to correct the mount coordinates to the desired position."""
+        if self.position_offset is None:
+            return coords
+        # We have point B (the mount position) and want to find the coordinates of point A.
+        # We know the distance from A to B (d) and the angle from A to B (theta).
+        d, theta = self.position_offset
+        # HOWEVER the offset angle from B to A is NOT the same as A to B
+        # (or anything neat like 180-theta), so we can't just offset back.
+        # There's a lot of horrible trig, but it is doable.
+        # Consider a triangle with point C at the northern celestial pole.
+        # The distance from A to C is 90 - the declination of A.
+        # The distance from B to C is 90 - the declination of B.
+        # The angle ACB is the difference is right ascension between A and B.
+        # Using the spherical law of sines:
+        # 1) sin(theta) / sin(90-dec_B) = sin(ra_B-ra_A) / sin(d)
+        # Therefore we can find ra_A:
+        new_ra = coords.ra - np.arcsin(np.sin(theta) * np.sin(d) / np.cos(coords.dec))
+        # Finding dec_A is much worse, since we don't know the angle ABC (phi)
+        # or the length from A to C (which is 90 - dec_A).
+        # But we can use two forms of the spherical law of cosines:
+        # 2) cos(90-dec_A) = cos(90-dec_B)*cos(d) + sin(90-dec_B)*sin(d)*cos(phi)
+        # 3) cos(phi) = -cos(theta)*cos(ra_B-ra_A) + sin(theta)*sin(ra_B-ra_A)*cos(90-dec_A)
+        # then replace cos(phi) in 2 with 3 and rearrange:
+        x1 = np.sin(coords.dec) * np.cos(d)
+        x2 = np.cos(coords.dec) * np.sin(d) * np.cos(theta) * np.cos(coords.ra - new_ra)
+        y = np.cos(coords.dec) * np.sin(d) * np.sin(theta) * np.sin(coords.ra - new_ra)
+        new_dec = np.arcsin((x1 - x2) / (1 - y))
+        # That's it, we have the coordinates of point A.
+        new_coords = SkyCoord(new_ra, new_dec)
+        return new_coords
 
     @property
     def target_distance(self):
@@ -800,6 +884,33 @@ class MntDaemon(BaseDaemon):
         self.sync_flag = 1
 
         return 'Syncing position to given coordinates'
+
+    def set_position_offset(self, coords):
+        """Set an internal offset using the difference between the given and current positions."""
+        # Check input
+        if not isinstance(coords, SkyCoord):
+            raise ValueError('Coordinates must be an astropy `SkyCoord` object')
+        if self.position_offset is not None:
+            raise ValueError('An offset is already set, clear it before setting a new one')
+
+        # Get difference between current and given positions
+        distance = coords.separation(self.current_position)
+        angle = coords.position_angle(self.current_position)
+
+        # Set values
+        self.position_offset = (distance, angle)
+
+        msg = 'Set internal offset to '
+        msg += f'dist={distance.deg:.2f} deg '
+        msg += f'angle={angle.deg:.2f} deg'
+        self.log.info(msg)
+        return (msg)
+
+    def clear_position_offset(self):
+        """Clear the internal position offset."""
+        self.position_offset = None
+        self.log.info('Cleared internal position offset')
+        return 'Cleared internal position offset'
 
     def set_trackrate(self, ra_rate=0, dec_rate=0):
         """Set tracking rate in RA and Dec in arcseconds per second (0=default)."""

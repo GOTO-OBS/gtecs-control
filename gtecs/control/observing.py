@@ -374,9 +374,9 @@ def get_mount_position():
 
     """
     mnt_info = daemon_info('mnt')
-    ra = mnt_info['mount_ra']
+    ra = mnt_info['pointing_ra']
     ra = ra * 360 / 24  # mount uses RA in hours
-    dec = mnt_info['mount_dec']
+    dec = mnt_info['pointing_dec']
     return ra, dec
 
 
