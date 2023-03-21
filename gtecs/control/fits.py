@@ -1036,15 +1036,15 @@ def update_header(header, ut, all_info, log=None):
         if targ_dist is None:
             targ_dist = 'NA'
 
-        mnt_ra = info['pointing_ra']
+        mnt_ra = info['mount_ra']
         mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
 
-        mnt_dec = info['pointing_dec']
+        mnt_dec = info['mount_dec']
         mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
 
-        mnt_alt = info['pointing_alt']
-        mnt_az = info['pointing_az']
-        ha = info['pointing_ha']
+        mnt_alt = info['mount_alt']
+        mnt_az = info['mount_az']
+        ha = info['mount_ha']
 
         mnt_move_time = info['last_move_time']
         if mnt_move_time is not None:

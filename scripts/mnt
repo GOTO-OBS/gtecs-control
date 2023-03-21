@@ -311,7 +311,7 @@ def print_info(info):
         else:
             print('Status: {}'.format(info['status']))
     print('~~~~~~~')
-    ra, dec = info['pointing_ra'], info['pointing_dec']
+    ra, dec = info['mount_ra'], info['mount_dec']
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
     print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
@@ -332,8 +332,8 @@ def print_info(info):
         else:
             print('Target Dec:       NOT SET')
 
-    print('Mount Alt:        {:7.3f} deg'.format(info['pointing_alt']))
-    print('Mount Az:         {:7.3f} deg'.format(info['pointing_az']))
+    print('Mount Alt:        {:7.3f} deg'.format(info['mount_alt']))
+    print('Mount Az:         {:7.3f} deg'.format(info['mount_az']))
 
     if info['target_alt'] is not None:
         print('Target Alt:       {:7.3f} deg'.format(info['target_alt']))
@@ -371,7 +371,7 @@ def print_info(info):
         print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
 
     print('~~~~~~~')
-    print('Hour Angle:       {:+6.2f} h'.format(info['pointing_ha']))
+    print('Hour Angle:       {:+6.2f} h'.format(info['mount_ha']))
 
     lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
     print('Sidereal Time:    {:>11}'.format(lst_str))
@@ -401,8 +401,8 @@ def print_info_s(info):
         else:
             print('MOUNT ({})        Slewing '.format(params.MOUNT_HOST))
 
-    alt, az = info['pointing_alt'], info['pointing_az']
-    ra, dec = info['pointing_ra'], info['pointing_dec']
+    alt, az = info['mount_alt'], info['mount_az']
+    ra, dec = info['mount_ra'], info['mount_dec']
     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
 

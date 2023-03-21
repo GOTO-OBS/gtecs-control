@@ -347,32 +347,36 @@ class MntDaemon(BaseDaemon):
         # Get info from mount
         try:
             temp_info['status'] = self.mount.status
-            temp_info['mount_ra'] = self.mount.ra
-            temp_info['mount_dec'] = self.mount.dec
-            temp_info['mount_alt'] = self.mount.alt
-            temp_info['mount_az'] = self.mount.az
+
+            # Get the actual pointing coordinates
+            temp_info['mount_ra_pointing'] = self.mount.ra
+            temp_info['mount_dec_pointing'] = self.mount.dec
+            temp_info['mount_alt_pointing'] = self.mount.alt
+            temp_info['mount_az_pointing'] = self.mount.az
 
             now = Time(temp_info['time'], format='unix')
-            coords = SkyCoord(temp_info['mount_ra'] * u.hourangle, temp_info['mount_dec'] * u.deg)
+            coords = SkyCoord(temp_info['mount_ra_pointing'] * u.hourangle,
+                              temp_info['mount_dec_pointing'] * u.deg,
+                              )
             coords_hadec = coords.transform_to(HADec(obstime=now, location=self.location))
-            temp_info['mount_ha'] = coords_hadec.ha.hourangle
+            temp_info['mount_ha_pointing'] = coords_hadec.ha.hourangle
 
             if self.position_offset is None:
-                temp_info['pointing_ra'] = temp_info['mount_ra']
-                temp_info['pointing_dec'] = temp_info['mount_dec']
-                temp_info['pointing_alt'] = temp_info['mount_alt']
-                temp_info['pointing_az'] = temp_info['mount_az']
-                temp_info['pointing_ha'] = temp_info['mount_ha']
+                temp_info['mount_ra'] = temp_info['mount_ra_pointing']
+                temp_info['mount_dec'] = temp_info['mount_dec_pointing']
+                temp_info['mount_alt'] = temp_info['mount_alt_pointing']
+                temp_info['mount_az'] = temp_info['mount_az_pointing']
+                temp_info['mount_ha'] = temp_info['mount_ha_pointing']
             else:
                 # Need to convert using given offset
                 coords = self._offset_mount_to_desired(coords)
-                temp_info['pointing_ra'] = coords.ra.hourangle
-                temp_info['pointing_dec'] = coords.dec.deg
+                temp_info['mount_ra'] = coords.ra.hourangle
+                temp_info['mount_dec'] = coords.dec.deg
                 coords_altaz = coords.transform_to(AltAz(obstime=now, location=self.location))
-                temp_info['pointing_alt'] = coords_altaz.alt.deg
-                temp_info['pointing_az'] = coords_altaz.az.deg
+                temp_info['mount_alt'] = coords_altaz.alt.deg
+                temp_info['mount_az'] = coords_altaz.az.deg
                 coords_hadec = coords.transform_to(HADec(obstime=now, location=self.location))
-                temp_info['pointing_ha'] = coords_hadec.ha.hourangle
+                temp_info['mount_ha'] = coords_hadec.ha.hourangle
 
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
@@ -445,16 +449,16 @@ class MntDaemon(BaseDaemon):
             self.log.error('Failed to get mount info')
             self.log.debug('', exc_info=True)
             temp_info['status'] = None
-            temp_info['mount_alt'] = None
-            temp_info['mount_az'] = None
+            temp_info['mount_ra_pointing'] = None
+            temp_info['mount_dec_pointing'] = None
+            temp_info['mount_alt_pointing'] = None
+            temp_info['mount_az_pointing'] = None
+            temp_info['mount_ha_pointing'] = None
             temp_info['mount_ra'] = None
             temp_info['mount_dec'] = None
+            temp_info['mount_alt'] = None
+            temp_info['mount_az'] = None
             temp_info['mount_ha'] = None
-            temp_info['pointing_ra'] = None
-            temp_info['pointing_dec'] = None
-            temp_info['pointing_alt'] = None
-            temp_info['pointing_az'] = None
-            temp_info['pointing_ha'] = None
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 temp_info['nonsidereal'] = None
