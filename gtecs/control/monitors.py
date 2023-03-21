@@ -659,14 +659,14 @@ class MntMonitor(BaseMonitor):
         mount = info['status']
         nonsidereal = info['nonsidereal']
         target_dist = info['target_dist']
-        targeting = info['targeting'] == 'radec'  # Ignore off-target for altaz
 
         if 'error_status' in info and info['error_status'] is not None:
             hardware_status = STATUS_MNT_AUTOSLEW_ERROR
         elif mount == 'Tracking':
             if nonsidereal:
                 hardware_status = STATUS_MNT_NONSIDEREAL
-            elif targeting and target_dist and float(target_dist) > 0.01:
+            elif (target_dist is not None and float(target_dist) > 0.01 and
+                    info['target_ra'] is not None):  # only if targeting ra/dec not alt/az
                 hardware_status = STATUS_MNT_OFFTARGET
             else:
                 hardware_status = STATUS_MNT_TRACKING
