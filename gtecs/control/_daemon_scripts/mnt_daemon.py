@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Daemon to access mount control."""
 
+import os
 import threading
 import time
 
@@ -50,11 +51,24 @@ class MntDaemon(BaseDaemon):
         self.guide_direction = None
         self.guide_duration = None
         self.sync_position = None
-        self.position_offset = None
         self.trackrate_ra = 0
         self.trackrate_dec = 0
         self.set_blinky = False
         self.set_motor_power = True
+
+        # position offset (stored in a file, so it isn't forgotten if we restart)
+        self.position_offset_file = os.path.join(params.FILE_PATH, 'mount_offset')
+        try:
+            with open(self.position_offset_file, 'r') as f:
+                self.position_offset = [float(i) for i in f.read().strip().split()]
+            if self.position_offset == [0, 0]:
+                self.position_offset = None
+        except Exception:
+            self.log.error('Failed to read mount offset file')
+            self.log.debug('', exc_info=True)
+            self.position_offset = None
+            with open(self.position_offset_file, 'w') as f:
+                f.write('0 0')
 
         # astronomy params
         self.location = observatory_location()
@@ -278,7 +292,7 @@ class MntDaemon(BaseDaemon):
             if self.set_motor_power_flag:
                 try:
                     mode = 'on' if self.set_motor_power else 'off'
-                    self.log.info('Turing motors {mode}')
+                    self.log.info(f'Turing motors {mode}')
                     self.log.debug(f'current position: {self._pos_str()}')
                     c = self.mount.set_motor_power(self.set_motor_power)
                     if c:
@@ -529,6 +543,7 @@ class MntDaemon(BaseDaemon):
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
         temp_info['nonsidereal'] = self.trackrate_ra != 0 or self.trackrate_dec != 0
+        temp_info['position_offset'] = self.position_offset
 
         # Write debug log line
         try:
@@ -569,7 +584,8 @@ class MntDaemon(BaseDaemon):
         """Use the internal offset to convert the desired coordinates to the mount position."""
         if self.position_offset is None:
             return coords
-        offset_distance, offset_angle = self.position_offset
+        offset_distance = self.position_offset[0] * u.deg
+        offset_angle = self.position_offset[1] * u.deg
         # This is simple, since the distance and baring are always constant.
         # We can't offset from AltAz, so we have to convert to ICRS first then back afterwards.
         if isinstance(coords, SkyCoord):
@@ -587,7 +603,8 @@ class MntDaemon(BaseDaemon):
             return coords
         # We have point B (the mount position) and want to find the coordinates of point A.
         # We know the distance from A to B (d) and the angle from A to B (theta).
-        d, theta = self.position_offset
+        d = self.position_offset[0] * u.deg
+        theta = self.position_offset[1] * u.deg
         # HOWEVER the offset angle from B to A is NOT the same as A to B
         # (or anything neat like 180-theta), so we can't just offset back.
         # There's a lot of horrible trig, but it is doable.
@@ -898,21 +915,24 @@ class MntDaemon(BaseDaemon):
             raise ValueError('An offset is already set, clear it before setting a new one')
 
         # Get difference between current and given positions
-        distance = coords.separation(self.current_position)
-        angle = coords.position_angle(self.current_position)
+        distance = coords.separation(self.current_position).deg
+        angle = coords.position_angle(self.current_position).deg
 
         # Set values
         self.position_offset = (distance, angle)
+        with open(self.position_offset_file, 'w') as f:
+            f.write(f'{distance:f} {angle:f}')
 
-        msg = 'Set internal offset to '
-        msg += f'dist={distance.deg:.2f} deg '
-        msg += f'angle={angle.deg:.2f} deg'
+        msg = f'Set internal offset to dist={distance:.2f} deg angle={angle:.2f} deg'
         self.log.info(msg)
         return (msg)
 
     def clear_position_offset(self):
         """Clear the internal position offset."""
         self.position_offset = None
+        with open(self.position_offset_file, 'w') as f:
+            f.write('0 0')
+
         self.log.info('Cleared internal position offset')
         return 'Cleared internal position offset'
 
