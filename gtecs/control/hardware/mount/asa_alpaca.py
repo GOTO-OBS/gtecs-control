@@ -604,7 +604,7 @@ class FakeDDM500:
     @property
     def sidereal_time(self):
         """Return the current sidereal time."""
-        return get_lst()
+        return get_lst().hourangle
 
     @property
     def nonsidereal(self):
@@ -700,7 +700,7 @@ class FakeDDM500:
     def slew_to_altaz(self, alt, az):
         """Slew mount to given Alt/Az."""
         ra, dec = radec_from_altaz(alt, az)
-        self.slew_to_radec(ra, dec)
+        self.slew_to_radec(ra * 24 / 360, dec)
 
     def sync_radec(self, ra, dec):
         """Set current pointing to given RA and Dec coordinates (in J2000)."""
