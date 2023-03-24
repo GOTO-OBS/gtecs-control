@@ -15,15 +15,8 @@ from gtecs.control.style import errortxt
 
 def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    elif command == 'i':
-        raise ValueError('Already in interactive mode')
-
     # Primary daemon control
-    elif command == 'start':
+    if command == 'start':
         if len(args) == 0:
             uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
@@ -246,43 +239,38 @@ def print_info(all_info):
     return
 
 
-def print_instructions():
-    """Print instructions for using the daemon."""
-    print('Usage: intf command [options]',
-          'Daemon commands:',
-          '  start [uts] [cam|foc|filt]         start the interfaces',
-          '  shutdown [uts] [cam|foc|filt]      shutdown the interfaces',
-          '  restart  [uts] [cam|foc|filt]      restart the interfaces',
-          '  kill [uts] [cam|foc|filt]          kill the interfaces',
-          '  check/ping [uts] [cam|foc|filt]    check the interfaces for errors',
-          'Interface commands:',
-          '  info/status [-r] [-f]              report current status [raw/force-update]',
-          '  log [stdout] [cam|foc|filt]        print daemon log (tail alias)',
-          'Control commands:',
-          '  i                                  enter interactive mode',
-          '  q/exit                             quit interactive mode',
-          '  ?/help                             print these instructions',
-          sep='\n')
-
-
 if __name__ == '__main__':
     daemon_id = os.path.basename(__file__)
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
+
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        # no command, print help and exit
+        command = 'help'
+
+    if command in ['help', '?']:
+        print(
+            'Usage: intf command [options]',
+            'Daemon commands:',
+            '  start [uts] [cam|foc|filt]         start the interfaces',
+            '  shutdown [uts] [cam|foc|filt]      shutdown the interfaces',
+            '  restart  [uts] [cam|foc|filt]      restart the interfaces',
+            '  kill [uts] [cam|foc|filt]          kill the interfaces',
+            '  check/ping [uts] [cam|foc|filt]    check the interfaces for errors',
+            'Interface commands:',
+            '  info/status [-r] [-f]              report current status [raw/force-update]',
+            '  log [stdout] [cam|foc|filt]        print daemon log (tail alias)',
+            'Control commands:',
+            '  i                                  enter interactive mode',
+            '  q/exit                             quit interactive mode',
+            '  ?/help                             print these instructions',
+            sep='\n')
         sys.exit()
 
-    command, *args = sys.argv[1:]
-    if command != 'i':
-        try:
-            query(command, args)
-        except Exception as error:
-            print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-    else:
-        # Interactive mode
+    if command == 'i':
         while True:
             try:
-                interactive_input = input(f'{daemon_id}> ').split()
+                interactive_input = input(f'{os.path.basename(__file__)}> ').split()
             except EOFError:
                 print()
                 sys.exit()
@@ -290,7 +278,15 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
+                if command == 'i':
+                    print(errortxt('"ValueError: Already in interactive mode"'))
+                    continue
                 try:
                     query(command, args)
                 except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+                    print(errortxt(f'"{type(error).__name__}: {error}"'))
+
+    try:
+        query(command, args)
+    except Exception as error:
+        print(errortxt(f'"{type(error).__name__}: {error}"'))

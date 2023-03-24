@@ -14,12 +14,8 @@ from gtecs.control.style import errortxt
 
 def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    # Primary control
-    elif command == 'start':
+    # Primary daemon control
+    if command == 'start':
         # Disable pilot in engineering mode or emergency shutdown
         status = Status()
         if status.mode == 'engineering':
@@ -75,31 +71,31 @@ def query(command, args):
         raise ValueError('Unrecognized command "{}"'.format(command))
 
 
-def print_instructions():
-    """Print instructions for using the script."""
-    print('Usage: pilot command [options]',
-          'The pilot is the master control program for the observatory.',
-          '',
-          'Commands:',
-          '   start [options]        start the pilot',
-          '         -l, --late       run the evening tasks even if it is too late',
-          '         -r, --restart    skip the evening tasks and go straight to observing',
-          '         -t, --test       start the pilot in testing mode',
-          '   ping                   check if the pilot is running',
-          '   kill                   kill the pilot',
-          '   log [tail args]        print pilot log (alias for tail)',
-          '   help                   print these instructions',
-          sep='\n')
-
-
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        # no command, print help and exit
+        command = 'help'
+
+    if command in ['help', '?']:
+        print(
+            'Usage: pilot command [options]',
+            'The pilot is the master control program for the observatory.',
+            '',
+            'Commands:',
+            '   start [options]        start the pilot',
+            '         -l, --late       run the evening tasks even if it is too late',
+            '         -r, --restart    skip the evening tasks and go straight to observing',
+            '         -t, --test       start the pilot in testing mode',
+            '   ping                   check if the pilot is running',
+            '   kill                   kill the pilot',
+            '   log [tail args]        print pilot log (alias for tail)',
+            '   help                   print these instructions',
+            sep='\n')
         sys.exit()
 
-    command, *args = sys.argv[1:]
     try:
         query(command, args)
     except Exception as error:
-        print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        print(errortxt(f'"{type(error).__name__}: {error}"'))

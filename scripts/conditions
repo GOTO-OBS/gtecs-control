@@ -13,17 +13,12 @@ from gtecs.control import style
 from gtecs.control.style import errortxt
 
 
-def query(command, args, daemon_id):
+def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    elif command == 'i':
-        raise ValueError('Already in interactive mode')
+    daemon_id = os.path.basename(__file__)
 
     # Primary daemon control
-    elif command == 'start':
+    if command == 'start':
         host, port = daemons.get_daemon_host(daemon_id)
         pid = daemons.start_daemon(daemon_id)
         print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
@@ -690,50 +685,43 @@ def print_limits(info):
             sunalt_str, params.SUN_ELEVATION_LIMIT, status))
 
 
-def print_instructions():
-    """Print instructions for using the daemon."""
-    print('Usage: conditions command [options]',
-          'Daemon commands:',
-          '  start                          start the daemon',
-          '  shutdown                       shutdown the daemon',
-          '  restart                        restart the daemon',
-          '  kill                           kill the daemon',
-          '  check/ping                     check the daemon for errors',
-          'Conditions commands:',
-          '  update                         force update the conditions',
-          '  ignore <flag>                  ignore the given flag',
-          '  enable <flag>                  reenable the given ignored flag',
-          '  override [on|off]              enable/disable the manual override flag',
-          '  pause                          alias for "override on"',
-          '  unpause/resume                 alias for "override off"',
-          '  info/status [-r] [-f]          report current status [raw/force-update]',
-          '  limits [-f]                    report values and limits [force-update]',
-          '  log [stdout]                   print daemon log (tail alias)',
-          'Control commands:',
-          '  i                              enter interactive mode',
-          '  q/exit                         quit interactive mode',
-          '  ?/help                         print these instructions',
-          sep='\n')
-
-
 if __name__ == '__main__':
-    daemon_id = os.path.basename(__file__)
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        # no command, print help and exit
+        command = 'help'
+
+    if command in ['help', '?']:
+        print(
+            'Usage: conditions command [options]',
+            'Daemon commands:',
+            '  start                          start the daemon',
+            '  shutdown                       shutdown the daemon',
+            '  restart                        restart the daemon',
+            '  kill                           kill the daemon',
+            '  check/ping                     check the daemon for errors',
+            'Conditions commands:',
+            '  update                         force update the conditions',
+            '  ignore <flag>                  ignore the given flag',
+            '  enable <flag>                  reenable the given ignored flag',
+            '  override [on|off]              enable/disable the manual override flag',
+            '  pause                          alias for "override on"',
+            '  unpause/resume                 alias for "override off"',
+            '  info/status [-r] [-f]          report current status [raw/force-update]',
+            '  limits [-f]                    report values and limits [force-update]',
+            '  log [stdout]                   print daemon log (tail alias)',
+            'Control commands:',
+            '  i                              enter interactive mode',
+            '  q/exit                         quit interactive mode',
+            '  ?/help                         print these instructions',
+            sep='\n')
         sys.exit()
 
-    command, *args = sys.argv[1:]
-    if command != 'i':
-        try:
-            query(command, args, daemon_id)
-        except Exception as error:
-            print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-    else:
-        # Interactive mode
+    if command == 'i':
         while True:
             try:
-                interactive_input = input(f'{daemon_id}> ').split()
+                interactive_input = input(f'{os.path.basename(__file__)}> ').split()
             except EOFError:
                 print()
                 sys.exit()
@@ -741,7 +729,15 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
+                if command == 'i':
+                    print(errortxt('"ValueError: Already in interactive mode"'))
+                    continue
                 try:
-                    query(command, args, daemon_id)
+                    query(command, args)
                 except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+                    print(errortxt(f'"{type(error).__name__}: {error}"'))
+
+    try:
+        query(command, args)
+    except Exception as error:
+        print(errortxt(f'"{type(error).__name__}: {error}"'))

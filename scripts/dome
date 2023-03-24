@@ -15,17 +15,12 @@ from gtecs.control import style
 from gtecs.control.style import errortxt
 
 
-def query(command, args, daemon_id):
+def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    elif command == 'i':
-        raise ValueError('Already in interactive mode')
+    daemon_id = os.path.basename(__file__)
 
     # Primary daemon control
-    elif command == 'start':
+    if command == 'start':
         host, port = daemons.get_daemon_host(daemon_id)
         pid = daemons.start_daemon(daemon_id)
         print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
@@ -391,56 +386,49 @@ def print_info_s(info):
         print(style.rtxt('REASON(S): {}'.format(info['emergency_reasons'])))
 
 
-def print_instructions():
-    """Print instructions for using the daemon."""
-    print('Usage: dome command [options]',
-          'Daemon commands:',
-          '  start                          start the daemon',
-          '  shutdown                       shutdown the daemon',
-          '  restart                        restart the daemon',
-          '  kill                           kill the daemon',
-          '  check/ping                     check the daemon for errors',
-          'Dome commands:',
-          '  open {}|{} [frac]        open the dome (optional frac 0-1)'.format(
-            *sorted([params.DOME_ASIDE_NAME.lower(), params.DOME_BSIDE_NAME.lower()])),
-          '  close {}|{} [frac]       close the dome (optional frac 0-1)'.format(
-            *sorted([params.DOME_ASIDE_NAME.lower(), params.DOME_BSIDE_NAME.lower()])),
-          '  stop/halt/abort                stop the dome moving',
-          '  reset                          reset the bumper guard sensor',
-          '  autoclose [on|off] [timeout]   automatically close in bad weather? (timeout in min)',
-          '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
-          '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
-          '  windshield [on|off]            manually turn wind shielding on/off',
-          '  autoshield [on|off]            automatically shield in high wind?',
-          '  alarm [on|off]                 automatically sound the alarm when moving?',
-          '  heartbeat [on|off]             automatically close if the daemon fails?',
-          '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
-          '  log/status [stdout]            print daemon log (tail alias)',
-          'Control commands:',
-          '  i                              enter interactive mode',
-          '  q/exit                         quit interactive mode',
-          '  ?/help                         print these instructions',
-          sep='\n')
-
-
 if __name__ == '__main__':
-    daemon_id = os.path.basename(__file__)
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        # no command, print help and exit
+        command = 'help'
+
+    if command in ['help', '?']:
+        print(
+            'Usage: dome command [options]',
+            'Daemon commands:',
+            '  start                          start the daemon',
+            '  shutdown                       shutdown the daemon',
+            '  restart                        restart the daemon',
+            '  kill                           kill the daemon',
+            '  check/ping                     check the daemon for errors',
+            'Dome commands:',
+            '  open {}|{} [frac]        open the dome (optional frac 0-1)'.format(
+                *sorted([params.DOME_ASIDE_NAME.lower(), params.DOME_BSIDE_NAME.lower()])),
+            '  close {}|{} [frac]       close the dome (optional frac 0-1)'.format(
+                *sorted([params.DOME_ASIDE_NAME.lower(), params.DOME_BSIDE_NAME.lower()])),
+            '  stop/halt/abort                stop the dome moving',
+            '  reset                          reset the bumper guard sensor',
+            '  autoclose [on|off] [timeout]   automatically close in bad weather? (timeout in min)',
+            '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
+            '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
+            '  windshield [on|off]            manually turn wind shielding on/off',
+            '  autoshield [on|off]            automatically shield in high wind?',
+            '  alarm [on|off]                 automatically sound the alarm when moving?',
+            '  heartbeat [on|off]             automatically close if the daemon fails?',
+            '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
+            '  log/status [stdout]            print daemon log (tail alias)',
+            'Control commands:',
+            '  i                              enter interactive mode',
+            '  q/exit                         quit interactive mode',
+            '  ?/help                         print these instructions',
+            sep='\n')
         sys.exit()
 
-    command, *args = sys.argv[1:]
-    if command != 'i':
-        try:
-            query(command, args, daemon_id)
-        except Exception as error:
-            print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-    else:
-        # Interactive mode
+    if command == 'i':
         while True:
             try:
-                interactive_input = input(f'{daemon_id}> ').split()
+                interactive_input = input(f'{os.path.basename(__file__)}> ').split()
             except EOFError:
                 print()
                 sys.exit()
@@ -448,7 +436,15 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
+                if command == 'i':
+                    print(errortxt('"ValueError: Already in interactive mode"'))
+                    continue
                 try:
-                    query(command, args, daemon_id)
+                    query(command, args)
                 except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+                    print(errortxt(f'"{type(error).__name__}: {error}"'))
+
+    try:
+        query(command, args)
+    except Exception as error:
+        print(errortxt(f'"{type(error).__name__}: {error}"'))
