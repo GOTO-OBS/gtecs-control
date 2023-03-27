@@ -12,7 +12,6 @@ These are hardware tasks to do BEFORE the dome opens:
 
 import time
 
-from gtecs.common.system import execute_command
 from gtecs.control import params
 from gtecs.control.daemons import daemon_proxy, start_daemon
 from gtecs.control.observing import (cameras_are_cool, filters_are_homed, focusers_are_set,
@@ -44,7 +43,6 @@ def run():
         start_daemon(interface_id, timeout=10)
         time.sleep(1)
     time.sleep(10)
-    execute_command('intf info')
 
     # Make all the other daemons are running
     # Note we can't shutdown and restart, because the daemons will die when this script ends
@@ -78,7 +76,9 @@ def run():
             time.sleep(1)
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mount parking timed out')
-    execute_command('mnt info')
+    with daemon_proxy('mnt') as daemon:
+        info_str = daemon.get_info_string(force_update=True)
+        print(info_str)
 
     # TODO: Isn't this just repeating "prepare_for_images"? Couldn't we call that here?
 
@@ -102,7 +102,9 @@ def run():
         time.sleep(1)
         if (time.time() - start_time) > 30:
             raise TimeoutError('Filter wheels timed out')
-    execute_command('filt info -f')
+    with daemon_proxy('filt') as daemon:
+        info_str = daemon.get_info_string(force_update=True)
+        print(info_str)
 
     # Set the focusers
     print('Setting focusers')
@@ -116,7 +118,9 @@ def run():
         time.sleep(1)
         if (time.time() - start_time) > 60:
             raise TimeoutError('Focusers timed out')
-    execute_command('foc info -f')
+    with daemon_proxy('foc') as daemon:
+        info_str = daemon.get_info_string(force_update=True)
+        print(info_str)
 
     # Set the cameras to full-frame
     print('Setting cameras to full-frame')
@@ -136,14 +140,18 @@ def run():
             time.sleep(1)
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mirror covers timed out')
-    execute_command('ota info -f')
+    with daemon_proxy('ota') as daemon:
+        info_str = daemon.get_info_string(force_update=True)
+        print(info_str)
 
     # Finally check that the CCDs are cool
     while not cameras_are_cool():
         time.sleep(1)
         if (time.time() - cam_start_time) > 600:
             raise TimeoutError('Camera cooling timed out')
-    execute_command('cam info -f')
+    with daemon_proxy('cam') as daemon:
+        info_str = daemon.get_info_string(force_update=True)
+        print(info_str)
 
     print('Startup tasks done')
 
