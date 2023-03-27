@@ -123,7 +123,7 @@ def query(command, args):
                     continue
                 try:
                     host, port = daemons.get_daemon_host(interface_id)
-                    daemons.kill_daemon(interface_id)
+                    daemons.shutdown_daemon(interface_id, kill=True)
                     print(f'Daemon {interface_id} killed on {host}:{port}')
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
@@ -193,7 +193,13 @@ def query(command, args):
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
             all_info[ut] = ut_info
         if info_type == 'verbose':
-            print_info(all_info)
+            for ut in all_info:
+                if len(all_info[ut]) > 0:
+                    print(f"UT {ut} ({params.UT_DICT[ut]['INTERFACE_HOST']}):")
+                for info in all_info[ut]:
+                    host, port = daemons.get_daemon_host(info['daemon_id'])
+                    print('  {:>5} ({}:{}): {}'.format(
+                        info['daemon_id'], host, port, info['serial']))
         elif info_type == 'raw':
             for ut in params.UTS:
                 for info in all_info[ut]:
@@ -225,18 +231,6 @@ def query(command, args):
     # Unrecognized function
     else:
         raise ValueError('Unrecognized command "{}"'.format(command))
-
-
-def print_info(all_info):
-    """Print the full info dict."""
-    for ut in all_info:
-        if len(all_info[ut]) > 0:
-            print(f"UT {ut} ({params.UT_DICT[ut]['INTERFACE_HOST']}):")
-        for info in all_info[ut]:
-            host, port = daemons.get_daemon_host(info['daemon_id'])
-            print('  {:>5} ({}:{}): {}'.format(info['daemon_id'], host, port, info['serial']))
-
-    return
 
 
 if __name__ == '__main__':

@@ -10,7 +10,8 @@ from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, HardwareError, daemon_proxy
+from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
+                                   daemon_proxy, get_daemon_host)
 from gtecs.control.exposures import Exposure
 from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
                                 image_location, make_fits, save_fits)
@@ -805,6 +806,59 @@ class CamDaemon(BaseDaemon):
         Used to save time when the exposure queue doesn't need the full info.
         """
         return self.take_exposure_flag
+
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'CAMERA {} ({}:{}) '.format(ut, host, port)
+                if info[ut]['status'] != 'Exposing':
+                    msg += '  Temp: {:6.2f}C '.format(info[ut]['ccd_temp'])
+                    msg += '  [{}]\n'.format(info[ut]['status'])
+                else:
+                    current_exposure = info['current_exposure']
+                    expstr = current_exposure['expstr']
+                    if 'exposure' in expstr:
+                        expstr = expstr.split(' ')[1]
+                    msg += '  {} {} ({:.2f}s)\n'.format(
+                        info[ut]['status'], expstr, info[ut]['remaining'])
+            msg = msg.rstrip()
+        else:
+            msg = '####### CAMERA INFO #######\n'
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'CAMERA {} ({}:{})\n'.format(ut, host, port)
+                if info[ut]['status'] != 'Exposing':
+                    msg += 'Status: {}\n'.format(info[ut]['status'])
+                else:
+                    current_exposure = info['current_exposure']
+                    expstr = current_exposure['expstr']
+                    if 'exposure' in expstr:
+                        expstr = expstr.split(' ')[1]
+                    if current_exposure and ut in current_exposure['uts']:
+                        msg += 'Status: {} {} ({:.2f}s)\n'.format(
+                            info[ut]['status'], expstr, info[ut]['remaining'])
+                        msg += 'Exposure time:      {:.2f}s\n'.format(current_exposure['exptime'])
+                        msg += 'Binning:            {:.0f}\n'.format(current_exposure['binning'])
+                        msg += 'Frame type:         {}\n'.format(current_exposure['frametype'])
+                msg += 'Image window:       {}\n'.format(info[ut]['window_area'])
+                msg += 'CCD Temperature:    {:.2f}C\n'.format(info[ut]['ccd_temp'])
+                msg += 'Target Temperature: {:.2f}C\n'.format(info[ut]['target_temp'])
+                msg += 'Base Temperature:   {:.2f}C\n'.format(info[ut]['base_temp'])
+                msg += 'Cooler power:       {:.0f}%\n'.format(info[ut]['cooler_power'])
+                msg += 'Serial number:      {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class:     {}\n'.format(info[ut]['hw_class'])
+                msg += '~~~~~~~\n'
+            msg += 'Latest run number:  {:d}\n'.format(info['latest_run_number'])
+            msg += 'Exposures taken:    {:d}\n'.format(info['num_taken'])
+            msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':

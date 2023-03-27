@@ -74,15 +74,12 @@ def query(command, args):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            info = daemon.get_info(force)
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if info_type != 'raw':
+                info_str = daemon.get_info_string(info_type == 'verbose', force)
+            else:
+                info = daemon.get_info(force)
+                info_str = json.dumps(info, indent=2, default=repr)
+        print(info_str)
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
@@ -192,48 +189,6 @@ def query(command, args):
     # Unrecognized function
     else:
         raise ValueError('Unrecognized command "{}"'.format(command))
-
-
-def print_info(info):
-    """Print the full info dict."""
-    print('###### FOCUSER INFO #######')
-    for ut in info['uts']:
-        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
-        print('FOCUSER {} ({}:{})'.format(ut, host, port))
-        print('Status: {}'.format(info[ut]['status']), end='')
-        if info[ut]['remaining'] > 0:
-            print(' ({})'.format(info[ut]['remaining']))
-        else:
-            print('')
-        print('Current motor pos:    {}'.format(info[ut]['current_pos']))
-        print('Maximum motor limit:  {}'.format(info[ut]['limit']))
-        print('Internal temperature: {}'.format(info[ut]['int_temp']))
-        print('External temperature: {}'.format(info[ut]['ext_temp']))
-        print('Serial number:        {}'.format(info[ut]['serial_number']))
-        print('Hardware class:       {}'.format(info[ut]['hw_class']))
-        print('~~~~~~~')
-    print('Uptime: {:.1f}s'.format(info['uptime']))
-    print('Timestamp: {}'.format(info['timestamp']))
-    print('###########################')
-
-
-def print_info_s(info):
-    """Print the info dict in a compact way."""
-    lim = max(len(str(info[ut]['limit'])) for ut in info['uts'])
-    for ut in info['uts']:
-        host, port = daemons.get_daemon_host(info[ut]['interface_id'])
-        print('FOCUSER {} ({}:{})'.format(ut, host, port), end=' ')
-        if info[ut]['status'] != 'Moving':
-            cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], lim)
-            limit = '{:<{}d}'.format(info[ut]['limit'], lim)
-            print('  Current position: {}/{}'.format(cur_pos, limit), end=' ')
-            print('  [{}]'.format(info[ut]['status']))
-        else:
-            print('  Moving', end='')
-            if info[ut]['remaining'] > 0:
-                print(' ({})'.format(info[ut]['remaining']))
-            else:
-                print('')
 
 
 if __name__ == '__main__':

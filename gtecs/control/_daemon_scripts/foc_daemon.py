@@ -8,7 +8,8 @@ from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, HardwareError, daemon_proxy
+from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
+                                   daemon_proxy, get_daemon_host)
 from gtecs.control.observing import get_conditions
 
 
@@ -432,6 +433,49 @@ class FocDaemon(BaseDaemon):
         self.active_uts = sorted(position)
         self.sync_position.update(position)
         self.sync_focuser_flag = 1
+
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            lim = max(len(str(info[ut]['limit'])) for ut in info['uts'])
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FOCUSER {} ({}:{}) '.format(ut, host, port)
+                if info[ut]['status'] != 'Moving':
+                    cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], lim)
+                    limit = '{:<{}d}'.format(info[ut]['limit'], lim)
+                    msg += '  Current position: {}/{} '.format(cur_pos, limit)
+                    msg += '  [{}]\n'.format(info[ut]['status'])
+                else:
+                    msg += '  Moving '
+                    if info[ut]['remaining'] > 0:
+                        msg += ' ({})\n'.format(info[ut]['remaining'])
+                    else:
+                        msg += '\n'
+            msg = msg.rstrip()
+        else:
+            msg = '###### FOCUSER INFO #######\n'
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FOCUSER {} ({}:{})\n'.format(ut, host, port)
+                msg += 'Status: {} '.format(info[ut]['status'])
+                if info[ut]['remaining'] > 0:
+                    msg += (' ({})\n'.format(info[ut]['remaining']))
+                else:
+                    msg += ('\n')
+                msg += 'Current motor pos:    {}\n'.format(info[ut]['current_pos'])
+                msg += 'Maximum motor limit:  {}\n'.format(info[ut]['limit'])
+                msg += 'Internal temperature: {}\n'.format(info[ut]['int_temp'])
+                msg += 'External temperature: {}\n'.format(info[ut]['ext_temp'])
+                msg += 'Serial number:        {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class:       {}\n'.format(info[ut]['hw_class'])
+                msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':

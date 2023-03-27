@@ -423,6 +423,52 @@ class ExqDaemon(BaseDaemon):
             self.log.info('Resuming queue')
             self.paused = False
 
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = 'QUEUE: [{}]\n'.format(info['status'])
+            msg += '  Current exposure: '
+            current_exposure = info['current_exposure']
+            if current_exposure is not None:
+                msg += '   {}, {:.2f}, {}, {}, {}, {}, {}\n'.format(
+                    current_exposure['uts'],
+                    current_exposure['exptime'],
+                    current_exposure['filter'],
+                    current_exposure['binning'],
+                    current_exposure['frametype'],
+                    current_exposure['target'],
+                    current_exposure['imgtype'])
+                msg += '  Other items in queue: {}\n'.format(info['queue_length'])
+            else:
+                msg += '   None\n'
+                msg += '  Items in queue: {}'.format(info['queue_length'])
+        else:
+            msg = '####### QUEUE INFO #######\n'
+            msg += 'Status: {}\n'.format(info['status'])
+            msg += '~~~~~~~\n'
+            msg += 'Current exposure:\n'
+            current_exposure = info['current_exposure']
+            if current_exposure is not None:
+                msg += '   {}, {:.2f}, {}, {}, {}, {}, {}\n'.format(
+                    current_exposure['uts'],
+                    current_exposure['exptime'],
+                    current_exposure['filter'],
+                    current_exposure['binning'],
+                    current_exposure['frametype'],
+                    current_exposure['target'],
+                    current_exposure['imgtype'])
+                msg += 'Other items in queue:     {}\n'.format(info['queue_length'])
+            else:
+                msg += '   None\n'
+                msg += 'Items in queue:     {}\n'.format(info['queue_length'])
+            msg += 'Latest set number:  {:d}\n'.format(info['latest_set_number'])
+            msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
+
 
 if __name__ == '__main__':
     daemon = ExqDaemon()

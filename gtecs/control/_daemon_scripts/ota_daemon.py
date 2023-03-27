@@ -8,7 +8,7 @@ from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, daemon_proxy
+from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, daemon_proxy, get_daemon_host
 
 
 class OTADaemon(BaseDaemon):
@@ -223,6 +223,42 @@ class OTADaemon(BaseDaemon):
 
         self.active_uts = sorted(uts)
         self.stop_cover_flag = 1
+
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for ut in info['uts']:
+                if ut in info['uts_with_covers']:
+                    host, port = get_daemon_host(info[ut]['interface_id'])
+                    msg += 'OTA {} ({}:{}) '.format(ut, host, port)
+                else:
+                    msg += 'OTA {}                      '.format(ut)
+                if ut in info['uts_with_covers']:
+                    msg += '  Mirror cover: [{}]\n'.format(info[ut]['position'].capitalize())
+                else:
+                    msg += '  Mirror cover: [NA]\n'
+            msg = msg.rstrip()
+        else:
+            msg = '#### OTA INFO ####\n'
+            for ut in info['uts']:
+                if ut in info['uts_with_covers']:
+                    host, port = get_daemon_host(info[ut]['interface_id'])
+                    msg += 'OTA {} ({}:{})\n'.format(ut, host, port)
+                else:
+                    msg += 'OTA {}                     \n'.format(ut)
+                msg += 'Serial number:  {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class: {}\n'.format(info[ut]['hw_class'])
+                if ut in info['uts_with_covers']:
+                    msg += 'Mirror cover:   {}\n'.format(info[ut]['position'].capitalize())
+                else:
+                    msg += 'Mirror cover:   NA\n'
+                msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':

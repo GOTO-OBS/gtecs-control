@@ -8,7 +8,8 @@ from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, HardwareError, daemon_proxy
+from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
+                                   daemon_proxy, get_daemon_host)
 
 
 class FiltDaemon(BaseDaemon):
@@ -221,6 +222,49 @@ class FiltDaemon(BaseDaemon):
 
         self.active_uts = sorted(uts)
         self.home_filter_flag = 1
+
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FILTER WHEEL {} ({}:{}) '.format(ut, host, port)
+                if info[ut]['status'] != 'Moving':
+                    if not info[ut]['homed']:
+                        msg += 'Current filter: UNHOMED '
+                    else:
+                        msg += '  Current filter: {} '.format(info[ut]['current_filter'])
+                        msg += '({}) '.format(info[ut]['current_filter_num'])
+                    msg += '  [{}]\n'.format(info[ut]['status'])
+                else:
+                    msg += '  {} ({})\n'.format(info[ut]['status'], info[ut]['remaining'])
+            msg = msg.rstrip()
+        else:
+            msg = '#### FILTER WHEEL INFO ####\n'
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FILTER WHEEL {} ({}:{})\n'.format(ut, host, port)
+                if info[ut]['status'] != 'Moving':
+                    msg += 'Status: {}\n'.format(info[ut]['status'])
+                    if not info[ut]['homed']:
+                        msg += 'Current filter: UNHOMED\n'
+                    else:
+                        msg += 'Current filter:     {}\n'.format(info[ut]['current_filter'])
+                else:
+                    msg += 'Status: {} ({})\n'.format(info[ut]['status'], info[ut]['remaining'])
+                    msg += 'Current filter:     N/A\n'
+                msg += 'Current filter num: {}\n'.format(info[ut]['current_filter_num'])
+                msg += 'Filters:            {}\n'.format(','.join(info[ut]['filters']))
+                msg += 'Current motor pos:  {}\n'.format(info[ut]['current_pos'])
+                msg += 'Serial number:      {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class:     {}\n'.format(info[ut]['hw_class'])
+                msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':

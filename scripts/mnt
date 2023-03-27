@@ -6,15 +6,13 @@ import os
 import sys
 
 import astropy.units as u
-from astropy.coordinates import AltAz, Angle, SkyCoord, get_body
+from astropy.coordinates import AltAz, SkyCoord, get_body
 from astropy.time import Time
 
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import misc
-from gtecs.control import params
-from gtecs.control import style
 from gtecs.control.astronomy import observatory_location
 from gtecs.control.style import errortxt
 
@@ -80,15 +78,12 @@ def query(command, args):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            info = daemon.get_info(force)
-        if not info:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(info)
-        elif info_type == 'verbose':
-            print_info(info)
-        elif info_type == 'raw':
-            print(json.dumps(info, indent=2, default=repr))
+            if info_type != 'raw':
+                info_str = daemon.get_info_string(info_type == 'verbose', force)
+            else:
+                info = daemon.get_info(force)
+                info_str = json.dumps(info, indent=2, default=repr)
+        print(info_str)
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
@@ -314,124 +309,6 @@ def query(command, args):
     # Unrecognized function
     else:
         raise ValueError('Unrecognized command "{}"'.format(command))
-
-
-def print_info(info):
-    """Print the full info dict."""
-    print('####### MOUNT INFO ########')
-    if info['status'] != 'Slewing':
-        print('Status: {}'.format(info['status']))
-    else:
-        if info['target_dist']:
-            print('Status: {} ({:.2f} deg)'.format(info['status'], info['target_dist']))
-        else:
-            print('Status: {}'.format(info['status']))
-    print('~~~~~~~')
-    ra, dec = info['mount_ra'], info['mount_dec']
-    ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-    dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
-    print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
-
-    if info['target_alt'] is None:
-        # Assume RA/Dec target, unless Alt/Az is set
-        if info['target_ra'] is not None:
-            ra = info['target_ra']
-            ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-            print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
-        else:
-            print('Target RA:        NOT SET')
-        if info['target_dec'] is not None:
-            dec = info['target_dec']
-            dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-            print('Target Dec:       {:>11} / {:8.4f} deg'.format(dec_str, dec))
-        else:
-            print('Target Dec:       NOT SET')
-
-    print('Mount Alt:        {:7.3f} deg'.format(info['mount_alt']))
-    print('Mount Az:         {:7.3f} deg'.format(info['mount_az']))
-
-    if info['target_alt'] is not None:
-        print('Target Alt:       {:7.3f} deg'.format(info['target_alt']))
-        print('Target Az:        {:7.3f} deg'.format(info['target_az']))
-
-    if info['target_dist'] is not None:
-        print('Target distance:  {:7.3f} deg'.format(info['target_dist']))
-    else:
-        print('Target distance:  NO TARGET')
-
-    print('~~~~~~~')
-    if info['class'] == 'SITECH':
-        if info['trackrate_ra'] == 0:
-            print('RA track rate:    SIDEREAL')
-        else:
-            print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
-        if info['trackrate_dec'] == 0:
-            print('Dec track rate:   SIDEREAL')
-        else:
-            print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
-    elif info['class'] == 'ASA':
-        if info['error_status'] is not None:
-            t = Time(info['error_status_time'], format='unix', precision=0)
-            print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
-        if info['warning_status'] is not None:
-            t = Time(info['warning_status_time'], format='unix', precision=0)
-            print(style.ytxt('WARNING: "{}" (at {})'.format(info['warning_status'], t.iso)))
-        print('RA track rate:    {:>6.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
-        print('Dec track rate:   {:>6.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
-        print('RA tracking err:   {:+.4f} arcsec'.format(info['tracking_error']['ra']))
-        print('Dec tracking err:  {:+.4f} arcsec'.format(info['tracking_error']['dec']))
-        print('RA position err:   {:+.4f} arcsec'.format(info['position_error']['ra']))
-        print('Dec position err:  {:+.4f} arcsec'.format(info['position_error']['dec']))
-        print('RA current:         {:.1f} A'.format(info['motor_current']['ra']))
-        print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
-
-    print('~~~~~~~')
-    print('Hour Angle:       {:+6.2f} h'.format(info['mount_ha']))
-
-    lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
-    print('Sidereal Time:    {:>11}'.format(lst_str))
-
-    print('Sun alt:          {:+6.2f} deg'.format(info['sun_alt']))
-    print('Moon alt:         {:+6.2f} deg'.format(info['moon_alt']))
-    print('Moon phase:         {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
-    print('Moon distance:    {:6.2f} deg'.format(info['moon_dist']))
-
-    print('~~~~~~~')
-    print('Uptime: {:.1f}s'.format(info['uptime']))
-    print('Timestamp: {}'.format(info['timestamp']))
-    print('###########################')
-
-
-def print_info_s(info):
-    """Print the info dict in a compact way."""
-    status = info['status']
-    if status != 'Slewing':
-        if status == 'Tracking' and 'nonsidereal' in info and info['nonsidereal']:
-            status += ' (non-sidereal)'
-        print('MOUNT ({})        [{}]'.format(params.MOUNT_HOST, status))
-    else:
-        if info['target_dist']:
-            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.MOUNT_HOST,
-                                                                  info['target_dist']))
-        else:
-            print('MOUNT ({})        Slewing '.format(params.MOUNT_HOST))
-
-    alt, az = info['mount_alt'], info['mount_az']
-    ra, dec = info['mount_ra'], info['mount_dec']
-    ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-    dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-
-    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 360 / 24, alt))
-    print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
-    if info['moon_dist'] <= 30:
-        print(style.ytxt('  WARNING: Moon dist < 30 deg ({:.2f})'.format(info['moon_dist'])))
-    if info['error_status'] is not None:
-        t = Time(info['error_status_time'], format='unix', precision=0)
-        print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
-    if info['warning_status'] is not None:
-        t = Time(info['warning_status_time'], format='unix', precision=0)
-        print(style.ytxt('WARNING: "{}" (at {})'.format(info['warning_status'], t.iso)))
 
 
 if __name__ == '__main__':

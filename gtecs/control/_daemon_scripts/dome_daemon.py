@@ -8,6 +8,7 @@ from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
+from gtecs.control import style
 from gtecs.control.daemons import BaseDaemon, HardwareError
 from gtecs.control.flags import Conditions, ModeError, Status
 from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
@@ -1218,6 +1219,86 @@ class DomeDaemon(BaseDaemon):
         elif command == 'off' and self.autoshield_enabled:
             self.log.info('Disabling autoshield')
             self.autoshield_enabled = False
+
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = 'DOME:               [{}|{}]\n'.format(
+                info['a_side'].capitalize(), info['b_side'].capitalize())
+            if info['lockdown']:
+                msg += style.rtxt('   LOCKDOWN ACTIVE: {}\n'.format(
+                                 ';'.join(info['lockdown_reasons'])))
+            elif info['shielding']:
+                msg += style.ytxt('   WINDSHIELD ACTIVE\n')
+            msg += '   Autoclose:       [{}]\n'.format(
+                style.rtxt('Disabled') +
+                (f' for {info["autoclose_timeout"]-time.time():.1f}s'
+                 if info['autoclose_timeout'] is not None else '')
+                if not info['autoclose_enabled'] else 'Enabled')
+            msg += '   Windshield:      [{}]{} (Auto: {})\n'.format(
+                style.gtxt('On') if info['windshield_enabled'] else 'Off',
+                ' ' if info['windshield_enabled'] else '',
+                style.rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
+            msg += '   Dehumidifier:    [{}]{} (Auto: {})\n'.format(
+                style.gtxt('On') if info['dehumidifier_on'] else 'Off',
+                ' ' if info['dehumidifier_on'] else '',
+                style.rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            msg += '   Hatch:           [{}]\n'.format(
+                style.rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
+                else 'Closed')
+            msg += '   Alarm:           [{}]\n'.format(
+                style.rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
+            msg += '   Heartbeat:       [{}]\n'.format(
+                style.rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
+                else info['heartbeat_status'].capitalize())
+            if info['emergency']:
+                msg += style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
+                msg += style.rtxt('REASON(S): {}\n'.format(info['emergency_reasons']))
+            msg = msg.rstrip()
+        else:
+            msg = '######## DOME INFO ########\n'
+            msg += 'A side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
+                                               info['a_side'].capitalize())
+            msg += 'B side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
+                                               info['b_side'].capitalize())
+            msg += 'Autoclose:    {}\n'.format(
+                style.rtxt('Disabled') +
+                (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
+                 if info['autoclose_timeout'] is not None else '')
+                if not info['autoclose_enabled'] else 'Enabled')
+            msg += 'Windshield:   {}\n'.format(
+                style.gtxt('On') if info['windshield_enabled'] else 'Off')
+            msg += ' - Autoshield:  {}\n'.format(
+                style.rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
+            msg += 'Dehumidifier: {}\n'.format(
+                style.gtxt('On') if info['dehumidifier_on'] else 'Off')
+            msg += ' - Autodehum:   {}\n'.format(
+                style.rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            msg += 'Hatch:        {}\n'.format(
+                style.rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
+                else 'Closed')
+            msg += 'Alarm:        {}\n'.format(
+                style.rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
+            msg += 'Heartbeat:    {}\n'.format(
+                style.rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
+                else info['heartbeat_status'].capitalize())
+            msg += 'Lockdown:     {}\n'.format(
+                style.rtxt('ACTIVE') if info['lockdown'] else 'Clear')
+            if info['lockdown']:
+                msg += ' - Lockdown reasons:\n'
+                for reason in info['lockdown_reasons']:
+                    msg += style.rtxt('   {}\n'.format(reason))
+            msg += 'Shielding:    {}\n'.format(
+                style.ytxt('ACTIVE') if info['shielding'] else 'Clear')
+            if info['emergency']:
+                msg += style.rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
+                msg += style.rtxt('REASON(S): {}\n'.format(info['emergency_reasons']))
+            msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':

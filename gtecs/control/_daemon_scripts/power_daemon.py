@@ -477,6 +477,77 @@ class PowerDaemon(BaseDaemon):
         else:
             self.off_flag = 1
 
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for unit in params.POWER_UNITS:
+                unit_class = params.POWER_UNITS[unit]['CLASS']
+                ip = params.POWER_UNITS[unit]['IP']
+                if 'PORT' in params.POWER_UNITS[unit]:
+                    port = params.POWER_UNITS[unit]['PORT']
+                    port_str = ':{}'.format(port)
+                status = info['status_' + unit]
+                if 'status' in status:
+                    unit_status = status['status']
+                    msg += '{} ({}{})       [{}]\n'.format(unit, ip, port_str, unit_status)
+                else:
+                    msg += '{} ({}{})\n'.format(unit, ip, port_str)
+                if 'UPS' in unit_class:
+                    msg += '   Load: {: >5}%\n'.format(status['load'])
+                    msg += '   Remaining: {}% ({}s)\n'.format(status['percent'], status['time'])
+                if 'ATS' in unit_class:
+                    if status['source'] == 'A':
+                        source_status = status['status_A']
+                    else:
+                        source_status = status['status_B']
+                    msg += '   Current source: {} ({})\n'.format(status['source'], source_status)
+                if 'NAMES' in params.POWER_UNITS[unit]:
+                    names = params.POWER_UNITS[unit]['NAMES']
+                    for outlet in names:
+                        outlet_name = '({}):'.format(outlet)
+                        outlet_no = names.index(outlet) + 1
+                        outlet_status = status[outlet].capitalize()
+                        if outlet[0] != '_':
+                            msg += '   Outlet {:<2} {: <15} [{}]\n'.format(
+                                outlet_no, outlet_name, outlet_status)
+            msg = msg.rstrip()
+        else:
+            msg = '####### POWER INFO ########\n'
+            for unit in params.POWER_UNITS:
+                unit_class = params.POWER_UNITS[unit]['CLASS']
+                ip = params.POWER_UNITS[unit]['IP']
+                if 'PORT' in params.POWER_UNITS[unit]:
+                    port = params.POWER_UNITS[unit]['PORT']
+                    port_str = ':{}'.format(port)
+                msg += 'UNIT {} ({}{})\n'.format(unit, ip, port_str)
+                status = info['status_' + unit]
+                if 'UPS' in unit_class:
+                    msg += 'Status: {}\n'.format(status['status'])
+                    msg += 'Current load:       {}%\n'.format(status['load'])
+                    msg += 'Percent remaining:  {}%\n'.format(status['percent'])
+                    msg += 'Time remaining:     {}s\n'.format(status['time'])
+                if 'ATS' in unit_class:
+                    msg += 'Status: {}\n'.format(status['status'])
+                    msg += 'Current source:     {}\n'.format(status['source'])
+                    msg += 'Source A status:    {}\n'.format(status['status_A'])
+                    msg += 'Source B status:    {}\n'.format(status['status_B'])
+                if 'NAMES' in params.POWER_UNITS[unit]:
+                    names = params.POWER_UNITS[unit]['NAMES']
+                    for outlet in names:
+                        outlet_name = '({}):'.format(outlet)
+                        outlet_no = names.index(outlet) + 1
+                        outlet_status = status[outlet].capitalize()
+                        msg += 'Outlet {: <2} {: <15} {}\n'.format(
+                            outlet_no, outlet_name, outlet_status)
+                msg += '~~~~~~~\n'
+
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
+
 
 if __name__ == '__main__':
     daemon = PowerDaemon()
