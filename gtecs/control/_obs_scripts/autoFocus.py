@@ -346,14 +346,14 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
         print('~~~~~~')
         print('Sending best focus measurements to Slack...')
         from gtecs.control.slack import send_slack_msg
-        s = '*Autofocus results*\n'
-        s += 'Focus data at final position:\n'
-        s += '```' + repr(foc_data.round(1)) + '```\n'
+        msg = '*Autofocus results*\n'
+        msg += 'Focus data at final position:\n'
+        msg += '```' + repr(foc_data.round(1)) + '```\n'
         if len(failed_uts) > 0:
-            s += 'Failed to focus:\n'
+            msg += 'Failed to focus:\n'
             for ut in sorted(failed_uts):
-                s += '- UT{}: {}\n'.format(ut, failed_uts[ut])
-        send_slack_msg(s)
+                msg += '- UT{}: {}\n'.format(ut, failed_uts[ut])
+        send_slack_msg(msg)
 
     # Store the best focus data in a database
     foc_data['ts'] = Time.now().iso

@@ -215,14 +215,14 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
         if len(regions) == 1:
             print('HFDs:', {ut: np.round(all_data[0][ut][i]['hfd'], 1) for ut in uts})
         else:
-            s = 'HFDs:\n'
+            msg = 'HFDs:\n'
             for j, data in enumerate(all_data):
-                s += 'region {}: {}\n'.format(j, {ut: np.round(data[ut][i]['hfd'], 1)
-                                                  for ut in uts})
-            print(s[:-1])
+                msg += 'region {}: {}\n'.format(j, {ut: np.round(data[ut][i]['hfd'], 1)
+                                                    for ut in uts})
+            print(msg[:-1])
 
     all_dfs = []
-    s = 'Best HFDs:{}'.format('\n' if len(all_data) > 1 else ' ')
+    msg = 'Best HFDs:{}'.format('\n' if len(all_data) > 1 else ' ')
     for j, region_data in enumerate(all_data):
         # Make into dataframes
         region_dfs = {ut: pd.DataFrame(region_data[ut]) for ut in region_data}
@@ -244,11 +244,11 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
 
         # Print best HFDs if more than one exp was taken
         if len(all_data) > 1:
-            s += 'region {}: '.format(j)
-        s += '{}\n'.format(df['hfd'].round(1).to_dict())
+            msg += 'region {}: '.format(j)
+        msg += '{}\n'.format(df['hfd'].round(1).to_dict())
 
     if num_exp > 1:
-        print(s[:-1])
+        print(msg[:-1])
 
     if len(all_dfs) == 1:
         # backwards compatibility if there's only one region

@@ -142,23 +142,23 @@ class Exposure:
 
     def info(self):
         """Return a readable string of summary information about this Exposure."""
-        s = 'EXPOSURE \n'
-        s += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
-        s += '  Exposure time: {:.1f}s\n'.format(self.exptime)
-        s += '  Filter: {}\n'.format(self.filt)
-        s += '  Binning: {:.0f}x{:.0f}\n'.format(self.binning, self.binning)
-        s += '  Frame type: {}\n'.format(self.frametype)
-        s += '  Target: {}\n'.format(self.target)
-        s += '  Image type: {}\n'.format(self.imgtype)
-        s += '  Glance: {}\n'.format(self.glance)
-        s += '  Unit telescope(s): {}\n'.format(self.uts)
+        msg = 'EXPOSURE \n'
+        msg += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
+        msg += '  Exposure time: {:.1f}s\n'.format(self.exptime)
+        msg += '  Filter: {}\n'.format(self.filt)
+        msg += '  Binning: {:.0f}x{:.0f}\n'.format(self.binning, self.binning)
+        msg += '  Frame type: {}\n'.format(self.frametype)
+        msg += '  Target: {}\n'.format(self.target)
+        msg += '  Image type: {}\n'.format(self.imgtype)
+        msg += '  Glance: {}\n'.format(self.glance)
+        msg += '  Unit telescope(s): {}\n'.format(self.uts)
         if self.in_set:
-            s += '  Set number: {}\n'.format(self.set_num)
-            s += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
+            msg += '  Set number: {}\n'.format(self.set_num)
+            msg += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
         if self.from_database:
-            s += '  ExposureSet database ID: {}\n'.format(self.set_id)
-            s += '  Pointing database ID: {}\n'.format(self.pointing_id)
-        return s
+            msg += '  ExposureSet database ID: {}\n'.format(self.set_id)
+            msg += '  Pointing database ID: {}\n'.format(self.pointing_id)
+        return msg
 
     @property
     def in_set(self):
@@ -231,14 +231,14 @@ class ExposureQueue(MutableSequence):
 
     def get(self):
         """Return info() for all exposures in the queue."""
-        s = '{} items in queue:\n'.format(len(self.data))
+        msg = '{} items in queue:\n'.format(len(self.data))
         for n, exposure in enumerate(self.data):
-            s += '{:0>3.0f}: {}'.format(n + 1, exposure.info())
-        return s.rstrip()
+            msg += '{:0>3.0f}: {}'.format(n + 1, exposure.info())
+        return msg.rstrip()
 
     def get_simple(self):
         """Return string for all exposures in the queue."""
-        s = '{} items in queue:\n'.format(len(self.data))
+        msg = '{} items in queue:\n'.format(len(self.data))
         for n, exposure in enumerate(self.data):
-            s += '{:0>3.0f}: {}'.format(n + 1, exposure.as_line())
-        return s.rstrip()
+            msg += '{:0>3.0f}: {}'.format(n + 1, exposure.as_line())
+        return msg.rstrip()

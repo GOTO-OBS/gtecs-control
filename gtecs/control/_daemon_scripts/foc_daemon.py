@@ -81,9 +81,9 @@ class FocDaemon(BaseDaemon):
                         move_steps = self.move_steps[ut]
                         current_pos = self.info[ut]['current_pos']
                         new_pos = current_pos + move_steps
-                        s = 'Moving focuser {} {:+d} steps from {} to {} (moving)'.format(
+                        msg = 'Moving focuser {} {:+d} steps from {} to {} (moving)'.format(
                             ut, move_steps, current_pos, new_pos)
-                        self.log.info(s)
+                        self.log.info(msg)
 
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
@@ -110,9 +110,9 @@ class FocDaemon(BaseDaemon):
                         new_pos = self.set_position[ut]
                         current_pos = self.info[ut]['current_pos']
                         move_steps = new_pos - current_pos
-                        s += 'Moving focuser {} {:+d} steps from {} to {} (setting)'.format(
+                        msg = 'Moving focuser {} {:+d} steps from {} to {} (setting)'.format(
                             ut, move_steps, current_pos, new_pos)
-                        self.log.info(s)
+                        self.log.info(msg)
 
                         try:
                             with daemon_proxy(f'foc{ut}') as interface:
