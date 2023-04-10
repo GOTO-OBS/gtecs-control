@@ -357,8 +357,10 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
 
     # Store the best focus data in a database
     foc_data['ts'] = Time.now().iso
-    path = os.path.join(params.FILE_PATH, 'focus_data')
-    with sqlite3.connect(os.path.join(path, 'focus.db')) as db_con:
+    direc = os.path.join(params.FILE_PATH, 'focus_data')
+    if not os.path.exists(direc):
+        os.mkdir(direc)
+    with sqlite3.connect(os.path.join(direc, 'focus.db')) as db_con:
         foc_data.to_sql(name='best_focus', con=db_con, if_exists='append')
 
     print('Done')

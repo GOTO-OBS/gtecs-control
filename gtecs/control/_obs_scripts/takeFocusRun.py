@@ -266,10 +266,12 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
 
     # Save the plot
     if save_plot:
-        path = os.path.join(params.FILE_PATH, 'focus_data')
+        direc = os.path.join(params.FILE_PATH, 'focus_data')
+        if not os.path.exists(direc):
+            os.mkdir(direc)
         filename = 'focusplot_{}.png'.format(finish_time)
-        plt.savefig(os.path.join(path, filename))
-        print('Saved to {}'.format(os.path.join(path, filename)))
+        plt.savefig(os.path.join(direc, filename))
+        print('Saved to {}'.format(os.path.join(direc, filename)))
 
     plt.show()
 
@@ -435,10 +437,12 @@ def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=No
 
         # Save the plot
         if save_plot:
-            path = os.path.join(params.FILE_PATH, 'focus_data')
+            direc = os.path.join(params.FILE_PATH, 'focus_data')
+            if not os.path.exists(direc):
+                os.mkdir(direc)
             filename = 'focusplot_{}_UT{}.png'.format(finish_time, ut)
-            plt.savefig(os.path.join(path, filename))
-            print('Saved to {}'.format(os.path.join(path, filename)))
+            plt.savefig(os.path.join(direc, filename))
+            print('Saved to {}'.format(os.path.join(direc, filename)))
 
         plt.show()
 
@@ -559,11 +563,13 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     # Write out data
     print('~~~~~~')
     print('Writing out data to file...')
-    path = os.path.join(params.FILE_PATH, 'focus_data')
+    direc = os.path.join(params.FILE_PATH, 'focus_data')
+    if not os.path.exists(direc):
+        os.mkdir(direc)
     filename = 'focusdata_{}.csv'.format(finish_time)
     df = pd.concat(all_data)
-    df.to_csv(os.path.join(path, filename))
-    print('Saved to {}'.format(os.path.join(path, filename)))
+    df.to_csv(os.path.join(direc, filename))
+    print('Saved to {}'.format(os.path.join(direc, filename)))
 
     # Fit to data
     print('~~~~~~')
@@ -588,8 +594,8 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
         fit_df = pd.concat(fit_df)
 
     filename = 'focusfit_{}.csv'.format(finish_time)
-    fit_df.to_csv(os.path.join(path, filename))
-    print('Saved to {}'.format(os.path.join(path, filename)))
+    fit_df.to_csv(os.path.join(direc, filename))
+    print('Saved to {}'.format(os.path.join(direc, filename)))
 
     # Make plots
     if not no_plot:
