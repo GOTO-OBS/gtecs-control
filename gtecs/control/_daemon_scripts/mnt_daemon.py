@@ -763,7 +763,7 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
             raise errors.HardwareStatusError('Mount motors are powered off')
-        if not not self._within_limits(self.current_position):
+        if not self._within_limits(self.current_position):
             raise errors.HardwareStatusError('Mount is past limits, cannot track')
 
         # Set flag
