@@ -973,15 +973,15 @@ def update_header(header, ut, all_info, log=None):
 
         info = all_info['dome']
 
-        north_status = info['north']
-        south_status = info['south']
-        if north_status == 'ERROR' or south_status == 'ERROR':
+        a_side = info['a_side']
+        b_side = info['b_side']
+        if a_side == 'ERROR' or b_side == 'ERROR':
             dome_status = 'ERROR'
-        elif north_status == 'closed' and south_status == 'closed':
+        elif a_side == 'closed' and b_side == 'closed':
             dome_status = 'closed'
-        elif north_status == 'full_open' and south_status == 'full_open':
+        elif a_side == 'full_open' and b_side == 'full_open':
             dome_status = 'full_open'
-        elif north_status == 'part_open' or south_status == 'part_open':
+        elif a_side == 'part_open' or b_side == 'part_open':
             dome_status = 'part_open'
         else:
             dome_status = 'ERROR'

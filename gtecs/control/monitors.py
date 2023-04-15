@@ -454,21 +454,21 @@ class DomeMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        north = info['north']
-        south = info['south']
+        a_side = info['a_side']
+        b_side = info['b_side']
         shielding = info['shielding']
         # store shielding status on the monitor for the pilot
         self.shielding_active = shielding
 
-        if north == 'closed' and south == 'closed':
+        if a_side == 'closed' and b_side == 'closed':
             hardware_status = STATUS_DOME_CLOSED
-        elif north == 'full_open' and south == 'full_open':
+        elif a_side == 'full_open' and b_side == 'full_open':
             hardware_status = STATUS_DOME_FULLOPEN
-        elif north == 'part_open' and south == 'part_open' and shielding:
+        elif a_side == 'part_open' and b_side == 'part_open' and shielding:
             hardware_status = STATUS_DOME_FULLOPEN  # no need for STATUS_DOME_SHIELDING
-        elif north in ['opening', 'closing'] or south in ['opening', 'closing']:
+        elif a_side in ['opening', 'closing'] or b_side in ['opening', 'closing']:
             hardware_status = STATUS_DOME_MOVING
-        elif north in ['part_open', 'full_open'] or south in ['part_open', 'full_open']:
+        elif a_side in ['part_open', 'full_open'] or b_side in ['part_open', 'full_open']:
             hardware_status = STATUS_DOME_PARTOPEN
         else:
             hardware_status = STATUS_UNKNOWN

@@ -41,8 +41,8 @@ def wait_for_dome(target_position, timeout=None):
             dome_info = daemon_info('dome', force_update=True)
 
             done = [dome_info['dome'] == target_position.lower() and
-                    dome_info['north'] == target_position.lower() and
-                    dome_info['south'] == target_position.lower()]
+                    dome_info['a_side'] == target_position.lower() and
+                    dome_info['b_side'] == target_position.lower()]
             if np.all(done):
                 reached_position = True
         except Exception:

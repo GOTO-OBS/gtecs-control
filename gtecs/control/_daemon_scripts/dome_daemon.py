@@ -129,12 +129,12 @@ class DomeDaemon(BaseDaemon):
             if self.open_flag:
                 try:
                     # chose the side to move
-                    if self.move_side == 'south':
-                        side = 'south'
-                    elif self.move_side == 'north':
-                        side = 'north'
+                    if self.move_side == 'a_side':
+                        side = 'a_side'
+                    elif self.move_side == 'b_side':
+                        side = 'b_side'
                     elif self.move_side == 'both':
-                        side = 'south'
+                        side = 'a_side'  # start with 3-shutter side, so top shutter goes first
                     elif self.move_side == 'none':
                         self.log.info('Finished moving')
                         self.last_move_time = self.loop_time
@@ -148,15 +148,15 @@ class DomeDaemon(BaseDaemon):
                     if self.open_flag and not self.move_started:
                         # before we start check if it's already there
                         if self.info[side] == 'full_open':
-                            self.log.info('The {} side is already open'.format(side))
+                            self.log.info('The "{}" side is already open'.format(side[0]))
                             if self.move_side == 'both':
-                                self.move_side = 'north'
+                                self.move_side = 'b_side'  # 2-shutter side second
                             else:
                                 self.move_side = 'none'
                         # otherwise ready to start moving
                         else:
                             try:
-                                self.log.info('Opening {} side of dome'.format(side))
+                                self.log.info('Opening "{}" side of dome'.format(side[0]))
                                 if params.DOME_HAS_BUMPERGUARD:
                                     self.dome.reset_bumperguard()
                                 if self.alarm_enabled:
@@ -185,19 +185,19 @@ class DomeDaemon(BaseDaemon):
                             self.open_flag = 0
                         # we should be at the target
                         elif self.move_frac == 1:
-                            self.log.info('The {} side is open'.format(side))
+                            self.log.info('The "{}" side is open'.format(side[0]))
                             self.move_started = 0
                             self.move_start_time = 0
                             if self.move_side == 'both':
-                                self.move_side = 'north'
+                                self.move_side = 'b_side'  # 2-shutter side second
                             else:
                                 self.move_side = 'none'
                         elif self.move_frac != 1:
-                            self.log.info('The {} side moved requested fraction'.format(side))
+                            self.log.info('The "{}" side moved requested fraction'.format(side[0]))
                             self.move_started = 0
                             self.move_start_time = 0
                             if self.move_side == 'both':
-                                self.move_side = 'north'
+                                self.move_side = 'b_side'  # 2-shutter side second
                             else:
                                 self.move_side = 'none'
                 except Exception:
@@ -209,12 +209,12 @@ class DomeDaemon(BaseDaemon):
             if self.close_flag:
                 try:
                     # chose the side to move
-                    if self.move_side == 'south':
-                        side = 'south'
-                    elif self.move_side == 'north':
-                        side = 'north'
+                    if self.move_side == 'a_side':
+                        side = 'a_side'
+                    elif self.move_side == 'b_side':
+                        side = 'b_side'
                     elif self.move_side == 'both':
-                        side = 'north'
+                        side = 'b_side'  # start with 2-shutter side, then top shutter goes over
                     elif self.move_side == 'none':
                         self.log.info('Finished moving')
                         self.last_move_time = self.loop_time
@@ -228,15 +228,15 @@ class DomeDaemon(BaseDaemon):
                     if self.close_flag and not self.move_started:
                         # before we start check if it's already there
                         if self.info[side] == 'closed':
-                            self.log.info('The {} side is already closed'.format(side))
+                            self.log.info('The "{}" side is already closed'.format(side[0]))
                             if self.move_side == 'both':
-                                self.move_side = 'south'
+                                self.move_side = 'a_side'   # 3-shutter side second
                             else:
                                 self.move_side = 'none'
                         # otherwise ready to start moving
                         else:
                             try:
-                                self.log.info('Closing {} side of dome'.format(side))
+                                self.log.info('Closing "{}" side of dome'.format(side[0]))
                                 if params.DOME_HAS_BUMPERGUARD:
                                     self.dome.reset_bumperguard()
                                 if self.alarm_enabled:
@@ -265,19 +265,19 @@ class DomeDaemon(BaseDaemon):
                             self.close_flag = 0
                         # we should be at the target
                         elif self.move_frac == 1:
-                            self.log.info('The {} side is closed'.format(side))
+                            self.log.info('The "{}" side is closed'.format(side[0]))
                             self.move_started = 0
                             self.move_start_time = 0
                             if self.move_side == 'both':
-                                self.move_side = 'south'
+                                self.move_side = 'a_side'   # 3-shutter side second
                             else:
                                 self.move_side = 'none'
                         elif self.move_frac != 1:
-                            self.log.info('The {} side moved requested fraction'.format(side))
+                            self.log.info('The "{}" side moved requested fraction'.format(side[0]))
                             self.move_started = 0
                             self.move_start_time = 0
                             if self.move_side == 'both':
-                                self.move_side = 'south'
+                                self.move_side = 'a_side'   # 3-shutter side second
                             else:
                                 self.move_side = 'none'
                 except Exception:
@@ -487,15 +487,15 @@ class DomeDaemon(BaseDaemon):
         # Get info from the dome
         try:
             dome_status = self.dome.status
-            temp_info['north'] = dome_status['north']
-            temp_info['south'] = dome_status['south']
+            temp_info['a_side'] = dome_status['a_side']
+            temp_info['b_side'] = dome_status['b_side']
             temp_info['hatch'] = dome_status['hatch']
             temp_info['status_update_time'] = self.dome.status_update_time
 
             # general, backwards-compatible open/closed
-            if ('open' in temp_info['north']) or ('open' in temp_info['south']):
+            if ('open' in temp_info['a_side']) or ('open' in temp_info['b_side']):
                 temp_info['dome'] = 'open'
-            elif (temp_info['north'] == 'closed') and (temp_info['south'] == 'closed'):
+            elif (temp_info['a_side'] == 'closed') and (temp_info['b_side'] == 'closed'):
                 temp_info['dome'] = 'closed'
             else:
                 temp_info['dome'] = 'ERROR'
@@ -510,8 +510,8 @@ class DomeDaemon(BaseDaemon):
         except Exception:
             self.log.error('Failed to get dome info')
             self.log.debug('', exc_info=True)
-            temp_info['north'] = None
-            temp_info['south'] = None
+            temp_info['a_side'] = None
+            temp_info['b_side'] = None
             temp_info['hatch'] = None
             temp_info['dome'] = None
             temp_info['hatch_closed'] = None
@@ -921,8 +921,8 @@ class DomeDaemon(BaseDaemon):
 
         # Check if we are currently shielding
         if (self.shielding and
-                self.info['north'] in ['full_open', 'closed'] and
-                self.info['south'] in ['full_open', 'closed'] and
+                self.info['a_side'] in ['full_open', 'closed'] and
+                self.info['b_side'] in ['full_open', 'closed'] and
                 not self.open_flag and not self.close_flag):
             # The dome must have moved some other way, either manually or via autoclose
             # Or the flag has just been set and it hasn't started moving yet (the alarm is going)
@@ -931,7 +931,7 @@ class DomeDaemon(BaseDaemon):
 
         # Decide if we need to raise or lower shields
         if (self.windshield_enabled and
-                (self.info['north'] == 'full_open' or self.info['south'] == 'full_open') and
+                (self.info['a_side'] == 'full_open' or self.info['b_side'] == 'full_open') and
                 not self.open_flag and not self.close_flag):
             self.log.warning('Moving dome shutters to windshield position')
             self.shielding = True
@@ -943,7 +943,7 @@ class DomeDaemon(BaseDaemon):
             self.move_frac = params.DOME_WINDSHIELD_POSITION
 
         elif (self.shielding and not self.windshield_enabled and
-              (self.info['north'] == 'part_open' or self.info['south'] == 'part_open') and
+              (self.info['a_side'] == 'part_open' or self.info['b_side'] == 'part_open') and
               not self.open_flag and not self.close_flag):
             self.log.warning('Moving dome shutters to full open')
             self.shielding = False
@@ -988,8 +988,8 @@ class DomeDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Dome is in lockdown')
 
         # Check input
-        if side not in ['north', 'south', 'both']:
-            raise ValueError('Side must be one of "north", "south" or "both"')
+        if side not in ['a_side', 'b_side', 'both']:
+            raise ValueError('Side must be one of "a_side", "b_side" or "both"')
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
 
@@ -1001,19 +1001,19 @@ class DomeDaemon(BaseDaemon):
             self.halt_flag = 1
             time.sleep(3)
         self.wait_for_info()
-        north_status = self.info['north']
-        south_status = self.info['south']
-        if side == 'north' and north_status == 'full_open':
-            return 'The north side is already fully open'
-        elif side == 'south' and south_status == 'full_open':
-            return 'The south side is already fully open'
+        a_side_status = self.info['a_side']
+        b_side_status = self.info['b_side']
+        if side == 'a_side' and a_side_status == 'full_open':
+            return 'The "a" side is already fully open'
+        elif side == 'b_side' and b_side_status == 'full_open':
+            return 'The "b"" side is already fully open'
         elif side == 'both':
-            if north_status == 'full_open' and south_status == 'full_open':
+            if a_side_status == 'full_open' and b_side_status == 'full_open':
                 return 'The dome is already fully open'
-            elif north_status == 'full_open' and south_status != 'full_open':
-                side = 'south'
-            elif north_status != 'full_open' and south_status == 'full_open':
-                side = 'north'
+            elif a_side_status == 'full_open' and b_side_status != 'full_open':
+                side = 'b_side'
+            elif a_side_status != 'full_open' and b_side_status == 'full_open':
+                side = 'a_side'
 
         # Set values
         self.move_side = side
@@ -1028,8 +1028,8 @@ class DomeDaemon(BaseDaemon):
     def close_dome(self, side='both', frac=1):
         """Close the dome."""
         # Check input
-        if side not in ['north', 'south', 'both']:
-            raise ValueError('Side must be one of "north", "south" or "both"')
+        if side not in ['a_side', 'b_side', 'both']:
+            raise ValueError('Side must be one of "a_side", "b_side" or "both"')
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
 
@@ -1041,19 +1041,19 @@ class DomeDaemon(BaseDaemon):
             self.halt_flag = 1
             time.sleep(3)
         self.wait_for_info()
-        north_status = self.info['north']
-        south_status = self.info['south']
-        if side == 'north' and north_status == 'closed':
-            return 'The north side is already fully closed'
-        elif side == 'south' and south_status == 'closed':
-            return 'The south side is already fully closed'
+        a_side_status = self.info['a_side']
+        b_side_status = self.info['b_side']
+        if side == 'a_side' and a_side_status == 'closed':
+            return 'The "a" side is already fully closed'
+        elif side == 'b_side' and b_side_status == 'closed':
+            return 'The "b" side is already fully closed'
         elif side == 'both':
-            if north_status == 'closed' and south_status == 'closed':
+            if a_side_status == 'closed' and b_side_status == 'closed':
                 return 'The dome is already fully closed'
-            elif north_status == 'closed' and south_status != 'closed':
-                side = 'south'
-            elif north_status != 'closed' and south_status == 'closed':
-                side = 'north'
+            elif a_side_status != 'closed' and b_side_status == 'closed':
+                side = 'a_side'
+            elif a_side_status == 'closed' and b_side_status != 'closed':
+                side = 'b_side'
 
         # Set values
         self.move_side = side

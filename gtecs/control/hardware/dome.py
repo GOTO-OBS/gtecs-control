@@ -87,33 +87,34 @@ class FakeDome:
         return
 
     def _check_status(self):
-        status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
+        status = {'a_side': 'ERROR', 'b_side': 'ERROR', 'hatch': 'ERROR'}
         self._read_temp()
-        # north
-        if self._status_arr[0] == 0:
-            status['north'] = 'closed'
-        elif self._status_arr[0] == 9:
-            status['north'] = 'full_open'
-        elif self.output_thread_running and self._moving_side == 'north':
-            if self._moving_command == 'open':
-                status['north'] = 'opening'
-            elif self._moving_command == 'close':
-                status['north'] = 'closing'
-        else:
-            status['north'] = 'part_open'
 
-        # south
-        if self._status_arr[1] == 0:
-            status['south'] = 'closed'
-        elif self._status_arr[1] == 9:
-            status['south'] = 'full_open'
-        elif self.output_thread_running and self._moving_side == 'south':
+        # "a" side
+        if self._status_arr[0] == 0:
+            status['a_side'] = 'closed'
+        elif self._status_arr[0] == 9:
+            status['a_side'] = 'full_open'
+        elif self.output_thread_running and self._moving_side == 'a_side':
             if self._moving_command == 'open':
-                status['south'] = 'opening'
+                status['a_side'] = 'opening'
             elif self._moving_command == 'close':
-                status['south'] = 'closing'
+                status['a_side'] = 'closing'
         else:
-            status['south'] = 'part_open'
+            status['a_side'] = 'part_open'
+
+        # "b" side
+        if self._status_arr[1] == 0:
+            status['b_side'] = 'closed'
+        elif self._status_arr[1] == 9:
+            status['b_side'] = 'full_open'
+        elif self.output_thread_running and self._moving_side == 'b_side':
+            if self._moving_command == 'open':
+                status['b_side'] = 'opening'
+            elif self._moving_command == 'close':
+                status['b_side'] = 'closing'
+        else:
+            status['b_side'] = 'part_open'
 
         # hatch (never actually opens...)
         if self._status_arr[2] == 0:
@@ -124,9 +125,9 @@ class FakeDome:
         return status
 
     def _output_thread(self, side, command, frac):
-        if side == 'north':
+        if side == 'a_side':
             i_side = 0
-        elif side == 'south':
+        elif side == 'b_side':
             i_side = 1
         else:
             raise ValueError('Invalid side: {}'.format(side))
@@ -279,25 +280,25 @@ class AstroHavenDome:
 
         self.status = None
 
-        self.plc_status = {'north': 'ERROR', 'south': 'ERROR'}
+        self.plc_status = {'a_side': 'ERROR', 'b_side': 'ERROR'}
         self.old_plc_status = None
         self.plc_error = False
 
-        self.switch_status = {'north': 'ERROR', 'south': 'ERROR', 'hatch': 'ERROR'}
+        self.switch_status = {'a_side': 'ERROR', 'b_side': 'ERROR', 'hatch': 'ERROR'}
         self.old_switch_status = None
         self.switch_error = False
 
-        self.full_open = {'north': False, 'south': False}
-        self.honeywell_was_triggered = {'north': False, 'south': False}
+        self.full_open = {'a_side': False, 'b_side': False}
+        self.honeywell_was_triggered = {'a_side': False, 'b_side': False}
 
-        self.move_code = {'south': {'open': b'a', 'close': b'A'},
-                          'north': {'open': b'b', 'close': b'B'}}
+        self.move_code = {'a_side': {'open': b'a', 'close': b'A'},
+                          'b_side': {'open': b'b', 'close': b'B'}}
         self.reset_code = b'R'
 
-        self.move_time = {'south': {'open': params.DOME_OPEN_SOUTH_TIME,
-                                    'close': params.DOME_CLOSE_SOUTH_TIME},
-                          'north': {'open': params.DOME_OPEN_NORTH_TIME,
-                                    'close': params.DOME_CLOSE_NORTH_TIME}}
+        self.move_time = {'a_side': {'open': params.DOME_OPEN_ASIDE_TIME,
+                                     'close': params.DOME_CLOSE_ASIDE_TIME},
+                          'b_side': {'open': params.DOME_OPEN_BSIDE_TIME,
+                                     'close': params.DOME_CLOSE_BSIDE_TIME}}
 
         self.output_thread_running = False
         self.status_thread_running = False
@@ -352,8 +353,8 @@ class AstroHavenDome:
                     if self.log:
                         self.log.error('Could not communicate with the PLC')
                     self.plc_error = True
-                    self.plc_status['north'] = 'ERROR'
-                    self.plc_status['south'] = 'ERROR'
+                    self.plc_status['a_side'] = 'ERROR'
+                    self.plc_status['b_side'] = 'ERROR'
 
     def _parse_plc_status(self, status_character):
         # save previous status
@@ -362,56 +363,56 @@ class AstroHavenDome:
         # returned when we're NOT sending command bytes
         # note the open status depends on the full_open flags
         if status_character == '0':
-            self.plc_status['north'] = 'closed'
-            self.plc_status['south'] = 'closed'
+            self.plc_status['a_side'] = 'closed'
+            self.plc_status['b_side'] = 'closed'
         elif status_character == '1':
-            if self.full_open['north']:
-                self.plc_status['north'] = 'full_open'
+            self.plc_status['a_side'] = 'closed'
+            if self.full_open['b_side']:
+                self.plc_status['b_side'] = 'full_open'
             else:
-                self.plc_status['north'] = 'part_open'
-            self.plc_status['south'] = 'closed'
+                self.plc_status['b_side'] = 'part_open'
         elif status_character == '2':
-            self.plc_status['north'] = 'closed'
-            if self.full_open['south']:
-                self.plc_status['south'] = 'full_open'
+            if self.full_open['a_side']:
+                self.plc_status['a_side'] = 'full_open'
             else:
-                self.plc_status['south'] = 'part_open'
+                self.plc_status['a_side'] = 'part_open'
+            self.plc_status['b_side'] = 'closed'
         elif status_character == '3':
-            if self.full_open['north']:
-                self.plc_status['north'] = 'full_open'
+            if self.full_open['a_side']:
+                self.plc_status['a_side'] = 'full_open'
             else:
-                self.plc_status['north'] = 'part_open'
-            if self.full_open['south']:
-                self.plc_status['south'] = 'full_open'
+                self.plc_status['a_side'] = 'part_open'
+            if self.full_open['b_side']:
+                self.plc_status['b_side'] = 'full_open'
             else:
-                self.plc_status['south'] = 'part_open'
+                self.plc_status['b_side'] = 'part_open'
         # Moving statuses
         # returned when we ARE sending command bytes
         # note here we set the full_open flag, since we only get that info when a move has finished
         elif status_character == 'a':
-            self.plc_status['south'] = 'opening'
-            self.full_open['south'] = False
+            self.plc_status['a_side'] = 'opening'
+            self.full_open['a_side'] = False
         elif status_character == 'A':
-            self.plc_status['south'] = 'closing'
-            self.full_open['south'] = False
+            self.plc_status['a_side'] = 'closing'
+            self.full_open['a_side'] = False
         elif status_character == 'b':
-            self.plc_status['north'] = 'opening'
-            self.full_open['north'] = False
+            self.plc_status['b_side'] = 'opening'
+            self.full_open['b_side'] = False
         elif status_character == 'B':
-            self.plc_status['north'] = 'closing'
-            self.full_open['north'] = False
+            self.plc_status['b_side'] = 'closing'
+            self.full_open['b_side'] = False
         elif status_character == 'x':
-            self.plc_status['south'] = 'full_open'
-            self.full_open['south'] = True
+            self.plc_status['a_side'] = 'full_open'
+            self.full_open['a_side'] = True
         elif status_character == 'X':
-            self.plc_status['south'] = 'closed'
-            self.full_open['south'] = False
+            self.plc_status['a_side'] = 'closed'
+            self.full_open['a_side'] = False
         elif status_character == 'y':
-            self.plc_status['north'] = 'full_open'
-            self.full_open['north'] = True
+            self.plc_status['b_side'] = 'full_open'
+            self.full_open['b_side'] = True
         elif status_character == 'Y':
-            self.plc_status['north'] = 'closed'
-            self.full_open['north'] = False
+            self.plc_status['b_side'] = 'closed'
+            self.full_open['b_side'] = False
         # Other return commands
         elif status_character == 'R':
             # We just sent an 'R' to reset the bumper guards
@@ -436,8 +437,8 @@ class AstroHavenDome:
             raise ValueError('Unexpected switch status: {}'.format(data))
 
         switch_dict = {'all_closed': bool(data['switch_a']),
-                       'north_open': bool(data['switch_b']),
-                       'south_open': bool(data['switch_c']),
+                       'a_side_open': bool(data['switch_b']),
+                       'b_side_open': bool(data['switch_c']),
                        'hatch_closed': bool(data['switch_d']),
                        }
         return switch_dict
@@ -451,16 +452,16 @@ class AstroHavenDome:
 
         if 'Hatch' not in data or data['Hatch'] not in [0, 1]:
             raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'North Limit' not in data or data['North Limit'] not in [0, 1]:
+        if 'A Limit' not in data or data['A Limit'] not in [0, 1]:
             raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'South Limit' not in data or data['South Limit'] not in [0, 1]:
+        if 'B Limit' not in data or data['B Limit'] not in [0, 1]:
             raise ValueError('Unexpected switch status: {}'.format(data))
         if 'Full Close' not in data or data['Full Close'] not in [0, 1]:
             raise ValueError('Unexpected switch status: {}'.format(data))
 
         switch_dict = {'all_closed': bool(data['Full Close']),
-                       'north_open': bool(data['North Limit']),
-                       'south_open': bool(data['South Limit']),
+                       'a_side_open': bool(data['A Limit']),
+                       'b_side_open': bool(data['B Limit']),
                        'hatch_closed': bool(data['Hatch']),
                        }
         return switch_dict
@@ -475,16 +476,16 @@ class AstroHavenDome:
 
         if 'hatch_closed' not in data or data['hatch_closed_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'north_shutter_open' not in data or data['north_shutter_open_valid'] is False:
+        if 'a_side_shutter_open' not in data or data['a_side_shutter_open_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'south_shutter_open' not in data or data['south_shutter_open_valid'] is False:
+        if 'b_side_shutter_open' not in data or data['b_side_shutter_open_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
         if 'shutters_closed' not in data or data['shutters_closed_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
 
         switch_dict = {'all_closed': bool(data['shutters_closed']),
-                       'north_open': bool(data['north_shutter_open']),
-                       'south_open': bool(data['south_shutter_open']),
+                       'a_side_open': bool(data['a_side_shutter_open']),
+                       'b_side_open': bool(data['b_side_shutter_open']),
                        'hatch_closed': bool(data['hatch_closed']),
                        }
         return switch_dict
@@ -524,29 +525,29 @@ class AstroHavenDome:
 
         # no source of switches
         if switch_dict is None:
-            self.switch_status = {'north': 'unknown', 'south': 'unknown', 'hatch': 'unknown'}
+            self.switch_status = {'a_side': 'unknown', 'b_side': 'unknown', 'hatch': 'unknown'}
             return
 
         # we should have switch info
         try:
             if switch_dict['all_closed']:
-                if not switch_dict['north_open']:
-                    self.switch_status['north'] = 'closed'
+                if not switch_dict['a_side_open']:
+                    self.switch_status['a_side'] = 'closed'
                 else:
-                    self.switch_status['north'] = 'ERROR'
-                if not switch_dict['south_open']:
-                    self.switch_status['south'] = 'closed'
+                    self.switch_status['a_side'] = 'ERROR'
+                if not switch_dict['b_side_open']:
+                    self.switch_status['b_side'] = 'closed'
                 else:
-                    self.switch_status['south'] = 'ERROR'
+                    self.switch_status['b_side'] = 'ERROR'
             else:
-                if switch_dict['north_open']:
-                    self.switch_status['north'] = 'full_open'
+                if switch_dict['a_side_open']:
+                    self.switch_status['a_side'] = 'full_open'
                 else:
-                    self.switch_status['north'] = 'part_open'
-                if switch_dict['south_open']:
-                    self.switch_status['south'] = 'full_open'
+                    self.switch_status['a_side'] = 'part_open'
+                if switch_dict['b_side_open']:
+                    self.switch_status['b_side'] = 'full_open'
                 else:
-                    self.switch_status['south'] = 'part_open'
+                    self.switch_status['b_side'] = 'part_open'
 
             if switch_dict['hatch_closed']:
                 self.switch_status['hatch'] = 'closed'
@@ -562,12 +563,12 @@ class AstroHavenDome:
             # OR WAIT FOR IT TO HAPPEN
             # FINGERS CROSSED
 
-            for side in ['north', 'south']:
+            for side in ['a_side', 'b_side']:
                 # find the current status
-                if side == 'north':
-                    honeywell_triggered = switch_dict['north_open']
+                if side == 'a_side':
+                    honeywell_triggered = switch_dict['a_side_open']
                 else:
-                    honeywell_triggered = switch_dict['south_open']
+                    honeywell_triggered = switch_dict['b_side_open']
 
                 # if the honeywell is triggered now, store it
                 if honeywell_triggered:
@@ -605,7 +606,7 @@ class AstroHavenDome:
         status = {}
 
         # dome logic
-        for side in ['north', 'south']:
+        for side in ['a_side', 'b_side']:
             plc_status = self.plc_status[side]
             switch_status = self.switch_status[side]
 
@@ -727,9 +728,9 @@ class AstroHavenDome:
                 self.log.debug('plc SEND:"{}" ({} {} {})'.format(
                     self.move_code[side][command].decode(), side, frac, command))
 
-            if (side == 'south' and start_position == 'closed' and command == 'open' and
+            if (side == 'a_side' and start_position == 'closed' and command == 'open' and
                     running_time < params.DOME_STUTTER_TIME):
-                # Used to "stutter step" the south side when opening,
+                # Used to "stutter step" the a side (3 shutters) when opening,
                 # so that the top shutter doesn't jerk on the belts when it tips over.
                 time.sleep(params.DOME_STUTTER_TIMESTEP)
             else:
