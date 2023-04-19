@@ -485,10 +485,10 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
 
     # Confirm
     if not no_confirm:
-        go = ''
-        while go not in ['y', 'n']:
-            go = input('Continue? [y/n]: ')
-        if go == 'n':
+        cont = 'na'
+        while cont.lower() not in ['', 'y', 'n']:
+            cont = input('Continue? [Y/n]: ')
+        if cont.lower() == 'n':
             sys.exit()
 
     # make sure hardware is ready

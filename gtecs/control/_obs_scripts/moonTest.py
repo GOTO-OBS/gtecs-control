@@ -47,9 +47,9 @@ def run():
     print('Estimated total time: {} mins'.format(total_exptime + total_readout + total_slew))
 
     cont = 'na'
-    while cont not in ['y', 'n']:
-        cont = input('Continue? [y/n]: ')
-    if cont == 'n':
+    while cont.lower() not in ['', 'y', 'n']:
+        cont = input('Continue? [Y/n]: ')
+    if cont.lower() == 'n':
         sys.exit()
 
     print('OK, starting routine...')

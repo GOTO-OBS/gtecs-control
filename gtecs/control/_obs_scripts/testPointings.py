@@ -46,9 +46,9 @@ def run(n_alt, n_az, num_exp, exp_list, filt, min_moonsep):
     print('Estimated total time: {:.1f} mins'.format(total_exptime + total_readout + total_slew))
 
     cont = 'na'
-    while cont not in ['y', 'n']:
-        cont = input('Continue? [y/n]: ')
-    if cont == 'n':
+    while cont.lower() not in ['', 'y', 'n']:
+        cont = input('Continue? [Y/n]: ')
+    if cont.lower() == 'n':
         sys.exit()
 
     print('OK, starting routine...')
