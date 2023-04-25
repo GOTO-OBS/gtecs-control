@@ -290,12 +290,13 @@ def print_info(info):
     print(' - Autoshield:  {}'.format(style.rtxt('Disabled')
                                       if not info['autoshield_enabled']
                                       else 'Enabled'))
-    print('Dehumidifier:   {}'.format(style.gtxt('On')
-                                      if info['dehumidifier_on']
-                                      else 'Off'))
-    print(' - Autodehum:   {}'.format(style.rtxt('Disabled')
-                                      if not info['autodehum_enabled']
-                                      else 'Enabled'))
+    if params.DOME_HAS_DEHUMIDIFIER:
+        print('Dehumidifier:   {}'.format(style.gtxt('On')
+                                          if info['dehumidifier_on']
+                                          else 'Off'))
+        print(' - Autodehum:   {}'.format(style.rtxt('Disabled')
+                                          if not info['autodehum_enabled']
+                                          else 'Enabled'))
     print('Hatch:          {}'.format(style.rtxt(info['hatch'].capitalize())
                                       if info['hatch_closed'] is not True
                                       else 'Closed'))
@@ -340,13 +341,14 @@ def print_info_s(info):
                                                          style.rtxt('Disabled')
                                                          if not info['autoshield_enabled']
                                                          else 'Enabled'))
-    print('   Dehumidifier:    [{}]{} (Auto: {})'.format(style.gtxt('On')
-                                                         if info['dehumidifier_on']
-                                                         else 'Off',
-                                                         ' ' if info['dehumidifier_on'] else '',
-                                                         style.rtxt('Disabled')
-                                                         if not info['autodehum_enabled']
-                                                         else 'Enabled'))
+    if params.DOME_HAS_DEHUMIDIFIER:
+        print('   Dehumidifier:    [{}]{} (Auto: {})'.format(style.gtxt('On')
+                                                             if info['dehumidifier_on']
+                                                             else 'Off',
+                                                             ' ' if info['dehumidifier_on'] else '',
+                                                             style.rtxt('Disabled')
+                                                             if not info['autodehum_enabled']
+                                                             else 'Enabled'))
     print('   Hatch:           [{}]'.format(style.rtxt(info['hatch'].capitalize())
                                             if info['hatch_closed'] is not True
                                             else 'Closed'))

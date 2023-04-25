@@ -442,7 +442,7 @@ class DomeDaemon(BaseDaemon):
                 self.bad_hardware.add('heartbeat')
 
         # Connect to the dehumidifer
-        if self.dehumidifier is None:
+        if self.dehumidifier is None and params.DOME_HAS_DEHUMIDIFIER:
             if params.FAKE_DOME:
                 self.dehumidifier = FakeDehumidifier()
                 self.log.info('Connected to dehumidifier')
@@ -524,17 +524,18 @@ class DomeDaemon(BaseDaemon):
                 self.bad_hardware.add('dome')
 
         # Get dehumidifier info
-        try:
-            dehumidifier_status = self.dehumidifier.status
-            temp_info['dehumidifier_on'] = bool(int(dehumidifier_status))
-        except Exception:
-            self.log.error('Failed to get dehumidifier info')
-            self.log.debug('', exc_info=True)
-            temp_info['dehumidifier_on'] = None
-            # Report the connection as failed
-            self.dehumidifier = None
-            if 'dehumidifier' not in self.bad_hardware:
-                self.bad_hardware.add('dehumidifier')
+        if params.DOME_HAS_DEHUMIDIFIER:
+            try:
+                dehumidifier_status = self.dehumidifier.status
+                temp_info['dehumidifier_on'] = bool(int(dehumidifier_status))
+            except Exception:
+                self.log.error('Failed to get dehumidifier info')
+                self.log.debug('', exc_info=True)
+                temp_info['dehumidifier_on'] = None
+                # Report the connection as failed
+                self.dehumidifier = None
+                if 'dehumidifier' not in self.bad_hardware:
+                    self.bad_hardware.add('dehumidifier')
 
         # Get the conditions values and limits
         try:
@@ -826,6 +827,10 @@ class DomeDaemon(BaseDaemon):
 
     def _autodehum_check(self):
         """Check the current internal conditions, then turn on the dehumidifer if needed."""
+        if not params.DOME_HAS_DEHUMIDIFIER:
+            # Nothing to check
+            return
+
         if not self.dehumidifier:
             self.log.warning('Auto humidity control disabled while no connection to dehumidifier')
             return
@@ -1075,6 +1080,8 @@ class DomeDaemon(BaseDaemon):
     def override_dehumidifier(self, command):
         """Turn the dehumidifier on or off manually."""
         # Check input
+        if not params.DOME_HAS_DEHUMIDIFIER:
+            raise ValueError('Dome has no dehumidifer')
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
@@ -1111,6 +1118,8 @@ class DomeDaemon(BaseDaemon):
     def set_autodehum(self, command):
         """Enable or disable the dome automatically turning the dehumidifier on and off."""
         # Check input
+        if not params.DOME_HAS_DEHUMIDIFIER:
+            raise ValueError('Dome has no dehumidifer')
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
