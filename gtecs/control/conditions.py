@@ -75,8 +75,8 @@ def get_ups():
                 unit_ip = params.POWER_UNITS[unit_name]['IP']
                 if unit_class == 'APCUPS':
                     ups = APCUPS(unit_ip)
-                elif unit_class =='APCUPS_USB':
-                    unit_port = params.POWER_UNITS[unit_name]['PORT']
+                elif unit_class == 'APCUPS_USB':
+                    unit_port = int(params.POWER_UNITS[unit_name]['PORT'])
                     ups = APCUPS_USB(unit_ip, unit_port)
                 elif unit_class == 'FakeUPS':
                     ups = FakeUPS(unit_ip)

@@ -367,7 +367,7 @@ class APCUPS_USB:
     def __init__(self, address='localhost', port=3551):
         self.unit_type = 'UPS'
         self.address = address
-        self.port = port
+        self.port = int(port)
         self.buffer_size = 1024
 
     def _get_status(self):
