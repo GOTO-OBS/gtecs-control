@@ -561,7 +561,7 @@ class CamDaemon(BaseDaemon):
                 hdu = make_fits(image_data, ut, all_info,
                                 compress=params.COMPRESS_IMAGES,
                                 measure_hfds=self.measure_hfds,
-                                log=None
+                                log=self.log
                                 )
                 headers[ut] = hdu.header
 
