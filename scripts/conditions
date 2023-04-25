@@ -686,6 +686,8 @@ def print_instructions():
           '  check/ping                     check the daemon for errors',
           'Conditions commands:',
           '  update                         force update the conditions',
+          '  ignore <flag>                  ignore the given flag',
+          '  enable <flag>                  reenable the given ignored flag',
           '  override [on|off]              enable/disable the manual override flag',
           '  pause                          alias for "override on"',
           '  unpause/resume                 alias for "override off"',
