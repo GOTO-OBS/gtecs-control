@@ -476,16 +476,24 @@ class AstroHavenDome:
 
         if 'hatch_closed' not in data or data['hatch_closed_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'a_side_shutter_open' not in data or data['a_side_shutter_open_valid'] is False:
+        if 'north_shutter_open' not in data or data['north_shutter_open_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
-        if 'b_side_shutter_open' not in data or data['b_side_shutter_open_valid'] is False:
+        if 'south_shutter_open' not in data or data['south_shutter_open_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
         if 'shutters_closed' not in data or data['shutters_closed_valid'] is False:
             raise ValueError('Unexpected switch status: {}'.format(data))
 
+        # Account for different sides
+        if params.DOME_ASIDE_NAME.lower() == 'north':
+            a_side_open = data['north_shutter_open']
+            b_side_open = data['south_shutter_open']
+        else:
+            a_side_open = data['south_shutter_open']
+            b_side_open = data['north_shutter_open']
+
         switch_dict = {'all_closed': bool(data['shutters_closed']),
-                       'a_side_open': bool(data['a_side_shutter_open']),
-                       'b_side_open': bool(data['b_side_shutter_open']),
+                       'a_side_open': bool(a_side_open),
+                       'b_side_open': bool(b_side_open),
                        'hatch_closed': bool(data['hatch_closed']),
                        }
         return switch_dict
