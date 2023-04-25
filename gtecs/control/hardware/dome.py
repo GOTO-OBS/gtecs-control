@@ -386,6 +386,9 @@ class AstroHavenDome:
                 self.plc_status['b_side'] = 'full_open'
             else:
                 self.plc_status['b_side'] = 'part_open'
+        elif status_character == '4':  # Only in newer AstroHaven domes
+            self.plc_status['a_side'] = 'full_open'
+            self.plc_status['b_side'] = 'full_open'
         # Moving statuses
         # returned when we ARE sending command bytes
         # note here we set the full_open flag, since we only get that info when a move has finished
