@@ -131,12 +131,15 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
     # Run through the filter list
     for i, filt in enumerate(filt_list):
+        print('~~~~~~')
         filt = filt_list[i]
+        print('Using {} filter'.format(filt))
 
         if i > 0:
+            new_exptime = exptime * (target_counts / counts)
             # Guess initial exposure time based on the previous filter
-            bandwidth_ratio = FILTER_BANDWIDTH[filt] / FILTER_BANDWIDTH[filt_list[i - 1]]
-            new_exptime = exptime * (target_counts / counts) * bandwidth_ratio
+            bandwidth_ratio = FILTER_BANDWIDTH[filt_list[i - 1]] / FILTER_BANDWIDTH[filt]
+            new_exptime = new_exptime * bandwidth_ratio
             print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
             exptime = new_exptime
             if exptime > max_exptime:
@@ -144,7 +147,6 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
                 exptime = max_exptime
 
             # Take initial measurement
-            print('~~~~~~')
             print('Taking {} test exposure to find new exposure time'.format(filt))
             counts = take_flat(new_exptime, filt, offset_step, target_name, glance=True)
             print('{} image sky mean: {:.1f} counts'.format(filt, counts))
@@ -158,9 +160,8 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
             exptime = max_exptime
 
         print('~~~~~~')
-        print('Taking flats in {} filter'.format(filt))
         exptime_list = exposure_sequence(exptime, num_exp, eve=eve)
-
+        print('Taking {} flats in {} filter'.format(len(exptime_list), filt))
         for i, exptime in enumerate(exptime_list):
             print('Taking {} filter flat {}/{}'.format(filt, i + 1, len(exptime_list)))
             if exptime > max_exptime:
@@ -170,6 +171,7 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
             counts = take_flat(exptime, filt, offset_step, target_name)
             print('{} image sky mean: {:.1f} counts'.format(filt, counts))
 
+    print('~~~~~~')
     print('Done')
 
 
