@@ -9,7 +9,7 @@ from astropy.time import Time
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
-from gtecs.control.hardware.power import APCATS, APCPDU, APCUPS, EPCPDU, ETHPDU
+from gtecs.control.hardware.power import APCATS, APCPDU, APCUPS, APCUPS_USB, EPCPDU, ETHPDU
 from gtecs.control.hardware.power import FakePDU, FakeUPS
 
 
@@ -142,6 +142,8 @@ class PowerDaemon(BaseDaemon):
                 unit_params = params.POWER_UNITS[unit_name].copy()
                 unit_class = unit_params['CLASS']
                 unit_ip = unit_params['IP']
+                if 'PORT' in unit_params:
+                    unit_port = unit_params['PORT']
 
                 # create power object by class
                 if unit_class == 'FakePDU':
@@ -168,6 +170,18 @@ class PowerDaemon(BaseDaemon):
                 elif unit_class == 'APCUPS':
                     try:
                         self.power_units[unit_name] = APCUPS(unit_ip)
+                        self.log.info('Connected to {}'.format(unit_name))
+                        if unit_name in self.bad_hardware:
+                            self.bad_hardware.remove(unit_name)
+                    except Exception:
+                        self.power_units[unit_name] = None
+                        if unit_name not in self.bad_hardware:
+                            self.log.error('Failed to connect to {}'.format(unit_name))
+                            self.bad_hardware.add(unit_name)
+
+                elif unit_class == 'APCUPS_USB':
+                    try:
+                        self.power_units[unit_name] = APCUPS_USB(unit_ip, unit_port)
                         self.log.info('Connected to {}'.format(unit_name))
                         if unit_name in self.bad_hardware:
                             self.bad_hardware.remove(unit_name)

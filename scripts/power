@@ -125,9 +125,12 @@ def print_info(info):
     """Print the full info dict."""
     print('####### POWER INFO ########')
     for unit in params.POWER_UNITS:
-        ip = params.POWER_UNITS[unit]['IP']
         unit_class = params.POWER_UNITS[unit]['CLASS']
-        print('UNIT {} ({})'.format(unit, ip))
+        ip = params.POWER_UNITS[unit]['IP']
+        if 'PORT' in params.POWER_UNITS[unit]:
+            port = params.POWER_UNITS[unit]['PORT']
+            port_str = ':{}'.format(port)
+        print('UNIT {} ({}{})'.format(unit, ip, port_str))
         status = info['status_' + unit]
         if 'UPS' in unit_class:
             print('Status: {}'.format(status['status']))
@@ -156,14 +159,17 @@ def print_info(info):
 def print_info_s(info):
     """Print the info dict in a compact way."""
     for unit in params.POWER_UNITS:
-        ip = params.POWER_UNITS[unit]['IP']
         unit_class = params.POWER_UNITS[unit]['CLASS']
+        ip = params.POWER_UNITS[unit]['IP']
+        if 'PORT' in params.POWER_UNITS[unit]:
+            port = params.POWER_UNITS[unit]['PORT']
+            port_str = ':{}'.format(port)
         status = info['status_' + unit]
         if 'status' in status:
             unit_status = status['status']
-            print('{} ({})       [{}]'.format(unit, ip, unit_status))
+            print('{} ({}{})       [{}]'.format(unit, ip, port_str, unit_status))
         else:
-            print('{} ({})'.format(unit, ip))
+            print('{} ({}{})'.format(unit, ip, port_str))
         if 'UPS' in unit_class:
             print('   Load: {: >5}%'.format(status['load']))
             print('   Remaining: {}% ({}s)'.format(status['percent'], status['time']))
