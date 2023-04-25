@@ -143,7 +143,7 @@ class PowerDaemon(BaseDaemon):
                 unit_class = unit_params['CLASS']
                 unit_ip = unit_params['IP']
                 if 'PORT' in unit_params:
-                    unit_port = unit_params['PORT']
+                    unit_port = int(unit_params['PORT'])
 
                 # create power object by class
                 if unit_class == 'FakePDU':
