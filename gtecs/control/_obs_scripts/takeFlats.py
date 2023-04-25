@@ -48,7 +48,7 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
 
     # Take the image and load the image data
     image_headers = get_analysis_image(exptime, filt, 1, target_name, 'FLAT', glance, uts=uts,
-                                       get_headers=True)
+                                       get_data=False, get_headers=True)
 
     # Get the mean value for the images
     sky_medians = {ut: image_headers[ut]['MEDCNTS'] for ut in sorted(image_headers)}
@@ -135,22 +135,27 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
         if i > 0:
             # Guess initial exposure time based on the previous filter
-            target_exptime = exptime * (target_counts / counts)
             bandwidth_ratio = FILTER_BANDWIDTH[filt] / FILTER_BANDWIDTH[filt_list[i - 1]]
-            test_exptime = target_exptime * bandwidth_ratio
+            new_exptime = exptime * (target_counts / counts) * bandwidth_ratio
+            print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
+            exptime = new_exptime
+            if exptime > max_exptime:
+                print('Limiting exposure time to {:.1f}s'.format(max_exptime))
+                exptime = max_exptime
 
             # Take initial measurement
             print('~~~~~~')
             print('Taking {} test exposure to find new exposure time'.format(filt))
-            counts = take_flat(test_exptime, filt, offset_step, target_name, glance=True)
+            counts = take_flat(new_exptime, filt, offset_step, target_name, glance=True)
             print('{} image sky mean: {:.1f} counts'.format(filt, counts))
 
-            # Rescale based on new measurement
-            exptime = test_exptime * (target_counts / counts)
-            print('Rescaling exposure time from {:.1f} to {:.1f}'.format(test_exptime, exptime))
-            if exptime > max_exptime:
-                print('Limiting exposure time to {:.1f}s'.format(max_exptime))
-                exptime = max_exptime
+        # Rescale based on new measurement
+        new_exptime = exptime * (target_counts / counts)
+        print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
+        exptime = new_exptime
+        if exptime > max_exptime:
+            print('Limiting exposure time to {:.1f}s'.format(max_exptime))
+            exptime = max_exptime
 
         print('~~~~~~')
         print('Taking flats in {} filter'.format(filt))
