@@ -725,41 +725,51 @@ def get_AAT():
         y, d, month = [int(x) for x in data[0].replace('"', '').lstrip().replace('.', '').split('-')[::-1]]
         h, mins, s = [int(x) for x in data[1].split(':')]
         update = pytz.timezone('Australia/Sydney').localize(datetime(y,month,d,h,mins,s))
+
         weather_dict['update_time'] = Time(update).iso
         dt = Time.now() - Time(update)
         weather_dict['dt'] = dt.sec
     except Exception:
-        print('Error parsing update time:', data[0] + data[1])
+        weather_dict['update_time'] = -999
+
     try:
         weather_dict['temperature'] = float(data[2])
     except Exception:
-        print('Error parsing temperature:', data[2])
+        weather_dict['temperature'] = -999
+
     try:
         weather_dict['dew_point'] = float(data[2])-float(data[5])
     except Exception:
-        print('Error parsing dewpoint:', data[2], data[5])
+        weather_dict['dew_point'] = -999
+
     try:
         weather_dict['humidity'] = float(data[6])
     except Exception:
-        print('Error parsing humidity:', data[6])
+        weather_dict['humidity'] = -999
+
     try:
         weather_dict['pressure'] = float(data[7])
     except Exception:
-        print('Error parsing pressure:', data[7])
+        weather_dict['pressure'] = -999
+
     try:
         weather_dict['windspeed'] = float(data[8])
     except Exception:
-        print('Error parsing wind speed:', data[8])
+        weather_dict['windspeed'] = -999
+
     try:
         weather_dict['windgust'] = float(data[9])
     except Exception:
-        print('Error parsing wind gust:', data[9])
+        weather_dict['windgust'] = -999
+
     try:
         weather_dict['winddir'] = float(data[10])
     except Exception:
-        print('Error parsing wind direction:', data[10])
+        weather_dict['winddir'] = -999
+
     try:
         weather_dict['rain'] = bool(int(data[17]))
     except Exception:
-        print('Error parsing rain:', data[17])
+        weather_dict['rain'] = -999
+
     return weather_dict
