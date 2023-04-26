@@ -47,7 +47,7 @@ def image_location(run_number, ut_number, tel_number=None):
     if tel_number is None:
         tel_number = params.TELESCOPE_NUMBER
 
-    # Find the directory, using the date the observing night began
+    # Find the directory, using the date the observing night began (the previous local midday)
     night = night_startdate()
     direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):

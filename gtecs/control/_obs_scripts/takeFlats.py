@@ -82,8 +82,7 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
     # Wait until we reach correct sun altitude
     if start_now is False:
-        today = night_startdate()
-        start_time = sunalt_time(today, start_alt, eve)
+        start_time = sunalt_time(start_alt, eve)
 
         time_to_go = start_time - Time.now()
         if time_to_go < -10 * u.min and not late:

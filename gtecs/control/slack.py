@@ -269,7 +269,7 @@ def send_dome_report(msg, confirmed_closed, slack_channel=None):
     send_status_report(msg=msg, colour=colour, startup=False, slack_channel=slack_channel)
 
 
-def send_timing_report(date=None,
+def send_timing_report(time=None,
                        startup_sunalt=12,
                        open_sunalt=0,
                        obs_start_sunalt=-12,
@@ -278,21 +278,21 @@ def send_timing_report(date=None,
                        slack_channel=None,
                        ):
     """Send a Slack message containing tonight's observing times."""
-    if date is None:
-        date = night_startdate()
+    if time is None:
+        time = Time.now()
     if obs_stop_sunalt is None:
         obs_stop_sunalt = obs_start_sunalt
     if close_sunalt is None:
         close_sunalt = open_sunalt
 
-    startup_time = sunalt_time(date, startup_sunalt * u.deg, eve=True)
-    open_time = sunalt_time(date, open_sunalt * u.deg, eve=True)
-    obsstart_time = sunalt_time(date, obs_start_sunalt * u.deg, eve=True)
-    obsstop_time = sunalt_time(date, obs_stop_sunalt * u.deg, eve=False)
-    close_time = sunalt_time(date, close_sunalt * u.deg, eve=False)
+    startup_time = sunalt_time(startup_sunalt * u.deg, eve=True, time=time)
+    open_time = sunalt_time(open_sunalt * u.deg, eve=True, time=time)
+    obsstart_time = sunalt_time(obs_start_sunalt * u.deg, eve=True, time=time)
+    obsstop_time = sunalt_time(obs_stop_sunalt * u.deg, eve=False, time=time)
+    close_time = sunalt_time(close_sunalt * u.deg, eve=False, time=time)
     obs_time = (obsstop_time - obsstart_time).to(u.hour).value
 
-    msg = '*Night starting {}*\n'.format(date)
+    msg = '*Night starting {}*\n'.format(night_startdate())
     msg += 'Expected observing duration: {:.1f} hours'.format(obs_time)
 
     attachments = []
