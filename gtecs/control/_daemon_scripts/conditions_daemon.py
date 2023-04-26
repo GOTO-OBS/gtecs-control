@@ -127,7 +127,7 @@ class ConditionsDaemon(BaseDaemon):
             # Get the weather from the local stations
             for source in params.WEATHER_SOURCES:
                 try:
-                    weather_dict = conditions.get_vaisala(source)
+                    weather_dict = conditions.get_AAT()
                 except Exception:
                     if params.FAKE_CONDITIONS:
                         weather_dict = {'temperature': 10,
@@ -339,7 +339,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the satellite IR cloud image
         try:
-            clouds = conditions.get_satellite_clouds() * 100
+            clouds = conditions.get_satellite_clouds(site='SSO') * 100
             temp_info['clouds'] = clouds
         except Exception:
             if params.FAKE_CONDITIONS:

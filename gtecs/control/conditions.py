@@ -7,9 +7,11 @@ import re
 import ssl
 import subprocess
 import traceback
-import urllib
+import urllib.request
 import warnings
 
+import pytz
+from datetime import datetime
 from astropy.time import Time
 
 import cv2
@@ -645,28 +647,129 @@ def get_diskspace_remaining(path):
     return available / total
 
 
-def get_satellite_clouds():
+def get_satellite_clouds(site='ORM'):
     """Download the Eumetsat IR image from sat24.com, and use it to judge clouds over La Palma.
 
     Returns a value between 0 and 1, representing the median pixel illumination.
     """
-    # Download image
-    image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce'
-    with urllib.request.urlopen(image_url, timeout=2) as url:
-        arr = np.asarray(bytearray(url.read()), dtype='uint8')
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if site == 'ORM':
+        # Download image
+        image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce'
+        try:
+            with urllib.request.urlopen(image_url, timeout=2) as url:
+                arr = np.asarray(bytearray(url.read()), dtype='uint8')
+            img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
 
-    # Crop La Palma area
-    img_crop = img[205:225, 310:330]
+            # Crop La Palma area
+            img_crop = img[205:225, 310:330]
 
-    # Get standard deviation between the channels to mask out the coastline
-    std = np.std(cv2.split(img_crop), axis=0)
-    mask = std < 20
+            # Get standard deviation between the channels to mask out the coastline
+            std = np.std(cv2.split(img_crop), axis=0)
+            mask = std < 20
+            # Mask image
+            img_masked = img_crop[mask]
+        except Exception:
+            raise
 
-    # Mask image and average across the colour channels
-    img_masked = img_crop[mask]
-    img_av = np.mean(img_masked, axis=1)
+    elif site == 'SSO':
+        # Download image
+        image_url = 'http://www.bom.gov.au/gms/IDE00005.gif'
+        outfile = os.path.join(params.FILE_PATH, 'SSO_Satellite_Image.gif')
+        req = urllib.request.Request(image_url, headers={
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'})  # Might cause issues
+        try:
+            with urllib.request.urlopen(req, timeout=5) as url:
+                data = url.read()
+            with open(outfile, 'wb') as f:
+                f.write(data)
+        except Exception:
+            pass
+
+        try:
+            ret, img = cv2.VideoCapture(outfile).read()
+            # Crop SSO area
+            img_crop = img[268:292, 450:475]
+            # Mask lat/long lines
+            img_masked = np.ma.masked_equal(img_crop, 127)
+        except Exception:
+            raise
+    else:
+        print('Invalid Site')
+
+    # Average over colour channels
+    img_av = np.ma.mean(img_masked, axis=1)
 
     # Measure the median pixel value, and scale by the pixel range (0-255)
-    median = np.median(img_av) / 255
+    median = np.ma.median(img_av) / 255
     return median
+
+def get_AAT():
+
+    url = "http://aat-ops.anu.edu.au/met/metdata.dat"
+    outfile = os.path.join(params.FILE_PATH, 'metdata.dat')
+    indata = download_data_from_url(url, outfile)
+
+    weather_dict = {'update_time': -999,  # time of last update
+                    'dt': -999,  # time since last update
+                    'rain': -999,  # rain dry/wet
+                    'temperature': -999,
+                    'pressure': -999,
+                    'winddir': -999,
+                    'windspeed': -999,
+                    'windgust': -999,
+                    'humidity': -999,
+                    'dew_point': -999
+                    }
+    data = re.split('\n|\t',indata)
+    try:
+        y, d, month = [int(x) for x in data[0].replace('"', '').lstrip().replace('.', '').split('-')[::-1]]
+        h, mins, s = [int(x) for x in data[1].split(':')]
+        update = pytz.timezone('Australia/Sydney').localize(datetime(y,month,d,h,mins,s))
+
+        weather_dict['update_time'] = Time(update).iso
+        dt = Time.now() - Time(update)
+        weather_dict['dt'] = dt.sec
+    except Exception:
+        weather_dict['update_time'] = -999
+
+    try:
+        weather_dict['temperature'] = float(data[2])
+    except Exception:
+        weather_dict['temperature'] = -999
+
+    try:
+        weather_dict['dew_point'] = float(data[2])-float(data[5])
+    except Exception:
+        weather_dict['dew_point'] = -999
+
+    try:
+        weather_dict['humidity'] = float(data[6])
+    except Exception:
+        weather_dict['humidity'] = -999
+
+    try:
+        weather_dict['pressure'] = float(data[7])
+    except Exception:
+        weather_dict['pressure'] = -999
+
+    try:
+        weather_dict['windspeed'] = float(data[8])
+    except Exception:
+        weather_dict['windspeed'] = -999
+
+    try:
+        weather_dict['windgust'] = float(data[9])
+    except Exception:
+        weather_dict['windgust'] = -999
+
+    try:
+        weather_dict['winddir'] = float(data[10])
+    except Exception:
+        weather_dict['winddir'] = -999
+
+    try:
+        weather_dict['rain'] = bool(int(data[17]))
+    except Exception:
+        weather_dict['rain'] = -999
+
+    return weather_dict
