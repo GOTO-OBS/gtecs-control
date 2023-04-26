@@ -718,6 +718,7 @@ def get_AAT():
                     'windspeed': -999,
                     'windgust': -999,
                     'humidity': -999,
+                    'dew_point': -999
                     }
     data = re.split('\n|\t',indata)
     try:
@@ -733,6 +734,10 @@ def get_AAT():
         weather_dict['temperature'] = float(data[2])
     except Exception:
         print('Error parsing temperature:', data[2])
+    try:
+        weather_dict['dew_point'] = float(data[2])-float(data[5])
+    except Exception:
+        print('Error parsing dewpoint:', data[2], data[5])
     try:
         weather_dict['humidity'] = float(data[6])
     except Exception:
