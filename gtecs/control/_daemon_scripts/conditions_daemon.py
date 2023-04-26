@@ -127,7 +127,12 @@ class ConditionsDaemon(BaseDaemon):
             # Get the weather from the local stations
             for source in params.WEATHER_SOURCES:
                 try:
-                    weather_dict = conditions.get_AAT()
+                    if source.lower() == 'aat':
+                        weather_dict = conditions.get_AAT()
+                    elif source.lower() == 'ing':
+                        weather_dict = conditions.get_ing()
+                    else:
+                        weather_dict = conditions.get_vaisala(source)
                 except Exception:
                     if params.FAKE_CONDITIONS:
                         weather_dict = {'temperature': 10,
