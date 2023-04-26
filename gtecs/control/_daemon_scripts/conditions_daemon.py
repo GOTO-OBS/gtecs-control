@@ -253,20 +253,27 @@ class ConditionsDaemon(BaseDaemon):
                 self.log.error('Failed to get internal info')
                 self.log.debug('', exc_info=True)
                 internal_dict = {'temperature': -999,
-                                'humidity': -999,
-                                'update_time': -999,
-                                'dt': -999,
-                             }
+                                 'humidity': -999,
+                                 'update_time': -999,
+                                 'dt': -999,
+                                 }
         temp_info['internal'] = internal_dict
 
-        # Get seeing and dust from the TNG webpage
+        # Get seeing and dust from the TNG webpage (La Palma only)
         try:
-            tng_dict = conditions.get_tng()
-            # check if the timeouts have been exceeded
-            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
-                tng_dict['seeing'] = -999
-            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
-                tng_dict['dust'] = -999
+            if params.SITE_NAME == 'La Palma':
+                tng_dict = conditions.get_tng()
+                # check if the timeouts have been exceeded
+                if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
+                    tng_dict['seeing'] = -999
+                if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
+                    tng_dict['dust'] = -999
+            else:
+                tng_dict = {'seeing': -999,
+                            'seeing_dt': -999,
+                            'dust': -999,
+                            'dust_dt': -999,
+                            }
         except Exception:
             if params.FAKE_CONDITIONS:
                 tng_dict = {'seeing': 1.2,
@@ -284,12 +291,17 @@ class ConditionsDaemon(BaseDaemon):
                             }
         temp_info['tng'] = tng_dict
 
-        # Get seeing from the ING RoboDIMM
+        # Get seeing from the ING RoboDIMM (La Palma only)
         try:
-            dimm_dict = conditions.get_robodimm()
-            # check if the timeout has been exceeded
-            if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
-                dimm_dict['seeing'] = -999
+            if params.SITE_NAME == 'La Palma':
+                dimm_dict = conditions.get_robodimm()
+                # check if the timeout has been exceeded
+                if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
+                    dimm_dict['seeing'] = -999
+            else:
+                dimm_dict = {'seeing': -999,
+                             'dt': -999,
+                             }
         except Exception:
             if params.FAKE_CONDITIONS:
                 dimm_dict = {'seeing': 1.2,
@@ -344,7 +356,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the satellite IR cloud image
         try:
-            clouds = conditions.get_satellite_clouds(site='SSO') * 100
+            clouds = conditions.get_satellite_clouds(site=params.SITE_NAME) * 100
             temp_info['clouds'] = clouds
         except Exception:
             if params.FAKE_CONDITIONS:

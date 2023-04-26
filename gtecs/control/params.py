@@ -41,7 +41,10 @@ TELESCOPE_NUMBER = config['TELESCOPE_NUMBER']
 ROBOTIC_OBSERVER = config['ROBOTIC_OBSERVER']
 
 # Site location
+VALID_SITES = ['La Palma', 'Siding Spring']
 SITE_NAME = config['SITE_NAME']
+if SITE_NAME not in VALID_SITES:
+    raise ValueError('Unrecognised site {} (must be in {})'.format(SITE_NAME, VALID_SITES))
 SITE_LATITUDE = config['SITE_LATITUDE']
 SITE_LONGITUDE = config['SITE_LONGITUDE']
 SITE_ALTITUDE = config['SITE_ALTITUDE']
