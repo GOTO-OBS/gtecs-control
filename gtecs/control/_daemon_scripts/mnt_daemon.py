@@ -42,6 +42,7 @@ class MntDaemon(BaseDaemon):
         self.set_trackrate_flag = 0
         self.set_blinky_flag = 0
         self.set_motor_power_flag = 0
+        self.clear_error_flag = 0
 
         # mount variables
         self.target = None
@@ -438,11 +439,12 @@ class MntDaemon(BaseDaemon):
                     self.log.error(f'Mount raises error: {error_status}')
                     temp_info['error_status'] = error_status
                     temp_info['error_status_time'] = self.loop_time
-                elif (self.info and 'error_status' in self.info):
-                    # Keep old errors until a new one is raised
+                elif (self.info and 'error_status' in self.info and self.clear_error_flag == 0):
+                    # Keep old errors until a new one is raised, or we clear it
                     temp_info['error_status'] = self.info['error_status']
                     temp_info['error_status_time'] = self.info['error_status_time']
                 else:
+                    self.clear_error_flag = 0
                     temp_info['error_status'] = None
                     temp_info['error_status_time'] = None
 
@@ -1018,6 +1020,7 @@ class MntDaemon(BaseDaemon):
         c = self.mount.clear_error()
         if c:
             self.log.info(c)
+        self.clear_error_flag = 1
 
         return 'Cleared any errors'
 
