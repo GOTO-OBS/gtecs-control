@@ -119,6 +119,7 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
     if startup:
         # IR satellite
         if site == 'La Palma':
+            ts = '{:.0f}'.format(Time.now().unix)
             image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
             attach = {'fallback': 'IR satellite view',
                       'title': 'IR satellite view',
@@ -141,6 +142,7 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
     else:
         # Internal webcam
         if site == 'La Palma':
+            ts = '{:.0f}'.format(Time.now().unix)
             image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
             attach = {'fallback': 'Internal webcam view',
                       'title': 'Internal webcam view',
