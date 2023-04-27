@@ -15,7 +15,7 @@ from gtecs.common.system import execute_command
 
 from . import monitors
 from . import params
-from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
+from .astronomy import get_sunalt, local_midnight, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
 from .scheduling import update_schedule
@@ -204,8 +204,7 @@ class Pilot:
         self.running_tasks = []
 
         # define nightly tasks
-        self.night_startdate = night_startdate()
-        self.midnight = local_midnight(self.night_startdate)
+        self.midnight = local_midnight()
         self.assign_tasks()
 
         # status flags, set during the night
@@ -1259,7 +1258,7 @@ class Pilot:
         self.log.info('night countdown initialised')
 
         if stop_time is None:
-            stop_time = sunalt_time(self.night_startdate, self.close_sunalt * u.deg, eve=False)
+            stop_time = sunalt_time(self.close_sunalt * u.deg, eve=False)
         self.log.info('setting end of night for {}'.format(stop_time.iso))
 
         last_log = Time.now()

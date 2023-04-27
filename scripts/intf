@@ -174,38 +174,34 @@ def query(command, args):
 def print_info(info):
     """Print the full info dict."""
     print('INTERFACE {} ({}):'.format(info['daemon_id'], params.DAEMONS[info['daemon_id']]['HOST']))
-    if len(info['ota_serials']) > 0:
-        print('   OTAs:          ', end='\t')
-        for ut in info['uts']:
-            if ut in info['ota_serials']:
-                print('{}: {: <16}'.format(ut, info['ota_serials'][ut]), end='  ')
-            else:
-                print('{}: {: <16}'.format(ut, '----'), end='  ')
-        print('')
-    if len(info['cam_serials']) > 0:
-        print('   Cameras:       ', end='\t')
-        for ut in info['uts']:
-            if ut in info['cam_serials']:
-                print('{}: {: <16}'.format(ut, info['cam_serials'][ut]), end='  ')
-            else:
-                print('{}: {: <16}'.format(ut, '----'), end='  ')
-        print('')
-    if len(info['foc_serials']) > 0:
-        print('   Focusers:      ', end='\t')
-        for ut in info['uts']:
-            if ut in info['foc_serials']:
-                print('{}: {: <16}'.format(ut, info['foc_serials'][ut]), end='  ')
-            else:
-                print('{}: {: <16}'.format(ut, '----'), end='  ')
-        print('')
-    if len(info['filt_serials']) > 0:
-        print('   Filter Wheels: ', end='\t')
-        for ut in info['uts']:
-            if ut in info['filt_serials']:
-                print('{}: {: <16}'.format(ut, info['filt_serials'][ut]), end='  ')
-            else:
-                print('{}: {: <16}'.format(ut, '----'), end='  ')
-        print('')
+    print('   OTAs:          ', end='\t')
+    for ut in info['uts']:
+        if ut in info['ota_serials']:
+            print('{}: {: <16}'.format(ut, info['ota_serials'][ut]), end='  ')
+        else:
+            print('{}: {: <16}'.format(ut, '----'), end='  ')
+    print('')
+    print('   Cameras:       ', end='\t')
+    for ut in info['uts']:
+        if ut in info['cam_serials']:
+            print('{}: {: <16}'.format(ut, info['cam_serials'][ut]), end='  ')
+        else:
+            print('{}: {: <16}'.format(ut, '----'), end='  ')
+    print('')
+    print('   Focusers:      ', end='\t')
+    for ut in info['uts']:
+        if ut in info['foc_serials']:
+            print('{}: {: <16}'.format(ut, info['foc_serials'][ut]), end='  ')
+        else:
+            print('{}: {: <16}'.format(ut, '----'), end='  ')
+    print('')
+    print('   Filter Wheels: ', end='\t')
+    for ut in info['uts']:
+        if ut in info['filt_serials']:
+            print('{}: {: <16}'.format(ut, info['filt_serials'][ut]), end='  ')
+        else:
+            print('{}: {: <16}'.format(ut, '----'), end='  ')
+    print('')
 
 
 def print_instructions():

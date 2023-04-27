@@ -647,12 +647,12 @@ def get_diskspace_remaining(path):
     return available / total
 
 
-def get_satellite_clouds(site='ORM'):
+def get_satellite_clouds(site=params.SITE_NAME):
     """Download the Eumetsat IR image from sat24.com, and use it to judge clouds over La Palma.
 
     Returns a value between 0 and 1, representing the median pixel illumination.
     """
-    if site == 'ORM':
+    if site == 'La Palma':
         # Download image
         image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce'
         try:
@@ -671,12 +671,12 @@ def get_satellite_clouds(site='ORM'):
         except Exception:
             raise
 
-    elif site == 'SSO':
+    elif site == 'Siding Spring':
         # Download image
         image_url = 'http://www.bom.gov.au/gms/IDE00005.gif'
         outfile = os.path.join(params.FILE_PATH, 'SSO_Satellite_Image.gif')
-        req = urllib.request.Request(image_url, headers={
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'})  # Might cause issues
+        fake_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'  # Might cause issues
+        req = urllib.request.Request(image_url, headers={'User-Agent': fake_agent})
         try:
             with urllib.request.urlopen(req, timeout=5) as url:
                 data = url.read()
@@ -703,8 +703,9 @@ def get_satellite_clouds(site='ORM'):
     median = np.ma.median(img_av) / 255
     return median
 
-def get_AAT():
 
+def get_AAT():
+    """Get the current weather from the AAT weather page."""
     url = "http://aat-ops.anu.edu.au/met/metdata.dat"
     outfile = os.path.join(params.FILE_PATH, 'metdata.dat')
     indata = download_data_from_url(url, outfile)
@@ -720,11 +721,12 @@ def get_AAT():
                     'humidity': -999,
                     'dew_point': -999
                     }
-    data = re.split('\n|\t',indata)
+    data = re.split('\n|\t', indata)
     try:
-        y, d, month = [int(x) for x in data[0].replace('"', '').lstrip().replace('.', '').split('-')[::-1]]
+        y, d, month = [int(x) for x in
+                       data[0].replace('"', '').lstrip().replace('.', '').split('-')[::-1]]
         h, mins, s = [int(x) for x in data[1].split(':')]
-        update = pytz.timezone('Australia/Sydney').localize(datetime(y,month,d,h,mins,s))
+        update = pytz.timezone('Australia/Sydney').localize(datetime(y, month, d, h, mins, s))
 
         weather_dict['update_time'] = Time(update).iso
         dt = Time.now() - Time(update)

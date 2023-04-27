@@ -40,131 +40,6 @@ def send_slack_msg(text, channel=None, tel_name=True, *args, **kwargs):
         print('Slack Message:', text)
 
 
-def send_conditions_report(slack_channel=None, site=params.SITE_NAME):
-    """Send a Slack message with the current conditions, status and webcams."""
-    blocks = []
-    attachments = []
-
-    # Conditions summary
-    conditions = Conditions()
-    if conditions.bad:
-        conditions_status = ':warning: Conditions are bad! :warning:'
-    else:
-        conditions_status = 'Conditions are good'
-    text = f'*{site} conditions report*\n' + conditions_status
-    block = {'type': 'section',
-             'text': {'text': text, 'type': 'mrkdwn'},
-             }
-    blocks.append(block)
-
-    # Conditions flags
-    text = conditions.get_formatted_string(good=':white_check_mark:',
-                                           bad=':exclamation:')
-    block = {'type': 'section',
-             'text': {'text': text, 'type': 'mrkdwn'},
-             }
-    blocks.append(block)
-
-    # Conditions timestamp
-    ts = conditions.current_time.unix
-    text = '<!date^{0}^Last updated {{date_num}} {{time_secs}}|{0}>'.format(int(ts))
-    block = {'type': 'context',
-             'elements': [{'text': text, 'type': 'mrkdwn'}],
-             }
-    blocks.append(block)
-    # blocks.append({'type': 'divider'})
-
-    # System status
-    status = Status()
-    if status.mode == 'robotic':
-        text = ':robot_face: System is in robotic mode'
-    elif status.mode == 'manual':
-        text = ':technologist: System is in *manual* mode'
-    elif status.mode == 'engineering':
-        text = ':mechanic: System is in *engineering* mode'
-    block = {'type': 'section',
-             'text': {'text': text, 'type': 'mrkdwn'},
-             }
-    blocks.append(block)
-    # blocks.append({'type': 'divider'})
-    # Useful links
-    if site == 'La Palma':
-        env_url = 'http://lapalma-observatory.warwick.ac.uk/environment/'
-        mf_url = 'https://www.mountain-forecast.com/peaks/Roque-de-los-Muchachos/forecasts/2423'
-        ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
-        not_url = 'http://www.not.iac.es/weather/'
-        tng_url = 'https://tngweb.tng.iac.es/weather/'
-        links = ['<{}|Local environment page>'.format(env_url),
-                 '<{}|Mountain forecast>'.format(mf_url),
-                 '<{}|ING>'.format(ing_url),
-                 '<{}|NOT>'.format(not_url),
-                 '<{}|TNG>'.format(tng_url),
-                 ]
-        text = ' - '.join(links)
-        block = {'type': 'section',
-                 'text': {'text': text, 'type': 'mrkdwn'},
-                 }
-        blocks.append(block)
-
-        ext_url = 'http://lapalma-observatory.warwick.ac.uk/eastcam/'
-        int_url = 'http://lapalma-observatory.warwick.ac.uk/goto/dome/'
-        sat_url = 'https://en.sat24.com/en/ce/infraPolair'
-        links = ['<{}|External webcam>'.format(ext_url),
-                 '<{}|Internal webcam>'.format(int_url),
-                 '<{}|IR satellite>'.format(sat_url),
-                 ]
-        text = ' - '.join(links)
-        block = {'type': 'section',
-                 'text': {'text': text, 'type': 'mrkdwn'},
-                 }
-        blocks.append(block)
-
-        # External webcam
-        ts = '{:.0f}'.format(Time.now().unix)
-        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-        text = 'External webcam view'
-        # block = {'type': 'image',
-        #          'title': {'text': text, 'type': 'plain_text'},
-        #          'image_url': image_url,
-        #          'alt_text': text,
-        #          }
-        # blocks.append(block)
-        attach = {'text': text,
-                  'image_url': image_url,
-                  }
-        attachments.append(attach)
-
-        # Internal webcam
-        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
-        text = 'Internal webcam view'
-        # block = {'type': 'image',
-        #          'title': {'text': text, 'type': 'plain_text'},
-        #          'image_url': image_url,
-        #          'alt_text': text,
-        #          }
-        # blocks.append(block)
-        attach = {'text': text,
-                  'image_url': image_url,
-                  }
-        attachments.append(attach)
-
-        # IR satellite
-        image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
-        text = 'IR satellite view'
-        # block = {'type': 'image',
-        #          'title': {'text': text, 'type': 'plain_text'},
-        #          'image_url': image_url,
-        #          'alt_text': text,
-        #          }
-        # blocks.append(block)
-        attach = {'text': text,
-                  'image_url': image_url,
-                  }
-        attachments.append(attach)
-
-    send_slack_msg(conditions_status, blocks=blocks, attachments=attachments, channel=slack_channel)
-
-
 def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=params.SITE_NAME):
     """Send a Slack message with the current conditions, status and webcams."""
     attachments = []
@@ -216,22 +91,35 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
                       'color': colour,
                       }
             attachments.append(attach)
+        elif site == 'Siding Spring':
+            aat_url = 'http://aat-ops.anu.edu.au/AATdatabase/met.html'
+            links = ['<{}|AAT>'.format(aat_url),
+                     ]
+            attach = {'fallback': 'Useful links',
+                      'text': '  -  '.join(links),
+                      'color': colour,
+                      }
+            attachments.append(attach)
 
         # External webcam
-        ts = '{:.0f}'.format(Time.now().unix)
-        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-        attach = {'fallback': 'External webcam view',
-                  'title': 'External webcam view',
-                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                  'text': 'Image attached:',
-                  'image_url': image_url,
-                  'color': colour,
-                  }
-        attachments.append(attach)
+        if site == 'La Palma':
+            ts = '{:.0f}'.format(Time.now().unix)
+            image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
+            attach = {'fallback': 'External webcam view',
+                      'title': 'External webcam view',
+                      'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                      'text': 'Image attached:',
+                      'image_url': image_url,
+                      'color': colour,
+                      }
+            attachments.append(attach)
+        elif site == 'Siding Spring':
+            pass
 
     if startup:
         # IR satellite
         if site == 'La Palma':
+            ts = '{:.0f}'.format(Time.now().unix)
             image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
             attach = {'fallback': 'IR satellite view',
                       'title': 'IR satellite view',
@@ -253,15 +141,19 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
             attachments.append(attach)
     else:
         # Internal webcam
-        image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
-        attach = {'fallback': 'Internal webcam view',
-                  'title': 'Internal webcam view',
-                  'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
-                  'text': 'Image attached:',
-                  'image_url': image_url,
-                  'color': colour,
-                  }
-        attachments.append(attach)
+        if site == 'La Palma':
+            ts = '{:.0f}'.format(Time.now().unix)
+            image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
+            attach = {'fallback': 'Internal webcam view',
+                      'title': 'Internal webcam view',
+                      'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
+                      'text': 'Image attached:',
+                      'image_url': image_url,
+                      'color': colour,
+                      }
+            attachments.append(attach)
+        elif site == 'Siding Spring':
+            pass
 
     send_slack_msg(msg, attachments=attachments, channel=slack_channel)
 
@@ -281,7 +173,7 @@ def send_dome_report(msg, confirmed_closed, slack_channel=None):
     send_status_report(msg=msg, colour=colour, startup=False, slack_channel=slack_channel)
 
 
-def send_timing_report(date=None,
+def send_timing_report(time=None,
                        startup_sunalt=12,
                        open_sunalt=0,
                        obs_start_sunalt=-12,
@@ -290,21 +182,21 @@ def send_timing_report(date=None,
                        slack_channel=None,
                        ):
     """Send a Slack message containing tonight's observing times."""
-    if date is None:
-        date = night_startdate()
+    if time is None:
+        time = Time.now()
     if obs_stop_sunalt is None:
         obs_stop_sunalt = obs_start_sunalt
     if close_sunalt is None:
         close_sunalt = open_sunalt
 
-    startup_time = sunalt_time(date, startup_sunalt * u.deg, eve=True)
-    open_time = sunalt_time(date, open_sunalt * u.deg, eve=True)
-    obsstart_time = sunalt_time(date, obs_start_sunalt * u.deg, eve=True)
-    obsstop_time = sunalt_time(date, obs_stop_sunalt * u.deg, eve=False)
-    close_time = sunalt_time(date, close_sunalt * u.deg, eve=False)
+    startup_time = sunalt_time(startup_sunalt * u.deg, eve=True, time=time)
+    open_time = sunalt_time(open_sunalt * u.deg, eve=True, time=time)
+    obsstart_time = sunalt_time(obs_start_sunalt * u.deg, eve=True, time=time)
+    obsstop_time = sunalt_time(obs_stop_sunalt * u.deg, eve=False, time=time)
+    close_time = sunalt_time(close_sunalt * u.deg, eve=False, time=time)
     obs_time = (obsstop_time - obsstart_time).to(u.hour).value
 
-    msg = '*Night starting {}*\n'.format(date)
+    msg = '*Night starting {}*\n'.format(night_startdate())
     msg += 'Expected observing duration: {:.1f} hours'.format(obs_time)
 
     attachments = []
