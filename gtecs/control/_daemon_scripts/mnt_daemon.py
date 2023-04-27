@@ -564,8 +564,11 @@ class MntDaemon(BaseDaemon):
 
     def _limit_check(self):
         """Check if the mount position is past the valid limits."""
-        if not self._within_limits(self.current_position):
+        try:
+            self._within_limits(self.current_position)
+        except Exception:
             self.log.error(f'Mount is outside of limits [{self._pos_str()}]')
+            self.log.debug('', exc_info=True)
             # Stop any movement
             if self.info['status'] in ['Tracking', 'Slewing']:
                 self.log.error('Stopping mount')
@@ -651,12 +654,18 @@ class MntDaemon(BaseDaemon):
 
         # Check if position is above horizon
         if coords_altaz.alt.deg < params.MIN_ELEVATION:
-            return False
+            msg = f'Target alt ({coords_altaz.alt.deg:.1f} deg)'
+            msg += f' is below limit ({params.MIN_ELEVATION:.1f} deg)'
+            msg += ', cannot slew'
+            raise ValueError(msg)
         # Check if position is within hour angle limits
         coords_hadec = coords.transform_to(HADec(obstime=Time.now(), location=self.location))
         if abs(coords_hadec.ha.hour) > params.MAX_HOURANGLE:
-            return False
-        return True
+            msg = f'Target hour angle ({coords_hadec.ha.hour:.1f}h)'
+            msg += f' is outside limit (±{params.MAX_HOURANGLE:.1f}h)'
+            msg += ', cannot slew'
+            raise ValueError(msg)
+        return
 
     def _pos_str(self, coords=None):
         """Return a simple string reporting the given position, or the current position if None."""
@@ -714,23 +723,15 @@ class MntDaemon(BaseDaemon):
         self.set_target(coords)
 
         # Check if target is within the limits
-        # NB We don't use `_within_limits` here so that we can give a more specific error message
         if not isinstance(coords, AltAz):
             coords_altaz = coords.transform_to(AltAz(obstime=Time.now(), location=self.location))
         else:
             coords_altaz = coords
             coords = SkyCoord(coords_altaz).transform_to('icrs')
-        if coords_altaz.alt.deg < params.MIN_ELEVATION:
-            msg = f'Target alt ({coords_altaz.alt.deg:.1f} deg)'
-            msg += f' is below limit ({params.MIN_ELEVATION:.1f} deg)'
-            msg += ', cannot slew'
-            raise ValueError(msg)
-        coords_hadec = coords.transform_to(HADec(obstime=Time.now(), location=self.location))
-        if abs(coords_hadec.ha.hour) > params.MAX_HOURANGLE:
-            msg = f'Target hour angle ({coords_hadec.ha.hour:.1f}h)'
-            msg += f' is outside limit (±{params.MAX_HOURANGLE:.1f}h)'
-            msg += ', cannot slew'
-            raise ValueError(msg)
+        try:
+            self._within_limits(self.current_position)
+        except Exception:
+            raise
 
         # Check current status
         self.wait_for_info()
@@ -763,8 +764,10 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Mount is in blinky mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
             raise errors.HardwareStatusError('Mount motors are powered off')
-        if not self._within_limits(self.current_position):
-            raise errors.HardwareStatusError('Mount is past limits, cannot track')
+        try:
+            self._within_limits(self.current_position)
+        except Exception:
+            raise
 
         # Set flag
         self.force_check_flag = True
