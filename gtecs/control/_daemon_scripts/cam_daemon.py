@@ -879,10 +879,13 @@ class CamDaemon(BaseDaemon):
             target_temp = self.cool_temp
         elif target_temp.lower() == 'warm':
             target_temp = self.warm_temp
-        if not isinstance(target_temp, (int, float)):
-            raise ValueError('Temperature must be an integer or float')
-        elif not (-55 <= target_temp <= 45):
-            raise ValueError('Temperature must be between -55 and 45')
+        else:
+            try:
+                target_temp = float(target_temp)
+            except ValueError:
+                raise ValueError('Temperature must be a float or "cool" or "warm"')
+            if not (-55 <= target_temp <= 45):
+                raise ValueError('Temperature must be between -55 and 45')
         for ut in ut_list:
             if ut not in self.uts:
                 raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
