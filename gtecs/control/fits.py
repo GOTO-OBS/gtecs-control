@@ -670,27 +670,31 @@ def update_header(header, ut, all_info, log=None):
         if info['survey_id'] is not None:
             survey_id = info['survey_id']
             survey_name = info['survey_name']
-            skymap = info['skymap']
         else:
             survey_id = 'NA'
             survey_name = 'NA'
-            skymap = 'NA'
 
-        # Get Event info
-        if info['event_id'] is not None:
+        # Get Notice and Event info
+        if info['notice_id'] is not None:
+            notice_id = info['notice_id']
+            notice_ivorn = info['notice_ivorn']
+            notice_time = info['notice_time']
             event_id = info['event_id']
             event_name = info['event_name']
-            event_source = info['event_source']
             event_type = info['event_type']
+            event_origin = info['event_origin']
             if info['event_time'] is not None:
                 event_time = info['event_type'].strftime('%Y-%m-%dT%H:%M:%S')
             else:
                 event_time = 'NA'
         else:
+            notice_id = 'NA'
+            notice_ivorn = 'NA'
+            notice_time = 'NA'
             event_id = 'NA'
             event_name = 'NA'
-            event_source = 'NA'
             event_type = 'NA'
+            event_origin = 'NA'
             event_time = 'NA'
 
     except Exception:
@@ -739,12 +743,15 @@ def update_header(header, ut, all_info, log=None):
 
         survey_id = 'NA'
         survey_name = 'NA'
-        skymap = 'NA'
+
+        notice_id = 'NA'
+        notice_ivorn = 'NA'
+        notice_time = 'NA'
 
         event_id = 'NA'
         event_name = 'NA'
-        event_source = 'NA'
         event_type = 'NA'
+        event_origin = 'NA'
         event_time = 'NA'
 
     # MAX COMMENT LENGTH: '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
@@ -787,12 +794,15 @@ def update_header(header, ut, all_info, log=None):
 
     header['DB-SURVY'] = (survey_id, 'Database Survey ID')
     header['SURVEY  '] = (survey_name, 'Name of this survey')
-    header['SKYMAP  '] = (skymap, 'Skymap URL for this event')
+
+    header['DB-NOTIC'] = (notice_id, 'Database Notice ID')
+    header['IVORN   '] = (notice_ivorn, 'GCN Notice IVORN')
+    header['RCVTIME '] = (notice_time, 'Time the GCN Notice was received')
 
     header['DB-EVENT'] = (event_id, 'Database Event ID')
     header['EVENT   '] = (event_name, 'Event name for this pointing')
-    header['SOURCE  '] = (event_source, 'Source of this event')
     header['EVNTTYPE'] = (event_type, 'Type of event')
+    header['SOURCE  '] = (event_origin, 'Source of this event')
     header['EVNTTIME'] = (event_time, 'Recorded time of the event')
 
     # Camera info
