@@ -684,7 +684,7 @@ def update_header(header, ut, all_info, log=None):
             event_type = info['event_type']
             event_origin = info['event_origin']
             if info['event_time'] is not None:
-                event_time = info['event_type'].strftime('%Y-%m-%dT%H:%M:%S')
+                event_time = info['event_time'].strftime('%Y-%m-%dT%H:%M:%S')
             else:
                 event_time = 'NA'
         else:
