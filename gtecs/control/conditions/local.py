@@ -95,9 +95,10 @@ def get_vaisala_json(source, location):
 
 def get_rain_daemon(uri):
     """Get rain readings from the W1m boards."""
-    with Pyro4.Proxy(uri) as pyro_daemon:
-        pyro_daemon._pyroSerializer = 'serpent'
-        info = pyro_daemon.last_measurement()
+    with Pyro4.Proxy(uri) as proxy:
+        proxy._pyroTimeout = 5
+        proxy._pyroSerializer = 'serpent'
+        info = proxy.last_measurement()
 
     weather_dict = {}
 

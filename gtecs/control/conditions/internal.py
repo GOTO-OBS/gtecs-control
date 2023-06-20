@@ -99,9 +99,10 @@ def get_roomalert_json(source, location):
 
 def get_domealert_daemon(uri):
     """Get internal readings from Paul's dome alert board."""
-    with Pyro4.Proxy(uri) as pyro_daemon:
-        pyro_daemon._pyroSerializer = 'serpent'
-        info = pyro_daemon.last_measurement()
+    with Pyro4.Proxy(uri) as proxy:
+        proxy._pyroTimeout = 5
+        proxy._pyroSerializer = 'serpent'
+        info = proxy.last_measurement()
 
     weather_dict = {}
 
@@ -127,9 +128,10 @@ def get_domealert_daemon(uri):
 
 def get_SHT35_daemon(uri):
     """Get internal readings from Paul's SHT35 board."""
-    with Pyro4.Proxy(uri) as pyro_daemon:
-        pyro_daemon._pyroSerializer = 'serpent'
-        info = pyro_daemon.last_measurement()
+    with Pyro4.Proxy(uri) as proxy:
+        proxy._pyroTimeout = 5
+        proxy._pyroSerializer = 'serpent'
+        info = proxy.last_measurement()
 
     weather_dict = {}
 
