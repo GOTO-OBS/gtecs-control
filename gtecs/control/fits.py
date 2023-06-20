@@ -352,7 +352,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     if all_info['conditions'] is not None:
         try:
             # Select external source
-            ext_source = params.WEATHER_SOURCES[0]
+            ext_source = params.VAISALA_URI_PRIMARY[5:].split('_')[0]
             ext_weather = all_info['conditions']['weather'][ext_source].copy()
             all_info['conditions']['weather_ext'] = ext_weather
 

@@ -14,7 +14,7 @@ from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
 from gtecs.control.conditions.internal import get_domealert_daemon
-from gtecs.control.conditions.local import get_vaisala_json, get_rain_daemon
+from gtecs.control.conditions.local import get_vaisala_daemon, get_rain_daemon
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Status
@@ -128,15 +128,25 @@ class ConditionsDaemon(BaseDaemon):
         try:
             weather = {}
 
-            # Get the weather from the local stations
-            for source in params.WEATHER_SOURCES:
+            # Get the weather values from local and external stations
+            weather_sources = [params.VAISALA_URI_PRIMARY]
+            if params.VAISALA_URI_SECONDARY != 'none':
+                weather_sources.append(params.VAISALA_URI_SECONDARY)
+            for source in params.EXTERNAL_WEATHER_SOURCES:
+                if source != 'none' and source not in weather_sources:
+                    weather_sources.append(source.lower())
+            for source in weather_sources:
                 try:
-                    if source.lower() == 'aat':
-                        weather_dict = get_aat()
-                    elif source.lower() == 'ing':
+                    if source.startswith('PYRO:'):
+                        uri = source
+                        source = uri[5:].split('_')[0]
+                        weather_dict = get_vaisala_daemon(uri)
+                    elif source == 'ing':
                         weather_dict = get_ing()
+                    elif source == 'aat':
+                        weather_dict = get_aat()
                     else:
-                        weather_dict = get_vaisala_json(source, params.CONDITIONS_JSON_LOCATION)
+                        raise ValueError('Unknown weather source')
                 except Exception:
                     if params.FAKE_CONDITIONS:
                         weather_dict = {'temperature': 10,
