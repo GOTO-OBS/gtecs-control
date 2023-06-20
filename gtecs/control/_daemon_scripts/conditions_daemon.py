@@ -9,9 +9,13 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import conditions
 from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
+from gtecs.control.conditions.clouds import get_satellite_clouds
+from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
+from gtecs.control.conditions.internal import get_domealert_daemon
+from gtecs.control.conditions.local import get_vaisala_json, get_rain_daemon
+from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Status
 from gtecs.control.slack import send_slack_msg
@@ -128,11 +132,11 @@ class ConditionsDaemon(BaseDaemon):
             for source in params.WEATHER_SOURCES:
                 try:
                     if source.lower() == 'aat':
-                        weather_dict = conditions.get_AAT()
+                        weather_dict = get_aat()
                     elif source.lower() == 'ing':
-                        weather_dict = conditions.get_ing()
+                        weather_dict = get_ing()
                     else:
-                        weather_dict = conditions.get_vaisala(source)
+                        weather_dict = get_vaisala_json(source, params.CONDITIONS_JSON_LOCATION)
                 except Exception:
                     if params.FAKE_CONDITIONS:
                         weather_dict = {'temperature': 10,
@@ -197,7 +201,7 @@ class ConditionsDaemon(BaseDaemon):
             # Get the W1m rain boards reading
             if params.RAINDAEMON_URI != 'none':
                 try:
-                    rain = conditions.get_rain()['rain']
+                    rain = get_rain_daemon(params.RAINDAEMON_URI)['rain']
                     # Replace the local rain measurements
                     for source in weather:
                         if source == 'w1m':
@@ -241,7 +245,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get the internal conditions from Paul's DomeAlert
         try:
-            internal_dict = conditions.get_domealert()
+            internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
         except Exception:
             if params.FAKE_CONDITIONS:
                 internal_dict = {'temperature': 10,
@@ -262,7 +266,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get seeing and dust from the TNG webpage (La Palma only)
         try:
             if params.SITE_NAME == 'La Palma':
-                tng_dict = conditions.get_tng()
+                tng_dict = get_tng()
                 # check if the timeouts have been exceeded
                 if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
                     tng_dict['seeing'] = -999
@@ -294,7 +298,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get seeing from the ING RoboDIMM (La Palma only)
         try:
             if params.SITE_NAME == 'La Palma':
-                dimm_dict = conditions.get_robodimm()
+                dimm_dict = get_robodimm()
                 # check if the timeout has been exceeded
                 if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
                     dimm_dict['seeing'] = -999
@@ -317,7 +321,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the UPSs
         try:
-            ups_percent, ups_status = conditions.get_ups()
+            ups_percent, ups_status = get_ups()
             temp_info['ups_percent'] = ups_percent
             temp_info['ups_status'] = ups_status
         except Exception:
@@ -332,7 +336,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the link ping check
         try:
-            pings = [conditions.check_ping(url) for url in params.LINK_URLS]
+            pings = [check_ping(url) for url in params.LINK_URLS]
             temp_info['pings'] = pings
         except Exception:
             if params.FAKE_CONDITIONS:
@@ -344,7 +348,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the disk usage check
         try:
-            free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH) * 100.
+            free_diskspace = get_diskspace_remaining(params.IMAGE_PATH) * 100.
             temp_info['free_diskspace'] = free_diskspace
         except Exception:
             if params.FAKE_CONDITIONS:
@@ -356,7 +360,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the satellite IR cloud image
         try:
-            clouds = conditions.get_satellite_clouds(site=params.SITE_NAME) * 100
+            clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
             temp_info['clouds'] = clouds
         except Exception:
             if params.FAKE_CONDITIONS:
