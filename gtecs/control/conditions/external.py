@@ -86,6 +86,9 @@ def get_ing():
                 weather_dict['update_time'] = -999
                 weather_dict['dt'] = -999
 
+        # no dew point
+        weather_dict['dew_point'] = -999
+
     return weather_dict
 
 
