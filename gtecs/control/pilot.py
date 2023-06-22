@@ -18,7 +18,7 @@ from . import params
 from .astronomy import get_sunalt, local_midnight, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
-from .scheduling import update_schedule
+from .scheduling import update_schedule_pyro, update_schedule_server_async
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
@@ -1002,17 +1002,31 @@ class Pilot:
                 else:
                     self.log.debug('updating scheduler')
                 dome_shielding = self.hardware['dome'].shielding_active
-                future_pointing = update_schedule(
-                    self.current_pointing['id'] if self.current_pointing is not None else None,
-                    self.current_status,
-                    dome_shielding,
-                    request_pointing=request_pointing,
-                    asynchronous=True,
-                    force_update=self.current_status != 'running',
-                )
-                while not future_pointing.ready:
-                    await asyncio.sleep(0.2)
-                new_pointing = future_pointing.value
+
+                if params.SCHEDULER_CHECK_METHOD == 'pyro':
+                    future_pointing = update_schedule_pyro(
+                        self.current_pointing['id'] if self.current_pointing is not None else None,
+                        self.current_status,
+                        dome_shielding,
+                        request_pointing=request_pointing,
+                        asynchronous=True,
+                        force_update=self.current_status != 'running',
+                    )
+                    while not future_pointing.ready:
+                        await asyncio.sleep(0.2)
+                    new_pointing = future_pointing.value
+                elif params.SCHEDULER_CHECK_METHOD == 'server':
+                    new_pointing = await update_schedule_server_async(
+                        self.current_pointing['id'] if self.current_pointing is not None else None,
+                        self.current_status,
+                        dome_shielding,
+                        request_pointing=request_pointing,
+                        force_update=self.current_status != 'running',
+                    )
+                else:
+                    msg = 'Unknown scheduler check method: {}'.format(params.SCHEDULER_CHECK_METHOD)
+                    raise ValueError(msg)
+
             except Exception as error:
                 self.log.warning('{} checking scheduler: {}'.format(
                     type(error).__name__, error))

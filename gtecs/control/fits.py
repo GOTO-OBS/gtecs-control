@@ -605,11 +605,11 @@ def update_header(header, ut, all_info, log=None):
         else:
             rank = 'inf'
         if info['start_time'] is not None:
-            starttime = info['start_time'].strftime('%Y-%m-%dT%H:%M:%S')
+            starttime = info['start_time']
         else:
             starttime = 'NA'
         if info['stop_time'] is not None:
-            stoptime = info['stop_time'].strftime('%Y-%m-%dT%H:%M:%S')
+            stoptime = info['stop_time']
         else:
             stoptime = 'NA'
 
@@ -683,7 +683,7 @@ def update_header(header, ut, all_info, log=None):
             event_source = info['event_source']
             event_type = info['event_type']
             if info['event_time'] is not None:
-                event_time = info['event_type'].strftime('%Y-%m-%dT%H:%M:%S')
+                event_time = info['event_time']
             else:
                 event_time = 'NA'
         else:

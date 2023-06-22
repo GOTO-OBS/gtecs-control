@@ -312,8 +312,12 @@ EMERGENCY_FILE = os.path.join(FILE_PATH, 'EMERGENCY-SHUTDOWN')
 
 ############################################################
 # Scheduler parameters
+SCHEDULER_CHECK_METHOD = config['SCHEDULER_CHECK_METHOD']
 SCHEDULER_HOST = config['SCHEDULER_HOST']
+if SCHEDULER_HOST == 'localhost':
+    SCHEDULER_HOST = LOCAL_HOST
 SCHEDULER_PORT = config['SCHEDULER_PORT']
+SCHEDULER_API_KEY = config['SCHEDULER_API_KEY']
 
 ############################################################
 # Pilot parameters
