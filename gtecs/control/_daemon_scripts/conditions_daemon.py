@@ -214,7 +214,7 @@ class ConditionsDaemon(BaseDaemon):
                     rain = get_rain_daemon(params.RAINDAEMON_URI)['rain']
                     # Replace the local rain measurements
                     for source in weather:
-                        if source == 'w1m':
+                        if source == 'onemetre':  # TODO: needs to be fixed for SSO
                             weather[source]['rain'] = rain
                         elif 'rain' in weather[source]:
                             del weather[source]['rain']
