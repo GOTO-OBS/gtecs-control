@@ -131,7 +131,7 @@ UTS = sorted(UT_DICT)
 UTS_WITH_CAMERAS = [ut for ut in UTS if UT_DICT[ut]['CAMERA'] is not None]
 UTS_WITH_FOCUSERS = [ut for ut in UTS if UT_DICT[ut]['FOCUSER'] is not None]
 UTS_WITH_FILTERWHEELS = [ut for ut in UTS if UT_DICT[ut]['FILTERWHEEL'] is not None]
-UTS_WITH_COVERS = [ut for ut in UTS if UT_DICT[ut]['OTA']['MIRROR_COVER'] is True]
+UTS_WITH_COVERS = [ut for ut in UTS if UT_DICT[ut]['OTA']['MIRROR_COVER'] == 1]
 ALL_FILTERS = sorted({filt for ut in UTS for filt in UT_DICT[ut]['FILTERS']})
 
 INTERFACES = {interface_id: DAEMONS[interface_id]['UTS']
