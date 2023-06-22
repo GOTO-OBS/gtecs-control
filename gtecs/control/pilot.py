@@ -996,42 +996,54 @@ class Pilot:
 
             # Now update the database and get the latest pointing from the scheduler
             self.scheduler_updating = True
-            try:
-                if request_pointing:
-                    self.log.debug('checking scheduler')
-                else:
-                    self.log.debug('updating scheduler')
-                dome_shielding = self.hardware['dome'].shielding_active
+            attempts_remaining = 3
+            while attempts_remaining:
+                try:
+                    if request_pointing:
+                        self.log.debug('checking scheduler')
+                    else:
+                        self.log.debug('updating scheduler')
+                    if self.current_pointing is not None:
+                        current_pointing_id = self.current_pointing['id']
+                    else:
+                        current_pointing_id = None
+                    dome_shielding = self.hardware['dome'].shielding_active
 
-                if params.SCHEDULER_CHECK_METHOD == 'pyro':
-                    future_pointing = update_schedule_pyro(
-                        self.current_pointing['id'] if self.current_pointing is not None else None,
-                        self.current_status,
-                        dome_shielding,
-                        request_pointing=request_pointing,
-                        asynchronous=True,
-                        force_update=self.current_status != 'running',
-                    )
-                    while not future_pointing.ready:
-                        await asyncio.sleep(0.2)
-                    new_pointing = future_pointing.value
-                elif params.SCHEDULER_CHECK_METHOD == 'server':
-                    new_pointing = await update_schedule_server_async(
-                        self.current_pointing['id'] if self.current_pointing is not None else None,
-                        self.current_status,
-                        dome_shielding,
-                        request_pointing=request_pointing,
-                        force_update=self.current_status != 'running',
-                    )
-                else:
-                    msg = 'Unknown scheduler check method: {}'.format(params.SCHEDULER_CHECK_METHOD)
-                    raise ValueError(msg)
+                    if params.SCHEDULER_CHECK_METHOD == 'pyro':
+                        future_pointing = update_schedule_pyro(
+                            current_pointing_id,
+                            self.current_status,
+                            dome_shielding,
+                            request_pointing=request_pointing,
+                            asynchronous=True,
+                            force_update=self.current_status != 'running',
+                        )
+                        while not future_pointing.ready:
+                            await asyncio.sleep(0.2)
+                        new_pointing = future_pointing.value
+                    elif params.SCHEDULER_CHECK_METHOD == 'server':
+                        new_pointing = await update_schedule_server_async(
+                            current_pointing_id,
+                            self.current_status,
+                            dome_shielding,
+                            request_pointing=request_pointing,
+                            force_update=self.current_status != 'running',
+                        )
+                    else:
+                        msg = f'Unknown scheduler check method: {params.SCHEDULER_CHECK_METHOD}'
+                        raise ValueError(msg)
 
-            except Exception as error:
-                self.log.warning('{} checking scheduler: {}'.format(
-                    type(error).__name__, error))
-                self.log.debug('', exc_info=True)
-                new_pointing = None
+                except Exception as error:
+                    self.log.warning('{} checking scheduler: {}'.format(
+                        type(error).__name__, error))
+                    self.log.debug('', exc_info=True)
+                    attempts_remaining -= 1
+                    if attempts_remaining > 0:
+                        self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                        await asyncio.sleep(0.5)
+                    else:
+                        self.log.error('Could not communicate with the scheduler, parking')
+                        new_pointing = None
 
             if request_pointing:
                 self.log.debug('scheduler returns {}'.format(new_pointing['id']
