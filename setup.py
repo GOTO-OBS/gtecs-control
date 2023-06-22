@@ -12,6 +12,7 @@ REQUIRES = ['Pyro4',
             'matplotlib',
             'sep',
             'requests',
+            'aiohttp',
             'pyserial',
             'opencv-python',
             'pytz'
