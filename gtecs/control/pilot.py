@@ -1033,6 +1033,11 @@ class Pilot:
                         msg = f'Unknown scheduler check method: {params.SCHEDULER_CHECK_METHOD}'
                         raise ValueError(msg)
 
+                    if request_pointing:
+                        self.log.debug('scheduler returns {}'.format(
+                            new_pointing['id'] if new_pointing is not None else 'None'))
+                    break
+
                 except Exception as error:
                     self.log.warning('{} checking scheduler: {}'.format(
                         type(error).__name__, error))
@@ -1044,11 +1049,6 @@ class Pilot:
                     else:
                         self.log.error('Could not communicate with the scheduler, parking')
                         new_pointing = None
-
-            if request_pointing:
-                self.log.debug('scheduler returns {}'.format(new_pointing['id']
-                                                             if new_pointing is not None
-                                                             else 'None'))
 
             # Now that we've updated the database we can clear the current Pointing
             if self.current_status in ['completed', 'interrupted']:
