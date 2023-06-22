@@ -10,7 +10,7 @@ from .astronomy import night_startdate, sunalt_time
 from .flags import Conditions, Status
 
 
-def send_slack_msg(text, channel=None, tel_name=True, *args, **kwargs):
+def send_slack_msg(text, channel=None, username=None, *args, **kwargs):
     """Send a message to Slack.
 
     Parameters
@@ -19,23 +19,28 @@ def send_slack_msg(text, channel=None, tel_name=True, *args, **kwargs):
         The message text.
     channel : string, optional
         The channel to post the message to.
-        If None, defaults to `gtecs.control.params.SLACK_DEFAULT_CHANNEL`.
-    tel_name : bool, default=True
-        If True then prepend each message with `params.TELESCOPE_NAME`
+        If None, defaults to `params.SLACK_DEFAULT_CHANNEL`.
+    username : string, optional
+        The Slack bot username to post the message as.
+        If None, defaults to 'params.TELESCOPE_NAME'.
 
-    Other parameters are passed to `gtecs.common.slack.send_slack_msg`.
+    Other parameters are passed to `gtecs.common.slack.send_message`.
 
     """
     if channel is None:
         channel = params.SLACK_DEFAULT_CHANNEL
+    if username is None:
+        username = params.TELESCOPE_NAME
 
-    if tel_name:
-        # Add the telescope name before the message
-        text = f'{params.TELESCOPE_NAME}: ' + text
+    # Add the telescope name before the message
+    text = f'{params.TELESCOPE_NAME}: ' + text
 
     if params.ENABLE_SLACK:
         # Use the common function
-        send_message(text, channel, params.SLACK_BOT_TOKEN, *args, **kwargs)
+        return send_message(
+            text, channel, params.SLACK_BOT_TOKEN,
+            username=username, icon_emoji=f'goto_bot_{params.TELESCOPE_NUMBER}',
+            *args, **kwargs)
     else:
         print('Slack Message:', text)
 
