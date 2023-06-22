@@ -773,7 +773,7 @@ def get_image_headers(target_image_number, timeout=None):
                 # Either these are the headers we wanted, or we missed them
                 finished = True
         except Exception:
-            raise
+            pass
 
         if timeout and time.time() - start_time > timeout:
             timed_out = True
