@@ -54,7 +54,7 @@ def update_schedule_server(current_pointing=None, current_status=None,
                            shielding=False, request_pointing=True, force_update=False):
     """Update the observing database and get what to observe next from the scheduler."""
     if params.SCHEDULER_PORT == 9999:
-        url = f'http://{params.SCHEDULER_HOST}/scheduler'
+        url = f'http://{params.SCHEDULER_HOST}/scheduler/'
     else:
         url = f'http://{params.SCHEDULER_HOST}:{params.SCHEDULER_PORT}/scheduler/'
     url += f'update_schedule/{params.TELESCOPE_NUMBER}'
@@ -77,7 +77,7 @@ async def update_schedule_server_async(current_pointing=None, current_status=Non
                                        shielding=False, request_pointing=True, force_update=False):
     """Update the observing database and get what to observe next from the scheduler."""
     if params.SCHEDULER_PORT == 9999:
-        url = f'http://{params.SCHEDULER_HOST}/scheduler'
+        url = f'http://{params.SCHEDULER_HOST}/scheduler/'
     else:
         url = f'http://{params.SCHEDULER_HOST}:{params.SCHEDULER_PORT}/scheduler/'
     url += f'update_schedule/{params.TELESCOPE_NUMBER}'
@@ -100,7 +100,7 @@ async def update_schedule_server_async(current_pointing=None, current_status=Non
 def get_pointing_info_server(pointing_id):
     """Get the info dict for the given Pointing from the scheduler."""
     if params.SCHEDULER_PORT == 9999:
-        url = f'http://{params.SCHEDULER_HOST}/scheduler'
+        url = f'http://{params.SCHEDULER_HOST}/scheduler/'
     else:
         url = f'http://{params.SCHEDULER_HOST}:{params.SCHEDULER_PORT}/scheduler/'
     url += f'pointing_info/{pointing_id}'
