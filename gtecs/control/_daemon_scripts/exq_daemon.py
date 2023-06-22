@@ -104,7 +104,8 @@ class ExqDaemon(BaseDaemon):
                                 mnt_info = mnt_daemon.get_info(force_update=True)
 
                             # Check if the mount can move
-                            if mnt_info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                            if mnt_info['status'] in ['Parked', 'Stopped',
+                                                      'IN BLINKY MODE', 'MOTORS OFF']:
                                 self.log.warning('Cannot move mount ({}), skipping dither'.format(
                                                  mnt_info['status']))
                                 self.dithering = False

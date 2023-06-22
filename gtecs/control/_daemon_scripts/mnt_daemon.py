@@ -881,6 +881,8 @@ class MntDaemon(BaseDaemon):
             raise errors.HardwareStatusError('Already slewing')
         elif self.info['status'] == 'Parked':
             raise errors.HardwareStatusError('Mount is parked')
+        elif self.info['status'] == 'Stopped':
+            raise errors.HardwareStatusError('Mount is stopped, can only pulse guide when tracking')
         elif self.info['status'] == 'IN BLINKY MODE':
             raise errors.HardwareStatusError('Mount is in Blinky Mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
