@@ -679,7 +679,7 @@ def update_header(header, ut, all_info, log=None):
             notice_id = info['notice_id']
             notice_ivorn = info['notice_ivorn']
             if info['notice_time'] is not None:
-                notice_time = info['notice_time'].strftime('%Y-%m-%dT%H:%M:%S')
+                notice_time = info['notice_time']
             else:
                 notice_time = 'NA'
             event_id = info['event_id']
