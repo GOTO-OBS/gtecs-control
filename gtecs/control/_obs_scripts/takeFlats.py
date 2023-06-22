@@ -46,7 +46,7 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
     # Only use UTs which have the given filter
     uts = [ut for ut in params.UT_DICT if filt in params.UT_DICT[ut]['FILTERS']]
 
-    # Take the image and load the image data
+    # Take the image, then get the mean value from the headers
     image_headers = get_analysis_image(exptime, filt, 1, target_name, 'FLAT', glance, uts=uts,
                                        get_data=False, get_headers=True)
 
@@ -170,7 +170,11 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
             counts = take_flat(exptime, filt, offset_step, target_name)
             print('{} image sky mean: {:.1f} counts'.format(filt, counts))
 
-    print('~~~~~~')
+            # Stop if saturated in the morning
+            if not eve and counts > 65000:
+                print('Images are saturated, stopping flats')
+                break
+
     print('Done')
 
 
