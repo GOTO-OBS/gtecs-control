@@ -261,8 +261,8 @@ class ConditionsDaemon(BaseDaemon):
         # Get rain board readings
         try:
             if params.RAINDAEMON_URI != 'none':
-                if params.RAINDAEMON_URI == params.DOMEALERT_URI:
-                    rain_dict = get_rain_domealert(params.DOMEALERT_URI)
+                if 'domealert' in params.RAINDAEMON_URI:
+                    rain_dict = get_rain_domealert(params.RAINDAEMON_URI)
                 else:
                     rain_dict = get_rain_daemon(params.RAINDAEMON_URI)
                 # Remove any other readings
