@@ -171,7 +171,7 @@ def get_vaisala_daemon(uri):
 
 
 def get_rain_daemon(uri):
-    """Get rain readings from the W1m boards."""
+    """Get rain readings from the rain daemons."""
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
@@ -183,7 +183,40 @@ def get_rain_daemon(uri):
     dt = Time.now() - weather_dict['update_time']
     weather_dict['dt'] = int(dt.to('second').value)
 
-    if info['unsafe_boards'] > 0:
+    weather_dict['total'] = info['total_boards']
+    weather_dict['unsafe'] = info['unsafe_boards']
+    if weather_dict['unsafe'] > 0:
+        weather_dict['rain'] = True
+    else:
+        weather_dict['rain'] = False
+
+    return weather_dict
+
+
+def get_rain_domealert(uri):
+    """Get rain readings from the domealert."""
+    with Pyro4.Proxy(uri) as proxy:
+        proxy._pyroTimeout = 5
+        proxy._pyroSerializer = 'serpent'
+        info = proxy.last_measurement()
+
+    weather_dict = {}
+
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
+    weather_dict['dt'] = int(dt.to('second').value)
+
+    total_boards = 0
+    unsafe_boards = 0
+    for key in info:
+        if 'rain' in key and 'valid' not in key and info[key + '_valid']:
+            total_boards += 1
+            unsafe = info[key] is True  # TODO: check if NO or NC
+            unsafe_boards += int(unsafe)
+
+    weather_dict['total'] = total_boards
+    weather_dict['unsafe'] = unsafe_boards
+    if total_boards == 0 or unsafe_boards > 0:
         weather_dict['rain'] = True
     else:
         weather_dict['rain'] = False

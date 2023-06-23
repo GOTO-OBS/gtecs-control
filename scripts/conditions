@@ -330,6 +330,18 @@ def print_info(info):
             temperature_str, humidity_str, dt_str)
         print(weather_str)
 
+        rain_unsafe = info['rain']['unsafe']
+        rain_total = info['rain']['total']
+        if info['rain']['rain'] == -999:
+            rain_str = style.rtxt('  ERR')
+        elif rain_unsafe > 0:
+            rain_str = style.rtxt('  True') + '   ({}/{})'.format(rain_unsafe, rain_total)
+        else:
+            rain_str = style.gtxt(' False') + '   ({}/{})'.format(rain_unsafe, rain_total)
+
+        print('  {: <10}'.format('rain'), end='\t')
+        print(rain_str)
+
         print('CONDITIONS:')
 
         if params.SITE_NAME == 'La Palma':
