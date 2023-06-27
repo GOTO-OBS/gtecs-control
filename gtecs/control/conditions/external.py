@@ -188,8 +188,8 @@ def get_ing_internal(source):
 
 
 def get_robodimm():
-    """Get the current readings from the ING RoboDIMM."""
-    url = 'http://catserver.ing.iac.es/robodimm/robodimm.php'
+    """Get the current readings from the 2019+ ING RoboDIMM."""
+    url = 'https://astro.ing.iac.es/seeing/newdimm.php'
     indata = download_data_from_url(url, outfile='dimm.php')
     if 'DB Error: connect failed' in indata:
         raise IOError('Failed to connect to RoboDIMM')
@@ -206,20 +206,14 @@ def get_robodimm():
 
     # seeing
     try:
-        # seeing is estimated as the average of the three smallest values,
-        # matching the NOT weather pages
-        # (from https://github.com/warwick-one-metre/robodimmd/blob/master/robodimmd)
-        samples = sorted(float(s) for s in data[10:14])
-        weather_dict['seeing'] = round((samples[0] + samples[1] + samples[2]) / 3, 2)
+        weather_dict['seeing'] = data[9]
     except Exception:
         weather_dict['seeing'] = -999
 
     # time
     try:
-        datestr = data[1] + ' ' + data[2] + '00'
-        utc = datetime.timezone.utc
-        date = datetime.datetime.strptime(datestr, '%Y-%m-%d %H:%M:%S%z').astimezone(utc)
-        date = Time(date)
+        datestr = data[0] + ' ' + data[1].split('+')[0]
+        date = Time(datestr)
         weather_dict['update_time'] = date.iso
         dt = Time.now() - date
         weather_dict['dt'] = int(dt.to('second').value)
