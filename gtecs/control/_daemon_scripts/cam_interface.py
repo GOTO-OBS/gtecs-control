@@ -174,13 +174,14 @@ class CameraInterfaceDaemon(BaseDaemon):
 
     def _write_fits(self, hdu):
         """Write image HDU to a FITS file."""
-        if not hdu.header['GLANCE  ']:
+        if not hdu.header['GLANCE']:
             filename = image_location(hdu.header['RUN'], self.ut, hdu.header['TEL'])
         else:
             filename = glance_location(self.ut, hdu.header['TEL'])
 
         self.log.info('Saving image to {}'.format(filename))
         save_fits(hdu, filename, log=self.log, log_debug=True, fancy_log=False)
+
         # Check that the file was created
         exists = os.path.isfile(filename)
         if exists:
@@ -188,14 +189,15 @@ class CameraInterfaceDaemon(BaseDaemon):
         else:
             self.log.warning('ERROR: Image failed to save')
 
-    def save_exposure(self, all_info, compress=False, measure_hfds=False, method='proc'):
+    def save_exposure(self, header_cards=None, compress=False, measure_hfds=False, method='proc'):
         """Fetch the image data and save to a FITS file."""
         image_data = self.fetch_exposure()
         if image_data is None:
             self.log.error('ERROR: Failed to write image (nothing returned)')
             return None
 
-        hdu = make_fits(image_data, self.ut, all_info,
+        hdu = make_fits(image_data,
+                        header_cards=header_cards,
                         compress=compress,
                         measure_hfds=measure_hfds,
                         log=self.log)

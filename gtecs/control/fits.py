@@ -92,7 +92,8 @@ def clear_glance_files(tel_number=None):
             os.remove(filename)
 
 
-def make_fits(image_data, ut, all_info, compress=False,
+def make_fits(image_data,
+              header_cards=None, compress=False,
               include_stats=True, measure_hfds=False, hfd_regions=None,
               log=None):
     """Format and update a FITS HDU for the image."""
@@ -102,20 +103,20 @@ def make_fits(image_data, ut, all_info, compress=False,
     else:
         hdu = fits.PrimaryHDU(image_data)
 
-    # Update the image header with info from the daemons
-    try:
-        update_header(hdu.header, ut, all_info, log)
-    except Exception:
-        if log is None:
-            raise
-        log.error('Failed to update FITS header')
-        log.debug('', exc_info=True)
+    # Update the header with any provided cards
+    if header_cards is not None:
+        hdu.header.update(header_cards)
 
+    # Add basic image statistics to the header if requested
     if include_stats:
-        hdu.header['MEANCNTS'] = (np.mean(image_data), 'Mean image counts')
-        hdu.header['MEDCNTS '] = (np.median(image_data), 'Median image counts')
-        hdu.header['STDCNTS '] = (np.std(image_data), 'Std of image counts')
+        hdu.header['MEANCNTS'] = (np.mean(image_data),
+                                  'Mean image counts')
+        hdu.header['MEDCNTS '] = (np.median(image_data),
+                                  'Median image counts')
+        hdu.header['STDCNTS '] = (np.std(image_data),
+                                  'Std of image counts')
 
+    # Measure HFDs and add values to the header if requested
     if measure_hfds:
         binning = int(hdu.header['XBINNING'])  # should always be the same as YBINNING
         if hfd_regions is None:
@@ -188,25 +189,28 @@ def save_fits(hdu, filename, log=None, log_debug=False, fancy_log=True):
             print('{}: Saved exposure from camera {}'.format(expstr, ut))
 
 
-def get_all_info(cam_info, log=None, log_debug=False):
+def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
     """Get all info dicts from the running daemons, and other common info."""
     info_time = Time.now()
-    all_info = {}
-    bad_info = []
+    daemon_info = {}
+    bad_daemons = []
 
-    # Camera daemon
-    all_info['cam'] = cam_info
-    if 'current_exposure' not in cam_info or cam_info['current_exposure'] is None:
-        raise ValueError('No current exposure details in camera info dict')
+    daemons = ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']
+    if cam_info is None:
+        daemons.append('cam')
+    else:
+        # Use the given camera info, if we're already calling this from the cam daemon then
+        # we don't want to call it again
+        daemon_info['cam'] = cam_info
 
-    # Get the info from the other daemons in parallel to save time
-    def daemon_info_thread(daemon_id, log=None, log_debug=False):
+    # Get the info from the daemons in parallel to save time
+    def daemon_info_thread(daemon_id, timeout=60, log=None, log_debug=False):
         try:
             if log and log_debug:
                 log.debug(f'Fetching "{daemon_id}" info')
             force_update = bool(daemon_id != 'conditions')
-            with daemon_proxy(daemon_id, timeout=60) as daemon:
-                all_info[daemon_id] = daemon.get_info(force_update)
+            with daemon_proxy(daemon_id, timeout=timeout) as daemon:
+                daemon_info[daemon_id] = daemon.get_info(force_update)
             if log and log_debug:
                 log.debug(f'Fetched "{daemon_id}" info')
         except Exception:
@@ -214,21 +218,27 @@ def get_all_info(cam_info, log=None, log_debug=False):
                 raise
             log.error(f'Failed to fetch "{daemon_id}" info')
             log.debug('', exc_info=True)
-            all_info[daemon_id] = None
-            bad_info.append(daemon_id)
+            daemon_info[daemon_id] = None
+            bad_daemons.append(daemon_id)
 
-    threads = [threading.Thread(target=daemon_info_thread, args=(daemon_id, log, log_debug))
-               for daemon_id in ['ota', 'foc', 'filt', 'dome', 'mnt', 'conditions']]
+    threads = [threading.Thread(target=daemon_info_thread,
+                                args=(daemon_id, timeout, log, log_debug))
+               for daemon_id in daemons]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
 
+    # Check that there is a current exposure, otherwise we can't get all the info
+    # (like exposure time times for the history)
+    if ('current_exposure' not in daemon_info['cam'] or
+            daemon_info['cam']['current_exposure'] is None):
+        raise ValueError('No current exposure details in camera info dict')
+
     # Mount history
-    if all_info['mnt'] is not None:
+    if daemon_info['mnt'] is not None:
         try:
-            info = all_info['mnt']
-            exptime = cam_info['current_exposure']['exptime']
+            exptime = daemon_info['cam']['current_exposure']['exptime']
 
             # Position error history
             poserr_info = {}
@@ -239,9 +249,9 @@ def get_all_info(cam_info, log=None, log_debug=False):
             poserr_info['dec_max'] = 'NA'
             poserr_info['dec_mean'] = 'NA'
             poserr_info['dec_std'] = 'NA'
-            if info['position_error_history'] is not None:
+            if daemon_info['mnt']['position_error_history'] is not None:
                 # Get lookback time
-                max_hist = info_time.unix - info['position_error_history'][0][0]
+                max_hist = info_time.unix - daemon_info['mnt']['position_error_history'][0][0]
                 hist_time = params.MIN_HEADER_HIST_TIME
                 if exptime > hist_time:
                     hist_time = exptime
@@ -249,7 +259,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     hist_time = max_hist
                 poserr_info['hist_time'] = hist_time
                 # Get RA history values
-                ra_hist = [h[1]['ra'] for h in info['position_error_history']
+                ra_hist = [h[1]['ra'] for h in daemon_info['mnt']['position_error_history']
                            if info_time.unix - h[0] <= hist_time]
                 if len(ra_hist) > 0:
                     poserr_info['ra_hist'] = ra_hist
@@ -257,14 +267,14 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     poserr_info['ra_mean'] = np.mean(ra_hist)
                     poserr_info['ra_std'] = np.std(ra_hist)
                 # Get Dec history values
-                dec_hist = [h[1]['dec'] for h in info['position_error_history']
+                dec_hist = [h[1]['dec'] for h in daemon_info['mnt']['position_error_history']
                             if info_time.unix - h[0] <= hist_time]
                 if len(dec_hist) > 0:
                     poserr_info['dec_hist'] = dec_hist
                     poserr_info['dec_max'] = np.max(dec_hist)
                     poserr_info['dec_mean'] = np.mean(dec_hist)
                     poserr_info['dec_std'] = np.std(dec_hist)
-            all_info['mnt']['position_error_info'] = poserr_info
+            daemon_info['mnt']['position_error_info'] = poserr_info
 
             # Tracking error history
             trackerr_info = {}
@@ -275,9 +285,9 @@ def get_all_info(cam_info, log=None, log_debug=False):
             trackerr_info['dec_max'] = 'NA'
             trackerr_info['dec_mean'] = 'NA'
             trackerr_info['dec_std'] = 'NA'
-            if info['tracking_error_history'] is not None:
+            if daemon_info['mnt']['tracking_error_history'] is not None:
                 # Get lookback time
-                max_hist = info_time.unix - info['tracking_error_history'][0][0]
+                max_hist = info_time.unix - daemon_info['mnt']['tracking_error_history'][0][0]
                 hist_time = params.MIN_HEADER_HIST_TIME
                 if exptime > hist_time:
                     hist_time = exptime
@@ -285,7 +295,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     hist_time = max_hist
                 trackerr_info['hist_time'] = hist_time
                 # Get RA history values
-                ra_hist = [h[1]['ra'] for h in info['tracking_error_history']
+                ra_hist = [h[1]['ra'] for h in daemon_info['mnt']['tracking_error_history']
                            if info_time.unix - h[0] <= hist_time]
                 if len(ra_hist) > 0:
                     trackerr_info['ra_hist'] = ra_hist
@@ -293,16 +303,16 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     trackerr_info['ra_mean'] = np.mean(ra_hist)
                     trackerr_info['ra_std'] = np.std(ra_hist)
                 # Get Dec history values
-                dec_hist = [h[1]['dec'] for h in info['tracking_error_history']
+                dec_hist = [h[1]['dec'] for h in daemon_info['mnt']['tracking_error_history']
                             if info_time.unix - h[0] <= hist_time]
                 if len(dec_hist) > 0:
                     trackerr_info['dec_hist'] = dec_hist
                     trackerr_info['dec_max'] = np.max(dec_hist)
                     trackerr_info['dec_mean'] = np.mean(dec_hist)
                     trackerr_info['dec_std'] = np.std(dec_hist)
-            all_info['mnt']['tracking_error_info'] = trackerr_info
+            daemon_info['mnt']['tracking_error_info'] = trackerr_info
 
-            # Motor current histroy
+            # Motor current history
             current_info = {}
             current_info['hist_time'] = -999
             current_info['ra_max'] = 'NA'
@@ -311,9 +321,9 @@ def get_all_info(cam_info, log=None, log_debug=False):
             current_info['dec_max'] = 'NA'
             current_info['dec_mean'] = 'NA'
             current_info['dec_std'] = 'NA'
-            if info['motor_current_history'] is not None:
+            if daemon_info['mnt']['motor_current_history'] is not None:
                 # Get lookback time
-                max_hist = info_time.unix - info['motor_current_history'][0][0]
+                max_hist = info_time.unix - daemon_info['mnt']['motor_current_history'][0][0]
                 hist_time = params.MIN_HEADER_HIST_TIME
                 if exptime > hist_time:
                     hist_time = exptime
@@ -321,7 +331,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     hist_time = max_hist
                 current_info['hist_time'] = hist_time
                 # Get RA history values
-                ra_hist = [h[1]['ra'] for h in info['motor_current_history']
+                ra_hist = [h[1]['ra'] for h in daemon_info['mnt']['motor_current_history']
                            if info_time.unix - h[0] <= hist_time]
                 if len(ra_hist) > 0:
                     current_info['ra_hist'] = ra_hist
@@ -329,51 +339,51 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     current_info['ra_mean'] = np.mean(ra_hist)
                     current_info['ra_std'] = np.std(ra_hist)
                 # Get Dec history values
-                dec_hist = [h[1]['dec'] for h in info['motor_current_history']
+                dec_hist = [h[1]['dec'] for h in daemon_info['mnt']['motor_current_history']
                             if info_time.unix - h[0] <= hist_time]
                 if len(dec_hist) > 0:
                     current_info['dec_hist'] = dec_hist
                     current_info['dec_max'] = np.max(dec_hist)
                     current_info['dec_mean'] = np.mean(dec_hist)
                     current_info['dec_std'] = np.std(dec_hist)
-            all_info['mnt']['motor_current_info'] = current_info
+            daemon_info['mnt']['motor_current_info'] = current_info
 
         except Exception:
             if log is None:
                 raise
             log.error('Failed to calculate mount history info')
             log.debug('', exc_info=True)
-            all_info['mnt']['position_error_info'] = None
-            all_info['mnt']['tracking_error_info'] = None
-            all_info['mnt']['motor_current_info'] = None
-            bad_info.append('mnt_history')
+            daemon_info['mnt']['position_error_info'] = None
+            daemon_info['mnt']['tracking_error_info'] = None
+            daemon_info['mnt']['motor_current_info'] = None
+            bad_daemons.append('mnt_history')
 
     # Conditions sources
-    if all_info['conditions'] is not None:
+    if daemon_info['conditions'] is not None:
         try:
             # Select external source
             ext_source = params.VAISALA_URI_PRIMARY[5:].split('_')[0]
-            ext_weather = all_info['conditions']['weather'][ext_source].copy()
-            all_info['conditions']['weather_ext'] = ext_weather
+            ext_weather = daemon_info['conditions']['weather'][ext_source].copy()
+            daemon_info['conditions']['weather_ext'] = ext_weather
 
             # Select internal source
-            int_weather = all_info['conditions']['internal'].copy()
-            all_info['conditions']['weather_int'] = int_weather
+            int_weather = daemon_info['conditions']['internal'].copy()
+            daemon_info['conditions']['weather_int'] = int_weather
 
         except Exception:
             if log is None:
                 raise
             log.error('Failed to find conditions sources')
             log.debug('', exc_info=True)
-            all_info['conditions']['weather_ext'] = None
-            all_info['conditions']['weather_int'] = None
-            bad_info.append('conditions_sources')
+            daemon_info['conditions']['weather_ext'] = None
+            daemon_info['conditions']['weather_int'] = None
+            bad_daemons.append('conditions_sources')
 
     # Conditions history
-    if all_info['conditions'] is not None and all_info['conditions']['weather_ext'] is not None:
+    if (daemon_info['conditions'] is not None and
+            daemon_info['conditions']['weather_ext'] is not None):
         try:
-            info = all_info['conditions']['weather_ext']
-            exptime = cam_info['current_exposure']['exptime']
+            exptime = daemon_info['cam']['current_exposure']['exptime']
 
             # Wind gust history
             hist_info = {}
@@ -381,9 +391,10 @@ def get_all_info(cam_info, log=None, log_debug=False):
             hist_info['max'] = 'NA'
             hist_info['mean'] = 'NA'
             hist_info['std'] = 'NA'
-            if info['windgust_history'] != -999:
+            history = daemon_info['conditions']['weather_ext']['windgust_history']
+            if history != -999:
                 # Get lookback time
-                max_hist = info_time.unix - info['windgust_history'][0][0]
+                max_hist = info_time.unix - history[0][0]
                 hist_time = params.MIN_HEADER_HIST_TIME
                 if exptime > hist_time:
                     hist_time = exptime
@@ -391,35 +402,34 @@ def get_all_info(cam_info, log=None, log_debug=False):
                     hist_time = max_hist
                 hist_info['hist_time'] = hist_time
                 # Get gust history values
-                gust_hist = [h[1] for h in info['windgust_history']
-                             if info_time.unix - h[0] <= hist_time]
+                gust_hist = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
                 if len(gust_hist) > 0:
                     hist_info['hist'] = gust_hist
                     hist_info['max'] = np.max(gust_hist)
                     hist_info['mean'] = np.mean(gust_hist)
                     hist_info['std'] = np.std(gust_hist)
-            all_info['conditions']['weather_ext']['windgust_history_info'] = hist_info
+            daemon_info['conditions']['weather_ext']['windgust_history_info'] = hist_info
 
         except Exception:
             if log is None:
                 raise
             log.error('Failed to calculate conditions history info')
             log.debug('', exc_info=True)
-            all_info['conditions']['weather_ext']['windgust_history_info'] = None
-            bad_info.append('conditions_history')
+            daemon_info['conditions']['weather_ext']['windgust_history_info'] = None
+            bad_daemons.append('conditions_history')
 
     # Database
-    if cam_info['current_exposure']['set_id'] is not None:
+    if daemon_info['cam']['current_exposure']['set_id'] is not None:
         try:
             if log and log_debug:
                 log.debug('Fetching database info')
             db_info = {}
             db_info['from_database'] = True
-            db_info['expset_id'] = cam_info['current_exposure']['set_id']
-            db_info['pointing_id'] = cam_info['current_exposure']['pointing_id']
+            db_info['expset_id'] = daemon_info['cam']['current_exposure']['set_id']
+            db_info['pointing_id'] = daemon_info['cam']['current_exposure']['pointing_id']
 
             # Get Pointing info from the scheduler
-            pointing_info = get_pointing_info(cam_info['current_exposure']['pointing_id'])
+            pointing_info = get_pointing_info(db_info['pointing_id'])
             db_info.update(pointing_info)
 
             # Check IDs match
@@ -429,7 +439,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
             else:
                 del db_info['id']
 
-            all_info['db'] = db_info
+            daemon_info['db'] = db_info
             if log and log_debug:
                 log.debug('Fetched database info')
         except Exception:
@@ -437,12 +447,12 @@ def get_all_info(cam_info, log=None, log_debug=False):
                 raise
             log.error('Failed to fetch database info')
             log.debug('', exc_info=True)
-            all_info['db'] = None
-            bad_info.append('database')
+            daemon_info['db'] = None
+            bad_daemons.append('database')
     else:
         db_info = {}
         db_info['from_database'] = False
-        all_info['db'] = db_info
+        daemon_info['db'] = db_info
 
     # Other params (do this here to ensure they're the same for all UTs)
     params_info = {}
@@ -456,7 +466,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     params_info['tel_number'] = params.TELESCOPE_NUMBER
 
     params_info['ut_dict'] = params.UT_DICT
-    ut_mask = misc.ut_list_to_mask(all_info['cam']['current_exposure']['uts'])
+    ut_mask = misc.ut_list_to_mask(daemon_info['cam']['current_exposure']['uts'])
     params_info['ut_mask'] = ut_mask
     params_info['ut_string'] = misc.ut_mask_to_string(ut_mask)
     params_info['uts_with_covers'] = params.UTS_WITH_COVERS
@@ -467,256 +477,228 @@ def get_all_info(cam_info, log=None, log_debug=False):
     params_info['system_mode'] = status.mode
     params_info['observer'] = status.observer
 
-    all_info['params'] = params_info
+    daemon_info['params'] = params_info
 
-    return all_info, bad_info
+    return daemon_info, bad_daemons
 
 
-def update_header(header, ut, all_info, log=None):
-    """Add observation, exposure and hardware info to the FITS header."""
-    # These cards are set automatically by AstroPy, we just give them better comments
-    # header.comments['SIMPLE  '] = 'Standard FITS'
-    # header.comments['BITPIX  '] = 'Bits per pixel'
-    # header.comments['NAXIS   '] = 'Number of dimensions'
-    # header.comments['NAXIS1  '] = 'Number of columns'
-    # header.comments['NAXIS2  '] = 'Number of rows'
-    # header.comments['EXTEND  '] = 'Can contain extensions'
-    # header.comments['BSCALE  '] = 'Pixel scale factor'
-    # header.comments['BZERO   '] = 'Real = Pixel * BSCALE + BZERO'
+def make_header(ut, daemon_info=None):
+    """Generate FITS header cards containing all observation, exposure and hardware info."""
+    # Get daemon info if not provided
+    if daemon_info is None:
+        daemon_info = get_daemon_info()
 
-    # Observation info
-    params_info = all_info['params']
-    cam_info = all_info['cam']
-    exposure_info = cam_info['current_exposure']
-    cam_info = cam_info[ut]
-    glance = exposure_info['glance']
-    if not glance:
-        run_number = exposure_info['run_number']
-        run_number_str = 'r{:07d}'.format(run_number)
+    # Store header cards in a list
+    header = []
+    # NB: FITS standard keywords can only be 8 columns (bytes, essentially characters),
+    #     and 80 total for the keyword, value and any comment.
+    # We will verify all cards at the end.
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Observation info and basic parameters
+    if daemon_info.get('cam') is None:
+        raise ValueError('No camera info provided')
+    if daemon_info['cam'].get(ut) is None:
+        raise ValueError(f'No camera info provided for UT{ut}')
+    if daemon_info['cam'].get('current_exposure') is None:
+        raise ValueError('No exposure info provided')
+
+    # Run numbers
+    if not daemon_info['cam']['current_exposure']['glance']:
+        run_number = daemon_info['cam']['current_exposure']['run_number']
+        run_number_str = f'r{run_number:07d}'
     else:
         run_number = 'NA'
         run_number_str = 'NA'
-    header['RUN     '] = (run_number, 'GOTO run number')
-    header['RUN-ID  '] = (run_number_str, 'Padded run ID string')
+    header.append(('RUN     ', run_number,
+                   'GOTO run number'))
+    header.append(('RUN-ID  ', run_number_str,
+                   'Padded run ID string'))
 
-    write_time = Time.now()
-    header['DATE    '] = (write_time.isot, 'Date HDU created')
+    # Origin
+    header.append(('DATE    ', Time.now().isot,
+                   'Date HDU created'))
+    header.append(('ORIGIN  ', daemon_info['params']['org_name'],
+                   'Origin organisation'))
+    header.append(('SITE    ', daemon_info['params']['site_name'],
+                   'Site location'))
+    header.append(('SITE-LAT', daemon_info['params']['site_lat'],
+                   'Site latitude, degrees +N'))
+    header.append(('SITE-LON', daemon_info['params']['site_lon'],
+                   'Site longitude, degrees +E'))
+    header.append(('SITE-ALT', daemon_info['params']['site_alt'],
+                   'Site elevation, m above sea level'))
+    header.append(('TELESCOP', daemon_info['params']['tel_name'],
+                   'Origin telescope name'))
+    header.append(('TEL     ', daemon_info['params']['tel_number'],
+                   'Origin telescope ID number'))
 
-    header['ORIGIN  '] = (params_info['org_name'], 'Origin organisation')
-
-    header['SITE    '] = (params_info['site_name'], 'Site location')
-    header['SITE-LAT'] = (params_info['site_lat'], 'Site latitude, degrees +N')
-    header['SITE-LON'] = (params_info['site_lon'], 'Site longitude, degrees +E')
-    header['SITE-ALT'] = (params_info['site_alt'], 'Site elevation, m above sea level')
-
-    header['TELESCOP'] = (params_info['tel_name'], 'Origin telescope name')
-    header['TEL     '] = (params_info['tel_number'], 'Origin telescope ID number')
-
-    header['INSTRUME'] = ('UT' + str(ut), 'Origin unit telescope')
-    header['UT      '] = (ut, 'Integer UT number')
-
-    if 'HW_VERSION' in params_info['ut_dict'][ut]:
-        ut_hw_version = params_info['ut_dict'][ut]['HW_VERSION']
+    # UT
+    header.append(('INSTRUME', f'UT{ut}',
+                   'Origin unit telescope'))
+    header.append(('UT      ', ut,
+                   'Integer UT number'))
+    if 'HW_VERSION' in daemon_info['params']['ut_dict'][ut]:
+        ut_hw_version = daemon_info['params']['ut_dict'][ut]['HW_VERSION']
     else:
         ut_hw_version = 'NA'
-    header['UT-VERS '] = (ut_hw_version, 'UT hardware version number')
+    header.append(('UT-VERS ', ut_hw_version,
+                   'UT hardware version number'))
+    header.append(('UTMASK  ', daemon_info['params']['ut_mask'],
+                   'Run UT mask integer'))
+    header.append(('UTMASKBN', daemon_info['params']['ut_string'],
+                   'Run UT mask binary string'))
 
-    header['UTMASK  '] = (params_info['ut_mask'], 'Run UT mask integer')
-    header['UTMASKBN'] = (params_info['ut_string'], 'Run UT mask binary string')
+    # Software
+    header.append(('SWVN    ', daemon_info['params']['version'],
+                   'Software version number'))
+    header.append(('SYS-MODE', daemon_info['params']['system_mode'],
+                   'Current telescope system mode'))
 
-    header['SWVN    '] = (params_info['version'], 'Software version number')
+    # Observation
+    header.append(('OBSERVER', daemon_info['params']['observer'],
+                   'Who started the exposure'))
+    header.append(('OBJECT  ', daemon_info['cam']['current_exposure']['target'],
+                   'Observed object name'))
 
-    header['SYS-MODE'] = (params_info['system_mode'], 'Current telescope system mode')
-    header['OBSERVER'] = (params_info['observer'], 'Who started the exposure')
-
-    header['OBJECT  '] = (exposure_info['target'], 'Observed object name')
-
-    set_number = exposure_info['set_num']
+    # Set info
+    set_number = daemon_info['cam']['current_exposure']['set_num']
     if set_number is None:
         set_number = 'NA'
-    header['SET     '] = (set_number, 'GOTO set number')
-    header['SET-POS '] = (exposure_info['set_pos'], 'Position of this exposure in this set')
-    header['SET-TOT '] = (exposure_info['set_tot'], 'Total number of exposures in this set')
+    header.append(('SET     ', set_number,
+                   'GOTO set number'))
+    header.append(('SET-POS ', daemon_info['cam']['current_exposure']['set_pos'],
+                   'Position of this exposure in this set'))
+    header.append(('SET-TOT ', daemon_info['cam']['current_exposure']['set_tot'],
+                   'Total number of exposures in this set'))
 
-    # Exposure data
-    exptime = exposure_info['exptime']
-    header['EXPTIME '] = (exptime, 'Exposure time, seconds')
-
-    start_time = Time(cam_info['exposure_start_time'], format='unix')
-    mid_time = start_time + (exposure_info['exptime'] * u.second) / 2.
-    header['DATE-OBS'] = (start_time.isot, 'Exposure start time, UTC')
-    header['DATE-MID'] = (mid_time.isot, 'Exposure midpoint, UTC')
-
-    mid_jd = mid_time.jd
-    header['JD      '] = (mid_jd, 'Exposure midpoint, Julian Date')
-
-    lst = get_lst(mid_time)
-    mid_lst = '{:02.0f}:{:02.0f}:{:06.3f}'.format(*lst.hms)
-    header['LST     '] = (mid_lst, 'Exposure midpoint, Local Sidereal Time')
+    # Exposure times
+    header.append(('EXPTIME ', daemon_info['cam']['current_exposure']['exptime'],
+                   'Exposure time, seconds'))
+    start_time = Time(daemon_info['cam'][ut]['exposure_start_time'], format='unix')
+    mid_time = start_time + (daemon_info['cam']['current_exposure']['exptime'] * u.second) / 2.
+    header.append(('DATE-OBS', start_time.isot,
+                   'Exposure start time, UTC'))
+    header.append(('DATE-MID', mid_time.isot,
+                   'Exposure midpoint, UTC'))
+    header.append(('JD      ', mid_time.jd,
+                   'Exposure midpoint, Julian Date'))
+    header.append(('LST     ', '{:02.0f}:{:02.0f}:{:06.3f}'.format(*get_lst(mid_time).hms),
+                   'Exposure midpoint, Local Sidereal Time'))
 
     # Frame info
-    header['FRMTYPE '] = (exposure_info['frametype'], 'Frame type (shutter open/closed)')
-    header['IMGTYPE '] = (exposure_info['imgtype'], 'Image type')
-    header['GLANCE  '] = (exposure_info['glance'], 'Is this a glance frame?')
+    header.append(('FRMTYPE ', daemon_info['cam']['current_exposure']['frametype'],
+                   'Frame type (shutter open/closed)'))
+    header.append(('IMGTYPE ', daemon_info['cam']['current_exposure']['imgtype'],
+                   'Image type'))
+    header.append(('GLANCE  ', daemon_info['cam']['current_exposure']['glance'],
+                   'Is this a glance frame?'))
+    # Following section info is depreciated:
+    header.append(('FULLSEC ', '[1:8304,1:6220]',
+                   'Size of the full frame'))
+    header.append(('TRIMSEC ', '[65:8240,46:6177]',
+                   'Central data region (both channels)'))
+    header.append(('TRIMSEC1', '[65:4152,46:6177]',
+                   'Data section for left channel'))
+    header.append(('TRIMSEC2', '[4153:8240,46:6177]',
+                   'Data section for right channel'))
+    header.append(('BIASSEC1', '[3:10,3:6218]',
+                   'Recommended bias section for left channel'))
+    header.append(('BIASSEC2', '[8295:8302,3:6218]',
+                   'Recommended bias section for right channel'))
+    header.append(('DARKSEC1', '[26:41,500:5721]',
+                   'Recommended dark section for left channel'))
+    header.append(('DARKSEC2', '[8264:8279,500:5721]',
+                   'Recommended dark section for right channel'))
 
-    # (Depreciated section cards)
-    header['FULLSEC '] = ('[1:8304,1:6220]', 'Size of the full frame')
-    header['TRIMSEC '] = ('[65:8240,46:6177]', 'Central data region (both channels)')
-    header['TRIMSEC1'] = ('[65:4152,46:6177]', 'Data section for left channel')
-    header['TRIMSEC2'] = ('[4153:8240,46:6177]', 'Data section for right channel')
-    header['BIASSEC1'] = ('[3:10,3:6218]', 'Recommended bias section for left channel')
-    header['BIASSEC2'] = ('[8295:8302,3:6218]', 'Recommended bias section for right channel')
-    header['DARKSEC1'] = ('[26:41,500:5721]', 'Recommended dark section for left channel')
-    header['DARKSEC2'] = ('[8264:8279,500:5721]', 'Recommended dark section for right channel')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Database info
-    try:
-        if all_info['db'] is None:
-            raise ValueError('No database info provided')
-        info = all_info['db']
-        from_database = info['from_database']
+    if daemon_info.get('db') is None:
+        raise ValueError('No database info provided')
 
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write database info to header')
-            log.debug('', exc_info=True)
-        from_database = False
+    # Was this pointing linked to the database (darks, flats etc are False)?
+    header.append(('FROMDB  ', daemon_info['db']['from_database'],
+                   'Exposure linked to database pointing?'))
 
-    header['FROMDB  '] = (from_database, 'Exposure linked to database pointing?')
+    # DB ExposureSet properties
+    if daemon_info['db']['from_database']:
+        expset_id = daemon_info['db']['expset_id']  # from Exposure
+    else:
+        expset_id = 'NA'
+    header.append(('DB-EXPS ', expset_id,
+                   'Database ExposureSet ID'))
 
-    # Database table info
-    try:
-        info = all_info['db']
-
-        # ExposureSet info
-        expset_id = info['expset_id']  # from Exposure
-
-        # Pointing info
-        pointing_id = info['pointing_id']
-        if info['rank'] is not None:
-            rank = info['rank']
+    # DB Pointing properties
+    if daemon_info['db']['from_database']:
+        pointing_id = daemon_info['db']['pointing_id']
+        if daemon_info['db']['rank'] is not None:
+            rank = daemon_info['db']['rank']
         else:
             rank = 'inf'
-        if info['start_time'] is not None:
-            starttime = info['start_time']
+        if daemon_info['db']['start_time'] is not None:
+            start_time = daemon_info['db']['start_time']
         else:
-            starttime = 'NA'
-        if info['stop_time'] is not None:
-            stoptime = info['stop_time']
+            start_time = 'NA'
+        if daemon_info['db']['stop_time'] is not None:
+            stop_time = daemon_info['db']['stop_time']
         else:
-            stoptime = 'NA'
-
-        # Target info
-        target_id = info['target_id']
-        if info['start_rank'] is not None:
-            initialrank = info['start_rank']
-        else:
-            initialrank = 'inf'
-        weight = info['weight']
-        num_observed = info['num_completed']
-        is_template = info['is_template']
-
-        # Strategy info
-        strategy_id = info['strategy_id']
-        infinite = info['infinite']
-        if info['min_time'] is not None:
-            min_time = info['min_time']
-        else:
-            min_time = 'NA'
-        too = info['too']
-        requires_template = info['requires_template']
-        min_alt = info['min_alt']
-        max_sunalt = info['max_sunalt']
-        max_moon = info['max_moon']
-        min_moonsep = info['min_moonsep']
-
-        # TimeBlock info
-        time_block_id = info['time_block_id']
-        block_num = info['block_num']
-        if info['wait_time'] is not None:
-            wait_time = info['wait_time']
-        else:
-            wait_time = 'NA'
-        if info['valid_time'] is not None:
-            valid_time = info['valid_time']
-        else:
-            valid_time = 'NA'
-
-        # Get User info
-        user_id = info['user_id']
-        user_name = info['user_name']
-        user_fullname = info['user_fullname']
-
-        # Get Grid info
-        if info['grid_id'] is not None:
-            grid_id = info['grid_id']
-            grid_name = info['grid_name']
-            tile_id = info['tile_id']
-            tile_name = info['tile_name']
-        else:
-            grid_id = 'NA'
-            grid_name = 'NA'
-            tile_id = 'NA'
-            tile_name = 'NA'
-
-        # Get Survey info
-        if info['survey_id'] is not None:
-            survey_id = info['survey_id']
-            survey_name = info['survey_name']
-        else:
-            survey_id = 'NA'
-            survey_name = 'NA'
-
-        # Get Notice and Event info
-        if info['notice_id'] is not None:
-            notice_id = info['notice_id']
-            notice_ivorn = info['notice_ivorn']
-            if info['notice_time'] is not None:
-                notice_time = info['notice_time']
-            else:
-                notice_time = 'NA'
-            event_id = info['event_id']
-            event_name = info['event_name']
-            event_type = info['event_type']
-            event_origin = info['event_origin']
-            if info['event_time'] is not None:
-                event_time = info['event_time']
-            else:
-                event_time = 'NA'
-        else:
-            notice_id = 'NA'
-            notice_ivorn = 'NA'
-            notice_time = 'NA'
-            event_id = 'NA'
-            event_name = 'NA'
-            event_type = 'NA'
-            event_origin = 'NA'
-            event_time = 'NA'
-
-    except Exception:
-        if from_database:
-            # It's only an error if the values should be there
-            if log is None:
-                raise
-            log.error('Failed to write database info to header')
-            log.debug('', exc_info=True)
-        expset_id = 'NA'
-
+            stop_time = 'NA'
+    else:
         pointing_id = 'NA'
         rank = 'NA'
-        starttime = 'NA'
-        stoptime = 'NA'
+        start_time = 'NA'
+        stop_time = 'NA'
+    header.append(('DB-PNT  ', pointing_id,
+                   'Database Pointing ID'))
+    header.append(('RANK    ', rank,
+                   'Rank of this pointing when observed'))
+    header.append(('LIM-STRT', start_time,
+                   'Valid start time limit for this pointing'))
+    header.append(('LIM-STOP', stop_time,
+                   'Valid stop time limit for this pointing'))
 
+    # DB Target properties
+    if daemon_info['db']['from_database']:
+        target_id = daemon_info['db']['target_id']
+        if daemon_info['db']['start_rank'] is not None:
+            initial_rank = daemon_info['db']['start_rank']
+        else:
+            initial_rank = 'inf'
+        weight = daemon_info['db']['weight']
+        num_observed = daemon_info['db']['num_completed']
+        is_template = daemon_info['db']['is_template']
+    else:
         target_id = 'NA'
-        initialrank = 'NA'
+        initial_rank = 'NA'
         weight = 'NA'
         num_observed = 'NA'
         is_template = 'NA'
+    header.append(('DB-TARG ', target_id,
+                   'Database Target ID'))
+    header.append(('BASERANK', initial_rank,
+                   'Initial rank of this Target'))
+    header.append(('WEIGHT  ', weight,
+                   'Target weighting'))
+    header.append(('OBSNUM  ', num_observed,
+                   'Count of times this Target has been observed'))
+    header.append(('IS-TMPL ', is_template,
+                   'Is this Pointing a template observation?'))
 
+    # DB Strategy properties
+    if daemon_info['db']['from_database']:
+        strategy_id = daemon_info['db']['strategy_id']
+        infinite = daemon_info['db']['infinite']
+        if daemon_info['db']['min_time'] is not None:
+            min_time = daemon_info['db']['min_time']
+        else:
+            min_time = 'NA'
+        too = daemon_info['db']['too']
+        requires_template = daemon_info['db']['requires_template']
+        min_alt = daemon_info['db']['min_alt']
+        max_sunalt = daemon_info['db']['max_sunalt']
+        max_moon = daemon_info['db']['max_moon']
+        min_moonsep = daemon_info['db']['min_moonsep']
+    else:
         strategy_id = 'NA'
         infinite = 'NA'
         min_time = 'NA'
@@ -726,444 +708,428 @@ def update_header(header, ut, all_info, log=None):
         max_sunalt = 'NA'
         max_moon = 'NA'
         min_moonsep = 'NA'
+    header.append(('DB-STRAT', strategy_id,
+                   'Database Strategy ID'))
+    header.append(('INFINITE', infinite,
+                   'Is this an infinitely repeating pointing?'))
+    header.append(('LIM-TIME', min_time,
+                   'Minimum observing time for this pointing'))
+    header.append(('TOO     ', too,
+                   'Is this Pointing a Target of Opportunity?'))
+    header.append(('REQ-TMPL', requires_template,
+                   'Did this Pointing require a template?'))
+    header.append(('LIM-ALT ', min_alt,
+                   'Minimum altitude limit for this pointing'))
+    header.append(('LIM-SALT', max_sunalt,
+                   'Maximum Sun altitude limit for this pointing'))
+    header.append(('LIM-MPHS', max_moon,
+                   'Maximum Moon phase limit for this pointing'))
+    header.append(('LIM-MDIS', min_moonsep,
+                   'Minimum Moon distance limit for this pointing'))
 
+    # DB TimeBlock properties
+    if daemon_info['db']['from_database']:
+        time_block_id = daemon_info['db']['time_block_id']
+        block_num = daemon_info['db']['block_num']
+        if daemon_info['db']['wait_time'] is not None:
+            wait_time = daemon_info['db']['wait_time']
+        else:
+            wait_time = 'NA'
+        if daemon_info['db']['valid_time'] is not None:
+            valid_time = daemon_info['db']['valid_time']
+        else:
+            valid_time = 'NA'
+    else:
         time_block_id = 'NA'
         block_num = 'NA'
         wait_time = 'NA'
         valid_time = 'NA'
+    header.append(('DB-TIMBK', time_block_id,
+                   'Database TimeBlock ID'))
+    header.append(('TIMBKNUM', block_num,
+                   'Number of this time block'))
+    header.append(('TIMEVALD', wait_time,
+                   'How long this Pointing is valid in the queue'))
+    header.append(('TIMEWAIT', valid_time,
+                   'How long between Pointings for this Target'))
 
+    # DB User properties
+    if daemon_info['db']['from_database']:
+        user_id = daemon_info['db']['user_id']
+        user_name = daemon_info['db']['user_name']
+        user_fullname = daemon_info['db']['user_fullname']
+    else:
         user_id = 'NA'
         user_name = 'NA'
         user_fullname = 'NA'
+    header.append(('DB-USER ', user_id,
+                   'Database User ID who submitted this pointing'))
+    header.append(('USERNAME', user_name,
+                   'Username that submitted this pointing'))
+    header.append(('USERFULL', user_fullname,
+                   'User who submitted this pointing'))
 
+    # DB Grid properties (optional)
+    if daemon_info['db']['from_database'] and daemon_info['db']['grid_id'] is not None:
+        grid_id = daemon_info['db']['grid_id']
+        grid_name = daemon_info['db']['grid_name']
+        tile_id = daemon_info['db']['tile_id']
+        tile_name = daemon_info['db']['tile_name']
+    else:
         grid_id = 'NA'
         grid_name = 'NA'
         tile_id = 'NA'
         tile_name = 'NA'
+    header.append(('DB-GRID ', grid_id,
+                   'Database Grid ID'))
+    header.append(('GRID    ', grid_name,
+                   'Sky grid name'))
+    header.append(('DB-GTILE', tile_id,
+                   'Database GridTile ID'))
+    header.append(('TILENAME', tile_name,
+                   'Name of this grid tile'))
 
+    # DB Survey properties (optional)
+    if daemon_info['db']['from_database'] and daemon_info['db']['survey_id'] is not None:
+        survey_id = daemon_info['db']['survey_id']
+        survey_name = daemon_info['db']['survey_name']
+    else:
         survey_id = 'NA'
         survey_name = 'NA'
+    header.append(('DB-SURVY', survey_id,
+                   'Database Survey ID'))
+    header.append(('SURVEY  ', survey_name,
+                   'Name of this survey'))
 
+    # DB Notice/Event properties (optional)
+    if daemon_info['db']['from_database'] and daemon_info['db']['notice_id'] is not None:
+        notice_id = daemon_info['db']['notice_id']
+        notice_ivorn = daemon_info['db']['notice_ivorn']
+        if daemon_info['db']['notice_time'] is not None:
+            notice_time = daemon_info['db']['notice_time']
+        else:
+            notice_time = 'NA'
+        event_id = daemon_info['db']['event_id']
+        event_name = daemon_info['db']['event_name']
+        event_type = daemon_info['db']['event_type']
+        event_origin = daemon_info['db']['event_origin']
+        if daemon_info['db']['event_time'] is not None:
+            event_time = daemon_info['db']['event_time']
+        else:
+            event_time = 'NA'
+    else:
         notice_id = 'NA'
         notice_ivorn = 'NA'
         notice_time = 'NA'
-
         event_id = 'NA'
         event_name = 'NA'
         event_type = 'NA'
         event_origin = 'NA'
         event_time = 'NA'
+    header.append(('DB-NOTIC', notice_id,
+                   'Database Notice ID'))
+    header.append(('IVORN   ', notice_ivorn,
+                   'GCN Notice IVORN'))
+    header.append(('RCVTIME ', notice_time,
+                   'Time the GCN Notice was received'))
+    header.append(('DB-EVENT', event_id,
+                   'Database Event ID'))
+    header.append(('EVENT   ', event_name,
+                   'Event name for this pointing'))
+    header.append(('EVNTTYPE', event_type,
+                   'Type of event'))
+    header.append(('SOURCE  ', event_origin,
+                   'Source of this event'))
+    header.append(('EVNTTIME', event_time,
+                   'Recorded time of the event'))
 
-    # MAX COMMENT LENGTH: '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
-    header['DB-EXPS '] = (expset_id, 'Database ExposureSet ID')
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Camera info (already checked that it's included above)
 
-    header['DB-PNT  '] = (pointing_id, 'Database Pointing ID')
-    header['RANK    '] = (rank, 'Rank of this pointing when observed')
-    header['LIM-STRT'] = (starttime, 'Valid start time limit for this pointing')
-    header['LIM-STOP'] = (stoptime, 'Valid stop time limit for this pointing')
+    # Hardware
+    header.append(('CAMERA  ', daemon_info['cam'][ut]['serial_number'],
+                   'Camera serial number'))
+    header.append(('CAMCLS  ', daemon_info['cam'][ut]['hw_class'],
+                   'Camera hardware class'))
 
-    header['DB-TARG '] = (target_id, 'Database Target ID')
-    header['BASERANK'] = (initialrank, 'Initial rank of this Target')
-    header['WEIGHT  '] = (weight, 'Target weighting')
-    header['OBSNUM  '] = (num_observed, 'Count of times this Target has been observed')
-    header['IS-TMPL '] = (is_template, 'Is this Pointing a template observation?')
+    # Binning
+    bin_fac = daemon_info['cam']['current_exposure']['binning']
+    header.append(('XBINNING', bin_fac,
+                   'CCD x binning factor'))
+    header.append(('YBINNING', bin_fac,
+                   'CCD y binning factor'))
+    header.append(('XPIXSZ  ', daemon_info['cam'][ut]['x_pixel_size'] * bin_fac,
+                   'Binned x pixel size, m'))
+    header.append(('YPIXSZ  ', daemon_info['cam'][ut]['y_pixel_size'] * bin_fac,
+                   'Binned y pixel size, m'))
 
-    header['DB-STRAT'] = (strategy_id, 'Database Strategy ID')
-    header['INFINITE'] = (infinite, 'Is this an infinitely repeating pointing?')
-    header['LIM-TIME'] = (min_time, 'Minimum observing time for this pointing')
-    header['TOO     '] = (too, 'Is this Pointing a Target of Opportunity?')
-    header['REQ-TMPL'] = (requires_template, 'Did this Pointing require a template?')
-    header['LIM-ALT '] = (min_alt, 'Minimum altitude limit for this pointing')
-    header['LIM-SALT'] = (max_sunalt, 'Maximum Sun altitude limit for this pointing')
-    header['LIM-MPHS'] = (max_moon, 'Maximum Moon phase limit for this pointing')
-    header['LIM-MDIS'] = (min_moonsep, 'Minimum Moon distance limit for this pointing')
+    # Frame regions
+    full_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*daemon_info['cam'][ut]['full_area'])
+    header.append(('FULLAREA', full_area,
+                   'Full frame area in unbinned pixels (x,y,dx,dy)'))
+    active_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*daemon_info['cam'][ut]['active_area'])
+    header.append(('ACTVAREA', active_area,
+                   'Active area in unbinned pixels (x,y,dx,dy)'))
+    window_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*daemon_info['cam'][ut]['window_area'])
+    header.append(('WINDOW  ', window_area,
+                   'Windowed region in unbinned pixels (x,y,dx,dy)'))
+    header.append(('CHANNELS', 2,
+                   'Number of CCD channels'))  # TODO: this should come from the camera
 
-    header['DB-TIMBK'] = (time_block_id, 'Database TimeBlock ID')
-    header['TIMBKNUM'] = (block_num, 'Number of this time block')
-    header['TIMEVALD'] = (wait_time, 'How long this Pointing is valid in the queue')
-    header['TIMEWAIT'] = (valid_time, 'How long between Pointings for this Target')
+    # Temperature
+    header.append(('CCDTEMP ', daemon_info['cam'][ut]['ccd_temp'],
+                   'CCD temperature, C'))
+    header.append(('CCDTEMPS', daemon_info['cam'][ut]['target_temp'],
+                   'Requested CCD temperature, C'))
+    header.append(('BASETEMP', daemon_info['cam'][ut]['base_temp'],
+                   'Peltier base temperature, C'))
 
-    header['DB-USER '] = (user_id, 'Database User ID who submitted this pointing')
-    header['USERNAME'] = (user_name, 'Username that submitted this pointing')
-    header['USERFULL'] = (user_fullname, 'User who submitted this pointing')
-
-    header['DB-GRID '] = (grid_id, 'Database Grid ID')
-    header['GRID    '] = (grid_name, 'Sky grid name')
-    header['DB-GTILE'] = (tile_id, 'Database GridTile ID')
-    header['TILENAME'] = (tile_name, 'Name of this grid tile')
-
-    header['DB-SURVY'] = (survey_id, 'Database Survey ID')
-    header['SURVEY  '] = (survey_name, 'Name of this survey')
-
-    header['DB-NOTIC'] = (notice_id, 'Database Notice ID')
-    header['IVORN   '] = (notice_ivorn, 'GCN Notice IVORN')
-    header['RCVTIME '] = (notice_time, 'Time the GCN Notice was received')
-
-    header['DB-EVENT'] = (event_id, 'Database Event ID')
-    header['EVENT   '] = (event_name, 'Event name for this pointing')
-    header['EVNTTYPE'] = (event_type, 'Type of event')
-    header['SOURCE  '] = (event_origin, 'Source of this event')
-    header['EVNTTIME'] = (event_time, 'Recorded time of the event')
-
-    # Camera info
-    cam_serial = cam_info['serial_number']
-    cam_class = cam_info['hw_class']
-    header['CAMERA  '] = (cam_serial, 'Camera serial number')
-    header['CAMCLS  '] = (cam_class, 'Camera hardware class')
-
-    header['XBINNING'] = (exposure_info['binning'], 'CCD x binning factor')
-    header['YBINNING'] = (exposure_info['binning'], 'CCD y binning factor')
-
-    x_pixel_size = cam_info['x_pixel_size'] * exposure_info['binning']
-    y_pixel_size = cam_info['y_pixel_size'] * exposure_info['binning']
-    header['XPIXSZ  '] = (x_pixel_size, 'Binned x pixel size, m')
-    header['YPIXSZ  '] = (y_pixel_size, 'Binned y pixel size, m')
-
-    full_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['full_area'])
-    active_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['active_area'])
-    window_area = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(*cam_info['window_area'])
-    header['FULLAREA'] = (full_area, 'Full frame area in unbinned pixels (x,y,dx,dy)')
-    header['ACTVAREA'] = (active_area, 'Active area in unbinned pixels (x,y,dx,dy)')
-    header['WINDOW  '] = (window_area, 'Windowed region in unbinned pixels (x,y,dx,dy)')
-
-    header['CHANNELS'] = (2, 'Number of CCD channels')  # TODO: this should come from the camera
-
-    header['CCDTEMP '] = (cam_info['ccd_temp'], 'CCD temperature, C')
-    header['CCDTEMPS'] = (cam_info['target_temp'], 'Requested CCD temperature, C')
-    header['BASETEMP'] = (cam_info['base_temp'], 'Peltier base temperature, C')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # OTA info
-    try:
-        if all_info['ota'] is None:
-            raise ValueError('No OTA info provided')
+    if daemon_info.get('ota') is None:
+        raise ValueError('No OTA info provided')
+    if daemon_info['ota'].get(ut) is None:
+        raise ValueError(f'No OTA info provided for UT{ut}')
 
-        info = all_info['ota'][ut]
-        ota_serial = info['serial_number']
-        ota_class = info['hw_class']
-        if ut not in params_info['uts_with_covers']:
-            cover_position = 'NA'
-            cover_open = 'NA'
+    # Hardware
+    header.append(('OTA     ', daemon_info['ota'][ut]['serial_number'],
+                   'OTA serial number'))
+    header.append(('OTACLS  ', daemon_info['ota'][ut]['hw_class'],
+                   'OTA hardware class'))
+
+    # Mirror covers
+    if ut in daemon_info['params']['uts_with_covers']:
+        cover_position = daemon_info['ota'][ut]['position']
+        cover_open = daemon_info['ota'][ut]['position'] == 'full_open'
+        if daemon_info['ota'][ut]['last_move_time'] is not None:
+            cover_move_time = Time(daemon_info['ota'][ut]['last_move_time'], format='unix').isot
+        else:
             cover_move_time = 'NA'
-        else:
-            cover_position = info['position']
-            cover_open = info['position'] == 'full_open'
-            cover_move_time = info['last_move_time']
-            if cover_move_time is not None:
-                cover_move_time = Time(cover_move_time, format='unix')
-                cover_move_time = cover_move_time.isot
-            else:
-                cover_move_time = 'NA'
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write OTA info to header')
-            log.debug('', exc_info=True)
-        ota_serial = 'NA'
-        ota_class = 'NA'
+    else:
         cover_position = 'NA'
         cover_open = 'NA'
         cover_move_time = 'NA'
+    header.append(('COVSTAT ', cover_position,
+                   'Mirror cover position'))
+    header.append(('COVOPEN ', cover_open,
+                   'Mirror cover is open'))
+    header.append(('COVMVT  ', cover_move_time,
+                   'Mirror cover latest move time'))
 
-    header['OTA     '] = (ota_serial, 'OTA serial number')
-    header['OTACLS  '] = (ota_class, 'OTA hardware class')
-    header['COVSTAT '] = (cover_position, 'Mirror cover position')
-    header['COVOPEN '] = (cover_open, 'Mirror cover is open')
-    header['COVMVT  '] = (cover_move_time, 'Mirror cover latest move time')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Focuser info
-    try:
-        if all_info['foc'] is None:
-            raise ValueError('No focuser info provided')
+    if daemon_info.get('foc') is None:
+        raise ValueError('No focuser info provided')
+    if ut in daemon_info['params']['uts_with_focusers'] and daemon_info['foc'].get(ut) is None:
+        raise ValueError(f'No focuser info provided for UT{ut}')
 
-        if ut not in params_info['uts_with_focusers']:
-            foc_serial = 'None'
-            foc_class = 'NA'
-            foc_pos = 'NA'
-            foc_move_time = 'NA'
-            foc_temp_int = 'NA'
-            foc_temp_ext = 'NA'
-        else:
-            info = all_info['foc'][ut]
-
-            foc_serial = info['serial_number']
-            foc_class = info['hw_class']
-            foc_pos = info['current_pos']
-            foc_move_time = info['last_move_time']
-            if foc_move_time is not None:
-                foc_move_time = Time(foc_move_time, format='unix')
-                foc_move_time = foc_move_time.isot
-            else:
-                foc_move_time = 'NA'
-            foc_temp_int = info['int_temp'] if info['int_temp'] is not None else 'NA'
-            foc_temp_ext = info['ext_temp'] if info['ext_temp'] is not None else 'NA'
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write focuser info to header')
-            log.debug('', exc_info=True)
-        foc_serial = 'NA'
+    # Hardware
+    if ut in daemon_info['params']['uts_with_focusers']:
+        foc_serial = daemon_info['foc'][ut]['serial_number']
+        foc_class = daemon_info['foc'][ut]['hw_class']
+    else:
+        foc_serial = 'None'
         foc_class = 'NA'
+    header.append(('FOCUSER ', foc_serial,
+                   'Focuser serial number'))
+    header.append(('FOCCLS  ', foc_class,
+                   'Focuser hardware class'))
+
+    # Position
+    if ut in daemon_info['params']['uts_with_focusers']:
+        foc_pos = daemon_info['foc'][ut]['current_pos']
+        if daemon_info['foc'][ut]['last_move_time'] is not None:
+            foc_move_time = Time(daemon_info['foc'][ut]['last_move_time'], format='unix').isot
+        else:
+            foc_move_time = 'NA'
+    else:
         foc_pos = 'NA'
         foc_move_time = 'NA'
+    header.append(('FOCPOS  ', foc_pos,
+                   'Focuser motor position'))
+    header.append(('FOCMVT  ', foc_move_time,
+                   'Focuser latest move time'))
+
+    # Temperature
+    if ut in daemon_info['params']['uts_with_focusers']:
+        if daemon_info['foc'][ut]['int_temp'] is not None:
+            foc_temp_int = daemon_info['foc'][ut]['int_temp']
+        else:
+            foc_temp_int = 'NA'
+        if daemon_info['foc'][ut]['ext_temp'] is not None:
+            foc_temp_ext = daemon_info['foc'][ut]['ext_temp']
+        else:
+            foc_temp_ext = 'NA'
+    else:
         foc_temp_int = 'NA'
         foc_temp_ext = 'NA'
+    header.append(('FOCTEMPI', foc_temp_int,
+                   'Focuser internal temperature, C'))
+    header.append(('FOCTEMPX', foc_temp_ext,
+                   'Focuser external temperature, C'))
 
-    header['FOCUSER '] = (foc_serial, 'Focuser serial number')
-    header['FOCCLS  '] = (foc_class, 'Focuser hardware class')
-    header['FOCPOS  '] = (foc_pos, 'Focuser motor position')
-    header['FOCMVT  '] = (foc_move_time, 'Focuser latest move time')
-    header['FOCTEMPI'] = (foc_temp_int, 'Focuser internal temperature, C')
-    header['FOCTEMPX'] = (foc_temp_ext, 'Focuser external temperature, C')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Filter wheel info
-    try:
-        if all_info['filt'] is None:
-            raise ValueError('No filter wheel info provided')
+    if daemon_info.get('filt') is None:
+        raise ValueError('No filter wheel info provided')
+    if ut in daemon_info['params']['uts_with_filterwheels'] and daemon_info['filt'].get(ut) is None:
+        raise ValueError(f'No filter wheel info provided for UT{ut}')
 
-        if ut not in params_info['uts_with_filterwheels']:
-            filt_serial = 'None'
-            filt_class = 'NA'
-            filt_filter = params_info['ut_dict'][ut]['FILTERS'][0]
-            filt_filters = ','.join(params_info['ut_dict'][ut]['FILTERS'])  # Should only be one?
-            filt_num = 'NA'
-            filt_pos = 'NA'
-            filt_move_time = 'NA'
-        else:
-            info = all_info['filt'][ut]
-
-            filt_serial = info['serial_number']
-            filt_class = info['hw_class']
-            if not info['homed']:
-                filt_filter = 'UNHOMED'
-            else:
-                filt_filter = info['current_filter']
-            filt_filters = ','.join(params_info['ut_dict'][ut]['FILTERS'])
-            filt_num = info['current_filter_num']
-            filt_pos = info['current_pos']
-            filt_move_time = info['last_move_time']
-            if filt_move_time is not None:
-                filt_move_time = Time(filt_move_time, format='unix')
-                filt_move_time = filt_move_time.isot
-            else:
-                filt_move_time = 'NA'
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write filter wheel info to header')
-            log.debug('', exc_info=True)
-        filt_serial = 'NA'
+    # Hardware
+    if ut in daemon_info['params']['uts_with_filterwheels']:
+        filt_serial = daemon_info['filt'][ut]['serial_number']
+        filt_class = daemon_info['filt'][ut]['hw_class']
+    else:
+        filt_serial = 'None'
         filt_class = 'NA'
-        filt_filter = 'NA'
-        filt_filters = 'NA'
+    header.append(('FLTWHEEL', filt_serial,
+                   'Filter wheel serial number'))
+    header.append(('FILTCLS ', filt_class,
+                   'Filter wheel hardware class'))
+
+    # Filter
+    if ut in daemon_info['params']['uts_with_filterwheels']:
+        if not daemon_info['filt'][ut]['homed']:
+            filt_filter = 'UNHOMED'
+        else:
+            filt_filter = daemon_info['filt'][ut]['current_filter']
+        filt_filters = ','.join(daemon_info['params']['ut_dict'][ut]['FILTERS'])
+    else:
+        filt_filter = daemon_info['params']['ut_dict'][ut]['FILTERS'][0]
+        filt_filters = ','.join(daemon_info['params']['ut_dict'][ut]['FILTERS'])  # Only one?
+    header.append(('FILTER  ', filt_filter,
+                   'Filter used for exposure'))
+    header.append(('FILTERS ', filt_filters,
+                   'Filters in filter wheel'))
+
+    # Position
+    if ut in daemon_info['params']['uts_with_filterwheels']:
+        filt_num = daemon_info['filt'][ut]['current_filter_num']
+        filt_pos = daemon_info['filt'][ut]['current_pos']
+        if daemon_info['filt'][ut]['last_move_time'] is not None:
+            filt_move_time = Time(daemon_info['filt'][ut]['last_move_time'], format='unix').isot
+        else:
+            filt_move_time = 'NA'
+    else:
         filt_num = 'NA'
         filt_pos = 'NA'
         filt_move_time = 'NA'
+    header.append(('FILTNUM ', filt_num,
+                   'Filter wheel position number'))
+    header.append(('FILTPOS ', filt_pos,
+                   'Filter wheel motor position'))
+    header.append(('FILTMVT ', filt_move_time,
+                   'Filter wheel latest move time'))
 
-    header['FLTWHEEL'] = (filt_serial, 'Filter wheel serial number')
-    header['FILTCLS '] = (filt_class, 'Filter wheel hardware class')
-    header['FILTER  '] = (filt_filter, 'Filter used for exposure')
-    header['FILTERS '] = (filt_filters, 'Filters in filter wheel')
-    header['FILTNUM '] = (filt_num, 'Filter wheel position number')
-    header['FILTPOS '] = (filt_pos, 'Filter wheel motor position')
-    header['FILTMVT '] = (filt_move_time, 'Filter wheel latest move time')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Dome info
-    try:
-        if all_info['dome'] is None:
-            raise ValueError('No dome info provided')
+    if daemon_info.get('dome') is None:
+        raise ValueError('No dome info provided')
 
-        info = all_info['dome']
-
-        a_side = info['a_side']
-        b_side = info['b_side']
-        if a_side == 'ERROR' or b_side == 'ERROR':
-            dome_status = 'ERROR'
-        elif a_side == 'closed' and b_side == 'closed':
-            dome_status = 'closed'
-        elif a_side == 'full_open' and b_side == 'full_open':
-            dome_status = 'full_open'
-        elif a_side == 'part_open' or b_side == 'part_open':
-            dome_status = 'part_open'
-        else:
-            dome_status = 'ERROR'
-
-        dome_open = info['dome'] == 'open'
-        dome_shielding = info['shielding']
-        dome_move_time = info['last_move_time']
-        if dome_move_time is not None:
-            dome_move_time = Time(dome_move_time, format='unix')
-            dome_move_time = dome_move_time.isot
-        else:
-            dome_move_time = 'NA'
-
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write dome info to header')
-            log.debug('', exc_info=True)
-        dome_status = 'NA'
-        dome_open = 'NA'
-        dome_shielding = 'NA'
+    # Poisition
+    a_side = daemon_info['dome']['a_side']
+    b_side = daemon_info['dome']['b_side']
+    if a_side == 'ERROR' or b_side == 'ERROR':
+        dome_status = 'ERROR'
+    elif a_side == 'closed' and b_side == 'closed':
+        dome_status = 'closed'
+    elif a_side == 'full_open' and b_side == 'full_open':
+        dome_status = 'full_open'
+    elif a_side == 'part_open' or b_side == 'part_open':
+        dome_status = 'part_open'
+    else:
+        dome_status = 'ERROR'
+    dome_open = daemon_info['dome']['dome'] == 'open'
+    dome_shielding = daemon_info['dome']['shielding']
+    if daemon_info['dome']['last_move_time'] is not None:
+        dome_move_time = Time(daemon_info['dome']['last_move_time'], format='unix').isot
+    else:
         dome_move_time = 'NA'
+    header.append(('DOMESTAT', dome_status,
+                   'Dome status'))
+    header.append(('DOMEOPEN', dome_open,
+                   'Dome is open'))
+    header.append(('DOMESHLD', dome_shielding,
+                   'Dome wind shield is active'))
+    header.append(('DOMEMVT ', dome_move_time,
+                   'Dome latest move time'))
 
-    header['DOMESTAT'] = (dome_status, 'Dome status')
-    header['DOMEOPEN'] = (dome_open, 'Dome is open')
-    header['DOMESHLD'] = (dome_shielding, 'Dome wind shield is active')
-    header['DOMEMVT '] = (dome_move_time, 'Dome latest move time')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Mount info
-    try:
-        if all_info['mnt'] is None:
-            raise ValueError('No mount info provided')
+    if daemon_info.get('mnt') is None:
+        raise ValueError('No mount info provided')
 
-        info = all_info['mnt']
-
-        targ_ra = info['target_ra']
-        if targ_ra is not None:
-            targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
-        else:
-            targ_ra_str = 'NA'
-
-        targ_dec = info['target_dec']
-        if targ_dec is not None:
-            targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
-        else:
-            targ_dec_str = 'NA'
-
-        targ_dist = info['target_dist']
-        if targ_dist is None:
-            targ_dist = 'NA'
-
-        mnt_ra = info['mount_ra']
-        mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
-
-        mnt_dec = info['mount_dec']
-        mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
-
-        mnt_alt = info['mount_alt']
-        mnt_az = info['mount_az']
-        ha = info['mount_ha']
-
-        mnt_move_time = info['last_move_time']
-        if mnt_move_time is not None:
-            mnt_move_time = Time(mnt_move_time, format='unix')
-            mnt_move_time = mnt_move_time.isot
-        else:
-            mnt_move_time = 'NA'
-
-        mount_tracking = info['status'] == 'Tracking'
-        sidereal = not info['nonsidereal']
-        trackrate_ra = info['trackrate_ra']
-        trackrate_dec = info['trackrate_dec']
-
-        poserr_ra = info['position_error']['ra']
-        poserr_dec = info['position_error']['dec']
-        trkerr_ra = info['tracking_error']['ra']
-        trkerr_dec = info['tracking_error']['dec']
-        current_ra = info['motor_current']['ra']
-        current_dec = info['motor_current']['dec']
-
-        if info['position_error_info'] is None:
-            poserr_hist_time = -999
-            poserr_ra_max = 'NA'
-            poserr_ra_mean = 'NA'
-            poserr_ra_std = 'NA'
-            poserr_dec_max = 'NA'
-            poserr_dec_mean = 'NA'
-            poserr_dec_std = 'NA'
-        else:
-            poserr_hist_time = info['position_error_info']['hist_time']
-            poserr_ra_max = info['position_error_info']['ra_max']
-            poserr_ra_mean = info['position_error_info']['ra_mean']
-            poserr_ra_std = info['position_error_info']['ra_std']
-            poserr_dec_max = info['position_error_info']['dec_max']
-            poserr_dec_mean = info['position_error_info']['dec_mean']
-            poserr_dec_std = info['position_error_info']['dec_std']
-
-        if info['tracking_error_info'] is None:
-            trkerr_hist_time = -999
-            trkerr_ra_max = 'NA'
-            trkerr_ra_mean = 'NA'
-            trkerr_ra_std = 'NA'
-            trkerr_dec_max = 'NA'
-            trkerr_dec_mean = 'NA'
-            trkerr_dec_std = 'NA'
-        else:
-            trkerr_hist_time = info['tracking_error_info']['hist_time']
-            trkerr_ra_max = info['tracking_error_info']['ra_max']
-            trkerr_ra_mean = info['tracking_error_info']['ra_mean']
-            trkerr_ra_std = info['tracking_error_info']['ra_std']
-            trkerr_dec_max = info['tracking_error_info']['dec_max']
-            trkerr_dec_mean = info['tracking_error_info']['dec_mean']
-            trkerr_dec_std = info['tracking_error_info']['dec_std']
-
-        if info['motor_current_info'] is None:
-            current_hist_time = -999
-            current_ra_max = 'NA'
-            current_ra_mean = 'NA'
-            current_ra_std = 'NA'
-            current_dec_max = 'NA'
-            current_dec_mean = 'NA'
-            current_dec_std = 'NA'
-        else:
-            current_hist_time = info['motor_current_info']['hist_time']
-            current_ra_max = info['motor_current_info']['ra_max']
-            current_ra_mean = info['motor_current_info']['ra_mean']
-            current_ra_std = info['motor_current_info']['ra_std']
-            current_dec_max = info['motor_current_info']['dec_max']
-            current_dec_mean = info['motor_current_info']['dec_mean']
-            current_dec_std = info['motor_current_info']['dec_std']
-
-        zen_dist = 90 - mnt_alt
-        airmass = 1 / (math.cos(math.pi / 2 - (mnt_alt * math.pi / 180)))
-        equinox = 2000
-
-        sun_alt = info['sun_alt']
-
-        moon_alt = info['moon_alt']
-        moon_ill = info['moon_ill'] * 100
-        moon_phase = info['moon_phase']
-        moon_dist = info['moon_dist']
-
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write mount info to header')
-            log.debug('', exc_info=True)
+    # Target coords (optional)
+    targ_ra = daemon_info['mnt']['target_ra']
+    targ_dec = daemon_info['mnt']['target_dec']
+    if targ_ra is not None:
+        targ_ra_str = Angle(targ_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
+    else:
         targ_ra_str = 'NA'
+    if targ_dec is not None:
+        targ_dec_str = Angle(targ_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
+    else:
         targ_dec_str = 'NA'
+    header.append(('RA-TARG ', targ_ra_str,
+                   'Requested pointing RA'))
+    header.append(('DEC-TARG', targ_dec_str,
+                   'Requested pointing Dec'))
+
+    # Pointing coords
+    mnt_ra = daemon_info['mnt']['mount_ra']
+    mnt_dec = daemon_info['mnt']['mount_dec']
+    mnt_ra_str = Angle(mnt_ra * u.hour).to_string(sep=':', precision=3, alwayssign=True)
+    mnt_dec_str = Angle(mnt_dec * u.deg).to_string(sep=':', precision=3, alwayssign=True)
+    header.append(('RA-TEL  ', mnt_ra_str,
+                   'Reported mount pointing RA'))
+    header.append(('DEC-TEL ', mnt_dec_str,
+                   'Reported mount pointing Dec'))
+
+    # Coord exqinox
+    header.append(('EQUINOX ', 2000,
+                   'RA/Dec equinox, years'))
+
+    # Target dist (optional)
+    targ_dist = daemon_info['mnt']['target_dist']
+    if targ_dist is None:
         targ_dist = 'NA'
-        mnt_ra_str = 'NA'
-        mnt_dec_str = 'NA'
-        mnt_alt = 'NA'
-        mnt_az = 'NA'
-        ha = 'NA'
+    header.append(('TARGDIST', targ_dist,
+                   'Distance from target, degrees'))
+
+    # Alt/Az
+    header.append(('ALT     ', daemon_info['mnt']['mount_alt'],
+                   'Mount altitude'))
+    header.append(('AZ      ', daemon_info['mnt']['mount_az'],
+                   'Mount azimuth'))
+    header.append(('HA      ', daemon_info['mnt']['mount_ha'],
+                   'Hour angle'))
+
+    # Status
+    if daemon_info['mnt']['last_move_time'] is not None:
+        mnt_move_time = Time(daemon_info['mnt']['last_move_time'], format='unix').isot
+    else:
         mnt_move_time = 'NA'
-        mount_tracking = 'NA'
-        sidereal = 'NA'
-        trackrate_ra = 'NA'
-        trackrate_dec = 'NA'
-        poserr_ra = 'NA'
-        poserr_dec = 'NA'
-        trkerr_ra = 'NA'
-        trkerr_dec = 'NA'
-        current_ra = 'NA'
-        current_dec = 'NA'
+    header.append(('SLEWTIME', mnt_move_time,
+                   'Mount latest move time'))
+    header.append(('TRACKING', daemon_info['mnt']['status'] == 'Tracking',
+                   'Mount is tracking'))
+    header.append(('SIDEREAL', not daemon_info['mnt']['nonsidereal'],
+                   'Mount is tracking at sidereal rate'))
+    header.append(('RA-TRKR ', daemon_info['mnt']['trackrate_ra'],
+                   'RA tracking rate (0=sidereal)'))
+    header.append(('DEC-TRKR', daemon_info['mnt']['trackrate_dec'],
+                   'Dec tracking rate (0=sidereal)'))
+
+    # Position error (+ history)
+    if daemon_info['mnt']['position_error_info'] is not None:
+        poserr_hist_time = daemon_info['mnt']['position_error_info']['hist_time']
+        poserr_ra_max = daemon_info['mnt']['position_error_info']['ra_max']
+        poserr_ra_mean = daemon_info['mnt']['position_error_info']['ra_mean']
+        poserr_ra_std = daemon_info['mnt']['position_error_info']['ra_std']
+        poserr_dec_max = daemon_info['mnt']['position_error_info']['dec_max']
+        poserr_dec_mean = daemon_info['mnt']['position_error_info']['dec_mean']
+        poserr_dec_std = daemon_info['mnt']['position_error_info']['dec_std']
+    else:
         poserr_hist_time = -999
         poserr_ra_max = 'NA'
         poserr_ra_mean = 'NA'
@@ -1171,6 +1137,33 @@ def update_header(header, ut, all_info, log=None):
         poserr_dec_max = 'NA'
         poserr_dec_mean = 'NA'
         poserr_dec_std = 'NA'
+    header.append(('RA-PERR ', daemon_info['mnt']['position_error']['ra'],
+                   'RA position error'))
+    header.append(('RA-PMAX ', poserr_ra_max,
+                   'RA max position error (last {:.0f}s)'.format(poserr_hist_time)))
+    header.append(('RA-PMEA ', poserr_ra_mean,
+                   'RA mean position error (last {:.0f}s)'.format(poserr_hist_time)))
+    header.append(('RA-PSTD ', poserr_ra_std,
+                   'RA std position error (last {:.0f}s)'.format(poserr_hist_time)))
+    header.append(('DEC-PERR', daemon_info['mnt']['position_error']['dec'],
+                   'Dec position error'))
+    header.append(('DEC-PMAX', poserr_dec_max,
+                   'Dec max position error (last {:.0f}s)'.format(poserr_hist_time)))
+    header.append(('DEC-PMEA', poserr_dec_mean,
+                   'Dec mean position error (last {:.0f}s)'.format(poserr_hist_time)))
+    header.append(('DEC-PSTD', poserr_dec_std,
+                   'Dec std position error (last {:.0f}s)'.format(poserr_hist_time)))
+
+    # Tracking error (+ history)
+    if daemon_info['mnt']['tracking_error_info'] is not None:
+        trkerr_hist_time = daemon_info['mnt']['tracking_error_info']['hist_time']
+        trkerr_ra_max = daemon_info['mnt']['tracking_error_info']['ra_max']
+        trkerr_ra_mean = daemon_info['mnt']['tracking_error_info']['ra_mean']
+        trkerr_ra_std = daemon_info['mnt']['tracking_error_info']['ra_std']
+        trkerr_dec_max = daemon_info['mnt']['tracking_error_info']['dec_max']
+        trkerr_dec_mean = daemon_info['mnt']['tracking_error_info']['dec_mean']
+        trkerr_dec_std = daemon_info['mnt']['tracking_error_info']['dec_std']
+    else:
         trkerr_hist_time = -999
         trkerr_ra_max = 'NA'
         trkerr_ra_mean = 'NA'
@@ -1178,6 +1171,33 @@ def update_header(header, ut, all_info, log=None):
         trkerr_dec_max = 'NA'
         trkerr_dec_mean = 'NA'
         trkerr_dec_std = 'NA'
+    header.append(('RA-TERR ', daemon_info['mnt']['tracking_error']['ra'],
+                   'RA tracking error'))
+    header.append(('RA-TMAX ', trkerr_ra_max,
+                   'RA max tracking error (last {:.0f}s)'.format(trkerr_hist_time)))
+    header.append(('RA-TMEA ', trkerr_ra_mean,
+                   'RA mean tracking error (last {:.0f}s)'.format(trkerr_hist_time)))
+    header.append(('RA-TSTD ', trkerr_ra_std,
+                   'RA std tracking error (last {:.0f}s)'.format(trkerr_hist_time)))
+    header.append(('DEC-TERR', daemon_info['mnt']['tracking_error']['dec'],
+                   'Dec tracking error'))
+    header.append(('DEC-TMAX', trkerr_dec_max,
+                   'Dec max tracking error (last {:.0f}s)'.format(trkerr_hist_time)))
+    header.append(('DEC-TMEA', trkerr_dec_mean,
+                   'Dec mean tracking error (last {:.0f}s)'.format(trkerr_hist_time)))
+    header.append(('DEC-TSTD', trkerr_dec_std,
+                   'Dec std tracking error (last {:.0f}s)'.format(trkerr_hist_time)))
+
+    # Motor current (+ history)
+    if daemon_info['mnt']['motor_current_info'] is not None:
+        current_hist_time = daemon_info['mnt']['motor_current_info']['hist_time']
+        current_ra_max = daemon_info['mnt']['motor_current_info']['ra_max']
+        current_ra_mean = daemon_info['mnt']['motor_current_info']['ra_mean']
+        current_ra_std = daemon_info['mnt']['motor_current_info']['ra_std']
+        current_dec_max = daemon_info['mnt']['motor_current_info']['dec_max']
+        current_dec_mean = daemon_info['mnt']['motor_current_info']['dec_mean']
+        current_dec_std = daemon_info['mnt']['motor_current_info']['dec_std']
+    else:
         current_hist_time = -999
         current_ra_max = 'NA'
         current_ra_mean = 'NA'
@@ -1185,193 +1205,136 @@ def update_header(header, ut, all_info, log=None):
         current_dec_max = 'NA'
         current_dec_mean = 'NA'
         current_dec_std = 'NA'
-        zen_dist = 'NA'
-        airmass = 'NA'
-        equinox = 'NA'
-        sun_alt = 'NA'
-        moon_alt = 'NA'
-        moon_ill = 'NA'
-        moon_phase = 'NA'
-        moon_dist = 'NA'
+    header.append(('RA-CURR ', daemon_info['mnt']['motor_current']['ra'],
+                   'RA motor current'))
+    header.append(('RA-CMAX ', current_ra_max,
+                   'RA max motor current (last {:.0f}s)'.format(current_hist_time)))
+    header.append(('RA-CMEA ', current_ra_mean,
+                   'RA mean motor current (last {:.0f}s)'.format(current_hist_time)))
+    header.append(('RA-CSTD ', current_ra_std,
+                   'RA std motor current (last {:.0f}s)'.format(current_hist_time)))
+    header.append(('DEC-CURR', daemon_info['mnt']['motor_current']['dec'],
+                   'Dec motor current'))
+    header.append(('DEC-CMAX', current_dec_max,
+                   'Dec max motor current (last {:.0f}s)'.format(current_hist_time)))
+    header.append(('DEC-CMEA', current_dec_mean,
+                   'Dec mean motor current (last {:.0f}s)'.format(current_hist_time)))
+    header.append(('DEC-CSTD', current_dec_std,
+                   'Dec std motor current (last {:.0f}s)'.format(current_hist_time)))
 
-    header['RA-TARG '] = (targ_ra_str, 'Requested pointing RA')
-    header['DEC-TARG'] = (targ_dec_str, 'Requested pointing Dec')
+    # Pointing altitude
+    airmass = 1 / (math.cos(math.pi / 2 - (daemon_info['mnt']['mount_alt'] * math.pi / 180)))
+    header.append(('AIRMASS ', airmass,
+                   'Airmass'))
+    header.append(('ZENDIST ', 90 - daemon_info['mnt']['mount_alt'],
+                   'Distance from zenith, degrees'))
 
-    header['RA-TEL  '] = (mnt_ra_str, 'Reported mount pointing RA')
-    header['DEC-TEL '] = (mnt_dec_str, 'Reported mount pointing Dec')
+    # Sun/Moon
+    header.append(('SUNALT  ', daemon_info['mnt']['sun_alt'],
+                   'Current Sun altitude, degrees'))
 
-    header['EQUINOX '] = (equinox, 'RA/Dec equinox, years')
+    header.append(('MOONALT ', daemon_info['mnt']['moon_alt'],
+                   'Current Moon altitude, degrees'))
+    header.append(('MOONILL ', daemon_info['mnt']['moon_ill'] * 100,
+                   'Current Moon illumination, percent'))
+    header.append(('MOONPHAS', daemon_info['mnt']['moon_phase'],
+                   'Current Moon phase, [DGB]'))
+    header.append(('MOONDIST', daemon_info['mnt']['moon_dist'],
+                   'Distance from Moon, degrees'))
 
-    header['TARGDIST'] = (targ_dist, 'Distance from target, degrees')
-
-    header['ALT     '] = (mnt_alt, 'Mount altitude')
-    header['AZ      '] = (mnt_az, 'Mount azimuth')
-    header['HA      '] = (ha, 'Hour angle')
-
-    header['SLEWTIME'] = (mnt_move_time, 'Mount latest move time')
-    header['TRACKING'] = (mount_tracking, 'Mount is tracking')
-    header['SIDEREAL'] = (sidereal, 'Mount is tracking at sidereal rate')
-    header['RA-TRKR '] = (trackrate_ra, 'RA tracking rate (0=sidereal)')
-    header['DEC-TRKR'] = (trackrate_dec, 'Dec tracking rate (0=sidereal)')
-
-    header['RA-PERR '] = (poserr_ra, 'RA position error')
-    header['RA-PMAX '] = (poserr_ra_max, 'RA max position error (last {:.0f}s)'.format(
-                          poserr_hist_time))
-    header['RA-PMEA '] = (poserr_ra_mean, 'RA mean position error (last {:.0f}s)'.format(
-                          poserr_hist_time))
-    header['RA-PSTD '] = (poserr_ra_std, 'RA std position error (last {:.0f}s)'.format(
-                          poserr_hist_time))
-    header['DEC-PERR'] = (poserr_dec, 'Dec position error')
-    header['DEC-PMAX'] = (poserr_dec_max, 'Dec max position error (last {:.0f}s)'.format(
-                          poserr_hist_time))
-    header['DEC-PMEA'] = (poserr_dec_mean, 'Dec mean position error (last {:.0f}s)'.format(
-                          poserr_hist_time))
-    header['DEC-PSTD'] = (poserr_dec_std, 'Dec std position error (last {:.0f}s)'.format(
-                          poserr_hist_time))
-
-    header['RA-TERR '] = (trkerr_ra, 'RA tracking error')
-    header['RA-TMAX '] = (trkerr_ra_max, 'RA max tracking error (last {:.0f}s)'.format(
-                          trkerr_hist_time))
-    header['RA-TMEA '] = (trkerr_ra_mean, 'RA mean tracking error (last {:.0f}s)'.format(
-                          trkerr_hist_time))
-    header['RA-TSTD '] = (trkerr_ra_std, 'RA std tracking error (last {:.0f}s)'.format(
-                          trkerr_hist_time))
-    header['DEC-TERR'] = (trkerr_dec, 'Dec tracking error')
-    header['DEC-TMAX'] = (trkerr_dec_max, 'Dec max tracking error (last {:.0f}s)'.format(
-                          trkerr_hist_time))
-    header['DEC-TMEA'] = (trkerr_dec_mean, 'Dec mean tracking error (last {:.0f}s)'.format(
-                          trkerr_hist_time))
-    header['DEC-TSTD'] = (trkerr_dec_std, 'Dec std tracking error (last {:.0f}s)'.format(
-                          trkerr_hist_time))
-
-    header['RA-CURR '] = (current_ra, 'RA motor current')
-    header['RA-CMAX '] = (current_ra_max, 'RA max motor current (last {:.0f}s)'.format(
-                          current_hist_time))
-    header['RA-CMEA '] = (current_ra_mean, 'RA mean motor current (last {:.0f}s)'.format(
-                          current_hist_time))
-    header['RA-CSTD '] = (current_ra_std, 'RA std motor current (last {:.0f}s)'.format(
-                          current_hist_time))
-    header['DEC-CURR'] = (current_dec, 'Dec motor current')
-    header['DEC-CMAX'] = (current_dec_max, 'Dec max motor current (last {:.0f}s)'.format(
-                          current_hist_time))
-    header['DEC-CMEA'] = (current_dec_mean, 'Dec mean motor current (last {:.0f}s)'.format(
-                          current_hist_time))
-    header['DEC-CSTD'] = (current_dec_std, 'Dec std motor current (last {:.0f}s)'.format(
-                          current_hist_time))
-
-    header['AIRMASS '] = (airmass, 'Airmass')
-
-    header['ZENDIST '] = (zen_dist, 'Distance from zenith, degrees')
-
-    header['SUNALT  '] = (sun_alt, 'Current Sun altitude, degrees')
-
-    header['MOONALT '] = (moon_alt, 'Current Moon altitude, degrees')
-    header['MOONILL '] = (moon_ill, 'Current Moon illumination, percent')
-    header['MOONPHAS'] = (moon_phase, 'Current Moon phase, [DGB]')
-    header['MOONDIST'] = (moon_dist, 'Distance from Moon, degrees')
-
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Conditions info
-    try:
-        if all_info['conditions'] is None:
-            raise ValueError('No conditions info provided')
+    if daemon_info.get('conditions') is None:
+        raise ValueError('No conditions info provided')
 
-        info = all_info['conditions']
-
-        clouds = info['clouds']
-        if clouds == -999:
-            clouds = 'NA'
-
-        seeing = info['tng']['seeing']
-        if seeing == -999:
-            seeing = 'NA'
-
-        seeing_ing = info['robodimm']['seeing']
-        if seeing_ing == -999:
-            seeing_ing = 'NA'
-
-        dust = info['tng']['dust']
-        if dust == -999:
-            dust = 'NA'
-
-        ext_temp = info['weather_ext']['temperature']
-        if ext_temp == -999:
-            ext_temp = 'NA'
-
-        ext_hum = info['weather_ext']['humidity']
-        if ext_hum == -999:
-            ext_hum = 'NA'
-
-        ext_wind = info['weather_ext']['windspeed']
-        if ext_wind == -999:
-            ext_wind = 'NA'
-
-        ext_winddir = info['weather_ext']['winddir']
-        if ext_winddir == -999:
-            ext_winddir = 'NA'
-
-        ext_gust = info['weather_ext']['windgust']
-        if ext_gust == -999:
-            ext_gust = 'NA'
-
-        if info['weather_ext']['windgust_history_info'] is None:
-            hist_time = -999
-            ext_gustmax = 'NA'
-            ext_gustmean = 'NA'
-            ext_guststd = 'NA'
-        else:
-            hist_time = info['weather_ext']['windgust_history_info']['hist_time']
-            ext_gustmax = info['weather_ext']['windgust_history_info']['max']
-            ext_gustmean = info['weather_ext']['windgust_history_info']['mean']
-            ext_guststd = info['weather_ext']['windgust_history_info']['std']
-
-        int_temp = info['weather_int']['temperature']
-        if int_temp == -999:
-            int_temp = 'NA'
-
-        int_hum = info['weather_int']['humidity']
-        if int_hum == -999:
-            int_hum = 'NA'
-
-    except Exception as err:
-        if log is None:
-            raise
-        if 'info provided' in str(err):
-            log.warning(str(err))
-        else:
-            log.error('Failed to write conditions info to header')
-            log.debug('', exc_info=True)
+    # Site conditions
+    clouds = daemon_info['conditions']['clouds']
+    if clouds == -999:
         clouds = 'NA'
+    seeing = daemon_info['conditions']['tng']['seeing']
+    if seeing == -999:
         seeing = 'NA'
+    seeing_ing = daemon_info['conditions']['robodimm']['seeing']
+    if seeing_ing == -999:
         seeing_ing = 'NA'
+    dust = daemon_info['conditions']['tng']['dust']
+    if dust == -999:
         dust = 'NA'
+    header.append(('SATCLOUD', clouds,
+                   'IR satellite cloud opacity, percent (sat24.com)'))
+    header.append(('SEEING  ', seeing,
+                   'Seeing, arcseconds (TNG DIMM)'))
+    header.append(('SEEING2 ', seeing_ing,
+                   'Seeing, arcseconds (ING RoboDIMM)'))
+    header.append(('DUST    ', dust,
+                   'Dust level, ug/m3 (TNG)'))
+
+    # External conditions
+    ext_temp = daemon_info['conditions']['weather_ext']['temperature']
+    if ext_temp == -999:
         ext_temp = 'NA'
+    ext_hum = daemon_info['conditions']['weather_ext']['humidity']
+    if ext_hum == -999:
         ext_hum = 'NA'
+    header.append(('EXT-TEMP', ext_temp,
+                   'External temperature, Celsius (GOTO mast)'))
+    header.append(('EXT-HUM ', ext_hum,
+                   'External humidity, percent (GOTO mast)'))
+
+    # Wind (+ history)
+    ext_wind = daemon_info['conditions']['weather_ext']['windspeed']
+    if ext_wind == -999:
         ext_wind = 'NA'
+    ext_winddir = daemon_info['conditions']['weather_ext']['winddir']
+    if ext_winddir == -999:
         ext_winddir = 'NA'
+    ext_gust = daemon_info['conditions']['weather_ext']['windgust']
+    if ext_gust == -999:
         ext_gust = 'NA'
+    if daemon_info['conditions']['weather_ext']['windgust_history_info'] is not None:
+        hist_time = daemon_info['conditions']['weather_ext']['windgust_history_info']['hist_time']
+        ext_gustmax = daemon_info['conditions']['weather_ext']['windgust_history_info']['max']
+        ext_gustmean = daemon_info['conditions']['weather_ext']['windgust_history_info']['mean']
+        ext_guststd = daemon_info['conditions']['weather_ext']['windgust_history_info']['std']
+    else:
         hist_time = -999
         ext_gustmax = 'NA'
         ext_gustmean = 'NA'
         ext_guststd = 'NA'
+    header.append(('EXT-WIND', ext_wind,
+                   'External wind speed, km/h (GOTO mast)'))
+    header.append(('EXT-WDIR', ext_winddir,
+                   'External wind direction, degrees (GOTO mast)'))
+    header.append(('EXT-GUST', ext_gust,
+                   'External wind gust, km/h (GOTO mast)'))
+    header.append(('EXT-GMAX', ext_gustmax,
+                   'Max wind gust, km/h (last {:.0f}s)'.format(hist_time)))
+    header.append(('EXT-GMEA', ext_gustmean,
+                   'Mean wind gust, km/h (last {:.0f}s)'.format(hist_time)))
+    header.append(('EXT-GSTD', ext_guststd,
+                   'Std wind gust, km/h (last {:.0f}s)'.format(hist_time)))
+
+    # Internal conditions
+    int_temp = daemon_info['conditions']['weather_int']['temperature']
+    if int_temp == -999:
         int_temp = 'NA'
+    int_hum = daemon_info['conditions']['weather_int']['humidity']
+    if int_hum == -999:
         int_hum = 'NA'
+    header.append(('INT-TEMP', int_temp,
+                   'Internal temperature, Celsius (dome)'))
+    header.append(('INT-HUM ', int_hum,
+                   'Internal humidity, percent (dome)'))
 
-    header['SATCLOUD'] = (clouds, 'IR satellite cloud opacity, percent (sat24.com)')
-    header['SEEING  '] = (seeing, 'Seeing, arcseconds (TNG DIMM)')
-    header['SEEING2 '] = (seeing_ing, 'Seeing, arcseconds (ING RoboDIMM)')
-    header['DUST    '] = (dust, 'Dust level, ug/m3 (TNG)')
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Now verify all the cards and raise an exception if any aren't valid
+    for card in header:
+        fits.Card(*card).verify('exception')
 
-    header['EXT-TEMP'] = (ext_temp, 'External temperature, Celsius (GOTO mast)')
-    header['EXT-HUM '] = (ext_hum, 'External humidity, percent (GOTO mast)')
-    header['EXT-WIND'] = (ext_wind, 'External wind speed, km/h (GOTO mast)')
-    header['EXT-WDIR'] = (ext_winddir, 'External wind direction, degrees (GOTO mast)')
-    header['EXT-GUST'] = (ext_gust, 'External wind gust, km/h (GOTO mast)')
-    header['EXT-GMAX'] = (ext_gustmax, 'Max wind gust, km/h (last {:.0f}s)'.format(hist_time))
-    header['EXT-GMEA'] = (ext_gustmean, 'Mean wind gust, km/h (last {:.0f}s)'.format(hist_time))
-    header['EXT-GSTD'] = (ext_guststd, 'Std wind gust, km/h (last {:.0f}s)'.format(hist_time))
-
-    header['INT-TEMP'] = (int_temp, 'Internal temperature, Celsius (dome)')
-    header['INT-HUM '] = (int_hum, 'Internal humidity, percent (dome)')
+    # It would be great to return a list of Cards, but they then couldn't be sent to the interfaces
+    # if they're not Pyro picklable.
+    # So we just return the list of tuples, and add them to the header when created.
+    return header
 
 
 def read_fits(filepath, dtype='int32'):

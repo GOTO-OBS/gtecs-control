@@ -13,8 +13,8 @@ from gtecs.control import params
 from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
                                    daemon_proxy, get_daemon_host)
 from gtecs.control.exposures import Exposure
-from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
-                                image_location, make_fits, save_fits)
+from gtecs.control.fits import (clear_glance_files, get_daemon_info, glance_location,
+                                image_location, make_fits, make_header, save_fits)
 from gtecs.control.slack import send_slack_msg
 
 
@@ -46,13 +46,13 @@ class CamDaemon(BaseDaemon):
         with open(self.run_number_file, 'r') as f:
             self.latest_run_number = int(f.read())
         self.num_taken = 0
-        self.latest_headers = (0, {ut: None for ut in self.uts})
 
         self.queues_cleared = {ut: False for ut in self.uts}
 
         self.exposure_state = 'none'
         self.current_exposure = None
-        self.all_info = None
+        self.temp_headers = None
+        self.latest_headers = (self.num_taken, {ut: None for ut in self.uts})
         self.exposure_start_time = {ut: 0 for ut in self.uts}
         self.exposure_finished = {ut: False for ut in self.uts}
         self.exposing_start_time = 0
@@ -196,15 +196,30 @@ class CamDaemon(BaseDaemon):
                     # STATE 3: Wait for the readout to finish and images are ready to be saved
                     # The exposure is finished but the cameras are still reading out
 
-                    # Fetch the daemon info
-                    if self.all_info is None:
+                    # Construct the image headers
+                    # We only need to do this once per exposure
+                    if self.temp_headers is None:
+                        # Fetch info from the other daemons
                         self.log.info('{}: Fetching info from other daemons'.format(expstr))
-                        self.all_info, bad_info = get_all_info(self.info.copy(), log=self.log)
+                        daemon_info, bad = get_daemon_info(self.info.copy(), log=self.log)
                         self.log.info('{}: Fetched info from other daemons'.format(expstr))
-                        if len(bad_info) > 0:
+                        if len(bad) > 0:
                             # We failed to get at least one info set, log and tell Slack
-                            self.log.error('Bad info: {}'.format(bad_info))
-                            send_slack_msg('Cam failed to get info for: {}'.format(bad_info))
+                            self.log.error('Bad info: {}'.format(bad))
+                            send_slack_msg(f'Cam failed to get info for: {bad}')
+                        # Now make the headers for each camera
+                        self.log.info('{}: Creating image headers'.format(expstr))
+                        headers = {}
+                        for ut in self.active_uts:
+                            try:
+                                headers[ut] = make_header(ut, daemon_info)
+                            except Exception:
+                                self.log.error('Failed to make header for camera {}'.format(ut))
+                                self.log.debug('', exc_info=True)
+                                send_slack_msg(f'Cam failed to make image header for UT{ut}')
+                                headers[ut] = None
+                        self.temp_headers = headers
+                        self.log.info('{}: Created image headers'.format(expstr))
 
                     # Wait for the images to be ready
                     for ut in self.active_uts:
@@ -232,11 +247,15 @@ class CamDaemon(BaseDaemon):
                     if params.SAVE_IMAGES_LOCALLY:
                         # fetch image data from the interfaces and save them from the cam daemon
                         t = threading.Thread(target=self._save_images_cam,
-                                             args=[self.active_uts.copy(), self.all_info.copy()])
+                                             args=[self.active_uts.copy(),
+                                                   self.temp_headers.copy(),
+                                                   self.info.copy()])
                     else:
                         # tell the interfaces to save the files themselves
                         t = threading.Thread(target=self._save_images_intf,
-                                             args=[self.active_uts.copy(), self.all_info.copy()])
+                                             args=[self.active_uts.copy(),
+                                                   self.temp_headers.copy(),
+                                                   self.info.copy()])
                     t.daemon = True
                     t.start()
 
@@ -247,7 +266,7 @@ class CamDaemon(BaseDaemon):
                     self.exposure_start_time = {ut: 0 for ut in self.uts}
                     self.exposure_finished = {ut: False for ut in self.uts}
                     self.image_ready = {ut: False for ut in self.uts}
-                    self.all_info = None
+                    self.temp_headers = None
                     self.active_uts = []
                     self.num_taken += 1
                     self.take_exposure_flag = 0
@@ -280,7 +299,7 @@ class CamDaemon(BaseDaemon):
                         self.exposure_start_time = {ut: 0 for ut in self.uts}
                         self.exposure_finished = {ut: False for ut in self.uts}
                         self.image_ready = {ut: False for ut in self.uts}
-                        self.all_info = None
+                        self.temp_headers = None
                         self.active_uts = []
                         self.num_taken += 1
                         self.take_exposure_flag = 0
@@ -467,7 +486,7 @@ class CamDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-    def _save_images_cam(self, active_uts, all_info):
+    def _save_images_cam(self, active_uts, header_info, cam_info):
         """Thread to be started whenever an exposure is completed.
 
         By containing fetching images from the interfaces and saving them to
@@ -475,7 +494,6 @@ class CamDaemon(BaseDaemon):
         the previous one is finished.
         """
         self.saving_thread_running = True
-        cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
         self.log.info('{}: Saving thread started'.format(expstr))
@@ -536,7 +554,9 @@ class CamDaemon(BaseDaemon):
 
         # save images in parallel
         with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
-            headers = {ut: None for ut in self.uts}
+            # We store the returned final headers, as they will include any extra cards which depend
+            # on the image data (e.g. median counts, HFDs etc).
+            full_headers = {ut: None for ut in self.uts}
             for ut in active_uts:
                 # get image data and filename
                 image_data = images[ut]
@@ -547,12 +567,13 @@ class CamDaemon(BaseDaemon):
                     filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
                 # create and fill the FITS HDU
-                hdu = make_fits(image_data, ut, all_info,
+                hdu = make_fits(image_data,
+                                header_cards=header_info[ut],
                                 compress=params.COMPRESS_IMAGES,
                                 measure_hfds=self.measure_hfds,
                                 log=self.log
                                 )
-                headers[ut] = hdu.header
+                full_headers[ut] = hdu.header
 
                 # write the FITS file
                 self.log.info('{}: Saving exposure from camera {} to {}'.format(
@@ -560,14 +581,13 @@ class CamDaemon(BaseDaemon):
                 executor.submit(save_fits, hdu, filename,
                                 log=self.log, log_debug=False, fancy_log=True)
 
-        self.latest_headers = (self.num_taken, headers)
+        self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
-    def _save_images_intf(self, active_uts, all_info):
+    def _save_images_intf(self, active_uts, header_info, cam_info):
         """Save the images on the interfaces, rather than fetching and saving locally."""
         self.saving_thread_running = True
-        cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
         self.log.info('{}: Saving thread started'.format(expstr))
@@ -586,21 +606,24 @@ class CamDaemon(BaseDaemon):
         # save images on the interfaces in turn
         # no need for parallelisation here, they should return immediately as the interface
         # creates new processes for each
-        headers = {ut: None for ut in self.uts}
+        # We store the returned final headers, as they will include any extra cards which depend
+        # on the image data (e.g. median counts, HFDs etc).
+        full_headers = {ut: None for ut in self.uts}
         for ut in active_uts:
             self.log.info('{}: Saving exposure on camera {}'.format(expstr, ut))
             try:
                 with daemon_proxy(f'cam{ut}') as interface:
-                    headers[ut] = interface.save_exposure(all_info,
-                                                          compress=params.COMPRESS_IMAGES,
-                                                          measure_hfds=self.measure_hfds,
-                                                          method='thread',
-                                                          )
+                    full_headers[ut] = interface.save_exposure(
+                        header_cards=header_info[ut],
+                        compress=params.COMPRESS_IMAGES,
+                        measure_hfds=self.measure_hfds,
+                        method='thread',
+                        )
             except Exception:
                 self.log.error('No response from interface cam{}'.format(ut))
                 self.log.debug('', exc_info=True)
 
-        self.latest_headers = (self.num_taken, headers)
+        self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
