@@ -6,11 +6,11 @@ import os
 import sys
 
 from gtecs.common import logging
+from gtecs.common.style import errortxt
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import misc
 from gtecs.control import params
-from gtecs.control.style import errortxt
 
 
 def query(command, args):

@@ -5,11 +5,11 @@ import argparse
 import sys
 
 from gtecs.common import logging
+from gtecs.common.style import errortxt
 from gtecs.common.system import execute_long_command, get_pid, kill_process, make_pid_file
 from gtecs.control.flags import Status
 from gtecs.control.pilot import run
 from gtecs.control.slack import send_slack_msg
-from gtecs.control.style import errortxt
 
 
 def query(command, args):

@@ -59,9 +59,6 @@ EMAIL_LIST = config['EMAIL_LIST']
 EMAIL_ADDRESS = config['EMAIL_ADDRESS']
 EMAIL_SERVER = config['EMAIL_SERVER']
 
-# Use colour and fancy formatting in output?
-FANCY_OUTPUT = config['FANCY_OUTPUT']
-
 # Debug - print commands?
 COMMAND_DEBUG = config['COMMAND_DEBUG']
 

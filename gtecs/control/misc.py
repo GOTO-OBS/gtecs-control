@@ -1,7 +1,7 @@
 """Miscellaneous common functions."""
 
 from . import params
-from .style import errortxt
+from gtecs.common.style import errortxt
 
 
 def valid_ints(array, allowed):

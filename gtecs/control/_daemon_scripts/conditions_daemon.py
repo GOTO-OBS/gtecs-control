@@ -9,7 +9,7 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import style
+from gtecs.common.style import boldtxt, gtxt, rtxt, ytxt
 from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
@@ -783,11 +783,11 @@ class ConditionsDaemon(BaseDaemon):
                 if flag in ignored_flags:
                     status = '----' + '\u200c' * 11
                 elif flags[flag] == 0:
-                    status = style.gtxt('Good')
+                    status = gtxt('Good')
                 elif flags[flag] == 1:
-                    status = style.rtxt('Bad')
+                    status = rtxt('Bad')
                 else:
-                    status = style.rtxt('ERROR')
+                    status = rtxt('ERROR')
                 msg += '  {: >12} : {: <16} ({})'.format(flag, status, flags[flag])
             else:
                 msg += '                          '
@@ -797,11 +797,11 @@ class ConditionsDaemon(BaseDaemon):
                 if flag in ignored_flags:
                     status = '----' + '\u200c' * 11
                 elif flags[flag] == 0:
-                    status = style.gtxt('Good')
+                    status = gtxt('Good')
                 elif flags[flag] == 1:
-                    status = style.rtxt('Bad')
+                    status = rtxt('Bad')
                 else:
-                    status = style.rtxt('ERROR')
+                    status = rtxt('ERROR')
                 msg += '  {: >12} : {: <16} ({})\n'.format(flag, status, flags[flag])
             else:
                 msg += ''
@@ -812,83 +812,83 @@ class ConditionsDaemon(BaseDaemon):
         for source in weather:
             temperature = weather[source]['temperature']
             if temperature == -999:
-                temperature_str = style.rtxt(' ERR')
+                temperature_str = rtxt(' ERR')
             elif (temperature < params.MAX_TEMPERATURE and
                     temperature > params.MIN_TEMPERATURE):
-                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+                temperature_str = ytxt('{:>4.1f}'.format(temperature))
                 if (temperature < params.MAX_TEMPERATURE - 1 and
                         temperature > params.MIN_TEMPERATURE + 1):
-                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                    temperature_str = gtxt('{:>4.1f}'.format(temperature))
             else:
-                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+                temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
             dewpoint = weather[source]['dew_point']
             if dewpoint == -999:
-                dewpoint_str = style.rtxt('  ERR')
+                dewpoint_str = rtxt('  ERR')
             elif (dewpoint > params.MIN_DEWPOINT):
-                dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
+                dewpoint_str = ytxt('{:>+5.1f}'.format(dewpoint))
                 if (dewpoint > params.MIN_DEWPOINT + 1):
-                    dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
+                    dewpoint_str = gtxt('{:>+5.1f}'.format(dewpoint))
             else:
-                dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
+                dewpoint_str = rtxt('{:>+5.1f}'.format(dewpoint))
 
             humidity = weather[source]['humidity']
             if humidity == -999:
-                humidity_str = style.rtxt('  ERR')
+                humidity_str = rtxt('  ERR')
             elif (humidity < params.MAX_HUMIDITY):
-                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+                humidity_str = ytxt('{:>5.1f}'.format(humidity))
                 if (humidity < params.MAX_HUMIDITY - 5):
-                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                    humidity_str = gtxt('{:>5.1f}'.format(humidity))
             else:
-                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
+                humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
             windspeed = weather[source]['windspeed']
             if windspeed == -999:
-                windspeed_str = style.rtxt(' ERR')
+                windspeed_str = rtxt(' ERR')
             elif (windspeed < params.MAX_WINDSPEED):
-                windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
+                windspeed_str = ytxt('{:>4.1f}'.format(windspeed))
                 if (windspeed < params.MAX_WINDSPEED - 5):
-                    windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
+                    windspeed_str = gtxt('{:>4.1f}'.format(windspeed))
             else:
-                windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
+                windspeed_str = rtxt('{:>4.1f}'.format(windspeed))
 
             windgust = weather[source]['windgust']
             if windgust == -999:
-                windgust_str = style.rtxt(' ERR')
+                windgust_str = rtxt(' ERR')
             elif (windgust < params.MAX_WINDSPEED):
-                windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
+                windgust_str = ytxt('{:>4.1f}'.format(windgust))
                 if (windgust < params.MAX_WINDSPEED - 5):
-                    windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
+                    windgust_str = gtxt('{:>4.1f}'.format(windgust))
             else:
-                windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
+                windgust_str = rtxt('{:>4.1f}'.format(windgust))
 
             windmax = weather[source]['windmax']
             if windmax == -999:
-                windmax_str = style.rtxt(' ERR')
+                windmax_str = rtxt(' ERR')
             elif (windmax < params.MAX_WINDGUST):
-                windmax_str = style.ytxt('{:>4.1f}'.format(windmax))
+                windmax_str = ytxt('{:>4.1f}'.format(windmax))
                 if (windmax < params.MAX_WINDGUST - 5):
-                    windmax_str = style.gtxt('{:>4.1f}'.format(windmax))
+                    windmax_str = gtxt('{:>4.1f}'.format(windmax))
             else:
-                windmax_str = style.rtxt('{:>4.1f}'.format(windmax))
+                windmax_str = rtxt('{:>4.1f}'.format(windmax))
 
             rain = weather[source]['rain'] if 'rain' in weather[source] else None
             if rain is None:
                 rain_str = '  N/A'
             elif rain == -999:
-                rain_str = style.rtxt('  ERR')
+                rain_str = rtxt('  ERR')
             elif rain:
-                rain_str = style.rtxt(' True')
+                rain_str = rtxt(' True')
             else:
-                rain_str = style.gtxt('False')
+                rain_str = gtxt('False')
 
             dt = weather[source]['dt']
             if dt == -999:
-                dt_str = style.rtxt('ERR')
+                dt_str = rtxt('ERR')
             elif dt > params.WEATHER_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
+                dt_str = rtxt('{:.0f}'.format(dt))
             else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
+                dt_str = gtxt('{:.0f}'.format(dt))
 
             msg += '  {: <10}\t'.format(source)
             weather_str = '{}°C  {}%  {}°C  {} ({},{}) km/h  {}  dt={}\n'.format(
@@ -904,33 +904,33 @@ class ConditionsDaemon(BaseDaemon):
 
         temperature = info['internal']['temperature']
         if temperature == -999:
-            temperature_str = style.rtxt(' ERR')
+            temperature_str = rtxt(' ERR')
         elif (temperature < params.MAX_INTERNAL_TEMPERATURE and
                 temperature > params.MIN_INTERNAL_TEMPERATURE):
-            temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+            temperature_str = ytxt('{:>4.1f}'.format(temperature))
             if (temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
                     temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                temperature_str = gtxt('{:>4.1f}'.format(temperature))
         else:
-            temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+            temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
         humidity = info['internal']['humidity']
         if humidity == -999:
-            humidity_str = style.rtxt('  ERR')
+            humidity_str = rtxt('  ERR')
         elif (humidity < params.MAX_INTERNAL_HUMIDITY):
-            humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+            humidity_str = ytxt('{:>5.1f}'.format(humidity))
             if (humidity < params.MAX_INTERNAL_HUMIDITY - 5):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                humidity_str = gtxt('{:>5.1f}'.format(humidity))
         else:
-            humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
+            humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
         dt = info['internal']['dt']
         if dt == -999:
-            dt_str = style.rtxt('ERR')
+            dt_str = rtxt('ERR')
         elif dt > params.WEATHER_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
+            dt_str = rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
+            dt_str = gtxt('{:.0f}'.format(dt))
 
         msg += '  {: <10}\t'.format('dome_int')
         weather_str = '{}°C  {}%                                         dt={}\n'.format(
@@ -940,11 +940,11 @@ class ConditionsDaemon(BaseDaemon):
         rain_unsafe = info['rain']['unsafe']
         rain_total = info['rain']['total']
         if info['rain']['rain'] == -999:
-            rain_str = style.rtxt('  ERR')
+            rain_str = rtxt('  ERR')
         elif rain_unsafe > 0:
-            rain_str = style.rtxt('  True') + '   ({}/{})'.format(rain_unsafe, rain_total)
+            rain_str = rtxt('  True') + '   ({}/{})'.format(rain_unsafe, rain_total)
         else:
-            rain_str = style.gtxt(' False') + '   ({}/{})'.format(rain_unsafe, rain_total)
+            rain_str = gtxt(' False') + '   ({}/{})'.format(rain_unsafe, rain_total)
 
         msg += '  {: <10}\t'.format('rain')
         msg += rain_str
@@ -954,67 +954,67 @@ class ConditionsDaemon(BaseDaemon):
         seeing = info['robodimm']['seeing']
         dt = info['robodimm']['dt']
         if seeing == -999:
-            seeing_str = style.rtxt('ERR')
+            seeing_str = rtxt('ERR')
         else:
-            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
         if dt == -999:
-            dt_str = style.rtxt('ERR')
+            dt_str = rtxt('ERR')
         elif dt > params.SEEING_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
+            dt_str = rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
+            dt_str = gtxt('{:.0f}'.format(dt))
         msg += '  seeing (ing)   {}"           dt={}\n'.format(seeing_str, dt_str)
 
         seeing = info['tng']['seeing']
         dt = info['tng']['seeing_dt']
         if seeing == -999:
-            seeing_str = style.rtxt('ERR')
+            seeing_str = rtxt('ERR')
         else:
-            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
         if dt == -999:
-            dt_str = style.rtxt('ERR')
+            dt_str = rtxt('ERR')
         elif dt > params.SEEING_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
+            dt_str = rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
+            dt_str = gtxt('{:.0f}'.format(dt))
         msg += '  seeing (tng)   {}"           dt={}\n'.format(seeing_str, dt_str)
 
         dust = info['tng']['dust']
         if dust == -999:
-            dust_str = style.rtxt('  ERR')
+            dust_str = rtxt('  ERR')
         elif dust < params.MAX_DUSTLEVEL:
-            dust_str = style.ytxt('{:>5.1f}'.format(dust))
+            dust_str = ytxt('{:>5.1f}'.format(dust))
             if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = style.gtxt('{:>5.1f}'.format(dust))
+                dust_str = gtxt('{:>5.1f}'.format(dust))
         else:
-            dust_str = style.rtxt('{:>5.1f}'.format(dust))
+            dust_str = rtxt('{:>5.1f}'.format(dust))
         dt = info['tng']['dust_dt']
         if dt == -999:
-            dt_str = style.rtxt('ERR')
+            dt_str = rtxt('ERR')
         elif dt > params.DUSTLEVEL_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
+            dt_str = rtxt('{:.0f}'.format(dt))
         else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
+            dt_str = gtxt('{:.0f}'.format(dt))
         msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
 
         clouds = info['clouds']
         if clouds == -999:
-            clouds_str = style.rtxt('  ERR')
+            clouds_str = rtxt('  ERR')
         elif clouds < params.MAX_SATCLOUDS:
-            clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
+            clouds_str = ytxt('{:>5.1f}'.format(clouds))
             if clouds < params.MAX_SATCLOUDS - 5:
-                clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
+                clouds_str = gtxt('{:>5.1f}'.format(clouds))
         else:
-            clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
+            clouds_str = rtxt('{:>5.1f}'.format(clouds))
         msg += '  {: <10}   {}%\n'.format('sat_clouds', clouds_str)
 
         sunalt = info['sunalt']
         if sunalt < 0:
-            sunalt_str = style.ytxt('{:>+5.1f}'.format(sunalt))
+            sunalt_str = ytxt('{:>+5.1f}'.format(sunalt))
             if sunalt < params.SUN_ELEVATION_LIMIT:
-                sunalt_str = style.gtxt('{:>+5.1f}'.format(sunalt))
+                sunalt_str = gtxt('{:>+5.1f}'.format(sunalt))
         else:
-            sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
+            sunalt_str = rtxt('{:>+5.1f}'.format(sunalt))
         msg += '  {: <10}   {}°\n'.format('sunalt', sunalt_str)
 
         msg += 'OTHER:\n'
@@ -1022,18 +1022,18 @@ class ConditionsDaemon(BaseDaemon):
         ups_strings = []
         for ups_percent in ups_percents:
             if ups_percent < params.MIN_UPSBATTERY:
-                ups_strings.append(style.rtxt('{:>5.1f}'.format(ups_percent)))
+                ups_strings.append(rtxt('{:>5.1f}'.format(ups_percent)))
             else:
-                ups_strings.append(style.gtxt('{:>5.1f}'.format(ups_percent)))
+                ups_strings.append(gtxt('{:>5.1f}'.format(ups_percent)))
         msg += '  {: <10}   {}%\n'.format('ups', '%  '.join(ups_strings))
 
         free_diskspace = info['free_diskspace']
         if free_diskspace < (params.MIN_DISKSPACE * 2):
-            diskspace_str = style.ytxt('{:>5.1f}'.format(free_diskspace))
+            diskspace_str = ytxt('{:>5.1f}'.format(free_diskspace))
             if free_diskspace < params.MIN_DISKSPACE:
-                diskspace_str = style.rtxt('{:>5.1f}'.format(free_diskspace))
+                diskspace_str = rtxt('{:>5.1f}'.format(free_diskspace))
         else:
-            diskspace_str = style.gtxt('{:>5.1f}'.format(free_diskspace))
+            diskspace_str = gtxt('{:>5.1f}'.format(free_diskspace))
         msg += '  {: <10}   {}%\n'.format('diskspace', diskspace_str)
 
         return msg.rstrip()
@@ -1060,16 +1060,16 @@ class ConditionsDaemon(BaseDaemon):
 
             temperature = weather[source]['temperature']
             if temperature == -999:
-                status = style.rtxt('ERROR')
-                temperature_str = style.rtxt(' ERR')
+                status = rtxt('ERROR')
+                temperature_str = rtxt(' ERR')
             elif (temperature < max_temp and temperature > min_temp):
-                status = style.gtxt('Good')
-                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+                status = gtxt('Good')
+                temperature_str = ytxt('{:>4.1f}'.format(temperature))
                 if temperature < max_temp - 1 and temperature > min_temp + 1:
-                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                    temperature_str = gtxt('{:>4.1f}'.format(temperature))
             else:
-                status = style.rtxt('Bad')
-                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+                status = rtxt('Bad')
+                temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
             msg += ' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}\n'.format(
                 temperature_str, min_temp, max_temp, status)
@@ -1081,16 +1081,16 @@ class ConditionsDaemon(BaseDaemon):
 
         temperature = internal['temperature']
         if temperature == -999:
-            status = style.rtxt('ERROR')
-            temperature_str = style.rtxt(' ERR')
+            status = rtxt('ERROR')
+            temperature_str = rtxt(' ERR')
         elif (temperature < max_temp and temperature > min_temp):
-            status = style.gtxt('Good')
-            temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+            status = gtxt('Good')
+            temperature_str = ytxt('{:>4.1f}'.format(temperature))
             if temperature < max_temp - 1 and temperature > min_temp + 1:
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                temperature_str = gtxt('{:>4.1f}'.format(temperature))
         else:
-            status = style.rtxt('Bad')
-            temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+            status = rtxt('Bad')
+            temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
         msg += ' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}\n'.format(
             temperature_str, min_temp, max_temp, status)
@@ -1105,16 +1105,16 @@ class ConditionsDaemon(BaseDaemon):
 
             humidity = weather[source]['humidity']
             if humidity == -999:
-                status = style.rtxt('ERROR')
-                humidity_str = style.rtxt('  ERR')
+                status = rtxt('ERROR')
+                humidity_str = rtxt('  ERR')
             elif (humidity < max_hum):
-                status = style.gtxt('Good')
-                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+                status = gtxt('Good')
+                humidity_str = ytxt('{:>5.1f}'.format(humidity))
                 if (humidity < max_hum - 5):
-                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                    humidity_str = gtxt('{:>5.1f}'.format(humidity))
             else:
-                status = style.rtxt('Bad')
-                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
+                status = rtxt('Bad')
+                humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
             msg += '{}%        (max={:.1f}%)            \t : {}\n'.format(
                 humidity_str, max_hum, status)
@@ -1125,16 +1125,16 @@ class ConditionsDaemon(BaseDaemon):
 
         humidity = weather[source]['humidity']
         if humidity == -999:
-            status = style.rtxt('ERROR')
-            humidity_str = style.rtxt('  ERR')
+            status = rtxt('ERROR')
+            humidity_str = rtxt('  ERR')
         elif (humidity < max_hum):
-            status = style.gtxt('Good')
-            humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+            status = gtxt('Good')
+            humidity_str = ytxt('{:>5.1f}'.format(humidity))
             if (humidity < max_hum - 5):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                humidity_str = gtxt('{:>5.1f}'.format(humidity))
         else:
-            status = style.rtxt('Bad')
-            humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
+            status = rtxt('Bad')
+            humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
         msg += '{}%        (max={:.1f}%)            \t : {}\n'.format(
             humidity_str, max_hum, status)
@@ -1148,16 +1148,16 @@ class ConditionsDaemon(BaseDaemon):
 
             dewpoint = weather[source]['dew_point']
             if dewpoint == -999:
-                status = style.rtxt('ERROR')
-                dewpoint_str = style.rtxt('  ERR')
+                status = rtxt('ERROR')
+                dewpoint_str = rtxt('  ERR')
             elif (dewpoint > params.MIN_DEWPOINT):
-                status = style.gtxt('Good')
-                dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
+                status = gtxt('Good')
+                dewpoint_str = ytxt('{:>+5.1f}'.format(dewpoint))
                 if (dewpoint > params.MIN_DEWPOINT + 1):
-                    dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
+                    dewpoint_str = gtxt('{:>+5.1f}'.format(dewpoint))
             else:
-                status = style.rtxt('Bad')
-                dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
+                status = rtxt('Bad')
+                dewpoint_str = rtxt('{:>+5.1f}'.format(dewpoint))
 
             msg += '{}°C       (min={:+.1f}°C)           \t : {}\n'.format(
                 dewpoint_str, params.MIN_DEWPOINT, status)
@@ -1171,16 +1171,16 @@ class ConditionsDaemon(BaseDaemon):
 
             windgust = weather[source]['windgust']
             if windgust == -999:
-                status = style.rtxt('ERROR')
-                windgust_str = style.rtxt(' ERR')
+                status = rtxt('ERROR')
+                windgust_str = rtxt(' ERR')
             elif (windgust < params.MAX_WINDSPEED):
-                status = style.gtxt('Good')
-                windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
+                status = gtxt('Good')
+                windgust_str = ytxt('{:>4.1f}'.format(windgust))
                 if (windgust < params.MAX_WINDSPEED - 5):
-                    windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
+                    windgust_str = gtxt('{:>4.1f}'.format(windgust))
             else:
-                status = style.rtxt('Bad')
-                windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
+                status = rtxt('Bad')
+                windgust_str = rtxt('{:>4.1f}'.format(windgust))
 
             msg += ' {} km/h    (max={:.1f} km/h)        \t : {}\n'.format(
                 windgust_str, params.MAX_WINDSPEED, status)
@@ -1194,16 +1194,16 @@ class ConditionsDaemon(BaseDaemon):
 
             windmax = weather[source]['windmax']
             if windmax == -999:
-                status = style.rtxt('ERROR')
-                windmax_str = style.rtxt(' ERR')
+                status = rtxt('ERROR')
+                windmax_str = rtxt(' ERR')
             elif (windmax < params.MAX_WINDGUST):
-                status = style.gtxt('Good')
-                windmax_str = style.ytxt('{:>4.1f}'.format(windmax))
+                status = gtxt('Good')
+                windmax_str = ytxt('{:>4.1f}'.format(windmax))
                 if (windmax < params.MAX_WINDGUST - 5):
-                    windmax_str = style.gtxt('{:>4.1f}'.format(windmax))
+                    windmax_str = gtxt('{:>4.1f}'.format(windmax))
             else:
-                status = style.rtxt('Bad')
-                windmax_str = style.rtxt('{:>4.1f}'.format(windmax))
+                status = rtxt('Bad')
+                windmax_str = rtxt('{:>4.1f}'.format(windmax))
 
             msg += ' {} km/h    (max={:.1f} km/h)        \t : {}\n'.format(
                 windmax_str, params.MAX_WINDGUST, status)
@@ -1213,16 +1213,16 @@ class ConditionsDaemon(BaseDaemon):
 
         temperature = internal['temperature']
         if temperature == -999:
-            status = style.rtxt('ERROR')
-            temperature_str = style.rtxt(' ERR')
+            status = rtxt('ERROR')
+            temperature_str = rtxt(' ERR')
         elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
-            status = style.gtxt('Good')
-            temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
+            status = gtxt('Good')
+            temperature_str = ytxt('{:>4.1f}'.format(temperature))
             if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
+                temperature_str = gtxt('{:>4.1f}'.format(temperature))
         else:
-            status = style.rtxt('Bad')
-            temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
+            status = rtxt('Bad')
+            temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
         msg += ' {}°C       (min={:.1f}°C          \t : {}\n'.format(
             temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status)
@@ -1231,16 +1231,16 @@ class ConditionsDaemon(BaseDaemon):
 
         humidity = internal['humidity']
         if humidity == -999:
-            status = style.rtxt('ERROR')
-            humidity_str = style.rtxt('  ERR')
+            status = rtxt('ERROR')
+            humidity_str = rtxt('  ERR')
         elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
-            status = style.gtxt('Good')
-            humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
+            status = gtxt('Good')
+            humidity_str = ytxt('{:>5.1f}'.format(humidity))
             if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
+                humidity_str = gtxt('{:>5.1f}'.format(humidity))
         else:
-            status = style.rtxt('Bad')
-            humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
+            status = rtxt('Bad')
+            humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
         msg += '{}%        (max={:.1f}%)           \t : {}\n'.format(
             humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status)
@@ -1250,16 +1250,16 @@ class ConditionsDaemon(BaseDaemon):
         msg += '  {: <10}\t'.format('dust_level')
         dust = info['tng']['dust']
         if dust == -999:
-            status = style.rtxt('ERROR')
-            dust_str = style.rtxt('  ERR')
+            status = rtxt('ERROR')
+            dust_str = rtxt('  ERR')
         elif dust < params.MAX_DUSTLEVEL:
-            status = style.gtxt('Good')
-            dust_str = style.ytxt('{:>5.1f}'.format(dust))
+            status = gtxt('Good')
+            dust_str = ytxt('{:>5.1f}'.format(dust))
             if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = style.gtxt('{:>5.1f}'.format(dust))
+                dust_str = gtxt('{:>5.1f}'.format(dust))
         else:
-            status = style.rtxt('Bad')
-            dust_str = style.rtxt('{:>5.1f}'.format(dust))
+            status = rtxt('Bad')
+            dust_str = rtxt('{:>5.1f}'.format(dust))
 
         msg += '{} μg/m³   (max={:.1f} μg/m³)      \t : {}\n'.format(
             dust_str, params.MAX_DUSTLEVEL, status)
@@ -1267,16 +1267,16 @@ class ConditionsDaemon(BaseDaemon):
         msg += '  {: <10}\t'.format('sat_clouds')
         clouds = info['clouds']
         if clouds == -999:
-            status = style.rtxt('ERROR')
-            clouds_str = style.rtxt('  ERR')
+            status = rtxt('ERROR')
+            clouds_str = rtxt('  ERR')
         elif clouds < params.MAX_SATCLOUDS:
-            status = style.gtxt('Good')
-            clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
+            status = gtxt('Good')
+            clouds_str = ytxt('{:>5.1f}'.format(clouds))
             if clouds < params.MAX_SATCLOUDS - 5:
-                clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
+                clouds_str = gtxt('{:>5.1f}'.format(clouds))
         else:
-            status = style.rtxt('Bad')
-            clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
+            status = rtxt('Bad')
+            clouds_str = rtxt('{:>5.1f}'.format(clouds))
 
         msg += '{}%        (max={:.1f}%)            \t : {}\n'.format(
             clouds_str, params.MAX_SATCLOUDS, status)
@@ -1284,14 +1284,14 @@ class ConditionsDaemon(BaseDaemon):
         msg += '  {: <10}\t'.format('sunalt')
         sunalt = info['sunalt']
         if sunalt < 0:
-            status = style.rtxt('Bad')
-            sunalt_str = style.ytxt('{:>+5.1f}'.format(sunalt))
+            status = rtxt('Bad')
+            sunalt_str = ytxt('{:>+5.1f}'.format(sunalt))
             if sunalt < params.SUN_ELEVATION_LIMIT:
-                status = style.gtxt('Good')
-                sunalt_str = style.gtxt('{:>+5.1f}'.format(sunalt))
+                status = gtxt('Good')
+                sunalt_str = gtxt('{:>+5.1f}'.format(sunalt))
         else:
-            status = style.rtxt('Bad')
-            sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
+            status = rtxt('Bad')
+            sunalt_str = rtxt('{:>+5.1f}'.format(sunalt))
 
         msg += '{}°        (max={:.1f}°)           \t : {}\n'.format(
             sunalt_str, params.SUN_ELEVATION_LIMIT, status)

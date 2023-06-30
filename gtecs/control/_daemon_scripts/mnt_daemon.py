@@ -10,8 +10,8 @@ from astropy.coordinates import AltAz, Angle, HADec, SkyCoord
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
+from gtecs.common.style import rtxt, ytxt
 from gtecs.control import params
-from gtecs.control import style
 from gtecs.control.astronomy import (get_moon_distance, get_moon_params, get_sunalt,
                                      observatory_location)
 from gtecs.control.daemons import BaseDaemon, HardwareError
@@ -963,14 +963,14 @@ class MntDaemon(BaseDaemon):
             msg += '  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}\n'.format(
                 dec_str, dec, az)
             if info['moon_dist'] <= 30:
-                msg += style.ytxt('  WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
+                msg += ytxt('  WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
                     info['moon_dist']))
             if info['error_status'] is not None:
                 t = Time(info['error_status_time'], format='unix', precision=0)
-                msg += style.rtxt('ERROR: "{}" (at {})\n'.format(info['error_status'], t.iso))
+                msg += rtxt('ERROR: "{}" (at {})\n'.format(info['error_status'], t.iso))
             if info['warning_status'] is not None:
                 t = Time(info['warning_status_time'], format='unix', precision=0)
-                msg += style.ytxt('WARNING: "{}" (at {})\n'.format(info['warning_status'], t.iso))
+                msg += ytxt('WARNING: "{}" (at {})\n'.format(info['warning_status'], t.iso))
             msg = msg.rstrip()
         else:
             msg = '####### MOUNT INFO ########\n'
@@ -1028,10 +1028,10 @@ class MntDaemon(BaseDaemon):
             elif info['class'] == 'ASA':
                 if info['error_status'] is not None:
                     t = Time(info['error_status_time'], format='unix', precision=0)
-                    msg += style.rtxt('ERROR: "{}" (at {})\n'.format(info['error_status'], t.iso))
+                    msg += rtxt('ERROR: "{}" (at {})\n'.format(info['error_status'], t.iso))
                 if info['warning_status'] is not None:
                     t = Time(info['warning_status_time'], format='unix', precision=0)
-                    msg += style.ytxt('WARNING: "{}" (at {})\n'.format(
+                    msg += ytxt('WARNING: "{}" (at {})\n'.format(
                         info['warning_status'], t.iso))
                 msg += 'RA track rate:    {:>6.2f} arcsec/sec\n'.format(
                     info['tracking_rate']['ra'])
