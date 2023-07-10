@@ -27,7 +27,6 @@ if __name__ == '__main__':
                 print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
             except Exception as error:
                 print(error)
-            time.sleep(1)
 
     elif command == 'shutdown':
         for daemon_id in daemon_ids:
@@ -37,7 +36,6 @@ if __name__ == '__main__':
                 print(f'Daemon {daemon_id} shutdown on {host}:{port}')
             except Exception as error:
                 print(error)
-            time.sleep(1)
 
     elif command == 'restart':
         for daemon_id in daemon_ids:
@@ -47,7 +45,6 @@ if __name__ == '__main__':
                 print(f'Daemon {daemon_id} restarted on {host}:{port} (PID {pid})')
             except Exception as error:
                 print(error)
-            time.sleep(1)
 
     elif command == 'kill':
         for daemon_id in daemon_ids:
@@ -57,7 +54,6 @@ if __name__ == '__main__':
                 print(f'Daemon {daemon_id} killed on {host}:{port}')
             except Exception as error:
                 print(error)
-            time.sleep(1)
 
     elif command == 'ping':
         for daemon_id in daemon_ids:
@@ -67,7 +63,6 @@ if __name__ == '__main__':
                 print(f'Daemon {daemon_id} is running on {host}:{port} (PID {pid})')
             except Exception as error:
                 print(error)
-            time.sleep(1)
 
     else:
         print(f'"{command}" not in valid commands (start, shutdown, restart, kill, ping)')

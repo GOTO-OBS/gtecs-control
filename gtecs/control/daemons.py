@@ -139,7 +139,6 @@ class BaseDaemon(ABC):
 
         # Loop has closed
         self.log.info('Daemon successfully shut down')
-        time.sleep(1.)
 
     def _check_dependencies(self, timeout=5):
         """Check if the daemon's dependencies are alive (if any).
@@ -357,7 +356,6 @@ def start_daemon(daemon_id, timeout=4):
 
     subprocess.Popen(command_string, shell=True, stdout=pipe, stderr=pipe)
 
-    time.sleep(1)
     start_time = time.time()
     while True:
         try:
@@ -367,7 +365,7 @@ def start_daemon(daemon_id, timeout=4):
             if time.time() - start_time > timeout:
                 raise DaemonNotRunningError(f'Daemon {daemon_id} failed to start on {host}:{port}')
             else:
-                time.sleep(0.5)
+                time.sleep(0.01)
         except Exception:
             raise
 
@@ -397,7 +395,6 @@ def shutdown_daemon(daemon_id, kill=False, timeout=4):
     except Exception:
         pass
 
-    time.sleep(1)
     start_time = time.time()
     while True:
         try:
@@ -413,12 +410,12 @@ def shutdown_daemon(daemon_id, kill=False, timeout=4):
             if time.time() - start_time > timeout:
                 raise
             else:
-                time.sleep(0.5)
+                time.sleep(0.01)
         except Exception:
             raise
 
 
-def restart_daemon(daemon_id, wait_time=1, timeout=4):
+def restart_daemon(daemon_id, wait_time=0.01, timeout=4):
     """Shut down a daemon and then start it again after `wait_time` seconds."""
     shutdown_daemon(daemon_id, timeout=timeout)
     time.sleep(wait_time)
