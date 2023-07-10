@@ -378,7 +378,7 @@ def shutdown_daemon(daemon_id, kill=False, timeout=4):
     except DaemonNotRunningError:
         # Great, saves us the trouble of shutting it down
         return
-    except (DaemonStatusError, DaemonDependencyError):
+    except (DaemonStatusError, DaemonDependencyError, HardwareError):
         pass  # we don't care if there's an error, we're shutting down anyway
     except Exception:
         raise
