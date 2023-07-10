@@ -363,121 +363,145 @@ class DomeDaemon(BaseDaemon):
 
     # Internal functions
     def _connect(self):
-        """Connect to hardware."""
-        # Connect to the dome
-        if self.dome is None:
-            if params.FAKE_DOME:
-                self.dome = FakeDome(self.log, params.DOME_DEBUG)
-                self.log.info('Connected to dome')
-            else:
-                try:
-                    self.dome = AstroHavenDome(params.DOME_LOCATION,
-                                               domealert_uri=params.DOMEALERT_URI,
-                                               log=self.log,
-                                               log_debug=params.DOME_DEBUG,
-                                               )
-                    self.log.info('Connected to dome')
-                    if 'dome' in self.bad_hardware:
-                        self.bad_hardware.remove('dome')
-                    # sleep briefly, to make sure the connection has started
-                    time.sleep(3)
-                except Exception:
-                    self.dome.disconnect()
-                    self.dome = None
-                    if 'dome' not in self.bad_hardware:
-                        self.log.error('Failed to connect to dome')
-                        self.bad_hardware.add('dome')
+        """Connect to hardware.
 
-        # Connect to the heartbeat monitor
-        if self.heartbeat is None:
-            if params.FAKE_DOME:
-                self.heartbeat = FakeHeartbeat()
-                self.log.info('Connected to heartbeat')
-            else:
-                try:
-                    self.heartbeat = DomeHeartbeat(params.DOME_HEARTBEAT_LOCATION,
-                                                   params.DOME_HEARTBEAT_PERIOD,
-                                                   self.log,
-                                                   params.DOME_DEBUG,
-                                                   )
-                    self.log.info('Connected to heartbeat')
-                    if 'heartbeat' in self.bad_hardware:
-                        self.bad_hardware.remove('heartbeat')
-                    # sleep briefly, to make sure the connection has started
-                    time.sleep(3)
-                except Exception:
-                    self.heartbeat.disconnect()
-                    self.heartbeat = None
-                    if 'heartbeat' not in self.bad_hardware:
-                        self.log.error('Failed to connect to heartbeat')
-                        self.bad_hardware.add('heartbeat')
+        If the connection fails the hardware will be added to the bad_hardware list,
+        which will trigger a hardware_error.
+        """
+        self._connect_to_dome()
+        self._connect_to_heartbeat()
+        self._connect_to_dehumidifier()
 
-        # Check the device connections
+    def _connect_to_dome(self):
+        """Connect to the dome."""
         if self.dome is not None:
+            # Already connected
+            return
+
+        if params.FAKE_DOME:
+            self.log.info('Creating Dome simulator')
+            self.dome = FakeDome(self.log, params.DOME_DEBUG)
+            return
+
+        try:
+            self.log.info('Connecting to Dome')
+            self.dome = AstroHavenDome(
+                params.DOME_LOCATION,  # TODO: JSON params file, or pass as arg?
+                domealert_uri=params.DOMEALERT_URI,
+                log=self.log,
+                log_debug=params.DOME_DEBUG,
+                )
+
+            # Check if it's connected
             if self.dome.plc_error:
-                self.log.error('Failed to connect to dome PLC')
-                self.dome.disconnect()
-                self.dome = None
-                self.bad_hardware.add('dome')
+                raise ValueError('Failed to connect to dome PLC')
             if self.dome.switch_error and not params.DOME_IGNORE_SWITCH_ERRORS:
-                self.log.error('Failed to connect to dome switches')
-                self.dome.disconnect()
-                self.dome = None
-                self.bad_hardware.add('dome')
+                raise ValueError('Failed to connect to dome switches')
             if ((not self.dome.status_thread_running) or
                     (time.time() - self.dome.status_update_time) > params.DOME_CHECK_PERIOD):
-                self.log.error('Failed to check dome status')
                 if params.DOME_DEBUG:
                     msg = 'running={}, delta={}/{}'.format(
                         self.dome.status_thread_running,
                         (time.time() - self.dome.status_update_time),
                         params.DOME_CHECK_PERIOD)
                     self.log.debug(msg)
-                self.dome.disconnect()
-                self.dome = None
+                raise ValueError('Failed to check dome status')
+
+            # Connection successful
+            self.log.info('Connected to dome')
+            if 'dome' in self.bad_hardware:
+                self.bad_hardware.remove('dome')
+            time.sleep(3)  # sleep briefly, to make sure the connection has started
+
+        except Exception:
+            # Connection failed
+            self.dome.disconnect()
+            self.dome = None
+            if 'dome' not in self.bad_hardware:
+                self.log.error('Failed to connect to dome')
                 self.bad_hardware.add('dome')
+
+    def _connect_to_heartbeat(self):
+        """Connect to the heartbeat monitor."""
         if self.heartbeat is not None:
+            # Already connected
+            return
+
+        if params.FAKE_DOME:
+            self.log.info('Creating Heartbeat simulator')
+            self.heartbeat = FakeHeartbeat()
+            return
+
+        try:
+            self.log.info('Connecting to Heartbeat')
+            self.heartbeat = DomeHeartbeat(
+                params.DOME_HEARTBEAT_LOCATION,
+                params.DOME_HEARTBEAT_PERIOD,
+                self.log,
+                params.DOME_DEBUG,
+                )
+
+            # Check if it's connected
             if self.heartbeat.connection_error:
-                self.log.error('Failed to connect to dome heartbeat monitor')
-                self.heartbeat.disconnect()
-                self.heartbeat = None
+                raise ValueError('Failed to connect to heartbeat monitor')
+
+            # Connection successful
+            self.log.info('Connected to heartbeat')
+            if 'heartbeat' in self.bad_hardware:
+                self.bad_hardware.remove('heartbeat')
+            time.sleep(3)  # sleep briefly, to make sure the connection has started
+
+        except Exception:
+            # Connection failed
+            self.heartbeat.disconnect()
+            self.heartbeat = None
+            if 'heartbeat' not in self.bad_hardware:
+                self.log.error('Failed to connect to heartbeat')
                 self.bad_hardware.add('heartbeat')
 
-        # Connect to the dehumidifer
-        if self.dehumidifier is None and params.DOME_HAS_DEHUMIDIFIER:
-            if params.FAKE_DOME:
-                self.dehumidifier = FakeDehumidifier()
-                self.log.info('Connected to dehumidifier')
-            elif 'DEHUMIDIFIER' in params.POWER_UNITS:
-                try:
-                    dehumidifier_address = params.POWER_UNITS['DEHUMIDIFIER']['IP']
-                    dehumidifier_port = int(params.POWER_UNITS['DEHUMIDIFIER']['PORT'])
-                    self.dehumidifier = ETH002Dehumidifier(dehumidifier_address, dehumidifier_port)
-                    self.log.info('Connected to dehumidifier')
-                    if 'dehumidifier' in self.bad_hardware:
-                        self.bad_hardware.remove('dehumidifier')
-                except Exception:
-                    self.dehumidifier = None
-                    if 'dehumidifier' not in self.bad_hardware:
-                        self.log.exception('Failed to connect to dehumidifier')
-                        self.bad_hardware.add('dehumidifier')
-            else:
-                try:
-                    self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
-                    self.log.info('Connected to dehumidifier')
-                    if 'dehumidifier' in self.bad_hardware:
-                        self.bad_hardware.remove('dehumidifier')
-                except Exception:
-                    self.dehumidifier = None
-                    if 'dehumidifier' not in self.bad_hardware:
-                        self.log.error('Failed to connect to dehumidifier')
-                        self.bad_hardware.add('dehumidifier')
+    def _connect_to_dehumidifier(self):
+        """Connect to the dehumidifer."""
+        if self.dehumidifier is not None:
+            # Already connected
+            return
+        if not params.DOME_HAS_DEHUMIDIFIER:
+            # No dehumidifier to connect to!
+            return
 
-        # Finally check if we need to report an error
-        self._check_errors()
+        if params.FAKE_DOME:
+            self.log.info('Creating Dehumidifier simulator')
+            self.dehumidifier = FakeDehumidifier()
+
+        try:
+            self.log.info('Connecting to Dehumidifier')
+            if 'DEHUMIDIFIER' in params.POWER_UNITS:
+                # Connect through the power control unit
+                self.dehumidifier = ETH002Dehumidifier(
+                    params.POWER_UNITS['DEHUMIDIFIER']['IP'],
+                    int(params.POWER_UNITS['DEHUMIDIFIER']['PORT']),
+                    )
+            else:
+                # Connect though the DomeAlert
+                self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
+
+            # Connection successful
+            self.log.info('Connected to dehumidifier')
+            if 'dehumidifier' in self.bad_hardware:
+                self.bad_hardware.remove('dehumidifier')
+
+        except Exception:
+            # Connection failed
+            self.dehumidifier = None
+            if 'dehumidifier' not in self.bad_hardware:
+                self.log.error('Failed to connect to dehumidifier')
+                self.bad_hardware.add('dehumidifier')
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -627,9 +651,6 @@ class DomeDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     def _mode_check(self):
         """Check the current system mode and make sure the alarm is on/off."""

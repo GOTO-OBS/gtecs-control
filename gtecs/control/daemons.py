@@ -89,11 +89,9 @@ class BaseDaemon(ABC):
         self.info = None
 
         self.dependencies = set()
-        self.dependency_error = False
         self.pending_bad_dependencies = dict()
         self.bad_dependencies = set()
 
-        self.hardware_error = False
         self.bad_hardware = set()
 
         # set up logfile
@@ -146,9 +144,8 @@ class BaseDaemon(ABC):
     def _check_dependencies(self, timeout=5):
         """Check if the daemon's dependencies are alive (if any).
 
-        This function will set the dependency_error flag if any dependencies are not responding,
-        and save them to bad_dependencies.
-        Alternatively if all the dependencies are responding it will clear the error flag.
+        This function will check if any dependencies are not responding and save them to
+        the bad_dependencies list if so, which will trigger a dependency_error.
         """
         timestamp = time.time()
         for dependency_id in self.dependencies:
@@ -158,51 +155,36 @@ class BaseDaemon(ABC):
             except Exception:
                 is_alive = False
 
-            if not is_alive:
-                if dependency_id not in self.bad_dependencies:
-                    if dependency_id not in self.pending_bad_dependencies:
-                        # Require two failed checks until we go into error state
-                        self.log.warning('Dependency {} not responding?'.format(dependency_id))
-                        self.pending_bad_dependencies[dependency_id] = timestamp
-                    elif (timestamp - self.pending_bad_dependencies[dependency_id]) > timeout:
-                        self.log.error('Dependency {} not responding'.format(dependency_id))
-                        del self.pending_bad_dependencies[dependency_id]
-                        self.bad_dependencies.add(dependency_id)
-            else:
-                if dependency_id in self.pending_bad_dependencies:
-                    self.log.warning('Dependency {} responding!'.format(dependency_id))
+            if is_alive and dependency_id in self.pending_bad_dependencies:
+                # Dependency started responding again before the timeout was exceeded
+                self.log.warning('Dependency {} responding!'.format(dependency_id))
+                del self.pending_bad_dependencies[dependency_id]
+            if is_alive and dependency_id in self.bad_dependencies:
+                # Dependency has started responding again
+                self.log.info('Dependency {} responding'.format(dependency_id))
+                self.bad_dependencies.remove(dependency_id)
+
+            if not is_alive and dependency_id not in self.bad_dependencies:
+                # Dependency has stopped responding
+                if dependency_id not in self.pending_bad_dependencies:
+                    # Add it to the pending list with the current timestamp
+                    self.log.warning('Dependency {} not responding?'.format(dependency_id))
+                    self.pending_bad_dependencies[dependency_id] = timestamp
+                elif (timestamp - self.pending_bad_dependencies[dependency_id]) > timeout:
+                    # The timeout has been exceeded, remove from pending and add to the bad list
+                    self.log.error('Dependency {} not responding'.format(dependency_id))
                     del self.pending_bad_dependencies[dependency_id]
-                if dependency_id in self.bad_dependencies:
-                    self.log.info('Dependency {} responding'.format(dependency_id))
-                    self.bad_dependencies.remove(dependency_id)
+                    self.bad_dependencies.add(dependency_id)
 
-        if len(self.bad_dependencies) > 0 and not self.dependency_error:
-            self.log.warning('Dependency error detected')
-            self.dependency_error = True
-        elif len(self.bad_dependencies) == 0 and self.dependency_error:
-            self.log.warning('Dependency error cleared')
-            self.dependency_error = False
+    @property
+    def dependency_error(self):
+        """Return True if any dependencies are not responding."""
+        return len(self.bad_dependencies) > 0
 
-        # Finally check if we need to report an error
-        self._check_errors()
-
-    def _check_errors(self):
-        """Check for any errors."""
-        # Hardware errors
-        if len(self.bad_hardware) > 0 and not self.hardware_error:
-            self.log.warning('Hardware error detected')
-            self.hardware_error = True
-        elif len(self.bad_hardware) == 0 and self.hardware_error:
-            self.log.warning('Hardware error cleared')
-            self.hardware_error = False
-
-        # Dependency errors
-        if len(self.bad_dependencies) > 0 and not self.dependency_error:
-            self.log.warning('Dependency error detected')
-            self.dependency_error = True
-        elif len(self.bad_dependencies) == 0 and self.dependency_error:
-            self.log.warning('Dependency error cleared')
-            self.dependency_error = False
+    @property
+    def hardware_error(self):
+        """Return True if any hardware is not responding."""
+        return len(self.bad_hardware) > 0
 
     @abstractmethod
     def _get_info(self):

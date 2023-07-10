@@ -449,9 +449,6 @@ class ConditionsDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-        # Finally check if we need to report an error
-        self._check_errors()
-
     def _set_flags(self):
         """Set the conditions flags based on the conditions info."""
         # Get the conditions values and filter by validity if needed

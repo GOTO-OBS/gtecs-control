@@ -140,105 +140,67 @@ class PowerDaemon(BaseDaemon):
         """Connect to hardware."""
         for unit_name in params.POWER_UNITS:
             # Connect to each unit
-            if self.power_units[unit_name] is None:
-                unit_params = params.POWER_UNITS[unit_name].copy()
-                unit_class = unit_params['CLASS']
-                unit_ip = unit_params['IP']
-                if 'PORT' in unit_params:
-                    unit_port = int(unit_params['PORT'])
+            if self.power_units[unit_name] is not None:
+                # Already connected
+                continue
 
-                # create power object by class
-                if unit_class == 'FakePDU':
-                    self.power_units[unit_name] = FakePDU(unit_ip)
-                    self.log.info('Connected to {}'.format(unit_name))
+            unit_params = params.POWER_UNITS[unit_name].copy()  # TODO params in __init__?
 
-                elif unit_class == 'FakeUPS':
-                    self.power_units[unit_name] = FakeUPS(unit_ip)
-                    self.log.info('Connected to {}'.format(unit_name))
+            if unit_params['CLASS'] == 'FakePDU':
+                self.log.info('Creating PDU simulator')
+                self.power_units[unit_name] = FakePDU(unit_params['IP'])
+                continue
+            elif unit_params['CLASS'] == 'FakeUPS':
+                self.log.info('Creating UPS simulator')
+                self.power_units[unit_name] = FakeUPS(unit_params['IP'])
+                continue
 
-                elif unit_class == 'APCPDU':
-                    try:
-                        unit_outlets = len(unit_params['NAMES'])
-                        self.power_units[unit_name] = APCPDU(unit_ip, unit_outlets)
-                        self.log.info('Connected to {}'.format(unit_name))
-                        if unit_name in self.bad_hardware:
-                            self.bad_hardware.remove(unit_name)
-                    except Exception:
-                        self.power_units[unit_name] = None
-                        if unit_name not in self.bad_hardware:
-                            self.log.error('Failed to connect to {}'.format(unit_name))
-                            self.bad_hardware.add(unit_name)
+            try:
+                if unit_params['CLASS'] == 'APCPDU':
+                    self.power_units[unit_name] = APCPDU(
+                        unit_params['IP'],
+                        len(unit_params['NAMES'])
+                        )
+                elif unit_params['CLASS'] == 'APCUPS':
+                    self.power_units[unit_name] = APCUPS(unit_params['IP'])
+                elif unit_params['CLASS'] == 'APCUPS_USB':
+                    self.power_units[unit_name] = APCUPS_USB(
+                        unit_params['IP'],
+                        int(unit_params['PORT'])
+                        )
+                elif unit_params['CLASS'] == 'APCATS':
+                    self.power_units[unit_name] = APCATS(unit_params['IP'])
+                elif unit_params['CLASS'] == 'EPCPDU':
+                    unit_outlets = len(unit_params['NAMES'])
+                    self.power_units[unit_name] = EPCPDU(unit_params['IP'], unit_outlets)
+                elif unit_params['CLASS'] == 'ETHPDU':
+                    unit_outlets = len(unit_params['NAMES'])
+                    nc = bool(unit_params['NC']) if 'NC' in unit_params else False
+                    self.power_units[unit_name] = ETHPDU(
+                        unit_params['IP'],
+                        int(unit_params['PORT']),
+                        unit_outlets,
+                        nc,
+                        )
 
-                elif unit_class == 'APCUPS':
-                    try:
-                        self.power_units[unit_name] = APCUPS(unit_ip)
-                        self.log.info('Connected to {}'.format(unit_name))
-                        if unit_name in self.bad_hardware:
-                            self.bad_hardware.remove(unit_name)
-                    except Exception:
-                        self.power_units[unit_name] = None
-                        if unit_name not in self.bad_hardware:
-                            self.log.error('Failed to connect to {}'.format(unit_name))
-                            self.bad_hardware.add(unit_name)
+                # Connection successful
+                self.log.info('Connected to {}'.format(unit_name))
+                if unit_name in self.bad_hardware:
+                    self.bad_hardware.remove(unit_name)
 
-                elif unit_class == 'APCUPS_USB':
-                    try:
-                        self.power_units[unit_name] = APCUPS_USB(unit_ip, unit_port)
-                        self.log.info('Connected to {}'.format(unit_name))
-                        if unit_name in self.bad_hardware:
-                            self.bad_hardware.remove(unit_name)
-                    except Exception:
-                        self.power_units[unit_name] = None
-                        if unit_name not in self.bad_hardware:
-                            self.log.error('Failed to connect to {}'.format(unit_name))
-                            self.bad_hardware.add(unit_name)
-
-                elif unit_class == 'APCATS':
-                    try:
-                        self.power_units[unit_name] = APCATS(unit_ip)
-                        self.log.info('Connected to {}'.format(unit_name))
-                        if unit_name in self.bad_hardware:
-                            self.bad_hardware.remove(unit_name)
-                    except Exception:
-                        self.power_units[unit_name] = None
-                        if unit_name not in self.bad_hardware:
-                            self.log.error('Failed to connect to {}'.format(unit_name))
-                            self.bad_hardware.add(unit_name)
-
-                elif unit_class == 'EPCPDU':
-                    try:
-                        unit_outlets = len(unit_params['NAMES'])
-                        self.power_units[unit_name] = EPCPDU(unit_ip, unit_outlets)
-                        self.log.info('Connected to {}'.format(unit_name))
-                        if unit_name in self.bad_hardware:
-                            self.bad_hardware.remove(unit_name)
-                    except Exception:
-                        self.power_units[unit_name] = None
-                        if unit_name not in self.bad_hardware:
-                            self.log.error('Failed to connect to {}'.format(unit_name))
-                            self.bad_hardware.add(unit_name)
-
-                elif unit_class == 'ETHPDU':
-                    try:
-                        unit_port = int(unit_params['PORT'])
-                        unit_outlets = len(unit_params['NAMES'])
-                        unit_nc = bool(unit_params['NC']) if 'NC' in unit_params else False
-                        self.power_units[unit_name] = ETHPDU(unit_ip, unit_port,
-                                                             unit_outlets, unit_nc)
-                        self.log.info('Connected to {}'.format(unit_name))
-                        if unit_name in self.bad_hardware:
-                            self.bad_hardware.remove(unit_name)
-                    except Exception:
-                        self.power_units[unit_name] = None
-                        if unit_name not in self.bad_hardware:
-                            self.log.error('Failed to connect to {}'.format(unit_name))
-                            self.bad_hardware.add(unit_name)
-
-        # Finally check if we need to report an error
-        self._check_errors()
+            except Exception:
+                # Connection failed
+                self.power_units[unit_name] = None
+                if unit_name not in self.bad_hardware:
+                    self.log.error('Failed to connect to {}'.format(unit_name))
+                    self.bad_hardware.add(unit_name)
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -310,9 +272,6 @@ class PowerDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     def _parse_input(self, outlet_list, unit=''):
         """Parse an input list from the power control script.

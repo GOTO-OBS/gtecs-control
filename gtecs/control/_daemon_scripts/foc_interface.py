@@ -20,12 +20,18 @@ class FocInterfaceDaemon(BaseDaemon):
     def __init__(self, ut):
         super().__init__(f'foc{ut}')
 
-        # params
-        self.ut = ut
-        self.params = params.UT_DICT[ut]['FOCUSER']
-
         # hardware
+        self.ut = ut
         self.focuser = None
+        self.params = params.UT_DICT[ut]['FOCUSER']
+        self.hardware_class = self.params['CLASS']
+        if self.hardware_class not in ['FLI', 'ASA']:
+            raise ValueError('Unknown class: {}'.format(self.hardware_class))
+        self.serial = self.params['SERIAL']
+        if 'PORT' in self.params:
+            self.port = self.params['PORT']
+        else:
+            self.port = None
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -70,65 +76,57 @@ class FocInterfaceDaemon(BaseDaemon):
 
     # Internal functions
     def _connect(self):
-        """Connect to hardware."""
-        # Connect to focuser
-        if self.focuser is None:
+        """Connect to hardware.
+
+        If the connection fails the hardware will be added to the bad_hardware list,
+        which will trigger a hardware_error.
+        """
+        if self.focuser is not None:
+            # Already connected
+            return
+
+        if params.FAKE_INTF:
+            self.log.info('Creating Focuser simulator')
+            if self.hardware_class == 'FLI':
+                self.focuser = FakeFocuser('/dev/fake', 'FakeCamera')
+                self.focuser.serial_number = self.serial
+                self.focuser.connected = True
+            elif self.hardware_class == 'ASA':
+                self.focuser = FakeH400('/dev/fake', self.serial)
+            return
+
+        try:
+            self.log.info('Connecting to Focuser')
+            if self.hardware_class == 'FLI':
+                self.focuser = FLIFocuser.locate_device(self.serial)
+            elif self.hardware_class == 'ASA':
+                self.focuser = H400.locate_device(self.port, self.serial)
+
+            # Check if it's connected
+            if self.focuser is None:
+                raise ValueError('Could not locate hardware')
+            if not self.focuser.connected:
+                raise ValueError('Could not connect to hardware')
+
+            # Connection successful
+            self.log.info('Connected to {}'.format(self.focuser.serial_number))
+            if 'focuser' in self.bad_hardware:
+                self.bad_hardware.remove('focuser')
+
+        except Exception:
+            # Connection failed
+            self.focuser = None
+            self.log.debug('', exc_info=True)
             if 'focuser' not in self.bad_hardware:
-                self.log.info('Connecting to Focuser')
-            try:
-                if 'CLASS' not in self.params:
-                    raise ValueError('Missing class')
-
-                # Connect to appropriate hardware class
-                if self.params['CLASS'] == 'FLI':
-                    # FLI USB Focuser, needs a serial number
-                    if 'SERIAL' not in self.params:
-                        raise ValueError('Missing serial number')
-                    focuser = FLIFocuser.locate_device(self.params['SERIAL'])
-                    if focuser is None and params.FAKE_INTF:
-                        self.log.info('Creating a fake Focuser')
-                        focuser = FakeFocuser('/dev/fake', 'FakeCamera')
-                        focuser.serial_number = self.params['SERIAL']
-                        focuser.connected = True
-                    if focuser is None:
-                        raise ValueError('Could not locate hardware')
-
-                elif self.params['CLASS'] == 'ASA':
-                    # ASA H400 in-built Focuser, needs a port and a serial number
-                    if 'PORT' not in self.params:
-                        raise ValueError('Missing serial port')
-                    if 'SERIAL' not in self.params:
-                        raise ValueError('Missing serial number')
-                    focuser = H400.locate_device(self.params['PORT'], self.params['SERIAL'])
-                    if focuser is None and params.FAKE_INTF:
-                        self.log.info('Creating a fake Focuser')
-                        focuser = FakeH400('/dev/fake', self.params['SERIAL'])
-                    if focuser is None:
-                        raise ValueError('Could not locate hardware')
-
-                else:
-                    raise ValueError('Unknown class: {}'.format(self.params['CLASS']))
-
-                if not focuser.connected:
-                    raise ValueError('Could not connect to hardware')
-
-                self.log.info('Connected to {}'.format(focuser.serial_number))
-                self.focuser = focuser
-                if 'focuser' in self.bad_hardware:
-                    self.bad_hardware.remove('focuser')
-
-            except Exception:
-                self.focuser = None
-                self.log.debug('', exc_info=True)
-                if 'focuser' not in self.bad_hardware:
-                    self.log.error('Failed to connect to hardware')
-                    self.bad_hardware.add('focuser')
-
-        # Finally check if we need to report an error
-        self._check_errors()
+                self.log.error('Failed to connect to hardware')
+                self.bad_hardware.add('focuser')
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -159,9 +157,6 @@ class FocInterfaceDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     # Control functions
     def move_focuser(self, steps):

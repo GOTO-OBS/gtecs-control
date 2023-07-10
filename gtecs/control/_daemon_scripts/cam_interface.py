@@ -22,12 +22,11 @@ class CameraInterfaceDaemon(BaseDaemon):
     def __init__(self, ut):
         super().__init__(f'cam{ut}')
 
-        # params
-        self.ut = ut
-        self.params = params.UT_DICT[ut]['CAMERA']
-
         # hardware
+        self.ut = ut
         self.camera = None
+        self.params = params.UT_DICT[ut]['CAMERA']  # TODO: JSON for each daemon?
+        self.serial = self.params['SERIAL']  # TODO: pass as arg?
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -72,52 +71,51 @@ class CameraInterfaceDaemon(BaseDaemon):
 
     # Internal functions
     def _connect(self):
-        """Connect to hardware."""
-        # Connect to camera
-        if self.camera is None:
+        """Connect to hardware.
+
+        If the connection fails the hardware will be added to the bad_hardware list,
+        which will trigger a hardware_error.
+        """
+        if self.camera is not None:
+            # Already connected
+            return
+
+        if params.FAKE_INTF:
+            self.log.info('Creating Camera simulator')
+            self.camera = FakeCamera('/dev/fake', 'FakeCamera')
+            self.camera.serial_number = self.serial
+            self.camera.connected = True
+            return
+
+        try:
+            self.log.info('Connecting to Camera')
+            self.camera = FLICamera.locate_device(self.serial)
+
+            # Check if it's connected
+            if self.camera is None:
+                raise ValueError('Could not locate hardware')
+            if not self.camera.connected:
+                raise ValueError('Could not connect to hardware')
+
+            # Connection successful
+            self.log.info('Connected to {}'.format(self.camera.serial_number))
+            if 'camera' in self.bad_hardware:
+                self.bad_hardware.remove('camera')
+
+        except Exception:
+            # Connection failed
+            self.camera = None
+            self.log.debug('', exc_info=True)
             if 'camera' not in self.bad_hardware:
-                self.log.info('Connecting to Camera')
-            try:
-                if 'CLASS' not in self.params:
-                    raise ValueError('Missing class')
-
-                # Connect to appropriate hardware class
-                if self.params['CLASS'] == 'FLI':
-                    # FLI USB Camera, needs a serial number
-                    if 'SERIAL' not in self.params:
-                        raise ValueError('Missing serial number')
-                    camera = FLICamera.locate_device(self.params['SERIAL'])
-                    if camera is None and params.FAKE_INTF:
-                        self.log.info('Creating a fake Camera')
-                        camera = FakeCamera('/dev/fake', 'FakeCamera')
-                        camera.serial_number = self.params['SERIAL']
-                        camera.connected = True
-                    if camera is None:
-                        raise ValueError('Could not locate hardware')
-
-                else:
-                    raise ValueError('Unknown class: {}'.format(self.params['CLASS']))
-
-                if not camera.connected:
-                    raise ValueError('Could not connect to hardware')
-
-                self.log.info('Connected to {}'.format(camera.serial_number))
-                self.camera = camera
-                if 'camera' in self.bad_hardware:
-                    self.bad_hardware.remove('camera')
-
-            except Exception:
-                self.camera = None
-                self.log.debug('', exc_info=True)
-                if 'camera' not in self.bad_hardware:
-                    self.log.error('Failed to connect to hardware')
-                    self.bad_hardware.add('camera')
-
-        # Finally check if we need to report an error
-        self._check_errors()
+                self.log.error('Failed to connect to Camera')
+                self.bad_hardware.add('camera')
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -148,9 +146,6 @@ class CameraInterfaceDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     # Control functions
     def set_exposure(self, exptime_ms, frametype):

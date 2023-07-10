@@ -313,45 +313,61 @@ class MntDaemon(BaseDaemon):
 
     # Internal functions
     def _connect(self):
-        """Connect to hardware."""
-        # Connect to the mount
-        if self.mount is None:
-            try:
-                if params.FAKE_MOUNT:
-                    self.mount = FakeDDM500(params.MOUNT_HOST,
-                                            params.MOUNT_PORT,
-                                            log=self.log,
-                                            log_debug=params.MOUNT_DEBUG,
-                                            )
-                elif params.MOUNT_CLASS == 'SITECH':
-                    self.mount = SiTech(params.MOUNT_HOST,
-                                        params.MOUNT_PORT,
-                                        log=self.log,
-                                        log_debug=params.MOUNT_DEBUG,
-                                        )
-                elif params.MOUNT_CLASS == 'ASA':
-                    self.mount = DDM500(params.MOUNT_HOST,
-                                        params.MOUNT_PORT,
-                                        fake_parking=params.FAKE_MOUNT_PARKING,
-                                        log=self.log,
-                                        log_debug=params.MOUNT_DEBUG,
-                                        )
-                else:
-                    raise ValueError('Unknown mount class')
-                self.log.info('Connected to mount')
-                if 'mount' in self.bad_hardware:
-                    self.bad_hardware.remove('mount')
-            except Exception:
-                self.mount = None
-                if 'mount' not in self.bad_hardware:
-                    self.log.error('Failed to connect to mount')
-                    self.bad_hardware.add('mount')
+        """Connect to hardware.
 
-        # Finally check if we need to report an error
-        self._check_errors()
+        If the connection fails the hardware will be added to the bad_hardware list,
+        which will trigger a hardware_error.
+        """
+        if self.mount is not None:
+            # Already connected
+            return
+
+        if params.FAKE_MOUNT:
+            self.log.info('Creating Mount simulator')
+            self.mount = FakeDDM500(
+                params.MOUNT_HOST,
+                params.MOUNT_PORT,
+                log=self.log,
+                log_debug=params.MOUNT_DEBUG,
+                )
+            return
+
+        try:
+            self.log.info('Connecting to Mount')
+            if params.MOUNT_CLASS == 'SITECH':
+                self.mount = SiTech(
+                    params.MOUNT_HOST,
+                    params.MOUNT_PORT,
+                    log=self.log,
+                    log_debug=params.MOUNT_DEBUG,
+                    )
+            elif params.MOUNT_CLASS == 'ASA':
+                self.mount = DDM500(
+                    params.MOUNT_HOST,
+                    params.MOUNT_PORT,
+                    fake_parking=params.FAKE_MOUNT_PARKING,
+                    log=self.log,
+                    log_debug=params.MOUNT_DEBUG,
+                    )
+
+            # Connection successful
+            self.log.info('Connected to mount')
+            if 'mount' in self.bad_hardware:
+                self.bad_hardware.remove('mount')
+
+        except Exception:
+            # Connection failed
+            self.mount = None
+            if 'mount' not in self.bad_hardware:
+                self.log.error('Failed to connect to mount')
+                self.bad_hardware.add('mount')
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -561,9 +577,6 @@ class MntDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     def _limit_check(self):
         """Check if the mount position is past the valid limits."""

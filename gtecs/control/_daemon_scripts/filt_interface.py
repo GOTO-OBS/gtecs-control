@@ -20,12 +20,15 @@ class FiltInterfaceDaemon(BaseDaemon):
     def __init__(self, ut):
         super().__init__(f'filt{ut}')
 
-        # params
-        self.ut = ut
-        self.params = params.UT_DICT[ut]['FILTERWHEEL']
-
         # hardware
+        self.ut = ut
         self.filterwheel = None
+        self.params = params.UT_DICT[ut]['FILTERWHEEL']
+        self.serial = self.params['SERIAL']
+        if 'PORT' in self.params:
+            self.port = self.params['PORT']
+        else:
+            self.port = None
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -70,57 +73,56 @@ class FiltInterfaceDaemon(BaseDaemon):
 
     # Internal functions
     def _connect(self):
-        """Connect to hardware."""
-        # Connect to filter wheel
-        if self.filterwheel is None:
+        """Connect to hardware.
+
+        If the connection fails the hardware will be added to the bad_hardware list,
+        which will trigger a hardware_error.
+        """
+        if self.filterwheel is not None:
+            # Already connected
+            return
+
+        if params.FAKE_INTF:
+            self.log.info('Creating Filter Wheel simulator')
+            self.filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
+            self.filterwheel.serial_number = self.serial
+            self.filterwheel.connected = True
+            return
+
+        try:
+            self.log.info('Connecting to Filter Wheel')
+            if self.port is None:
+                self.filterwheel = FLIFilterWheel.locate_device(self.serial)
+            else:
+                # Workaround for non-serialised hardware, use the UDEV port
+                self.filterwheel = FLIFilterWheel.locate_device(self.port)
+                self.filterwheel.serial_number = self.serial
+
+            # Check if it's connected
+            if self.filterwheel is None:
+                raise ValueError('Could not locate hardware')
+            if not self.filterwheel.connected:
+                raise ValueError('Could not connect to hardware')
+
+            # Connection successful
+            self.log.info('Connected to {}'.format(self.filterwheel.serial_number))
+            if 'filterwheel' in self.bad_hardware:
+                self.bad_hardware.remove('filterwheel')
+
+        except Exception:
+            # Connection failed
+            self.filterwheel = None
+            self.log.debug('', exc_info=True)
             if 'filterwheel' not in self.bad_hardware:
-                self.log.info('Connecting to Filter Wheel')
-            try:
-                if 'CLASS' not in self.params:
-                    raise ValueError('Missing class')
-
-                # Connect to appropriate hardware class
-                if self.params['CLASS'] == 'FLI':
-                    # FLI USB Filter Wheel, needs a serial number
-                    if 'SERIAL' not in self.params:
-                        raise ValueError('Missing serial number')
-                    if 'PORT' in self.params:
-                        # Deal with non-serialised hardware
-                        filterwheel = FLIFilterWheel.locate_device(self.params['PORT'])
-                        filterwheel.serial_number = self.params['SERIAL']
-                    else:
-                        filterwheel = FLIFilterWheel.locate_device(self.params['SERIAL'])
-                    if filterwheel is None and params.FAKE_INTF:
-                        self.log.info('Creating a fake Filter Wheel')
-                        filterwheel = FakeFilterWheel('/dev/fake', 'FakeFilterWheel')
-                        filterwheel.serial_number = self.params['SERIAL']
-                        filterwheel.connected = True
-                    if filterwheel is None:
-                        raise ValueError('Could not locate hardware')
-
-                else:
-                    raise ValueError('Unknown class: {}'.format(self.params['CLASS']))
-
-                if not filterwheel.connected:
-                    raise ValueError('Could not connect to hardware')
-
-                self.log.info('Connected to {}'.format(filterwheel.serial_number))
-                self.filterwheel = filterwheel
-                if 'filterwheel' in self.bad_hardware:
-                    self.bad_hardware.remove('filterwheel')
-
-            except Exception:
-                self.filterwheel = None
-                self.log.debug('', exc_info=True)
-                if 'filterwheel' not in self.bad_hardware:
-                    self.log.error('Failed to connect to hardware')
-                    self.bad_hardware.add('filterwheel')
-
-        # Finally check if we need to report an error
-        self._check_errors()
+                self.log.error('Failed to connect to hardware')
+                self.bad_hardware.add('filterwheel')
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -151,9 +153,6 @@ class FiltInterfaceDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     # Control functions
     def move_filterwheel(self, new_number):
