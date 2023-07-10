@@ -21,7 +21,10 @@ def query(command, args):
             uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
-            if args[0] in ['cam', 'foc', 'filt']:
+            if args[0] in params.INTERFACES:
+                uts = [int(args[0][-1])]
+                hw_list = [args[0][:-1]]
+            elif args[0] in ['cam', 'foc', 'filt']:
                 uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
@@ -49,7 +52,10 @@ def query(command, args):
             uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
-            if args[0] in ['cam', 'foc', 'filt']:
+            if args[0] in params.INTERFACES:
+                uts = [int(args[0][-1])]
+                hw_list = [args[0][:-1]]
+            elif args[0] in ['cam', 'foc', 'filt']:
                 uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
@@ -77,7 +83,10 @@ def query(command, args):
             uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
-            if args[0] in ['cam', 'foc', 'filt']:
+            if args[0] in params.INTERFACES:
+                uts = [int(args[0][-1])]
+                hw_list = [args[0][:-1]]
+            elif args[0] in ['cam', 'foc', 'filt']:
                 uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
@@ -105,7 +114,10 @@ def query(command, args):
             uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
-            if args[0] in ['cam', 'foc', 'filt']:
+            if args[0] in params.INTERFACES:
+                uts = [int(args[0][-1])]
+                hw_list = [args[0][:-1]]
+            elif args[0] in ['cam', 'foc', 'filt']:
                 uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
@@ -133,7 +145,10 @@ def query(command, args):
             uts = params.UTS
             hw_list = ['cam', 'foc', 'filt']
         elif len(args) == 1:
-            if args[0] in ['cam', 'foc', 'filt']:
+            if args[0] in params.INTERFACES:
+                uts = [int(args[0][-1])]
+                hw_list = [args[0][:-1]]
+            elif args[0] in ['cam', 'foc', 'filt']:
                 uts = params.UTS
                 hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
             else:
@@ -175,9 +190,11 @@ def query(command, args):
             force = True
         else:
             raise ValueError('Invalid arguments')
-        all_info = {}
+
         for ut in params.UTS:
-            ut_info = []
+            if info_type == 'verbose':
+                print(f"UT{ut} ({params.UT_DICT[ut]['INTERFACE_HOST']}):")
+
             for hw in ['cam', 'foc', 'filt']:
                 interface_id = f'{hw}{ut}'
                 if interface_id not in params.INTERFACES:
@@ -188,22 +205,14 @@ def query(command, args):
                         info = daemon.get_info(force)
                     if not info:
                         raise ValueError('No info returned, check daemon')
-                    ut_info.append(info)
+                    if info_type == 'verbose':
+                        host, port = daemons.get_daemon_host(info['daemon_id'])
+                        print('  {:>5} ({}:{}): {}'.format(
+                              info['daemon_id'], host, port, info['serial']))
+                    elif info_type == 'raw':
+                        print(json.dumps(info, indent=2, default=repr))
                 except Exception as error:
                     print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
-            all_info[ut] = ut_info
-        if info_type == 'verbose':
-            for ut in all_info:
-                if len(all_info[ut]) > 0:
-                    print(f"UT {ut} ({params.UT_DICT[ut]['INTERFACE_HOST']}):")
-                for info in all_info[ut]:
-                    host, port = daemons.get_daemon_host(info['daemon_id'])
-                    print('  {:>5} ({}:{}): {}'.format(
-                        info['daemon_id'], host, port, info['serial']))
-        elif info_type == 'raw':
-            for ut in params.UTS:
-                for info in all_info[ut]:
-                    print(json.dumps(info, indent=2, default=repr))
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
@@ -211,11 +220,16 @@ def query(command, args):
             args.remove('stdout')
         else:
             stdout = False
-        if args[0] in ['cam', 'foc', 'filt']:
-            hw_list = [args[0]]
-            args.remove(args[0])
+        if len(args) > 0 and args[0] in params.INTERFACES:
+            uts = [int(args[0][-1])]
+            hw_list = [args[0][:-1]]
+            args = args[1:]
+        else:
+            # We pass all args to tail, so can't select as with other commands
+            uts = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
 
-        for i, ut in enumerate(params.UTS):
+        for i, ut in enumerate(uts):
             for j, hw in enumerate(hw_list):
                 interface_id = f'{hw}{ut}'
                 if stdout:
