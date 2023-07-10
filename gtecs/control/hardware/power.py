@@ -152,7 +152,7 @@ class FakeUPS:
 
 
 class APCPDU:
-    """APC PDU power class."""
+    """APC Power Distribution Unit class, communicating through SNMP."""
 
     def __init__(self, address, outlets=8):
         self.unit_type = 'PDU'
@@ -234,7 +234,7 @@ class APCPDU:
 
 
 class APCUPS:
-    """APC UPS power class."""
+    """APC Uninterruptible Power Supply class, communicating through SNMP."""
 
     def __init__(self, address, outlets=3):
         self.unit_type = 'UPS'
@@ -361,8 +361,85 @@ class APCUPS:
         return out
 
 
+class APCUPS_USB:
+    """APC Uninterruptible Power Supply class, communicating through USB via `apcupsd`."""
+
+    def __init__(self, address='localhost', port=3551):
+        self.unit_type = 'UPS'
+        self.address = address
+        self.port = int(port)
+        self.buffer_size = 1024
+
+    def _get_status(self):
+        """Get the UPS status through the apcupsd daemon."""
+        # connect
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(5)
+        self.socket.connect((self.address, self.port))
+
+        status_command = '\x00\x06status'
+        self.socket.send(status_command.encode())
+        raw_out = ""
+        while not raw_out.endswith('  \n\x00\x00'):
+            out = self.socket.recv(self.buffer_size).decode()
+            raw_out += out
+
+        # close
+        self.socket.shutdown(socket.SHUT_RDWR)
+        self.socket.close()
+
+        return self._parse_status(raw_out)
+
+    def _parse_status(self, raw_data):
+        data_list = [x[1:].split(':') for x in raw_data.split('\x00') if len(x) > 2]
+        data_dict = {x[0].strip().lower(): x[1].strip() for x in data_list}
+        return data_dict
+
+    def status(self):
+        """Return the current status of the UPS."""
+        data_dict = self._get_status()
+        status = data_dict['status']
+        if status == 'ONLINE':
+            status = 'Normal'  # same as SNMP
+        return status
+
+    def percent_remaining(self):
+        """Return the current power percentage remaining in the UPS."""
+        data_dict = self._get_status()
+        percent = float(data_dict['bcharge'].split()[0])
+        return percent
+
+    def time_remaining(self):
+        """Return the current power time remaining in the UPS."""
+        data_dict = self._get_status()
+        time, unit = data_dict['timeleft'].split()
+        if unit == 'Seconds':
+            seconds = float(time)
+        elif unit == 'Minutes':
+            seconds = float(time) * 60
+        return seconds
+
+    def load(self):
+        """Return the current load on the UPS."""
+        data_dict = self._get_status()
+        percent = float(data_dict['loadpct'].split()[0])
+        return percent
+
+    def outlet_status(self):
+        raise NotImplementedError('Cannot control UPS outlets through USB connection')
+
+    def on(self, outlet):
+        raise NotImplementedError('Cannot control UPS outlets through USB connection')
+
+    def off(self, outlet):
+        raise NotImplementedError('Cannot control UPS outlets through USB connection')
+
+    def reboot(self, outlet):
+        raise NotImplementedError('Cannot control UPS outlets through USB connection')
+
+
 class APCATS:
-    """APC Automatic Transfer Switch class."""
+    """APC Automatic Transfer Switch class, communicating through SNMP."""
 
     def __init__(self, address):
         self.unit_type = 'ATS'
@@ -426,7 +503,7 @@ class APCATS:
 
 
 class EPCPDU:
-    """Expert Power Control PDU power class."""
+    """Expert Power Control Power Distribution Unit class, communicating through SNMP."""
 
     def __init__(self, address, outlets=8):
         self.unit_type = 'PDU'
@@ -503,7 +580,7 @@ class EPCPDU:
 
 
 class ETHPDU:
-    """Robot Electronics ethernet relay power class."""
+    """Robot Electronics ethernet relay class, communicating through TCP/IP."""
 
     def __init__(self, address, port, outlets=20, normally_closed=False):
         self.unit_type = 'PDU'

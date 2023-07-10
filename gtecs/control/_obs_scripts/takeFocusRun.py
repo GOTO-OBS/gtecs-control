@@ -266,10 +266,12 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
 
     # Save the plot
     if save_plot:
-        path = os.path.join(params.FILE_PATH, 'focus_data')
+        direc = os.path.join(params.FILE_PATH, 'focus_data')
+        if not os.path.exists(direc):
+            os.mkdir(direc)
         filename = 'focusplot_{}.png'.format(finish_time)
-        plt.savefig(os.path.join(path, filename))
-        print('Saved to {}'.format(os.path.join(path, filename)))
+        plt.savefig(os.path.join(direc, filename))
+        print('Saved to {}'.format(os.path.join(direc, filename)))
 
     plt.show()
 
@@ -435,10 +437,12 @@ def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=No
 
         # Save the plot
         if save_plot:
-            path = os.path.join(params.FILE_PATH, 'focus_data')
+            direc = os.path.join(params.FILE_PATH, 'focus_data')
+            if not os.path.exists(direc):
+                os.mkdir(direc)
             filename = 'focusplot_{}_UT{}.png'.format(finish_time, ut)
-            plt.savefig(os.path.join(path, filename))
-            print('Saved to {}'.format(os.path.join(path, filename)))
+            plt.savefig(os.path.join(direc, filename))
+            print('Saved to {}'.format(os.path.join(direc, filename)))
 
         plt.show()
 
@@ -481,10 +485,10 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
 
     # Confirm
     if not no_confirm:
-        go = ''
-        while go not in ['y', 'n']:
-            go = input('Continue? [y/n]: ')
-        if go == 'n':
+        cont = 'na'
+        while cont.lower() not in ['', 'y', 'n']:
+            cont = input('Continue? [Y/n]: ')
+        if cont.lower() == 'n':
             sys.exit()
 
     # make sure hardware is ready
@@ -536,7 +540,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                 # This will take and save the images, we don't care about the data here
                 image_headers = get_analysis_image(
                     exptime, filt, binning, target_name, 'FOCUS',
-                    glance=False, uts=params.UTS_WITH_FOCUSERS, get_headers=True)
+                    glance=False, uts=params.UTS_WITH_FOCUSERS, get_data=False, get_headers=True)
                 print('Exposure {} complete'.format(image_headers[1]['RUN-ID']))
 
     print('~~~~~~')
@@ -559,11 +563,13 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     # Write out data
     print('~~~~~~')
     print('Writing out data to file...')
-    path = os.path.join(params.FILE_PATH, 'focus_data')
+    direc = os.path.join(params.FILE_PATH, 'focus_data')
+    if not os.path.exists(direc):
+        os.mkdir(direc)
     filename = 'focusdata_{}.csv'.format(finish_time)
     df = pd.concat(all_data)
-    df.to_csv(os.path.join(path, filename))
-    print('Saved to {}'.format(os.path.join(path, filename)))
+    df.to_csv(os.path.join(direc, filename))
+    print('Saved to {}'.format(os.path.join(direc, filename)))
 
     # Fit to data
     print('~~~~~~')
@@ -588,8 +594,8 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
         fit_df = pd.concat(fit_df)
 
     filename = 'focusfit_{}.csv'.format(finish_time)
-    fit_df.to_csv(os.path.join(path, filename))
-    print('Saved to {}'.format(os.path.join(path, filename)))
+    fit_df.to_csv(os.path.join(direc, filename))
+    print('Saved to {}'.format(os.path.join(direc, filename)))
 
     # Make plots
     if not no_plot:

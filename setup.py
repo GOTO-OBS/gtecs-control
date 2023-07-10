@@ -8,10 +8,14 @@ REQUIRES = ['Pyro4',
             'astroplan>=0.6',
             'numpy',
             'scipy',
+            'pandas',
+            'matplotlib',
             'sep',
             'requests',
+            'aiohttp',
             'pyserial',
             'opencv-python',
+            'pytz'
             ]
 
 setup(name='gtecs-control',

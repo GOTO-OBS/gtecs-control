@@ -2,7 +2,11 @@
 
 import os
 import time
-from collections import MutableSequence
+try:
+    from collections import MutableSequence
+except ImportError:
+    # Changed in Python 3.10
+    from collections.abc import MutableSequence
 
 from . import misc
 from . import params

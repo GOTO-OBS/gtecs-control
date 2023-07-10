@@ -46,9 +46,9 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
     # Only use UTs which have the given filter
     uts = [ut for ut in params.UT_DICT if filt in params.UT_DICT[ut]['FILTERS']]
 
-    # Take the image and load the image data
+    # Take the image, then get the mean value from the headers
     image_headers = get_analysis_image(exptime, filt, 1, target_name, 'FLAT', glance, uts=uts,
-                                       get_headers=True)
+                                       get_data=False, get_headers=True)
 
     # Get the mean value for the images
     sky_medians = {ut: image_headers[ut]['MEDCNTS'] for ut in sorted(image_headers)}
@@ -82,8 +82,7 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
     # Wait until we reach correct sun altitude
     if start_now is False:
-        today = night_startdate()
-        start_time = sunalt_time(today, start_alt, eve)
+        start_time = sunalt_time(start_alt, eve)
 
         time_to_go = start_time - Time.now()
         if time_to_go < -10 * u.min and not late:
@@ -131,31 +130,37 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
     # Run through the filter list
     for i, filt in enumerate(filt_list):
+        print('~~~~~~')
         filt = filt_list[i]
+        print('Using {} filter'.format(filt))
 
         if i > 0:
+            new_exptime = exptime * (target_counts / counts)
             # Guess initial exposure time based on the previous filter
-            target_exptime = exptime * (target_counts / counts)
-            bandwidth_ratio = FILTER_BANDWIDTH[filt] / FILTER_BANDWIDTH[filt_list[i - 1]]
-            test_exptime = target_exptime * bandwidth_ratio
-
-            # Take initial measurement
-            print('~~~~~~')
-            print('Taking {} test exposure to find new exposure time'.format(filt))
-            counts = take_flat(test_exptime, filt, offset_step, target_name, glance=True)
-            print('{} image sky mean: {:.1f} counts'.format(filt, counts))
-
-            # Rescale based on new measurement
-            exptime = test_exptime * (target_counts / counts)
-            print('Rescaling exposure time from {:.1f} to {:.1f}'.format(test_exptime, exptime))
+            bandwidth_ratio = FILTER_BANDWIDTH[filt_list[i - 1]] / FILTER_BANDWIDTH[filt]
+            new_exptime = new_exptime * bandwidth_ratio
+            print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
+            exptime = new_exptime
             if exptime > max_exptime:
                 print('Limiting exposure time to {:.1f}s'.format(max_exptime))
                 exptime = max_exptime
 
-        print('~~~~~~')
-        print('Taking flats in {} filter'.format(filt))
-        exptime_list = exposure_sequence(exptime, num_exp, eve=eve)
+            # Take initial measurement
+            print('Taking {} test exposure to find new exposure time'.format(filt))
+            counts = take_flat(new_exptime, filt, offset_step, target_name, glance=True)
+            print('{} image sky mean: {:.1f} counts'.format(filt, counts))
 
+        # Rescale based on new measurement
+        new_exptime = exptime * (target_counts / counts)
+        print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
+        exptime = new_exptime
+        if exptime > max_exptime:
+            print('Limiting exposure time to {:.1f}s'.format(max_exptime))
+            exptime = max_exptime
+
+        print('~~~~~~')
+        exptime_list = exposure_sequence(exptime, num_exp, eve=eve)
+        print('Taking {} flats in {} filter'.format(len(exptime_list), filt))
         for i, exptime in enumerate(exptime_list):
             print('Taking {} filter flat {}/{}'.format(filt, i + 1, len(exptime_list)))
             if exptime > max_exptime:
@@ -164,6 +169,11 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
 
             counts = take_flat(exptime, filt, offset_step, target_name)
             print('{} image sky mean: {:.1f} counts'.format(filt, counts))
+
+            # Stop if saturated in the morning
+            if not eve and counts > 65000:
+                print('Images are saturated, stopping flats')
+                break
 
     print('Done')
 

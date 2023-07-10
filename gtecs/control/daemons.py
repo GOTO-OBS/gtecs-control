@@ -65,6 +65,7 @@ class BaseDaemon(ABC):
 
         self.dependencies = set()
         self.dependency_error = False
+        self.pending_bad_dependencies = dict()
         self.bad_dependencies = set()
 
         self.hardware_error = False
@@ -118,19 +119,29 @@ class BaseDaemon(ABC):
         self.log.info('Daemon successfully shut down')
         time.sleep(1.)
 
-    def _check_dependencies(self):
+    def _check_dependencies(self, timeout=5):
         """Check if the daemon's dependencies are alive (if any).
 
         This function will set the dependency_error flag if any dependencies are not responding,
         and save them to bad_dependencies.
         Alternatively if all the dependencies are responding it will clear the error flag.
         """
+        timestamp = time.time()
         for dependency_id in self.dependencies:
             if not daemon_is_alive(dependency_id):
                 if dependency_id not in self.bad_dependencies:
-                    self.log.error('Dependency {} not responding'.format(dependency_id))
-                    self.bad_dependencies.add(dependency_id)
+                    if dependency_id not in self.pending_bad_dependencies:
+                        # Require two failed checks until we go into error state
+                        self.log.warning('Dependency {} not responding?'.format(dependency_id))
+                        self.pending_bad_dependencies[dependency_id] = timestamp
+                    elif (timestamp - self.pending_bad_dependencies[dependency_id]) > timeout:
+                        self.log.error('Dependency {} not responding'.format(dependency_id))
+                        del self.pending_bad_dependencies[dependency_id]
+                        self.bad_dependencies.add(dependency_id)
             else:
+                if dependency_id in self.pending_bad_dependencies:
+                    self.log.warning('Dependency {} responding!'.format(dependency_id))
+                    del self.pending_bad_dependencies[dependency_id]
                 if dependency_id in self.bad_dependencies:
                     self.log.info('Dependency {} responding'.format(dependency_id))
                     self.bad_dependencies.remove(dependency_id)

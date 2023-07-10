@@ -330,53 +330,68 @@ def print_info(info):
             temperature_str, humidity_str, dt_str)
         print(weather_str)
 
+        rain_unsafe = info['rain']['unsafe']
+        rain_total = info['rain']['total']
+        if info['rain']['rain'] == -999:
+            rain_str = style.rtxt('  ERR')
+        elif rain_unsafe > 0:
+            rain_str = style.rtxt('  True') + '   ({}/{})'.format(rain_unsafe, rain_total)
+        else:
+            rain_str = style.gtxt(' False') + '   ({}/{})'.format(rain_unsafe, rain_total)
+
+        print('  {: <10}'.format('rain'), end='\t')
+        print(rain_str)
+
         print('CONDITIONS:')
 
-        seeing = info['robodimm']['seeing']
-        dt = info['robodimm']['dt']
-        if seeing == -999:
-            seeing_str = style.rtxt('ERR')
-        else:
-            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
-        if dt == -999:
-            dt_str = style.rtxt('ERR')
-        elif dt > params.SEEING_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
-        print('  seeing (ing)   {}"           dt={}'.format(seeing_str, dt_str))
+        if params.SITE_NAME == 'La Palma':
+            seeing = info['robodimm']['seeing']
+            dt = info['robodimm']['dt']
+            if seeing == -999:
+                seeing_str = style.rtxt('ERR')
+            else:
+                seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+            if dt == -999:
+                dt_str = style.rtxt('ERR')
+            elif dt > params.SEEING_TIMEOUT:
+                dt_str = style.rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = style.gtxt('{:.0f}'.format(dt))
+            print('  seeing (ing)   {}"           dt={}'.format(seeing_str, dt_str))
 
-        seeing = info['tng']['seeing']
-        dt = info['tng']['seeing_dt']
-        if seeing == -999:
-            seeing_str = style.rtxt('ERR')
-        else:
-            seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
-        if dt == -999:
-            dt_str = style.rtxt('ERR')
-        elif dt > params.SEEING_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
-        print('  seeing (tng)   {}"           dt={}'.format(seeing_str, dt_str))
+        if params.SITE_NAME == 'La Palma':
+            seeing = info['tng']['seeing']
+            dt = info['tng']['seeing_dt']
+            if seeing == -999:
+                seeing_str = style.rtxt('ERR')
+            else:
+                seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
+            if dt == -999:
+                dt_str = style.rtxt('ERR')
+            elif dt > params.SEEING_TIMEOUT:
+                dt_str = style.rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = style.gtxt('{:.0f}'.format(dt))
+            print('  seeing (tng)   {}"           dt={}'.format(seeing_str, dt_str))
 
-        dust = info['tng']['dust']
-        if dust == -999:
-            dust_str = style.rtxt('  ERR')
-        elif dust < params.MAX_DUSTLEVEL:
-            dust_str = style.ytxt('{:>5.1f}'.format(dust))
-            if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = style.gtxt('{:>5.1f}'.format(dust))
-        else:
-            dust_str = style.rtxt('{:>5.1f}'.format(dust))
-        dt = info['tng']['dust_dt']
-        if dt == -999:
-            dt_str = style.rtxt('ERR')
-        elif dt > params.DUSTLEVEL_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
-        print('  dust (tng)   {} μg/m³      dt={}'.format(dust_str, dt_str))
+        if params.SITE_NAME == 'La Palma':
+            dust = info['tng']['dust']
+            if dust == -999:
+                dust_str = style.rtxt('  ERR')
+            elif dust < params.MAX_DUSTLEVEL:
+                dust_str = style.ytxt('{:>5.1f}'.format(dust))
+                if dust < params.MAX_DUSTLEVEL - 10:
+                    dust_str = style.gtxt('{:>5.1f}'.format(dust))
+            else:
+                dust_str = style.rtxt('{:>5.1f}'.format(dust))
+            dt = info['tng']['dust_dt']
+            if dt == -999:
+                dt_str = style.rtxt('ERR')
+            elif dt > params.DUSTLEVEL_TIMEOUT:
+                dt_str = style.rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = style.gtxt('{:.0f}'.format(dt))
+            print('  dust (tng)   {} μg/m³      dt={}'.format(dust_str, dt_str))
 
         clouds = info['clouds']
         if clouds == -999:
@@ -686,6 +701,8 @@ def print_instructions():
           '  check/ping                     check the daemon for errors',
           'Conditions commands:',
           '  update                         force update the conditions',
+          '  ignore <flag>                  ignore the given flag',
+          '  enable <flag>                  reenable the given ignored flag',
           '  override [on|off]              enable/disable the manual override flag',
           '  pause                          alias for "override on"',
           '  unpause/resume                 alias for "override off"',

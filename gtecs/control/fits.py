@@ -47,7 +47,7 @@ def image_location(run_number, ut_number, tel_number=None):
     if tel_number is None:
         tel_number = params.TELESCOPE_NUMBER
 
-    # Find the directory, using the date the observing night began
+    # Find the directory, using the date the observing night began (the previous local midday)
     night = night_startdate()
     direc = os.path.join(params.IMAGE_PATH, night)
     if not os.path.exists(direc):
@@ -352,7 +352,7 @@ def get_all_info(cam_info, log=None, log_debug=False):
     if all_info['conditions'] is not None:
         try:
             # Select external source
-            ext_source = params.WEATHER_SOURCES[0]
+            ext_source = params.VAISALA_URI_PRIMARY[5:].split('_')[0]
             ext_weather = all_info['conditions']['weather'][ext_source].copy()
             all_info['conditions']['weather_ext'] = ext_weather
 
@@ -605,11 +605,11 @@ def update_header(header, ut, all_info, log=None):
         else:
             rank = 'inf'
         if info['start_time'] is not None:
-            starttime = info['start_time'].strftime('%Y-%m-%dT%H:%M:%S')
+            starttime = info['start_time']
         else:
             starttime = 'NA'
         if info['stop_time'] is not None:
-            stoptime = info['stop_time'].strftime('%Y-%m-%dT%H:%M:%S')
+            stoptime = info['stop_time']
         else:
             stoptime = 'NA'
 
@@ -679,7 +679,7 @@ def update_header(header, ut, all_info, log=None):
             notice_id = info['notice_id']
             notice_ivorn = info['notice_ivorn']
             if info['notice_time'] is not None:
-                notice_time = info['notice_time'].strftime('%Y-%m-%dT%H:%M:%S')
+                notice_time = info['notice_time']
             else:
                 notice_time = 'NA'
             event_id = info['event_id']
@@ -687,7 +687,7 @@ def update_header(header, ut, all_info, log=None):
             event_type = info['event_type']
             event_origin = info['event_origin']
             if info['event_time'] is not None:
-                event_time = info['event_time'].strftime('%Y-%m-%dT%H:%M:%S')
+                event_time = info['event_time']
             else:
                 event_time = 'NA'
         else:
@@ -986,15 +986,15 @@ def update_header(header, ut, all_info, log=None):
 
         info = all_info['dome']
 
-        north_status = info['north']
-        south_status = info['south']
-        if north_status == 'ERROR' or south_status == 'ERROR':
+        a_side = info['a_side']
+        b_side = info['b_side']
+        if a_side == 'ERROR' or b_side == 'ERROR':
             dome_status = 'ERROR'
-        elif north_status == 'closed' and south_status == 'closed':
+        elif a_side == 'closed' and b_side == 'closed':
             dome_status = 'closed'
-        elif north_status == 'full_open' and south_status == 'full_open':
+        elif a_side == 'full_open' and b_side == 'full_open':
             dome_status = 'full_open'
-        elif north_status == 'part_open' or south_status == 'part_open':
+        elif a_side == 'part_open' or b_side == 'part_open':
             dome_status = 'part_open'
         else:
             dome_status = 'ERROR'

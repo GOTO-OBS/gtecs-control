@@ -130,10 +130,7 @@ def antisun_flat(time=None, location=None):
 
     # format
     c = SkyCoord(ra, dec, unit=(u.deg, u.deg))
-    ra = '{:02.0f} {:02.0f} {:02.0f}'.format(*c.ra.hms)
-    dec = '{:+02.0f} {:02.0f} {:02.0f}'.format(*c.dec.dms)
-
-    flat_field = FlatField('Anti-Sun', ra, dec, 10, 10)
+    flat_field = FlatField('Anti-Sun', c.ra.hourangle, c.dec.deg, 10, 10)
     return flat_field
 
 

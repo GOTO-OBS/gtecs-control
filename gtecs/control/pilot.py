@@ -15,10 +15,10 @@ from gtecs.common.system import execute_command
 
 from . import monitors
 from . import params
-from .astronomy import get_sunalt, local_midnight, night_startdate, sunalt_time
+from .astronomy import get_sunalt, local_midnight, sunalt_time
 from .errors import RecoveryError
 from .flags import Conditions, Status
-from .scheduling import update_schedule
+from .scheduling import update_schedule_pyro, update_schedule_server_async
 from .slack import send_slack_msg, send_startup_report, send_timing_report
 
 
@@ -204,8 +204,7 @@ class Pilot:
         self.running_tasks = []
 
         # define nightly tasks
-        self.night_startdate = night_startdate()
-        self.midnight = local_midnight(self.night_startdate)
+        self.midnight = local_midnight()
         self.assign_tasks()
 
         # status flags, set during the night
@@ -997,33 +996,59 @@ class Pilot:
 
             # Now update the database and get the latest pointing from the scheduler
             self.scheduler_updating = True
-            try:
-                if request_pointing:
-                    self.log.debug('checking scheduler')
-                else:
-                    self.log.debug('updating scheduler')
-                dome_shielding = self.hardware['dome'].shielding_active
-                future_pointing = update_schedule(
-                    self.current_pointing['id'] if self.current_pointing is not None else None,
-                    self.current_status,
-                    dome_shielding,
-                    request_pointing=request_pointing,
-                    asynchronous=True,
-                    force_update=self.current_status != 'running',
-                )
-                while not future_pointing.ready:
-                    await asyncio.sleep(0.2)
-                new_pointing = future_pointing.value
-            except Exception as error:
-                self.log.warning('{} checking scheduler: {}'.format(
-                    type(error).__name__, error))
-                self.log.debug('', exc_info=True)
-                new_pointing = None
+            attempts_remaining = 3
+            while attempts_remaining:
+                try:
+                    if request_pointing:
+                        self.log.debug('checking scheduler')
+                    else:
+                        self.log.debug('updating scheduler')
+                    if self.current_pointing is not None:
+                        current_pointing_id = self.current_pointing['id']
+                    else:
+                        current_pointing_id = None
+                    dome_shielding = self.hardware['dome'].shielding_active
 
-            if request_pointing:
-                self.log.debug('scheduler returns {}'.format(new_pointing['id']
-                                                             if new_pointing is not None
-                                                             else 'None'))
+                    if params.SCHEDULER_CHECK_METHOD == 'pyro':
+                        future_pointing = update_schedule_pyro(
+                            current_pointing_id,
+                            self.current_status,
+                            dome_shielding,
+                            request_pointing=request_pointing,
+                            asynchronous=True,
+                            force_update=self.current_status != 'running',
+                        )
+                        while not future_pointing.ready:
+                            await asyncio.sleep(0.2)
+                        new_pointing = future_pointing.value
+                    elif params.SCHEDULER_CHECK_METHOD == 'server':
+                        new_pointing = await update_schedule_server_async(
+                            current_pointing_id,
+                            self.current_status,
+                            dome_shielding,
+                            request_pointing=request_pointing,
+                            force_update=self.current_status != 'running',
+                        )
+                    else:
+                        msg = f'Unknown scheduler check method: {params.SCHEDULER_CHECK_METHOD}'
+                        raise ValueError(msg)
+
+                    if request_pointing:
+                        self.log.debug('scheduler returns {}'.format(
+                            new_pointing['id'] if new_pointing is not None else 'None'))
+                    break
+
+                except Exception as error:
+                    self.log.warning('{} checking scheduler: {}'.format(
+                        type(error).__name__, error))
+                    self.log.debug('', exc_info=True)
+                    attempts_remaining -= 1
+                    if attempts_remaining > 0:
+                        self.log.warning('Remaining tries: {}'.format(attempts_remaining))
+                        await asyncio.sleep(0.5)
+                    else:
+                        self.log.error('Could not communicate with the scheduler, parking')
+                        new_pointing = None
 
             # Now that we've updated the database we can clear the current Pointing
             if self.current_status in ['completed', 'interrupted']:
@@ -1259,7 +1284,7 @@ class Pilot:
         self.log.info('night countdown initialised')
 
         if stop_time is None:
-            stop_time = sunalt_time(self.night_startdate, self.close_sunalt * u.deg, eve=False)
+            stop_time = sunalt_time(self.close_sunalt * u.deg, eve=False)
         self.log.info('setting end of night for {}'.format(stop_time.iso))
 
         last_log = Time.now()

@@ -28,7 +28,7 @@ def run(test=False):
     # Get the current night starting date and time of sunrise
     date = night_startdate()
     log.info('Started for night of {}'.format(date))
-    sunrise = sunalt_time(date, 0 * u.deg, eve=False)
+    sunrise = sunalt_time(0 * u.deg, eve=False)
 
     # Wait until shortly after sunrise, so the pilot should be finished
     target = sunrise + 5 * u.min

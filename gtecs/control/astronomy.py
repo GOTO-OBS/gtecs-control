@@ -1,7 +1,5 @@
 """Astronomy utilities."""
 
-import datetime
-
 from astroplan import Observer
 from astroplan.moon import moon_illumination
 
@@ -211,7 +209,7 @@ def get_night_times(time=None, location=None, horizon=-15):
     Parameters
     ----------
     time : `astropy.time.Time`, optional
-        night starting date
+        current time
         default = Time.now()
     location : `~astropy.coordinates.EarthLocation`, optional
         observatory location
@@ -244,12 +242,12 @@ def get_night_times(time=None, location=None, horizon=-15):
 
 
 def twilight_length(time=None, location=None, horizon=-15):
-    """Twilight length for night starting on given date.
+    """Twilight length for the given night.
 
     Parameters
     ----------
     time : `astropy.time.Time`, optional
-        night starting date
+        current time
         default = Time.now()
     location : `~astropy.coordinates.EarthLocation`, optional
         observatory location
@@ -280,14 +278,14 @@ def twilight_length(time=None, location=None, horizon=-15):
     return (twilight_end - twilight_start).to(u.min).value
 
 
-def local_midnight(date, location=None):
-    """Find the UT time of local midnight.
+def local_midnight(time=None, location=None):
+    """Find the UT time of local midnight (the nearest midnight to occur).
 
     Parameters
     ----------
-    date : string
-        night starting date (YYYY-MM-DD)
-
+    time : `astropy.time.Time`, optional
+        current time
+        default = Time.now()
     location : `~astropy.coordinates.EarthLocation`, optional
         observatory location
         default = observatory_location()
@@ -298,35 +296,42 @@ def local_midnight(date, location=None):
         time of local midnight in UT
 
     """
+    if time is None:
+        time = Time.now()
     if location is None:
         location = observatory_location()
     observer = Observer(location=location)
 
-    noon = Time(date + ' 12:00:00')
-    return observer.midnight(noon, 'next')
+    midnight = observer.midnight(time, which='nearest')
+    return midnight
 
 
-def night_startdate():
+def night_startdate(time=None, location=None):
     """Return the date at the start of the current astronomical night in format Y-M-D."""
-    time = datetime.datetime.utcnow()
-    if time.hour < 12:
-        time = time - datetime.timedelta(days=1)
-    return time.strftime('%Y-%m-%d')
+    if time is None:
+        time = Time.now()
+    if location is None:
+        location = observatory_location()
+
+    midnight = local_midnight(time, location)
+    midday = midnight - 12 * u.hour
+    return midday.strftime('%Y-%m-%d')
 
 
 @u.quantity_input(sunalt=u.deg)
-def sunalt_time(date, sunalt, eve=True, location=None):
+def sunalt_time(sunalt, eve=True, time=None, location=None):
     """Find the time when the sun is at sunalt.
 
     Parameters
     ----------
-    date : string
-        night starting date (YYYY-MM-DD)
     sunalt : `astropy.units.Quantity`
         altitude of sun to use
     eve : bool
         True for an evening calculation, false for morning
 
+    time : `astropy.time.Time`, optional
+        current time
+        default = Time.now()
     location : `~astropy.coordinates.EarthLocation`, optional
         observatory location
         default = observatory_location()
@@ -341,12 +346,11 @@ def sunalt_time(date, sunalt, eve=True, location=None):
         location = observatory_location()
     observer = Observer(location=location)
 
+    midnight = local_midnight(time, location)
     if eve:
-        start = Time(date + ' 12:00:00')
-        return observer.sun_set_time(start, which='next', horizon=sunalt)
+        return observer.sun_set_time(midnight, which='previous', horizon=sunalt)
     else:
-        start = Time(date + ' 12:00:00') + 1 * u.day
-        return observer.sun_rise_time(start, which='previous', horizon=sunalt)
+        return observer.sun_rise_time(midnight, which='next', horizon=sunalt)
 
 
 def get_ha(ra_deg, dec_deg, time=None, location=None):

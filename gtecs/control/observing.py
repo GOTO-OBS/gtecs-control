@@ -41,8 +41,8 @@ def wait_for_dome(target_position, timeout=None):
             dome_info = daemon_info('dome', force_update=True)
 
             done = [dome_info['dome'] == target_position.lower() and
-                    dome_info['north'] == target_position.lower() and
-                    dome_info['south'] == target_position.lower()]
+                    dome_info['a_side'] == target_position.lower() and
+                    dome_info['b_side'] == target_position.lower()]
             if np.all(done):
                 reached_position = True
         except Exception:
@@ -209,11 +209,9 @@ def wait_for_mirror_covers(opening=True, timeout=None):
         time.sleep(0.5)
 
         try:
-            ota_info = daemon_info('ota', force_update=True)
-            positions = [ota_info[ut]['position'] for ut in ota_info['uts_with_covers']]
-            if opening is True and np.all(positions[ut] == 'full_open' for ut in positions):
+            if opening and mirror_covers_are_open():
                 reached_position = True
-            if opening is False and np.all(positions[ut] == 'closed' for ut in positions):
+            if not opening and mirror_covers_are_closed():
                 reached_position = True
         except Exception:
             pass
@@ -775,7 +773,7 @@ def get_image_headers(target_image_number, timeout=None):
                 # Either these are the headers we wanted, or we missed them
                 finished = True
         except Exception:
-            raise
+            pass
 
         if timeout and time.time() - start_time > timeout:
             timed_out = True

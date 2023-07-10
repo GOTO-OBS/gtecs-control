@@ -9,9 +9,13 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import conditions
 from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
+from gtecs.control.conditions.clouds import get_satellite_clouds
+from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
+from gtecs.control.conditions.internal import get_domealert_daemon
+from gtecs.control.conditions.local import get_vaisala_daemon, get_rain_daemon, get_rain_domealert
+from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import Status
 from gtecs.control.slack import send_slack_msg
@@ -124,10 +128,25 @@ class ConditionsDaemon(BaseDaemon):
         try:
             weather = {}
 
-            # Get the weather from the local stations
-            for source in params.WEATHER_SOURCES:
+            # Get the weather values from local and external stations
+            weather_sources = [params.VAISALA_URI_PRIMARY]
+            if params.VAISALA_URI_SECONDARY != 'none':
+                weather_sources.append(params.VAISALA_URI_SECONDARY)
+            for source in params.EXTERNAL_WEATHER_SOURCES:
+                if source != 'none' and source not in weather_sources:
+                    weather_sources.append(source.lower())
+            for source in weather_sources:
                 try:
-                    weather_dict = conditions.get_vaisala(source)
+                    if source.startswith('PYRO:'):
+                        uri = source
+                        source = uri[5:].split('_')[0]
+                        weather_dict = get_vaisala_daemon(uri)
+                    elif source == 'ing':
+                        weather_dict = get_ing()
+                    elif source == 'aat':
+                        weather_dict = get_aat()
+                    else:
+                        raise ValueError('Unknown weather source')
                 except Exception:
                     if params.FAKE_CONDITIONS:
                         weather_dict = {'temperature': 10,
@@ -189,21 +208,6 @@ class ConditionsDaemon(BaseDaemon):
                 # Store the dict
                 weather[source] = weather_dict
 
-            # Get the W1m rain boards reading
-            if params.RAINDAEMON_URI != 'none':
-                try:
-                    rain = conditions.get_rain()['rain']
-                    # Replace the local rain measurements
-                    for source in weather:
-                        if source == 'w1m':
-                            weather[source]['rain'] = rain
-                        elif 'rain' in weather[source]:
-                            del weather[source]['rain']
-                except Exception:
-                    self.log.error('Error getting weather from "rain"')
-                    self.log.debug('', exc_info=True)
-                    self.log.warning('Using vaisala station rain measurements')
-
             temp_info['weather'] = {}
             for source in weather:
                 source_info = weather[source].copy()
@@ -236,7 +240,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get the internal conditions from Paul's DomeAlert
         try:
-            internal_dict = conditions.get_domealert()
+            internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
         except Exception:
             if params.FAKE_CONDITIONS:
                 internal_dict = {'temperature': 10,
@@ -248,20 +252,72 @@ class ConditionsDaemon(BaseDaemon):
                 self.log.error('Failed to get internal info')
                 self.log.debug('', exc_info=True)
                 internal_dict = {'temperature': -999,
-                                'humidity': -999,
-                                'update_time': -999,
-                                'dt': -999,
-                             }
+                                 'humidity': -999,
+                                 'update_time': -999,
+                                 'dt': -999,
+                                 }
         temp_info['internal'] = internal_dict
 
-        # Get seeing and dust from the TNG webpage
+        # Get rain board readings
         try:
-            tng_dict = conditions.get_tng()
-            # check if the timeouts have been exceeded
-            if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
-                tng_dict['seeing'] = -999
-            if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
-                tng_dict['dust'] = -999
+            if params.RAINDAEMON_URI != 'none':
+                if 'domealert' in params.RAINDAEMON_URI:
+                    rain_dict = get_rain_domealert(params.RAINDAEMON_URI)
+                else:
+                    rain_dict = get_rain_daemon(params.RAINDAEMON_URI)
+                # Remove any other readings
+                if temp_info['weather'] is not None:
+                    for source in temp_info['weather']:
+                        if 'rain' in temp_info['weather'][source]:
+                            temp_info['weather'][source]['rain'] = None
+            elif temp_info['weather'] is not None:
+                # Fallback to the weather readings
+                # We don't usually trust the vaisala rain detectors,
+                # and any external ones are too far away.
+                # That's why we prefer the local boards.
+                rain_dict = {'total': 0,
+                             'unsafe': 0,
+                             }
+                for source in temp_info['weather']:
+                    if ('rain' in temp_info['weather'][source] and
+                            temp_info['weather'][source]['rain'] != -999):
+                        rain_dict['total'] += 1
+                        rain_dict['unsafe'] += int(temp_info['weather'][source]['rain'])
+                rain_dict['rain'] = rain_dict['unsafe'] > 0
+                if rain_dict['total'] == 0:
+                    raise ValueError('No weather sources included rain readings')
+            else:
+                raise ValueError('No weather sources for rain readings')
+        except Exception:
+            if params.FAKE_CONDITIONS:
+                rain_dict = {'total': 9,
+                             'unsafe': 0,
+                             'rain': False,
+                             }
+            else:
+                self.log.error('Failed to get rain info')
+                self.log.debug('', exc_info=True)
+                rain_dict = {'total': -999,
+                             'unsafe': -999,
+                             'rain': -999,
+                             }
+        temp_info['rain'] = rain_dict
+
+        # Get seeing and dust from the TNG webpage (La Palma only)
+        try:
+            if params.SITE_NAME == 'La Palma':
+                tng_dict = get_tng()
+                # check if the timeouts have been exceeded
+                if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
+                    tng_dict['seeing'] = -999
+                if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
+                    tng_dict['dust'] = -999
+            else:
+                tng_dict = {'seeing': -999,
+                            'seeing_dt': -999,
+                            'dust': -999,
+                            'dust_dt': -999,
+                            }
         except Exception:
             if params.FAKE_CONDITIONS:
                 tng_dict = {'seeing': 1.2,
@@ -279,12 +335,17 @@ class ConditionsDaemon(BaseDaemon):
                             }
         temp_info['tng'] = tng_dict
 
-        # Get seeing from the ING RoboDIMM
+        # Get seeing from the ING RoboDIMM (La Palma only)
         try:
-            dimm_dict = conditions.get_robodimm()
-            # check if the timeout has been exceeded
-            if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
-                dimm_dict['seeing'] = -999
+            if params.SITE_NAME == 'La Palma':
+                dimm_dict = get_robodimm()
+                # check if the timeout has been exceeded
+                if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
+                    dimm_dict['seeing'] = -999
+            else:
+                dimm_dict = {'seeing': -999,
+                             'dt': -999,
+                             }
         except Exception:
             if params.FAKE_CONDITIONS:
                 dimm_dict = {'seeing': 1.2,
@@ -300,7 +361,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the UPSs
         try:
-            ups_percent, ups_status = conditions.get_ups()
+            ups_percent, ups_status = get_ups()
             temp_info['ups_percent'] = ups_percent
             temp_info['ups_status'] = ups_status
         except Exception:
@@ -315,7 +376,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the link ping check
         try:
-            pings = [conditions.check_ping(url) for url in params.LINK_URLS]
+            pings = [check_ping(url) for url in params.LINK_URLS]
             temp_info['pings'] = pings
         except Exception:
             if params.FAKE_CONDITIONS:
@@ -327,7 +388,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the disk usage check
         try:
-            free_diskspace = conditions.get_diskspace_remaining(params.IMAGE_PATH) * 100.
+            free_diskspace = get_diskspace_remaining(params.IMAGE_PATH) * 100.
             temp_info['free_diskspace'] = free_diskspace
         except Exception:
             if params.FAKE_CONDITIONS:
@@ -339,7 +400,7 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get info from the satellite IR cloud image
         try:
-            clouds = conditions.get_satellite_clouds() * 100
+            clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
             temp_info['clouds'] = clouds
         except Exception:
             if params.FAKE_CONDITIONS:
@@ -394,8 +455,6 @@ class ConditionsDaemon(BaseDaemon):
 
         # Weather
         weather = self.info['weather']
-        rain = np.array([weather[source]['rain'] for source in weather
-                         if 'rain' in weather[source]])
         windspeed = np.array([weather[source]['windspeed'] for source in weather
                               if 'windspeed' in weather[source]])
         windgust = np.array([weather[source]['windgust'] for source in weather
@@ -409,13 +468,16 @@ class ConditionsDaemon(BaseDaemon):
         dew_point = np.array([weather[source]['dew_point'] for source in weather
                              if 'dew_point' in weather[source]])
 
-        rain = rain[rain != -999]
         windspeed = windspeed[windspeed != -999]
         windgust = windgust[windgust != -999]
         windmax = windmax[windmax != -999]
         ext_temperature = ext_temperature[ext_temperature != -999]
         ext_humidity = ext_humidity[ext_humidity != -999]
         dew_point = dew_point[dew_point != -999]
+
+        # Rain
+        rain = np.array(self.info['rain']['rain'])
+        rain = rain[rain != -999]
 
         # Internal
         int_temperature = np.array(self.info['internal']['temperature'])
@@ -453,20 +515,12 @@ class ConditionsDaemon(BaseDaemon):
 
         # ~~~~~~~~~~~~~~
         # Calculate the flags and if they are valid.
-        # At least two of the external sources and one of the internal sources need to be valid,
-        # except for rain and wind* because we only have two sources (no SuperWASP),
-        # so only need at least one.
+        # At least one of the sources need to be valid.
         good = {flag: False for flag in self.flag_names}
         valid = {flag: False for flag in self.flag_names}
         good_delay = {flag: 0 for flag in self.flag_names}
         bad_delay = {flag: 0 for flag in self.flag_names}
         error_delay = 60
-
-        # rain flag
-        good['rain'] = np.all(rain == 0)
-        valid['rain'] = len(rain) >= 1
-        good_delay['rain'] = params.RAIN_GOODDELAY
-        bad_delay['rain'] = params.RAIN_BADDELAY
 
         # windspeed flag (based on instantaneous windgust)
         good['windspeed'] = np.all(windgust < params.MAX_WINDSPEED)
@@ -507,6 +561,12 @@ class ConditionsDaemon(BaseDaemon):
         valid['dew_point'] = len(dew_point) >= 1
         good_delay['dew_point'] = params.DEWPOINT_GOODDELAY
         bad_delay['dew_point'] = params.DEWPOINT_BADDELAY
+
+        # rain flag
+        good['rain'] = np.all(rain == 0)
+        valid['rain'] = len(rain) >= 1
+        good_delay['rain'] = params.RAIN_GOODDELAY
+        bad_delay['rain'] = params.RAIN_BADDELAY
 
         # internal flag
         good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
