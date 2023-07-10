@@ -393,6 +393,7 @@ class DomeDaemon(BaseDaemon):
                 )
 
             # Check if it's connected
+            time.sleep(3)  # sleep briefly, to make sure the connection has started
             if self.dome.plc_error:
                 raise ValueError('Failed to connect to dome PLC')
             if self.dome.switch_error and not params.DOME_IGNORE_SWITCH_ERRORS:
@@ -411,7 +412,6 @@ class DomeDaemon(BaseDaemon):
             self.log.info('Connected to dome')
             if 'dome' in self.bad_hardware:
                 self.bad_hardware.remove('dome')
-            time.sleep(3)  # sleep briefly, to make sure the connection has started
 
         except Exception:
             # Connection failed
@@ -449,7 +449,6 @@ class DomeDaemon(BaseDaemon):
             self.log.info('Connected to heartbeat')
             if 'heartbeat' in self.bad_hardware:
                 self.bad_hardware.remove('heartbeat')
-            time.sleep(3)  # sleep briefly, to make sure the connection has started
 
         except Exception:
             # Connection failed
