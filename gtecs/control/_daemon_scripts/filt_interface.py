@@ -148,9 +148,6 @@ class FiltInterfaceDaemon(BaseDaemon):
             if 'filterwheel' not in self.bad_hardware:
                 self.bad_hardware.add('filterwheel')
 
-        # Write debug log line
-        # NONE, nothing really changes
-
         # Update the master info dict
         self.info = temp_info
 

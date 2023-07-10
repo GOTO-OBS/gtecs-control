@@ -152,9 +152,6 @@ class FocInterfaceDaemon(BaseDaemon):
             if 'focuser' not in self.bad_hardware:
                 self.bad_hardware.add('focuser')
 
-        # Write debug log line
-        # NONE, nothing really changes
-
         # Update the master info dict
         self.info = temp_info
 

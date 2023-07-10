@@ -160,13 +160,17 @@ class FiltDaemon(BaseDaemon):
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
+            now_strs = ['{}:{}'.format(ut,
+                                       temp_info[ut]['status']
+                                       if temp_info[ut] is not None else 'ERROR')
                         for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Filter wheels are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                old_strs = ['{}:{}'.format(ut,
+                                           self.info[ut]['status']
+                                           if self.info[ut] is not None else 'ERROR')
                             for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
