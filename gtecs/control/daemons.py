@@ -150,24 +150,26 @@ class BaseDaemon(ABC):
         for dependency_id in self.dependencies:
             try:
                 with daemon_proxy(dependency_id) as daemon:
-                    is_alive = bool(daemon.get_status() == 'running')
+                    status = daemon.get_status()
             except Exception:
-                is_alive = False
+                status = 'status_error'
 
-            if is_alive and dependency_id in self.pending_bad_dependencies:
-                # Dependency started responding again before the timeout was exceeded
-                self.log.warning('Dependency {} responding!'.format(dependency_id))
-                del self.pending_bad_dependencies[dependency_id]
-            if is_alive and dependency_id in self.bad_dependencies:
-                # Dependency has started responding again
-                self.log.info('Dependency {} responding'.format(dependency_id))
-                self.bad_dependencies.remove(dependency_id)
-
-            if not is_alive and dependency_id not in self.bad_dependencies:
-                # Dependency has stopped responding
+            if status == 'running':
+                # Dependency is fine
+                if dependency_id in self.pending_bad_dependencies:
+                    # Dependency started responding again before the timeout was exceeded
+                    self.log.warning('Dependency {} responding!'.format(dependency_id))
+                    del self.pending_bad_dependencies[dependency_id]
+                if dependency_id in self.bad_dependencies:
+                    # Dependency has started responding again
+                    self.log.info('Dependency {} responding'.format(dependency_id))
+                    self.bad_dependencies.remove(dependency_id)
+            elif dependency_id not in self.bad_dependencies:
+                # Dependency is no longer responding
                 if dependency_id not in self.pending_bad_dependencies:
                     # Add it to the pending list with the current timestamp
                     self.log.warning('Dependency {} not responding?'.format(dependency_id))
+                    self.log.debug('Dependency {} status: "{}"'.format(dependency_id, status))
                     self.pending_bad_dependencies[dependency_id] = timestamp
                 elif (timestamp - self.pending_bad_dependencies[dependency_id]) > timeout:
                     # The timeout has been exceeded, remove from pending and add to the bad list
