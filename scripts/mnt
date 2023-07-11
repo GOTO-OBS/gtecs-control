@@ -185,7 +185,7 @@ def query(command, args):
     elif command in ['stop', 'halt', 'abort']:
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.full_stop()
+            daemon.halt()
         print('Stopping mount')
 
     elif command == 'park':

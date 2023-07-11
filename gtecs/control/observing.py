@@ -2,6 +2,8 @@
 
 import time
 
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
 import numpy as np
@@ -430,13 +432,14 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
     if not within_mount_limits(ra, dec, Time.now()):
         raise ValueError('Target is outside of mount limits, cannot slew')
 
-    print('Slewing to {ra:.2f} {dec:.2f}')
+    print(f'Slewing to {ra:.2f} {dec:.2f}')
     with daemon_proxy('mnt') as daemon:
         info = daemon.get_info(force_update=True)
         if info['status'] == 'Slewing':
-            daemon.full_stop()
+            daemon.halt()
             time.sleep(2)
-            daemon.slew_to_radec(ra * 24 / 360, dec)  # TODO: really should use SkyCoord
+        coords = SkyCoord(ra * u.deg, dec * u.deg)
+        daemon.slew(coords)
 
     if wait or timeout is not None:
         wait_for_mount(ra, dec, timeout)

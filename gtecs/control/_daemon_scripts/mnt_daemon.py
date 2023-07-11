@@ -784,7 +784,7 @@ class MntDaemon(BaseDaemon):
 
         if self.info['status'] != 'Stopped':
             self.force_check_flag = True
-            self.full_stop_flag = 1
+            self.halt_flag = 1
 
     def park(self):
         """Move the mount to the park position."""
