@@ -89,7 +89,6 @@ async def update_schedule_server_async(current_pointing=None, current_status=Non
         'return_new': 1 if request_pointing else 0,
         'force_update': 1 if force_update else 0,
     }
-    print(url)
     async with aiohttp.ClientSession() as session:
         async with session.get(url, params=query_params) as response:
             response.raise_for_status()  # Raise any HTTP errors
