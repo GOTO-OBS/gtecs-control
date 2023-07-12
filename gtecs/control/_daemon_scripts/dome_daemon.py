@@ -390,7 +390,7 @@ class DomeDaemon(BaseDaemon):
                 domealert_uri=params.DOMEALERT_URI,
                 log=self.log,
                 log_debug=params.DOME_DEBUG,
-                )
+            )
 
             # Check if it's connected
             time.sleep(3)  # sleep briefly, to make sure the connection has started
@@ -439,7 +439,7 @@ class DomeDaemon(BaseDaemon):
                 params.DOME_HEARTBEAT_PERIOD,
                 self.log,
                 params.DOME_DEBUG,
-                )
+            )
 
             # Check if it's connected
             if self.heartbeat.connection_error:
@@ -470,6 +470,7 @@ class DomeDaemon(BaseDaemon):
         if params.FAKE_DOME:
             self.log.info('Creating Dehumidifier simulator')
             self.dehumidifier = FakeDehumidifier()
+            return
 
         try:
             self.log.info('Connecting to Dehumidifier')
@@ -478,7 +479,7 @@ class DomeDaemon(BaseDaemon):
                 self.dehumidifier = ETH002Dehumidifier(
                     params.POWER_UNITS['DEHUMIDIFIER']['IP'],
                     int(params.POWER_UNITS['DEHUMIDIFIER']['PORT']),
-                    )
+                )
             else:
                 # Connect though the DomeAlert
                 self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
