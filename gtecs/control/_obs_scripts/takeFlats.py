@@ -5,13 +5,14 @@ import time
 from argparse import ArgumentParser
 
 from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.time import Time
 
 from gtecs.control import params
-from gtecs.control.astronomy import night_startdate, sunalt_time
+from gtecs.control.astronomy import sunalt_time
 from gtecs.control.catalogs import antisun_flat, exposure_sequence
-from gtecs.control.observing import (get_analysis_image, get_mount_position,
-                                     prepare_for_images, slew_to_radec)
+from gtecs.control.daemons import daemon_proxy
+from gtecs.control.observing import get_analysis_image, prepare_for_images, slew_to_radec
 
 import numpy as np
 
@@ -30,18 +31,13 @@ FILTER_ORDER = ['B', 'G', 'R', 'L', 'C']
 def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False):
     """Offset the telescope then take an image and return the mean sky brightness."""
     # Make an offset to move the stars
-    # TODO: THIS SHOULD USE MNT OFFSET
-    current_ra, current_dec = get_mount_position()
-    step = offset_step * u.arcsec
-    new_ra = current_ra + step.to(u.deg).value
-    if new_ra >= 360:
-        new_ra -= 360
-    new_dec = current_dec + step.to(u.deg).value
-    if new_dec > 90:
-        new_dec = current_dec - step.to(u.deg).value
+    with daemon_proxy('mnt') as daemon:
+        info = daemon.get_info(force_update=True)
+    current_position = SkyCoord(info['mount_ra'], info['mount_dec'], unit=(u.hourangle, u.deg))
+    new_position = current_position.directional_offset_by(90 * u.deg, offset_step * u.arcsec)
 
     # Move to the new position and wait until we're there
-    slew_to_radec(new_ra, new_dec, timeout=120)
+    slew_to_radec(new_position.ra.deg, new_position.dec.deg, timeout=120)
 
     # Only use UTs which have the given filter
     uts = [ut for ut in params.UT_DICT if filt in params.UT_DICT[ut]['FILTERS']]

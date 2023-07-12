@@ -14,7 +14,6 @@ from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
 from gtecs.control.daemons import daemon_proxy, restart_daemon
 from gtecs.control.flags import Status
-from gtecs.control.observing import wait_for_dome
 from gtecs.control.slack import send_dome_report, send_slack_msg
 
 import numpy as np
@@ -78,6 +77,8 @@ def run(test=False):
 
     # It's not closed...
     # Maybe something happened to the pilot or the dome daemon
+    # Note this deliberately keeps trying every 30 seconds and will spam Slack if the dome still
+    # can't close. Hopefully this should get someone's attention!
     while not confirmed_closed:
         time.sleep(30)
         try:
@@ -85,28 +86,26 @@ def run(test=False):
             log.warning('Sending dome close command')
             with daemon_proxy('dome') as daemon:
                 daemon.close_dome()
+                # TODO: blocking command with confirmation or timeout in daemon
+                start_time = time.time()
+                while True:
+                    info = daemon.get_info(force_update=True)
+                    if info['dome'] == 'closed':
+                        break
+                    if (time.time() - start_time) > 120:
+                        raise TimeoutError('Dome timed out')
+                    time.sleep(0.5)
 
-            # Wait for the dome to (hopefully) close
-            wait_for_dome(target_position='closed', timeout=120)
-
-            # Check again
-            with daemon_proxy('dome') as daemon:
-                info = daemon.get_info(force_update=True)
-            dome_status = info['dome']
-            if dome_status == 'closed':
-                msg = '*Day marshal has closed the dome*'
-                log.info('Dome confirmed closed')
-                confirmed_closed = True
-            else:
-                # UH-OH
-                msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
-                log.warning('The dome is still not closed!')
-                # Try restarting the daemon before we try again
-                restart_daemon('dome')
+            # If we got here and didn't time out the dome should be closed
+            msg = '*Day marshal has closed the dome*'
+            log.info('Dome confirmed closed')
+            confirmed_closed = True
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
             msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
+            # Try restarting the daemon before we try again
+            restart_daemon('dome')
 
         # Send the report to Slack again
         send_dome_report(msg, confirmed_closed)

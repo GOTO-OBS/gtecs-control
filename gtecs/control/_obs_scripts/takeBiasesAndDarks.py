@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Script to take bias and dark frames."""
 
+import time
 from argparse import ArgumentParser
 
 from gtecs.control.daemons import daemon_proxy
-from gtecs.control.observing import prepare_for_images, wait_for_exposure_queue
+from gtecs.control.observing import prepare_for_images
 
 
 def run(num_exp=5, extras=False):
@@ -31,6 +32,7 @@ def run(num_exp=5, extras=False):
     with daemon_proxy('exq') as daemon:
         print(f'Taking {num_exp} bias exposures')
         daemon.add(exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
+
         # TODO: this should be a param list (or args), match badConditionsTasks
         for exptime in [45, 60, 90, 120]:
             print(f'Taking {num_exp} {exptime:.0f}s dark exposures')
@@ -38,18 +40,30 @@ def run(num_exp=5, extras=False):
         if extras:
             print('Taking 2 extra 600s dark exposures')
             daemon.add(exptime=600, nexp=2, frametype='dark', imgtype='DARK')
-        daemon.resume()
 
-    # estimate a deliberately pessimistic timeout
-    readout = 10
-    total_time = (1 + readout +
-                  60 + readout +
-                  90 + readout +
-                  120 + readout) * num_exp
-    if extras:
-        total_time += (600 + readout) * 2
-    total_time *= 1.5
-    wait_for_exposure_queue(total_time)
+        # estimate a deliberately pessimistic timeout
+        readout = 10
+        total_time = (1 + readout +
+                      60 + readout +
+                      90 + readout +
+                      120 + readout) * num_exp
+        if extras:
+            total_time += (600 + readout) * 2
+        total_time *= 1.5
+
+        # Resume the queue
+        daemon.resume()
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            info = daemon.get_info(force_update=True)
+            if (info['queue_length'] == 0 and
+                    info['exposing'] is False and
+                    info['status'] == 'Ready'):
+                break
+            if (time.time() - start_time) > total_time:
+                raise TimeoutError('Exposure queue timed out')
+            time.sleep(0.5)
 
     print('Biases and darks done')
 

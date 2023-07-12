@@ -6,15 +6,14 @@ import time
 
 from astropy.time import Time
 
-from gtecs.common.system import make_pid_file
 from gtecs.common.style import gtxt, rtxt, ytxt
+from gtecs.common.system import make_pid_file
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, HardwareError
+from gtecs.control.daemons import BaseDaemon, HardwareError, daemon_proxy
 from gtecs.control.flags import Conditions, ModeError, Status
 from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
 from gtecs.control.hardware.dome import Dehumidifier, ETH002Dehumidifier, FakeDehumidifier
 from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
-from gtecs.control.observing import get_conditions
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -565,13 +564,14 @@ class DomeDaemon(BaseDaemon):
 
         # Get the conditions values and limits
         try:
-            conditions = get_conditions(timeout=10)
+            with daemon_proxy('conditions', timeout=30) as daemon:
+                conditions_info = daemon.get_info(force_update=False)
             # Windspeed - take the maximum gust from all stations
-            temp_info['windspeed'] = np.max([conditions['weather'][source]['windmax']
-                                             for source in conditions['weather']])
+            temp_info['windspeed'] = np.max([conditions_info['weather'][source]['windmax']
+                                             for source in conditions_info['weather']])
             # Internal
-            temp_info['temperature'] = conditions['internal']['temperature']
-            temp_info['humidity'] = conditions['internal']['humidity']
+            temp_info['temperature'] = conditions_info['internal']['temperature']
+            temp_info['humidity'] = conditions_info['internal']['humidity']
         except Exception:
             self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)
@@ -1249,7 +1249,7 @@ class DomeDaemon(BaseDaemon):
                 info['a_side'].capitalize(), info['b_side'].capitalize())
             if info['lockdown']:
                 msg += rtxt('   LOCKDOWN ACTIVE: {}\n'.format(
-                                 ';'.join(info['lockdown_reasons'])))
+                            ';'.join(info['lockdown_reasons'])))
             elif info['shielding']:
                 msg += ytxt('   WINDSHIELD ACTIVE\n')
             msg += '   Autoclose:       [{}]\n'.format(

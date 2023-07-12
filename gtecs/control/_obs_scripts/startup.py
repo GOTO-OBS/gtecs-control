@@ -14,8 +14,6 @@ import time
 
 from gtecs.control import params
 from gtecs.control.daemons import daemon_proxy, start_daemon
-from gtecs.control.observing import (cameras_are_cool, filters_are_homed, focusers_are_set,
-                                     mirror_covers_are_open, mount_is_parked)
 
 
 def run():
@@ -29,6 +27,7 @@ def run():
         print('Powering on UT hardware')
         daemon.on(['cams', 'focs', 'filts', 'fans'])
         time.sleep(5)
+        # TODO: blocking command with confirmation or timeout in daemon
 
         print('Powering on mount')
         if params.MOUNT_CLASS == 'SITECH':
@@ -64,21 +63,24 @@ def run():
     if params.MOUNT_CLASS == 'ASA':
         with daemon_proxy('mnt') as daemon:
             daemon.power_motors('on')
-        time.sleep(5)
-    # Don't unpark the mount or set a target, we want to stay parked while opening
-    # Instead make sure the mount is parked
-    if not mount_is_parked():
-        print('Parking mount')
-        with daemon_proxy('mnt') as daemon:
-            daemon.park()
-        start_time = time.time()
-        while not mount_is_parked():
-            time.sleep(1)
-            if (time.time() - start_time) > 60:
-                raise TimeoutError('Mount parking timed out')
-    with daemon_proxy('mnt') as daemon:
-        info_str = daemon.get_info_string(force_update=True)
-        print(info_str)
+            time.sleep(5)
+            # Don't unpark the mount or set a target, we want to stay parked while opening
+            # Instead make sure the mount is parked
+            info = daemon.get_info(force_update=True)
+            if info['status'] not in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                print('Parking mount')
+                daemon.park()
+                # TODO: blocking command with confirmation or timeout in daemon
+                start_time = time.time()
+                while True:
+                    info = daemon.get_info(force_update=True)
+                    if info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                        break
+                    if (time.time() - start_time) > 60:
+                        raise TimeoutError('Mount parking timed out')
+                    time.sleep(0.5)
+            info_str = daemon.get_info_string(force_update=True)
+            print(info_str)
 
     # TODO: Isn't this just repeating "prepare_for_images"? Couldn't we call that here?
 
@@ -96,13 +98,16 @@ def run():
     print('Homing filter wheels')
     with daemon_proxy('filt') as daemon:
         daemon.home_filters()
-    time.sleep(2)
-    start_time = time.time()
-    while not filters_are_homed():
-        time.sleep(1)
-        if (time.time() - start_time) > 30:
-            raise TimeoutError('Filter wheels timed out')
-    with daemon_proxy('filt') as daemon:
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            info = daemon.get_info(force_update=True)
+            if all(info[ut]['homed'] for ut in info['uts']):
+                break
+            if (time.time() - start_time) > 30:
+                raise TimeoutError('Filter wheels timed out')
+            time.sleep(0.5)
+
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
 
@@ -112,13 +117,16 @@ def run():
         daemon.move_focusers(10)
         time.sleep(4)
         daemon.move_focusers(-10)
-    time.sleep(2)
-    start_time = time.time()
-    while not focusers_are_set():
-        time.sleep(1)
-        if (time.time() - start_time) > 60:
-            raise TimeoutError('Focusers timed out')
-    with daemon_proxy('foc') as daemon:
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            info = daemon.get_info(force_update=True)
+            if not any(info[ut]['status'] == 'UNSET' for ut in info['uts']):
+                break
+            if (time.time() - start_time) > 60:
+                raise TimeoutError('Focusers timed out')
+            time.sleep(0.5)
+
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
 
@@ -130,26 +138,31 @@ def run():
 
     # Don't open the mirror covers, because we want to do darks first
     # Instead make sure they are closed
-    if mirror_covers_are_open():
-        print('Closing mirror covers')
-        with daemon_proxy('ota') as daemon:
-            daemon.close_covers()
-        time.sleep(2)
+    with daemon_proxy('ota') as daemon:
+        daemon.close_covers()
+        # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
-        while mirror_covers_are_open():
-            time.sleep(1)
+        while True:
+            info = daemon.get_info(force_update=True)
+            if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
+                break
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mirror covers timed out')
-    with daemon_proxy('ota') as daemon:
+            time.sleep(0.5)
+
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
 
     # Finally check that the CCDs are cool
-    while not cameras_are_cool():
-        time.sleep(1)
-        if (time.time() - cam_start_time) > 600:
-            raise TimeoutError('Camera cooling timed out')
     with daemon_proxy('cam') as daemon:
+        while True:
+            info = daemon.get_info(force_update=True)
+            if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+                break
+            if (time.time() - cam_start_time) > 600:
+                raise TimeoutError('Camera cooling timed out')
+            time.sleep(0.5)
+
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
 

@@ -14,7 +14,6 @@ import time
 import traceback
 
 from gtecs.control.daemons import daemon_proxy
-from gtecs.control.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
 from gtecs.control.slack import send_slack_msg
 
 
@@ -40,8 +39,15 @@ def run():
     try:
         with daemon_proxy('ota') as daemon:
             daemon.close_covers()
-        time.sleep(2)
-        wait_for_mirror_covers(opening=False, timeout=60)
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                info = daemon.get_info(force_update=True)
+                if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
+                    break
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mirror covers timed out')
+                time.sleep(0.5)
         print('  Mirror covers closed')
     except Exception:
         print('Failed to close mirror covers, continuing with shutdown')
@@ -65,8 +71,15 @@ def run():
     try:
         with daemon_proxy('mnt') as daemon:
             daemon.park()
-        time.sleep(2)
-        wait_for_mount_parking(timeout=60)
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                info = daemon.get_info(force_update=True)
+                if info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                    break
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mount parking timed out')
+                time.sleep(0.5)
         print('  Mount parked')
     except Exception:
         print('Failed to park the mount, continuing with shutdown')
@@ -78,8 +91,15 @@ def run():
     try:
         with daemon_proxy('dome') as daemon:
             daemon.close_dome()
-        time.sleep(2)
-        wait_for_dome(target_position='closed', timeout=120)
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                info = daemon.get_info(force_update=True)
+                if info['dome'] == 'closed':
+                    break
+                if (time.time() - start_time) > 120:
+                    raise TimeoutError('Dome timed out')
+                time.sleep(0.5)
         print('  Dome closed')
     except TimeoutError:
         print('Failed to close the dome!')

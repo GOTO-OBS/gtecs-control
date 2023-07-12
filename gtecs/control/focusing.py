@@ -1,5 +1,7 @@
 """Focusing utilities."""
 
+import time
+
 from gtecs.common.system import NeatCloser
 
 import numpy as np
@@ -9,8 +11,7 @@ import pandas as pd
 from . import params
 from .analysis import get_focus_region, measure_image_hfd
 from .daemons import daemon_proxy
-from .observing import (get_analysis_image, get_focuser_positions, get_focuser_temperatures,
-                        get_image_headers, move_focusers, set_focuser_positions, wait_for_focusers)
+from .observing import get_analysis_image, get_image_headers
 
 
 class RestoreFocusCloser(NeatCloser):
@@ -119,6 +120,160 @@ def get_best_focus_position_2(x_l, y_l, x_r, y_r, m_r):
     return x_b
 
 
+def get_focuser_positions(uts=None):
+    """Find the current focuser positions."""
+    with daemon_proxy('foc') as daemon:
+        info = daemon.get_info(force_update=True)
+    if uts is None:
+        uts = info['uts']
+    positions = {ut: info[ut]['current_pos'] for ut in uts}
+    return positions
+
+
+def set_focuser_positions(positions, wait=False, timeout=None):
+    """Move each focuser to the requested position.
+
+    Parameters
+    ----------
+    positions : float, dict
+        position to move to, or a dictionary of unit telescope IDs and positions
+
+    wait: bool, default=False
+        wait for the focusers to complete their move
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+        if `wait` is False and a non-None timeout is given, still wait for that time
+
+    """
+    if not isinstance(positions, dict):
+        positions = {ut: positions for ut in params.UTS_WITH_FOCUSERS}
+
+    with daemon_proxy('foc') as daemon:
+        # We can't overwrite moves once they have started, so need to wait for them to be ready
+        while True:
+            info = daemon.get_info(force_update=True)
+            ready = [info[ut]['status'] == 'Ready' for ut in positions]
+            if all(ready):
+                break
+            time.sleep(0.5)
+
+        print('Setting focusers:', positions)
+        daemon.set_focusers(positions)
+
+        if wait or timeout is not None:
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            if timeout is None:
+                timeout = 30
+            while True:
+                info = daemon.get_info(force_update=True)
+                # Note we say we're there when we're within 5 steps,
+                # because the ASA auto-adjustment means we can't be exact.
+                done = [abs(info[ut]['current_pos'] - int(positions[ut])) < 5 and
+                        info[ut]['status'] == 'Ready'
+                        for ut in positions]
+                if done:
+                    break
+                if (time.time() - start_time) > timeout:
+                    raise TimeoutError('Focuser timed out')
+                time.sleep(0.5)
+
+
+def move_focusers(offsets, wait=False, timeout=None):
+    """Move each focuser by the given number of steps.
+
+    Parameters
+    ----------
+    offsets : float, dict
+        offsets in steps to move by, or a dictionary of unit telescope IDs and offsets
+
+    wait: bool, default=False
+        wait for the focusers to complete their move
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+        if `wait` is False and a non-None timeout is given, still wait for that time
+
+    """
+    if not isinstance(offsets, dict):
+        offsets = {ut: offsets for ut in params.UTS_WITH_FOCUSERS}
+
+    # We can't overwrite moves once they have started, so need to wait for them to be ready
+    with daemon_proxy('foc') as daemon:
+        while True:
+            info = daemon.get_info(force_update=True)
+            ready = [info[ut]['status'] == 'Ready' for ut in offsets]
+            if all(ready):
+                break
+            time.sleep(0.5)
+
+        info = daemon.get_info(force_update=True)
+        start_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
+        finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
+
+        print('Moving focusers:', offsets)
+        daemon.move_focusers(offsets)
+
+        if wait or timeout is not None:
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            if timeout is None:
+                timeout = 30
+            while True:
+                info = daemon.get_info(force_update=True)
+                # Note we say we're there when we're within 5 steps,
+                # because the ASA auto-adjustment means we can't be exact.
+                done = [abs(info[ut]['current_pos'] - int(finish_positions[ut])) < 5 and
+                        info[ut]['status'] == 'Ready'
+                        for ut in finish_positions]
+                if done:
+                    break
+                if (time.time() - start_time) > timeout:
+                    raise TimeoutError('Focuser timed out')
+                time.sleep(0.5)
+
+
+def wait_for_focusers(target_positions, timeout=None):
+    """Wait until focuser has reached the target position.
+
+    Parameters
+    ----------
+    target_positions : float, dict
+        target position, or a dictionary of unit telescope IDs and positions
+
+    timeout : float, default=None
+        time in seconds after which to timeout, None to wait forever
+
+    """
+    if not isinstance(target_positions, dict):
+        target_positions = {ut: target_positions for ut in params.UTS_WITH_FOCUSERS}
+
+    start_time = time.time()
+    reached_position = False
+    timed_out = False
+    while not reached_position and not timed_out:
+        time.sleep(0.2)
+
+        try:
+            with daemon_proxy('foc') as daemon:
+                info = daemon.get_info(force_update=True)
+
+            # Note we say we're there when we're within 5 steps,
+            # because the ASA auto-adjustment means we can't be exact.
+            done = [abs(info[ut]['current_pos'] - int(target_positions[ut])) < 5 and
+                    info[ut]['status'] == 'Ready'
+                    for ut in target_positions]
+            if all(done):
+                reached_position = True
+        except Exception:
+            pass
+
+        if timeout and time.time() - start_time > timeout:
+            timed_out = True
+
+    if timed_out:
+        raise TimeoutError('Focuser timed out')
+
+
 def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus test image',
                   uts=None, regions=None):
     """Take a set of images and measure the median half-flux diameters.
@@ -157,9 +312,12 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
         regions = [None]
 
     # Get the current focuser positions and the temperature the last time they moved
-    current_focus = get_focuser_positions()
-    _, last_temps = get_focuser_temperatures()
-    all_uts = sorted(current_focus.keys())
+    with daemon_proxy('foc') as daemon:
+        info = daemon.get_info(force_update=True)
+    current_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
+    last_temps = {ut: info[ut]['last_move_temp'] for ut in info['uts']}
+
+    all_uts = sorted(current_positions.keys())
 
     all_data = [{ut: [] for ut in all_uts} for _ in range(len(regions))]
     for i in range(num_exp):
@@ -200,7 +358,7 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
 
                 # Add to main arrays
                 data_dict = {'UT': ut,
-                             'pos': current_focus[ut],
+                             'pos': current_positions[ut],
                              # 'exposure': i,
                              'region': j,
                              'hfd': hfd,
@@ -261,7 +419,10 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
 def focus_temp_compensation(take_images=False, verbose=False):
     """Apply any needed temperature compensation to the focusers."""
     # Find the change in temperature since the last move
-    curr_temp, prev_temp = get_focuser_temperatures()
+    with daemon_proxy('foc') as daemon:
+        info = daemon.get_info(force_update=True)
+    curr_temp = {ut: info[ut]['current_temp'] for ut in info['uts']}
+    prev_temp = {ut: info[ut]['last_move_temp'] for ut in info['uts']}
     deltas = {ut: np.round(curr_temp[ut] - prev_temp[ut], 1)
               if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
               for ut in params.AUTOFOCUS_PARAMS}
@@ -338,7 +499,9 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
     regions = [region]  # measure_focus takes a list of regions
 
     # Store the initial positions and define the new ones on either side
-    initial_positions = get_focuser_positions()
+    with daemon_proxy('foc') as daemon:
+        info = daemon.get_info(force_update=True)
+    initial_positions = {ut: info[ut]['current_pos'] for ut in uts}
     r_positions = {ut: initial_positions[ut] + focus_offset for ut in uts}
     l_positions = {ut: initial_positions[ut] - focus_offset for ut in uts}
     if take_test_images:

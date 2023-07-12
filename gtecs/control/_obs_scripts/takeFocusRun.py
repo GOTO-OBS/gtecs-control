@@ -16,10 +16,10 @@ from astropy.time import Time
 from gtecs.control import params
 from gtecs.control.analysis import get_focus_region
 from gtecs.control.catalogs import focus_star
+from gtecs.control.daemons import daemon_proxy
 from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
-                                    measure_focus)
-from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
-                                     prepare_for_images, set_focuser_positions,
+                                    get_focuser_positions, measure_focus, set_focuser_positions)
+from gtecs.control.observing import (get_analysis_image, prepare_for_images,
                                      slew_to_altaz, slew_to_radec)
 
 from matplotlib import pyplot as plt
@@ -42,16 +42,20 @@ DEFAULT_NFV = 4
 def calculate_positions(range_frac, steps, scale_factors=None):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
-    current = get_focuser_positions()
-    limits = get_focuser_limits()
+    with daemon_proxy('foc') as daemon:
+        info = daemon.get_info(force_update=True)
+    current_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
+    limits = {ut: info[ut]['limit'] for ut in info['uts']}
+
     if scale_factors is None:
-        scale_factors = {ut: 1 for ut in current}
+        scale_factors = {ut: 1 for ut in current_positions}
     else:
-        scale_factors = {ut: scale_factors[ut] if ut in scale_factors else 1 for ut in current}
+        scale_factors = {ut: scale_factors[ut] if ut in scale_factors else 1
+                         for ut in current_positions}
 
     all_positions = {}
-    for ut in current:
-        print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
+    for ut in current_positions:
+        print('UT{}: current position={}/{}'.format(ut, current_positions[ut], limits[ut]))
 
         # Calculate the deltas
         width = int((limits[ut] * range_frac * scale_factors[ut]) / 2)
@@ -60,7 +64,7 @@ def calculate_positions(range_frac, steps, scale_factors=None):
         deltas = np.append(lower_deltas[:-1], upper_deltas)
 
         # Calculate the positions
-        positions = current[ut] + deltas
+        positions = current_positions[ut] + deltas
 
         # Check if any are beyond the limits
         if positions[0] < 0:

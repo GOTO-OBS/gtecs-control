@@ -623,6 +623,7 @@ class Pilot:
                 send_slack_msg(msg)
             elif name not in ['OBS', 'BADCOND']:
                 # It's not uncommon for OBS and BADCOND to be canceled early
+                # TODO should send a message if OBS failed due to error, not scheduler interrupt
                 msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 

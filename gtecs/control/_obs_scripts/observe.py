@@ -12,8 +12,7 @@ from gtecs.control.daemons import daemon_proxy
 from gtecs.control.focusing import (focus_temp_compensation, get_focuser_positions, refocus,
                                     set_focuser_positions)
 from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
-from gtecs.control.observing import (prepare_for_images, slew_to_radec,
-                                     wait_for_exposure_queue, wait_for_mount)
+from gtecs.control.observing import prepare_for_images, slew_to_radec
 from gtecs.control.scheduling import get_pointing_info
 
 
@@ -87,8 +86,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
     try:
         # Slew the mount (timeout 120s)
         print('Moving to target')
-        slew_to_radec(pointing_info['ra'], pointing_info['dec'])
-        wait_for_mount(pointing_info['ra'], pointing_info['dec'], timeout=120)
+        slew_to_radec(pointing_info['ra'], pointing_info['dec'], timeout=120)
         print('In position')
 
         # Adjust focus first, if requested
@@ -109,42 +107,52 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
         if len(pointing_info['exposure_sets']) == 0:
             raise ValueError('No exposure sets found')
         time_estimate = 0
-        for expset_info in pointing_info['exposure_sets']:
-            # Format UT mask
-            if expset_info['ut_mask'] is not None:
-                ut_string = ut_mask_to_string(expset_info['ut_mask'])
-                uts = ut_string_to_list(ut_string)
-            else:
-                uts = params.UTS_WITH_CAMERAS
 
-            # Add to queue
-            args = [expset_info['exptime'],
-                    expset_info['num_exp'],
-                    expset_info['filt'],
-                    expset_info['binning'],
-                    'normal',
-                    pointing_info['name'],
-                    'SCIENCE',
-                    False,
-                    uts,
-                    expset_info['id'],
-                    pointing_info['id'],
-                    ]
-            print('adding exposure:', ' '.join([str(a) for a in args]) + ':')
-            with daemon_proxy('exq') as daemon:
+        with daemon_proxy('exq') as daemon:
+            for expset_info in pointing_info['exposure_sets']:
+                # Format UT mask
+                if expset_info['ut_mask'] is not None:
+                    ut_string = ut_mask_to_string(expset_info['ut_mask'])
+                    uts = ut_string_to_list(ut_string)
+                else:
+                    uts = params.UTS_WITH_CAMERAS
+
+                # Add to queue
+                args = [expset_info['exptime'],
+                        expset_info['num_exp'],
+                        expset_info['filt'],
+                        expset_info['binning'],
+                        'normal',
+                        pointing_info['name'],
+                        'SCIENCE',
+                        False,
+                        uts,
+                        expset_info['id'],
+                        pointing_info['id'],
+                        ]
+                print('adding exposure:', ' '.join([str(a) for a in args]) + ':')
                 daemon.add(*args)
 
-            # Add to time estimate
-            time_estimate += (expset_info['exptime'] + 30) * expset_info['num_exp']
+                # Add to time estimate
+                time_estimate += (expset_info['exptime'] + 30) * expset_info['num_exp']
 
-        # Resume the queue
-        print('Starting exposures')
-        with daemon_proxy('exq') as daemon:
+            # We deliberately use a pessimistic timeout, it will raise an error if it takes too long
+            time_estimate *= 1.5
+
+            # Resume the queue
+            print('Starting exposures')
             daemon.resume()
-
-        # Wait for the queue to empty
-        # NB We deliberately use a pessimistic timeout, it will raise an error if it takes too long
-        wait_for_exposure_queue(time_estimate * 1.5)
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                info = daemon.get_info(force_update=True)
+                if (info['queue_length'] == 0 and
+                        info['exposing'] is False and
+                        info['status'] == 'Ready'):
+                    break
+                if (time.time() - start_time) > time_estimate:
+                    raise TimeoutError('Exposure queue timed out')
+                time.sleep(0.5)
 
         # Exposures are done, return retcode 0
         print('Pointing {} is completed'.format(pointing_id))
