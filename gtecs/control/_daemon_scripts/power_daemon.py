@@ -160,14 +160,14 @@ class PowerDaemon(BaseDaemon):
                     self.power_units[unit_name] = APCPDU(
                         unit_params['IP'],
                         len(unit_params['NAMES'])
-                        )
+                    )
                 elif unit_params['CLASS'] == 'APCUPS':
                     self.power_units[unit_name] = APCUPS(unit_params['IP'])
                 elif unit_params['CLASS'] == 'APCUPS_USB':
                     self.power_units[unit_name] = APCUPS_USB(
                         unit_params['IP'],
                         int(unit_params['PORT'])
-                        )
+                    )
                 elif unit_params['CLASS'] == 'APCATS':
                     self.power_units[unit_name] = APCATS(unit_params['IP'])
                 elif unit_params['CLASS'] == 'EPCPDU':
@@ -181,7 +181,7 @@ class PowerDaemon(BaseDaemon):
                         int(unit_params['PORT']),
                         unit_outlets,
                         nc,
-                        )
+                    )
 
                 # Connection successful
                 self.log.info('Connected to {}'.format(unit_name))
@@ -380,6 +380,8 @@ class PowerDaemon(BaseDaemon):
     # Control functions
     def on(self, outlet_list, unit=''):
         """Power on given outlet(s)."""
+        if isinstance(outlet_list, str):
+            outlet_list = outlet_list.split(',')
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
             raise ValueError('No valid outlets or groups')
@@ -390,6 +392,8 @@ class PowerDaemon(BaseDaemon):
 
     def off(self, outlet_list, unit=''):
         """Power off given outlet(s)."""
+        if isinstance(outlet_list, str):
+            outlet_list = outlet_list.split(',')
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
             raise ValueError('No valid outlets or groups')
@@ -400,6 +404,8 @@ class PowerDaemon(BaseDaemon):
 
     def reboot(self, outlet_list, unit=''):
         """Reboot given outlet(s)."""
+        if isinstance(outlet_list, str):
+            outlet_list = outlet_list.split(',')
         outlets, units = self._parse_input(outlet_list, unit)
         if len(outlets) == 0:
             raise ValueError('No valid outlets or groups')

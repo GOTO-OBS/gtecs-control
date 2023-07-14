@@ -37,10 +37,9 @@ def prepare_for_images(open_covers=True):
                        if outlet in all_status])
         if not all_off:
             print('Turning off dome lights')
-            for outlet in params.OBSERVING_OFF_OUTLETS:
-                daemon.off(outlet)
-                # TODO: blocking command with confirmation or timeout in daemon
-                time.sleep(0.5)
+            daemon.off(params.OBSERVING_OFF_OUTLETS)
+            # TODO: blocking command with confirmation or timeout in daemon
+            time.sleep(0.5)
 
     # Empty the exposure queue
     with daemon_proxy('exq') as daemon:
