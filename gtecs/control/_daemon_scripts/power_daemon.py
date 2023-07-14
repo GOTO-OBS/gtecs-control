@@ -447,6 +447,8 @@ class PowerDaemon(BaseDaemon):
                 if 'PORT' in params.POWER_UNITS[unit]:
                     port = params.POWER_UNITS[unit]['PORT']
                     port_str = ':{}'.format(port)
+                else:
+                    port_str = ''
                 status = info['status_' + unit]
                 if 'status' in status:
                     unit_status = status['status']
@@ -480,6 +482,8 @@ class PowerDaemon(BaseDaemon):
                 if 'PORT' in params.POWER_UNITS[unit]:
                     port = params.POWER_UNITS[unit]['PORT']
                     port_str = ':{}'.format(port)
+                else:
+                    port_str = ''
                 msg += 'UNIT {} ({}{})\n'.format(unit, ip, port_str)
                 status = info['status_' + unit]
                 if 'UPS' in unit_class:
