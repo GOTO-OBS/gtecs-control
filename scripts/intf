@@ -3,173 +3,119 @@
 
 import json
 import os
+import re
 import sys
 
 from gtecs.common import logging
 from gtecs.common.style import errortxt
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
-from gtecs.control import misc
 from gtecs.control import params
+
+
+def parse_interface_args(args, extra_args=False):
+    """Parse the arguments for interface commands."""
+    if len(args) == 0:
+        uts = params.UTS
+        hw_list = ['cam', 'foc', 'filt']
+        other_args = []
+    elif args[0] in ['cam', 'foc', 'filt']:
+        uts = params.UTS
+        hw_list = [args[0]]
+        other_args = args[1:]
+    elif args[0] in [str(ut) for ut in params.UTS]:
+        uts = [int(args[0])]
+        hw_list = ['cam', 'foc', 'filt']
+        other_args = args[1:]
+    elif match := re.match(r"^([a-z]+)(\d+)$", args[0]):
+        if match.group(1) not in ['cam', 'foc', 'filt']:
+            raise ValueError(f'Invalid interface type: {match.group(1)}')
+        elif int(match.group(2)) not in params.UTS:
+            raise ValueError(f'Invalid UT: {match.group(2)}')
+        if args[0] not in params.INTERFACES:
+            raise ValueError(f'Unknown interface: {args[0]}')
+        uts = [int(match.group(2))]
+        hw_list = [match.group(1)]
+        other_args = args[1:]
+    else:
+        if extra_args is False:
+            # No other arguments allowed
+            raise ValueError('Invalid arguments')
+        else:
+            uts = params.UTS
+            hw_list = ['cam', 'foc', 'filt']
+            other_args = args
+
+    interface_ids = []
+    for ut in uts:
+        for hw in hw_list:
+            interface_id = f'{hw}{ut}'
+            if interface_id not in params.INTERFACES:
+                continue
+            interface_ids.append(interface_id)
+
+    if extra_args is False:
+        if len(interface_ids) == 0:
+            raise ValueError('No valid interfaces given')
+        if len(other_args) != 0:
+            raise ValueError('Invalid arguments')
+        return interface_ids
+    else:
+        return interface_ids, other_args
 
 
 def query(command, args):
     """Process a query."""
     # Primary daemon control
     if command == 'start':
-        if len(args) == 0:
-            uts = params.UTS
-            hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 1:
-            if args[0] in params.INTERFACES:
-                uts = [int(args[0][-1])]
-                hw_list = [args[0][:-1]]
-            elif args[0] in ['cam', 'foc', 'filt']:
-                uts = params.UTS
-                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
-            else:
-                uts = misc.valid_ints(args[0].split(','), params.UTS)
-                hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 2:
-            uts = misc.valid_ints(args[0].split(','), params.UTS)
-            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
-        else:
-            raise ValueError('Invalid arguments')
-        for ut in uts:
-            for hw in hw_list:
-                interface_id = f'{hw}{ut}'
-                if interface_id not in params.INTERFACES:
-                    continue
-                try:
-                    host, port = daemons.get_daemon_host(interface_id)
-                    pid = daemons.start_daemon(interface_id)
-                    print(f'Daemon {interface_id} started on {host}:{port} (PID {pid})')
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        interface_ids = parse_interface_args(args)
+        for interface_id in interface_ids:
+            try:
+                host, port = daemons.get_daemon_host(interface_id)
+                pid = daemons.start_daemon(interface_id)
+                print(f'Daemon {interface_id} started on {host}:{port} (PID {pid})')
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'shutdown':
-        if len(args) == 0:
-            uts = params.UTS
-            hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 1:
-            if args[0] in params.INTERFACES:
-                uts = [int(args[0][-1])]
-                hw_list = [args[0][:-1]]
-            elif args[0] in ['cam', 'foc', 'filt']:
-                uts = params.UTS
-                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
-            else:
-                uts = misc.valid_ints(args[0].split(','), params.UTS)
-                hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 2:
-            uts = misc.valid_ints(args[0].split(','), params.UTS)
-            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
-        else:
-            raise ValueError('Invalid arguments')
-        for ut in uts:
-            for hw in hw_list:
-                interface_id = f'{hw}{ut}'
-                if interface_id not in params.INTERFACES:
-                    continue
-                try:
-                    host, port = daemons.get_daemon_host(interface_id)
-                    daemons.shutdown_daemon(interface_id)
-                    print(f'Daemon {interface_id} shutdown on {host}:{port}')
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        interface_ids = parse_interface_args(args)
+        for interface_id in interface_ids:
+            try:
+                host, port = daemons.get_daemon_host(interface_id)
+                daemons.shutdown_daemon(interface_id)
+                print(f'Daemon {interface_id} shutdown on {host}:{port}')
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'restart':
-        if len(args) == 0:
-            uts = params.UTS
-            hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 1:
-            if args[0] in params.INTERFACES:
-                uts = [int(args[0][-1])]
-                hw_list = [args[0][:-1]]
-            elif args[0] in ['cam', 'foc', 'filt']:
-                uts = params.UTS
-                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
-            else:
-                uts = misc.valid_ints(args[0].split(','), params.UTS)
-                hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 2:
-            uts = misc.valid_ints(args[0].split(','), params.UTS)
-            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
-        else:
-            raise ValueError('Invalid arguments')
-        for ut in uts:
-            for hw in hw_list:
-                interface_id = f'{hw}{ut}'
-                if interface_id not in params.INTERFACES:
-                    continue
-                try:
-                    host, port = daemons.get_daemon_host(interface_id)
-                    pid = daemons.restart_daemon(interface_id)
-                    print(f'Daemon {interface_id} restarted on {host}:{port} (PID {pid})')
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        interface_ids = parse_interface_args(args)
+        for interface_id in interface_ids:
+            try:
+                host, port = daemons.get_daemon_host(interface_id)
+                pid = daemons.restart_daemon(interface_id)
+                print(f'Daemon {interface_id} restarted on {host}:{port} (PID {pid})')
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command == 'kill':
-        if len(args) == 0:
-            uts = params.UTS
-            hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 1:
-            if args[0] in params.INTERFACES:
-                uts = [int(args[0][-1])]
-                hw_list = [args[0][:-1]]
-            elif args[0] in ['cam', 'foc', 'filt']:
-                uts = params.UTS
-                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
-            else:
-                uts = misc.valid_ints(args[0].split(','), params.UTS)
-                hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 2:
-            uts = misc.valid_ints(args[0].split(','), params.UTS)
-            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
-        else:
-            raise ValueError('Invalid arguments')
-        for ut in uts:
-            for hw in hw_list:
-                interface_id = f'{hw}{ut}'
-                if interface_id not in params.INTERFACES:
-                    continue
-                try:
-                    host, port = daemons.get_daemon_host(interface_id)
-                    daemons.shutdown_daemon(interface_id, kill=True)
-                    print(f'Daemon {interface_id} killed on {host}:{port}')
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        interface_ids = parse_interface_args(args)
+        for interface_id in interface_ids:
+            try:
+                host, port = daemons.get_daemon_host(interface_id)
+                daemons.shutdown_daemon(interface_id, kill=True)
+                print(f'Daemon {interface_id} killed on {host}:{port}')
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command in ['check', 'ping']:
-        if len(args) == 0:
-            uts = params.UTS
-            hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 1:
-            if args[0] in params.INTERFACES:
-                uts = [int(args[0][-1])]
-                hw_list = [args[0][:-1]]
-            elif args[0] in ['cam', 'foc', 'filt']:
-                uts = params.UTS
-                hw_list = misc.valid_strings(args[0].split(','), ['cam', 'foc', 'filt'])
-            else:
-                uts = misc.valid_ints(args[0].split(','), params.UTS)
-                hw_list = ['cam', 'foc', 'filt']
-        elif len(args) == 2:
-            uts = misc.valid_ints(args[0].split(','), params.UTS)
-            hw_list = misc.valid_strings(args[1].split(','), ['cam', 'foc', 'filt'])
-        else:
-            raise ValueError('Invalid arguments')
-        for ut in uts:
-            for hw in hw_list:
-                interface_id = f'{hw}{ut}'
-                if interface_id not in params.INTERFACES:
-                    continue
-                try:
-                    host, port = daemons.get_daemon_host(interface_id)
-                    pid = daemons.check_daemon(interface_id)
-                    print(f'Daemon {interface_id} is running on {host}:{port} (PID {pid})')
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+        interface_ids = parse_interface_args(args)
+        for interface_id in interface_ids:
+            try:
+                host, port = daemons.get_daemon_host(interface_id)
+                pid = daemons.check_daemon(interface_id)
+                print(f'Daemon {interface_id} is running on {host}:{port} (PID {pid})')
+            except Exception as error:
+                print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
 
     elif command in ['info', 'status']:
         if len(args) == 0:
@@ -220,27 +166,17 @@ def query(command, args):
             args.remove('stdout')
         else:
             stdout = False
-        if len(args) > 0 and args[0] in params.INTERFACES:
-            uts = [int(args[0][-1])]
-            hw_list = [args[0][:-1]]
-            args = args[1:]
-        else:
-            # We pass all args to tail, so can't select as with other commands
-            uts = params.UTS
-            hw_list = ['cam', 'foc', 'filt']
-
-        for i, ut in enumerate(uts):
-            for j, hw in enumerate(hw_list):
-                interface_id = f'{hw}{ut}'
-                if stdout:
-                    log_file = interface_id + '-stdout.log'
-                else:
-                    log_file = interface_id + '.log'
-                log_path = logging.get_log_path() / log_file
-                tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-                if i + j > 0:
-                    print('~~~~~~~~~~~~~~~~~~~~~~')
-                execute_long_command(tail_command)
+        interface_ids, tail_args = parse_interface_args(args, extra_args=True)
+        for i, interface_id in enumerate(interface_ids):
+            if stdout:
+                log_file = interface_id + '-stdout.log'
+            else:
+                log_file = interface_id + '.log'
+            log_path = logging.get_log_path() / log_file
+            tail_command = 'tail {} {}'.format(log_path, ' '.join(tail_args))
+            if i > 0:
+                print('~~~~~~~~~~~~~~~~~~~~~~')
+            execute_long_command(tail_command)
 
     # Unrecognized function
     else:
