@@ -6,7 +6,6 @@ import os
 import sys
 
 from gtecs.common import logging
-from gtecs.common.style import errortxt
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import misc
@@ -283,19 +282,8 @@ def query(command, args):
             out_str = 'Heartbeat disabled'
         print(out_str)
 
-    # Unrecognized function
-    else:
-        raise ValueError('Unrecognized command "{}"'.format(command))
-
-
-if __name__ == '__main__':
-    try:
-        command, *args = sys.argv[1:]
-    except ValueError:
-        # no command, print help and exit
-        command = 'help'
-
-    if command in ['help', '?']:
+    # Help
+    elif command in ['help', '?']:
         print(
             'Usage: dome command [options]',
             'Daemon commands:',
@@ -325,7 +313,17 @@ if __name__ == '__main__':
             '  q/exit                         quit interactive mode',
             '  ?/help                         print these instructions',
             sep='\n')
-        sys.exit()
+
+    # Unrecognized function
+    else:
+        raise ValueError('Unrecognized command "{}"'.format(command))
+
+
+if __name__ == '__main__':
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        command = 'help'
 
     if command == 'i':
         while True:
@@ -338,15 +336,10 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
-                if command == 'i':
-                    print(errortxt('"ValueError: Already in interactive mode"'))
+                elif command == 'i':
+                    print('Already in interactive mode')
                     continue
-                try:
+                else:
                     query(command, args)
-                except Exception as error:
-                    print(errortxt(f'"{type(error).__name__}: {error}"'))
-
-    try:
+    else:
         query(command, args)
-    except Exception as error:
-        print(errortxt(f'"{type(error).__name__}: {error}"'))

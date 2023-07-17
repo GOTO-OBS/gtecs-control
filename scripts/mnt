@@ -10,7 +10,6 @@ from astropy.coordinates import AltAz, SkyCoord, get_body
 from astropy.time import Time
 
 from gtecs.common import logging
-from gtecs.common.style import errortxt
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
 from gtecs.control import misc
@@ -141,7 +140,7 @@ def query(command, args):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             daemon.slew(coords)
-        print(f'Slewing to target')
+        print('Slewing to target')
 
     elif command in ['slew_altaz', 'altaz']:
         if len(args) == 2:
@@ -159,7 +158,7 @@ def query(command, args):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             daemon.slew(coords)
-        print(f'Slewing to target')
+        print('Slewing to target')
 
     elif command in ['slew_altaz_target', 'altaz_target']:
         if len(args) == 2:
@@ -174,7 +173,7 @@ def query(command, args):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             daemon.slew(coords)
-        print(f'Slewing to target')
+        print('Slewing to target')
 
     elif command == 'track':
         daemons.check_daemon(daemon_id)
@@ -232,7 +231,7 @@ def query(command, args):
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            reply = daemon.sync_mount(coords)
+            daemon.sync_mount(coords)
         print('Set sync coordinates')
 
     elif command == 'set_offset':
@@ -306,19 +305,8 @@ def query(command, args):
             daemon.clear_error()
         print('Cleared any errors')
 
-    # Unrecognized function
-    else:
-        raise ValueError('Unrecognized command "{}"'.format(command))
-
-
-if __name__ == '__main__':
-    try:
-        command, *args = sys.argv[1:]
-    except ValueError:
-        # no command, print help and exit
-        command = 'help'
-
-    if command in ['help', '?']:
+    # Help
+    elif command in ['help', '?']:
         print(
             'Usage: mnt command [options]',
             'Daemon commands:',
@@ -353,7 +341,17 @@ if __name__ == '__main__':
             '  q/exit                       quit interactive mode',
             '  ?/help                       print these instructions',
             sep='\n')
-        sys.exit()
+
+    # Unrecognized function
+    else:
+        raise ValueError('Unrecognized command "{}"'.format(command))
+
+
+if __name__ == '__main__':
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        command = 'help'
 
     if command == 'i':
         while True:
@@ -366,15 +364,10 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
-                if command == 'i':
-                    print(errortxt('"ValueError: Already in interactive mode"'))
+                elif command == 'i':
+                    print('Already in interactive mode')
                     continue
-                try:
+                else:
                     query(command, args)
-                except Exception as error:
-                    print(errortxt(f'"{type(error).__name__}: {error}"'))
-
-    try:
+    else:
         query(command, args)
-    except Exception as error:
-        print(errortxt(f'"{type(error).__name__}: {error}"'))

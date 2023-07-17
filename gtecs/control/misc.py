@@ -1,7 +1,6 @@
 """Miscellaneous common functions."""
 
 from . import params
-from gtecs.common.style import errortxt
 
 
 def valid_ints(array, allowed):
@@ -11,7 +10,7 @@ def valid_ints(array, allowed):
         if i == '':
             pass
         elif (not i.isdigit()) or (i not in [str(x) for x in allowed]):
-            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
+            print('"{}" is invalid, must be in {}'.format(i, allowed))
         elif int(i) not in valid:
             valid += [int(i)]
     valid.sort()
@@ -25,7 +24,7 @@ def valid_strings(array, allowed):
         if i == '':
             pass
         elif i not in [str(x) for x in allowed]:
-            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
+            print('"{}" is invalid, must be in {}'.format(i, allowed))
         elif i not in valid:
             valid += [i]
     return valid
