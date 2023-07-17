@@ -158,7 +158,7 @@ if __name__ == '__main__':
     try:
         command, *args = sys.argv[1:]
     except ValueError:
-        command = 'help'
+        command, args = 'help', None
 
     if command == 'i':
         while True:
