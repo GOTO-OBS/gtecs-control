@@ -74,7 +74,7 @@ def query(command, args):
                 pid = daemons.start_daemon(interface_id)
                 print(f'Daemon {interface_id} started on {host}:{port} (PID {pid})')
             except Exception as error:
-                print('"{}: {}"'.format(type(error).__name__, error))
+                print('{}: {}'.format(type(error).__name__, error))
 
     elif command == 'shutdown':
         interface_ids = parse_interface_args(args)
@@ -84,7 +84,7 @@ def query(command, args):
                 daemons.shutdown_daemon(interface_id)
                 print(f'Daemon {interface_id} shutdown on {host}:{port}')
             except Exception as error:
-                print('"{}: {}"'.format(type(error).__name__, error))
+                print('{}: {}'.format(type(error).__name__, error))
 
     elif command == 'restart':
         interface_ids = parse_interface_args(args)
@@ -94,7 +94,7 @@ def query(command, args):
                 pid = daemons.restart_daemon(interface_id)
                 print(f'Daemon {interface_id} restarted on {host}:{port} (PID {pid})')
             except Exception as error:
-                print('"{}: {}"'.format(type(error).__name__, error))
+                print('{}: {}'.format(type(error).__name__, error))
 
     elif command == 'kill':
         interface_ids = parse_interface_args(args)
@@ -104,7 +104,7 @@ def query(command, args):
                 daemons.shutdown_daemon(interface_id, kill=True)
                 print(f'Daemon {interface_id} killed on {host}:{port}')
             except Exception as error:
-                print('"{}: {}"'.format(type(error).__name__, error))
+                print('{}: {}'.format(type(error).__name__, error))
 
     elif command in ['check', 'ping']:
         interface_ids = parse_interface_args(args)
@@ -114,7 +114,7 @@ def query(command, args):
                 pid = daemons.check_daemon(interface_id)
                 print(f'Daemon {interface_id} is running on {host}:{port} (PID {pid})')
             except Exception as error:
-                print('"{}: {}"'.format(type(error).__name__, error))
+                print('{}: {}'.format(type(error).__name__, error))
 
     elif command in ['info', 'status']:
         if len(args) == 0:
@@ -157,7 +157,7 @@ def query(command, args):
                     elif info_type == 'raw':
                         print(json.dumps(info, indent=2, default=repr))
                 except Exception as error:
-                    print('"{}: {}"'.format(type(error).__name__, error))
+                    print('{}: {}'.format(type(error).__name__, error))
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:
