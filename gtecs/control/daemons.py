@@ -150,7 +150,7 @@ class BaseDaemon(ABC):
         for dependency_id in self.dependencies:
             try:
                 with daemon_proxy(dependency_id) as daemon:
-                    status = daemon.get_status()
+                    status, _ = daemon.get_status()
             except Exception:
                 status = 'status_error'
 
@@ -208,23 +208,23 @@ class BaseDaemon(ABC):
         """Check the current state of the daemon."""
         if not self.running:
             # The daemon has been shutdown but is still here somehow?
-            return 'running_error'
+            return 'running_error', None
 
         elif self.dependency_error:
             # Any dependencies (if the daemon has them) aren't responding.
-            return 'dependency_error:{}'.format(','.join(sorted(self.bad_dependencies)))
+            return 'dependency_error', sorted(self.bad_dependencies)
 
         elif self.hardware_error:
             # Can not connect to the hardware.
-            return 'hardware_error:{}'.format(','.join(sorted(self.bad_hardware)))
+            return 'hardware_error', sorted(self.bad_hardware)
 
         elif self.pinglife > 0 and abs(time.time() - self.loop_time) > self.pinglife:
             # Control thread has hung
-            return 'ping_error:{:.1f}s'.format(abs(time.time() - self.loop_time))
+            return 'ping_error', abs(time.time() - self.loop_time)
 
         else:
             # No error
-            return 'running'
+            return 'running', None
 
     def wait_for_info(self):
         """Force an info check and wait until the dictionary has been updated."""
@@ -281,7 +281,7 @@ def check_daemon(daemon_id):
 
     with daemon_proxy(daemon_id) as daemon:
         try:
-            status = daemon.get_status()
+            status, args = daemon.get_status()
         except Exception:
             status = 'status_error'
 
@@ -290,22 +290,19 @@ def check_daemon(daemon_id):
 
     error_str = f'Daemon {daemon_id} running on {host}:{port} (PID {pid})'
 
-    if status.split(':')[0] == 'dependency_error':
-        bad_dependencies = status.split(':')[1]
-        error_str += f' but cannot connect to dependencies: {bad_dependencies}.'
+    if status == 'dependency_error':
+        error_str += f' but cannot connect to dependencies: {args}.'
         raise DaemonDependencyError(error_str)
-    if status.split(':')[0] == 'hardware_error':
-        bad_hardware = status.split(':')[1]
-        error_str += f' but cannot connect to hardware: {bad_hardware}.'
+    if status == 'hardware_error':
+        error_str += f' but cannot connect to hardware: {args}.'
         raise HardwareError(error_str)
 
     if status == 'status_error':
         error_str += ' but cannot read status.'
     elif status == 'running_error':
         error_str += ' but is not active. (?)'
-    elif status.split(':')[0] == 'ping_error':
-        ping_time = status.split(':')[1]
-        error_str += f' but last ping was {ping_time:.1f}s ago.'
+    elif status == 'ping_error':
+        error_str += f' but last ping was {args:.1f}s ago.'
     else:
         error_str += f' but reports unknown status: {status}.'
     raise DaemonStatusError(error_str)

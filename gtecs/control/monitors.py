@@ -152,13 +152,7 @@ class BaseMonitor(ABC):
         """Get the current status of the daemon (not to be confused with the hardware status)."""
         try:
             with daemon_proxy(self.daemon_id) as daemon:
-                status = daemon.get_status()
-            try:
-                status, args = status.split(':')
-                return status, args.split(',')
-            except ValueError:
-                # no arguments
-                return status, None
+                return daemon.get_status()
         except Exception:
             return DAEMON_ERROR_STATUS, None
 
