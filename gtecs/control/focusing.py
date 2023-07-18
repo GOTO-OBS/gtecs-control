@@ -162,21 +162,9 @@ def set_focuser_positions(positions, wait=False, timeout=None):
 
         if wait or timeout is not None:
             # TODO: blocking command with confirmation or timeout in daemon
-            start_time = time.time()
             if timeout is None:
                 timeout = 30
-            while True:
-                time.sleep(0.5)
-                info = daemon.get_info(force_update=True)
-                # Note we say we're there when we're within 5 steps,
-                # because the ASA auto-adjustment means we can't be exact.
-                done = [abs(info[ut]['current_pos'] - int(positions[ut])) < 5 and
-                        info[ut]['status'] == 'Ready'
-                        for ut in positions]
-                if done:
-                    break
-                if (time.time() - start_time) > timeout:
-                    raise TimeoutError('Focuser timed out')
+            wait_for_focusers(positions, timeout)
 
 
 def move_focusers(offsets, wait=False, timeout=None):
@@ -215,21 +203,9 @@ def move_focusers(offsets, wait=False, timeout=None):
 
         if wait or timeout is not None:
             # TODO: blocking command with confirmation or timeout in daemon
-            start_time = time.time()
             if timeout is None:
                 timeout = 30
-            while True:
-                time.sleep(0.5)
-                info = daemon.get_info(force_update=True)
-                # Note we say we're there when we're within 5 steps,
-                # because the ASA auto-adjustment means we can't be exact.
-                done = [abs(info[ut]['current_pos'] - int(finish_positions[ut])) < 5 and
-                        info[ut]['status'] == 'Ready'
-                        for ut in finish_positions]
-                if done:
-                    break
-                if (time.time() - start_time) > timeout:
-                    raise TimeoutError('Focuser timed out')
+            wait_for_focusers(finish_positions, timeout)
 
 
 def wait_for_focusers(target_positions, timeout=None):
@@ -248,30 +224,19 @@ def wait_for_focusers(target_positions, timeout=None):
         target_positions = {ut: target_positions for ut in params.UTS_WITH_FOCUSERS}
 
     start_time = time.time()
-    reached_position = False
-    timed_out = False
-    while not reached_position and not timed_out:
-        time.sleep(0.2)
-
-        try:
-            with daemon_proxy('foc') as daemon:
-                info = daemon.get_info(force_update=True)
-
+    with daemon_proxy('foc') as daemon:
+        while True:
+            time.sleep(0.5)
+            info = daemon.get_info(force_update=True)
             # Note we say we're there when we're within 5 steps,
             # because the ASA auto-adjustment means we can't be exact.
             done = [abs(info[ut]['current_pos'] - int(target_positions[ut])) < 5 and
                     info[ut]['status'] == 'Ready'
                     for ut in target_positions]
             if all(done):
-                reached_position = True
-        except Exception:
-            pass
-
-        if timeout and time.time() - start_time > timeout:
-            timed_out = True
-
-    if timed_out:
-        raise TimeoutError('Focuser timed out')
+                break
+            if timeout and time.time() - start_time > timeout:
+                raise TimeoutError('Focuser timed out')
 
 
 def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus test image',
