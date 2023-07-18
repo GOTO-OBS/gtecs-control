@@ -42,12 +42,12 @@ def run():
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Mirror covers timed out')
-                time.sleep(0.5)
         print('  Mirror covers closed')
     except Exception:
         print('Failed to close mirror covers, continuing with shutdown')
@@ -74,12 +74,12 @@ def run():
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Mount parking timed out')
-                time.sleep(0.5)
         print('  Mount parked')
     except Exception:
         print('Failed to park the mount, continuing with shutdown')
@@ -94,12 +94,12 @@ def run():
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if info['dome'] == 'closed':
                     break
                 if (time.time() - start_time) > 120:
                     raise TimeoutError('Dome timed out')
-                time.sleep(0.5)
         print('  Dome closed')
     except TimeoutError:
         print('Failed to close the dome!')

@@ -56,6 +56,7 @@ def run(num_exp=5, extras=False):
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if (info['queue_length'] == 0 and
                     info['exposing'] is False and
@@ -63,7 +64,6 @@ def run(num_exp=5, extras=False):
                 break
             if (time.time() - start_time) > total_time:
                 raise TimeoutError('Exposure queue timed out')
-            time.sleep(0.5)
 
     print('Biases and darks done')
 

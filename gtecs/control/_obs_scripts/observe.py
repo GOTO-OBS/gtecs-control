@@ -145,6 +145,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if (info['queue_length'] == 0 and
                         info['exposing'] is False and
@@ -152,7 +153,6 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
                     break
                 if (time.time() - start_time) > time_estimate:
                     raise TimeoutError('Exposure queue timed out')
-                time.sleep(0.5)
 
         # Exposures are done, return retcode 0
         print('Pointing {} is completed'.format(pointing_id))

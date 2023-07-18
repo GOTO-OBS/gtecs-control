@@ -50,12 +50,12 @@ def prepare_for_images(open_covers=True):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if info['queue_length'] == 0:
                     break
                 if (time.time() - start_time) > 30:
                     raise TimeoutError('Exposure queue timed out')
-                time.sleep(0.5)
 
     # Home the filter wheels
     with daemon_proxy('filt') as daemon:
@@ -66,12 +66,12 @@ def prepare_for_images(open_covers=True):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if all(info[ut]['homed'] for ut in info['uts']):
                     break
                 if (time.time() - start_time) > 30:
                     raise TimeoutError('Filter wheels timed out')
-                time.sleep(0.5)
 
     # Set the focusers
     with daemon_proxy('foc') as daemon:
@@ -84,12 +84,12 @@ def prepare_for_images(open_covers=True):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if not any(info[ut]['status'] == 'UNSET' for ut in info['uts']):
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Focusers timed out')
-                time.sleep(0.5)
 
     # Make sure the cameras aren't exposing
     with daemon_proxy('cam') as daemon:
@@ -104,6 +104,7 @@ def prepare_for_images(open_covers=True):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 exposing = (info[ut]['status'] == 'Exposing' or info[ut]['in_queue'] > 0
                             for ut in info['uts'])
@@ -111,7 +112,6 @@ def prepare_for_images(open_covers=True):
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Cameras timed out')
-                time.sleep(0.5)
 
     # Reset the cameras to full-frame exposures
     with daemon_proxy('cam') as daemon:
@@ -131,12 +131,12 @@ def prepare_for_images(open_covers=True):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
                     break
                 if (time.time() - start_time) > 600:
                     raise TimeoutError('Camera cooling timed out')
-                time.sleep(0.5)
 
     # Start the mount motors (but remain parked, or in whatever position we're in)
     with daemon_proxy('mnt') as daemon:
@@ -161,12 +161,12 @@ def prepare_for_images(open_covers=True):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Mirror covers timed out')
-                time.sleep(0.5)
 
 
 def slew_to_radec(ra, dec, wait=False, timeout=None):
@@ -202,6 +202,7 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 tolerance = 30 / (60 * 60)  # 30 arcsec
                 on_target = (info['status'] == 'Tracking' and
@@ -212,7 +213,6 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
                     break
                 if (time.time() - start_time) > timeout:
                     raise TimeoutError('Mount timed out')
-                time.sleep(0.5)
 
 
 def slew_to_altaz(alt, az, wait=False, timeout=None):
@@ -299,13 +299,13 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
         # Wait for exposures to finish, but not to save
         with daemon_proxy('cam') as daemon:
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if (info['num_taken'] == img_num - 1 and
                         all(info[ut]['status'] == 'Reading' for ut in info['uts'])):
                     break
                 if (time.time() - image_start_time) > exptime + 60:
                     raise TimeoutError('Cameras timed out')
-                time.sleep(0.5)
 
         # Just return the run and image numbers to do something else with
         if not glance:
@@ -319,13 +319,13 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     # Otherwise we need to wait for the images to be saved
     with daemon_proxy('cam') as daemon:
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if (info['num_taken'] == img_num and
                     all(info[ut]['status'] == 'Ready' for ut in info['uts'])):
                 break
             if (time.time() - image_start_time) > exptime + 60:
                 raise TimeoutError('Cameras timed out')
-            time.sleep(0.5)
 
     if get_data:
         if not glance:
@@ -387,6 +387,7 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if (info['queue_length'] == 0 and
                     info['exposing'] is False and
@@ -394,7 +395,6 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
                 break
             if (time.time() - start_time) > total_time:
                 raise TimeoutError('Exposure queue timed out')
-            time.sleep(0.5)
 
 
 def get_image_headers(target_image_number, timeout=None):

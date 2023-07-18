@@ -89,12 +89,12 @@ def run(test=False):
                 # TODO: blocking command with confirmation or timeout in daemon
                 start_time = time.time()
                 while True:
+                    time.sleep(0.5)
                     info = daemon.get_info(force_update=True)
                     if info['dome'] == 'closed':
                         break
                     if (time.time() - start_time) > 120:
                         raise TimeoutError('Dome timed out')
-                    time.sleep(0.5)
 
             # If we got here and didn't time out the dome should be closed
             msg = '*Day marshal has closed the dome*'

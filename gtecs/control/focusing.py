@@ -151,11 +151,11 @@ def set_focuser_positions(positions, wait=False, timeout=None):
     with daemon_proxy('foc') as daemon:
         # We can't overwrite moves once they have started, so need to wait for them to be ready
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             ready = [info[ut]['status'] == 'Ready' for ut in positions]
             if all(ready):
                 break
-            time.sleep(0.5)
 
         print('Setting focusers:', positions)
         daemon.set_focusers(positions)
@@ -166,6 +166,7 @@ def set_focuser_positions(positions, wait=False, timeout=None):
             if timeout is None:
                 timeout = 30
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 # Note we say we're there when we're within 5 steps,
                 # because the ASA auto-adjustment means we can't be exact.
@@ -176,7 +177,6 @@ def set_focuser_positions(positions, wait=False, timeout=None):
                     break
                 if (time.time() - start_time) > timeout:
                     raise TimeoutError('Focuser timed out')
-                time.sleep(0.5)
 
 
 def move_focusers(offsets, wait=False, timeout=None):
@@ -200,11 +200,11 @@ def move_focusers(offsets, wait=False, timeout=None):
     # We can't overwrite moves once they have started, so need to wait for them to be ready
     with daemon_proxy('foc') as daemon:
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             ready = [info[ut]['status'] == 'Ready' for ut in offsets]
             if all(ready):
                 break
-            time.sleep(0.5)
 
         info = daemon.get_info(force_update=True)
         start_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
@@ -219,6 +219,7 @@ def move_focusers(offsets, wait=False, timeout=None):
             if timeout is None:
                 timeout = 30
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 # Note we say we're there when we're within 5 steps,
                 # because the ASA auto-adjustment means we can't be exact.
@@ -229,7 +230,6 @@ def move_focusers(offsets, wait=False, timeout=None):
                     break
                 if (time.time() - start_time) > timeout:
                     raise TimeoutError('Focuser timed out')
-                time.sleep(0.5)
 
 
 def wait_for_focusers(target_positions, timeout=None):

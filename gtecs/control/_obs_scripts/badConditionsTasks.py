@@ -30,12 +30,12 @@ def run(nexp=3):
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
                 break
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mirror covers timed out')
-            time.sleep(0.5)
 
     # move the mount around
     with daemon_proxy('mnt') as daemon:
@@ -46,12 +46,12 @@ def run(nexp=3):
             # TODO: blocking command with confirmation or timeout in daemon
             start_time = time.time()
             while True:
+                time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
                 if info['status'] != 'Parked':
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Mount unparking timed out')
-                time.sleep(0.5)
     print('Moving mount')
     for az in [0, 90, 180, 270, 0]:
         slew_to_altaz(50, az, timeout=120)
@@ -66,12 +66,12 @@ def run(nexp=3):
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
                 break
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mount parking timed out')
-            time.sleep(0.5)
 
     # take extra biases and darks
     with daemon_proxy('exq') as daemon:
@@ -98,6 +98,7 @@ def run(nexp=3):
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if (info['queue_length'] == 0 and
                     info['exposing'] is False and
@@ -105,7 +106,6 @@ def run(nexp=3):
                 break
             if (time.time() - start_time) > total_time:
                 raise TimeoutError('Exposure queue timed out')
-            time.sleep(0.5)
 
     print('Biases and darks complete')
 

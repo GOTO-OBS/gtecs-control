@@ -73,12 +73,12 @@ def run():
                 # TODO: blocking command with confirmation or timeout in daemon
                 start_time = time.time()
                 while True:
+                    time.sleep(0.5)
                     info = daemon.get_info(force_update=True)
                     if info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
                         break
                     if (time.time() - start_time) > 60:
                         raise TimeoutError('Mount parking timed out')
-                    time.sleep(0.5)
             info_str = daemon.get_info_string(force_update=True)
             print(info_str)
 
@@ -101,12 +101,12 @@ def run():
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if all(info[ut]['homed'] for ut in info['uts']):
                 break
             if (time.time() - start_time) > 30:
                 raise TimeoutError('Filter wheels timed out')
-            time.sleep(0.5)
 
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
@@ -120,12 +120,12 @@ def run():
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if not any(info[ut]['status'] == 'UNSET' for ut in info['uts']):
                 break
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Focusers timed out')
-            time.sleep(0.5)
 
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
@@ -143,12 +143,12 @@ def run():
         # TODO: blocking command with confirmation or timeout in daemon
         start_time = time.time()
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
                 break
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mirror covers timed out')
-            time.sleep(0.5)
 
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
@@ -156,12 +156,12 @@ def run():
     # Finally check that the CCDs are cool
     with daemon_proxy('cam') as daemon:
         while True:
+            time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
                 break
             if (time.time() - cam_start_time) > 600:
                 raise TimeoutError('Camera cooling timed out')
-            time.sleep(0.5)
 
         info_str = daemon.get_info_string(force_update=True)
         print(info_str)
