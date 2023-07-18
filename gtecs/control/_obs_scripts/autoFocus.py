@@ -143,7 +143,7 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
 
         print('Moving focusers out again...')
-        new_positions = {ut: current_positions[ut] + foc_params['big_step'][ut] / 2
+        new_positions = {ut: int(current_positions[ut] + foc_params['big_step'][ut] / 2)
                          for ut in moving_uts}
         set_focuser_positions(new_positions, timeout=60)
         current_positions = get_focuser_positions(active_uts)

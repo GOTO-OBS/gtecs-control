@@ -78,7 +78,7 @@ class FocDaemon(BaseDaemon):
             if self.move_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        move_steps = self.move_steps[ut]
+                        move_steps = int(self.move_steps[ut])
                         current_pos = self.info[ut]['current_pos']
                         new_pos = current_pos + move_steps
                         msg = 'Moving focuser {} {:+d} steps from {} to {} (moving)'.format(
@@ -107,7 +107,7 @@ class FocDaemon(BaseDaemon):
             if self.set_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        new_pos = self.set_position[ut]
+                        new_pos = int(self.set_position[ut])
                         current_pos = self.info[ut]['current_pos']
                         move_steps = new_pos - current_pos
                         msg = 'Moving focuser {} {:+d} steps from {} to {} (setting)'.format(
@@ -195,7 +195,7 @@ class FocDaemon(BaseDaemon):
             if self.sync_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        position = self.sync_position[ut]
+                        position = int(self.sync_position[ut])
                         self.log.info('Syncing focuser {} position to {}'.format(ut, position))
 
                         try:
@@ -340,6 +340,9 @@ class FocDaemon(BaseDaemon):
                        if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
             raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
+        # Need to be integers
+        new_position = {ut: int(new_position[ut]) for ut in new_position}
+
         self.active_uts = sorted(new_position)
         self.set_position.update(new_position)
         self.set_focuser_flag = 1
@@ -367,6 +370,9 @@ class FocDaemon(BaseDaemon):
             bad_uts = [ut for ut in move_steps
                        if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
             raise HardwareError(f'Focusers are already moving: {bad_uts}')
+
+        # Need to be integers
+        move_steps = {ut: int(move_steps[ut]) for ut in move_steps}
 
         self.active_uts = sorted(move_steps)
         self.move_steps.update(move_steps)
@@ -433,6 +439,9 @@ class FocDaemon(BaseDaemon):
             bad_uts = [ut for ut in position
                        if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
             raise HardwareError(f'Focusers are already moving: {bad_uts}')
+
+        # Need to be integers
+        position = {ut: int(position[ut]) for ut in position}
 
         self.active_uts = sorted(position)
         self.sync_position.update(position)
