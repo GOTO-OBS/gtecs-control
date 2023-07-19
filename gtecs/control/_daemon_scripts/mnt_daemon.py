@@ -329,7 +329,7 @@ class MntDaemon(BaseDaemon):
                 params.MOUNT_PORT,
                 log=self.log,
                 log_debug=params.MOUNT_DEBUG,
-                )
+            )
             return
 
         try:
@@ -340,7 +340,7 @@ class MntDaemon(BaseDaemon):
                     params.MOUNT_PORT,
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
-                    )
+                )
             elif params.MOUNT_CLASS == 'ASA':
                 self.mount = DDM500(
                     params.MOUNT_HOST,
@@ -348,7 +348,7 @@ class MntDaemon(BaseDaemon):
                     fake_parking=params.FAKE_MOUNT_PARKING,
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
-                    )
+                )
 
             # Connection successful
             self.log.info('Connected to mount')
@@ -774,7 +774,7 @@ class MntDaemon(BaseDaemon):
 
         if self.info['status'] != 'Tracking':
             self.force_check_flag = True
-            self.start_tracking_flag = 1
+            self.track_flag = 1
 
     def halt(self):
         """Stop the mount moving (slewing or tracking)."""

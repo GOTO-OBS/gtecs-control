@@ -178,7 +178,7 @@ def query(command, args):
     elif command == 'track':
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.start_tracking()
+            daemon.track()
         print('Started tracking')
 
     elif command in ['stop', 'halt', 'abort']:
