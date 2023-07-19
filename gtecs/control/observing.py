@@ -404,7 +404,7 @@ def get_image_headers(target_image_number, timeout=None):
     timed_out = False
     while not finished and not timed_out:
         time.sleep(0.5)
-
+        # TODO: blocking command with confirmation or timeout in daemon
         try:
             with daemon_proxy('cam', timeout=timeout) as daemon:
                 image_num, headers = daemon.get_latest_headers()
