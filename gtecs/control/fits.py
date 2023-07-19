@@ -178,15 +178,14 @@ def save_fits(hdu, filename, log=None, log_debug=False, fancy_log=True):
 
     if fancy_log:
         # Log image being saved
-        ut = hdu.header['UT      ']
-        if not hdu.header['GLANCE  ']:
-            expstr = 'Exposure r{:07d}'.format(int(hdu.header['RUN     ']))
+        if not hdu.header['GLANCE']:
+            expstr = 'Exposure r{:07d}'.format(int(hdu.header['RUN']))
         else:
             expstr = 'Glance'
         if log:
-            log.info('{}: Saved exposure from camera {}'.format(expstr, ut))
+            log.info('{}: Saved exposure from camera {}'.format(expstr, hdu.header['UT']))
         else:
-            print('{}: Saved exposure from camera {}'.format(expstr, ut))
+            print('{}: Saved exposure from camera {}'.format(expstr, hdu.header['UT']))
 
 
 def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):

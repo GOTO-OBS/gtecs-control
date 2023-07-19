@@ -614,15 +614,22 @@ class CamDaemon(BaseDaemon):
         # on the image data (e.g. median counts, HFDs etc).
         full_headers = {ut: None for ut in self.uts}
         for ut in active_uts:
+            # get filename
+            if not glance:
+                run_number = current_exposure['run_number']
+                filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
+            else:
+                filename = glance_location(ut, params.TELESCOPE_NUMBER)
+
             self.log.info('{}: Saving exposure on camera {}'.format(expstr, ut))
             try:
                 with daemon_proxy(f'cam{ut}') as interface:
                     full_headers[ut] = interface.save_exposure(
+                        filename=filename,
                         header_cards=header_info[ut],
                         compress=params.COMPRESS_IMAGES,
                         measure_hfds=self.measure_hfds,
-                        method='thread',
-                        )
+                    )
             except Exception:
                 self.log.error('No response from interface cam{}'.format(ut))
                 self.log.debug('', exc_info=True)

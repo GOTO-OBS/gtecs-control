@@ -12,7 +12,7 @@ from astropy.time import Time
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, get_daemon_host
-from gtecs.control.fits import glance_location, image_location, make_fits, save_fits
+from gtecs.control.fits import make_fits, save_fits
 from gtecs.control.hardware.fli import FLICamera, FakeCamera
 
 
@@ -164,24 +164,17 @@ class CameraInterfaceDaemon(BaseDaemon):
         self.log.info('Fetching image')
         return self.camera.fetch_image()
 
-    def _write_fits(self, hdu):
+    def _write_fits(self, hdu, filename):
         """Write image HDU to a FITS file."""
-        if not hdu.header['GLANCE']:
-            filename = image_location(hdu.header['RUN'], self.ut, hdu.header['TEL'])
-        else:
-            filename = glance_location(self.ut, hdu.header['TEL'])
-
         self.log.info('Saving image to {}'.format(filename))
         save_fits(hdu, filename, log=self.log, log_debug=True, fancy_log=False)
-
-        # Check that the file was created
-        exists = os.path.isfile(filename)
-        if exists:
+        if os.path.isfile(filename):
             self.log.info('Image saved')
         else:
             self.log.warning('ERROR: Image failed to save')
 
-    def save_exposure(self, header_cards=None, compress=False, measure_hfds=False, method='proc'):
+    def save_exposure(self, filename, header_cards=None, compress=False, measure_hfds=False,
+                      method='proc'):
         """Fetch the image data and save to a FITS file."""
         image_data = self.fetch_exposure()
         if image_data is None:
@@ -196,19 +189,18 @@ class CameraInterfaceDaemon(BaseDaemon):
 
         if method == 'proc':
             # Start image saving in a new process
-            p = mp.Process(target=self._write_fits, args=[hdu])
+            p = mp.Process(target=self._write_fits, args=[hdu, filename])
             p.start()
-            p.join()  # Note this means we're not actually running in parallel
-            self.log.info('Saving complete')
+            self.log.info('Saving process started')
         elif method == 'thread':
             # Start image saving in a new thread
-            t = threading.Thread(target=self._write_fits, args=[hdu])
+            t = threading.Thread(target=self._write_fits, args=[hdu, filename])
             t.daemon = True
             t.start()
-            # self.log.info(f'Saving complete')  # No log, we return before it finishes
+            self.log.info('Saving thread started')
         else:
             # Just save directly here
-            self._write_fits(hdu)
+            self._write_fits(hdu, filename)
             self.log.info('Saving complete')
 
         # return the image header
