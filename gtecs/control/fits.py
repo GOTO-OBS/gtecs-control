@@ -361,7 +361,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
     if daemon_info['conditions'] is not None:
         try:
             # Select external source
-            ext_source = params.VAISALA_URI_PRIMARY[5:].split('_')[0]
+            ext_source = params.VAISALA_URI[5:].split('_')[0]
             ext_weather = daemon_info['conditions']['weather'][ext_source].copy()
             daemon_info['conditions']['weather_ext'] = ext_weather
 

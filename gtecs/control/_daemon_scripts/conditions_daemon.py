@@ -133,23 +133,17 @@ class ConditionsDaemon(BaseDaemon):
         try:
             weather = {}
 
-            # Get the weather values from local and external stations
-            weather_sources = [params.VAISALA_URI_PRIMARY]
-            if params.VAISALA_URI_SECONDARY != 'none':
-                weather_sources.append(params.VAISALA_URI_SECONDARY)
-            for source in params.EXTERNAL_WEATHER_SOURCES:
-                if source != 'none' and source not in weather_sources:
-                    weather_sources.append(source.lower())
+            # Get the weather values from local vaisala stations
+            weather_sources = [params.VAISALA_URI]
+            for source in params.BACKUP_VAISALA_URIS:
+                if source != 'none':
+                    weather_sources.append(source)
             for source in weather_sources:
                 try:
                     if source.startswith('PYRO:'):
                         uri = source
                         source = uri[5:].split('_')[0]
                         weather_dict = get_vaisala_daemon(uri)
-                    elif source == 'ing':
-                        weather_dict = get_ing()
-                    elif source == 'aat':
-                        weather_dict = get_aat()
                     else:
                         raise ValueError('Unknown weather source')
                 except Exception:
@@ -180,9 +174,24 @@ class ConditionsDaemon(BaseDaemon):
                                         'dt': -999,
                                         }
 
-                # Format source key
-                source = source.lower()
+                # Store the dict
+                weather[source.lower()] = weather_dict
 
+            if all([weather[source]['dt'] == -999 for source in weather]):
+                # If none of the local sources are valid, fall back to external on-site stations
+                try:
+                    if params.SITE_NAME == 'La Palma':
+                        source = 'ing'
+                        weather[source] = get_ing()
+                    elif params.SITE_NAME == 'Siding Spring':
+                        source = 'aat'
+                        weather[source] = get_aat()
+                except Exception:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    # Don't add to the dict, no need for another failed source
+
+            for source in weather:
                 try:
                     # Save a history of windgusts so we can log the maximum
                     if (self.info and source in self.info['weather'] and
@@ -195,23 +204,20 @@ class ConditionsDaemon(BaseDaemon):
                     windgust_history = [hist for hist in windgust_history
                                         if (hist[0] > self.loop_time - params.WINDGUST_PERIOD and
                                             hist[1] != -999)]
-                    if weather_dict['windgust'] != -999:
+                    if weather[source]['windgust'] != -999:
                         # add the latest value
-                        windgust_history.append((self.loop_time, weather_dict['windgust']))
+                        windgust_history.append((self.loop_time, weather[source]['windgust']))
                     # save the history
-                    weather_dict['windgust_history'] = windgust_history
+                    weather[source]['windgust_history'] = windgust_history
                     # store maximum (windmax)
                     if len(windgust_history) > 1:
-                        weather_dict['windmax'] = max(hist[1] for hist in windgust_history)
+                        weather[source]['windmax'] = max(hist[1] for hist in windgust_history)
                     else:
-                        weather_dict['windmax'] = -999
+                        weather[source]['windmax'] = -999
                 except Exception:
                     self.log.error('Error getting windmax for "{}"'.format(source))
                     self.log.debug('', exc_info=True)
-                    weather_dict['windmax'] = -999
-
-                # Store the dict
-                weather[source] = weather_dict
+                    weather[source]['windmax'] = -999
 
             temp_info['weather'] = {}
             for source in weather:
@@ -364,11 +370,11 @@ class ConditionsDaemon(BaseDaemon):
                              }
         temp_info['robodimm'] = dimm_dict
 
-        # Get sky temperature from the CloudWatcher or an external source
+        # Get sky temperature from the CloudWatcher or the AAT (Siding Spring only)
         try:
             if params.CLOUDWATCHER_URI != 'none':
                 skytemp_dict = get_cloudwatcher_daemon(params.CLOUDWATCHER_URI)
-            elif 'aat' in [s.lower() for s in params.EXTERNAL_WEATHER_SOURCES]:
+            elif params.SITE_NAME == 'Siding Spring':
                 aat_dict = get_aat()
                 # Simplify to values of interest
                 skytemp_dict = {'sky_temp': aat_dict['sky_temp'],
