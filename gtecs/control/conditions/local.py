@@ -171,7 +171,7 @@ def get_vaisala_daemon(uri):
 
 
 def get_rain_daemon(uri):
-    """Get rain readings from the rain daemons."""
+    """Get rain readings from the rain daemon."""
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
@@ -220,5 +220,23 @@ def get_rain_domealert(uri):
         weather_dict['rain'] = True
     else:
         weather_dict['rain'] = False
+
+    return weather_dict
+
+
+def get_cloudwatcher_daemon(uri):
+    """Get sky temperature reading from the CloudWatcher daemon."""
+    with Pyro4.Proxy(uri) as proxy:
+        proxy._pyroTimeout = 5
+        proxy._pyroSerializer = 'serpent'
+        info = proxy.last_measurement()
+
+    weather_dict = {}
+
+    weather_dict['update_time'] = Time(info['date'])
+    dt = Time.now() - weather_dict['update_time']
+    weather_dict['dt'] = int(dt.to('second').value)
+
+    weather_dict['sky_temp'] = info['sky_temp']
 
     return weather_dict

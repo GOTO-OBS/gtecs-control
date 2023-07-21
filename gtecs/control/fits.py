@@ -1247,6 +1247,9 @@ def make_header(ut, daemon_info=None):
         raise ValueError('No conditions info provided')
 
     # Site conditions
+    sky_temp = daemon_info['sky_temp']['sky_temp']
+    if sky_temp == -999:
+        sky_temp = 'NA'
     clouds = daemon_info['conditions']['clouds']
     if clouds == -999:
         clouds = 'NA'
@@ -1259,6 +1262,8 @@ def make_header(ut, daemon_info=None):
     dust = daemon_info['conditions']['tng']['dust']
     if dust == -999:
         dust = 'NA'
+    header.append(('SKYTEMP ', sky_temp,
+                   'Sky temperature, Celsius'))
     header.append(('SATCLOUD', clouds,
                    'IR satellite cloud opacity, percent (sat24.com)'))
     header.append(('SEEING  ', seeing,

@@ -8,14 +8,15 @@ import time
 
 from astropy.time import Time
 
-from gtecs.common.system import make_pid_file
 from gtecs.common.style import boldtxt, gtxt, rtxt, ytxt
+from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
 from gtecs.control.conditions.internal import get_domealert_daemon
-from gtecs.control.conditions.local import get_vaisala_daemon, get_rain_daemon, get_rain_domealert
+from gtecs.control.conditions.local import (get_cloudwatcher_daemon, get_rain_daemon,
+                                            get_rain_domealert, get_vaisala_daemon)
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import ModeError, Status
@@ -43,6 +44,7 @@ class ConditionsDaemon(BaseDaemon):
                                   'humidity',
                                   'temperature',
                                   'dew_point',
+                                  'sky_temp',
                                   ]
         self.critical_flag_names = ['ups',
                                     'link',
@@ -362,6 +364,32 @@ class ConditionsDaemon(BaseDaemon):
                              }
         temp_info['robodimm'] = dimm_dict
 
+        # Get sky temperature from the CloudWatcher or an external source
+        try:
+            if params.CLOUDWATCHER_URI != 'none':
+                skytemp_dict = get_cloudwatcher_daemon(params.CLOUDWATCHER_URI)
+            elif 'aat' in [s.lower() for s in params.EXTERNAL_WEATHER_SOURCES]:
+                aat_dict = get_aat()
+                # Simplify to values of interest
+                skytemp_dict = {'sky_temp': aat_dict['sky_temp'],
+                                'update_time': aat_dict['update_time'],
+                                'dt': aat_dict['dt'],
+                                }
+            else:
+                raise ValueError('No weather sources for sky temperature readings')
+        except Exception:
+            if params.FAKE_CONDITIONS:
+                skytemp_dict = {'sky_temp': -20,
+                                'dt': 0,
+                                }
+            else:
+                self.log.error('Failed to get sky temperature info')
+                self.log.debug('', exc_info=True)
+                skytemp_dict = {'sky_temp': -999,
+                                'dt': -999,
+                                }
+        temp_info['sky_temp'] = skytemp_dict
+
         # Get info from the UPSs
         try:
             ups_percent, ups_status = get_ups()
@@ -479,6 +507,10 @@ class ConditionsDaemon(BaseDaemon):
         rain = np.array(self.info['rain']['rain'])
         rain = rain[rain != -999]
 
+        # Sky temperature
+        sky_temp = np.array(self.info['sky_temp']['sky_temp'])
+        sky_temp = sky_temp[sky_temp != -999]
+
         # Internal
         int_temperature = np.array(self.info['internal']['temperature'])
         int_humidity = np.array(self.info['internal']['humidity'])
@@ -567,6 +599,12 @@ class ConditionsDaemon(BaseDaemon):
         valid['rain'] = len(rain) >= 1
         good_delay['rain'] = params.RAIN_GOODDELAY
         bad_delay['rain'] = params.RAIN_BADDELAY
+
+        # sky_temp flag
+        good['sky_temp'] = np.all(sky_temp < params.MAX_SKYTEMP)
+        valid['sky_temp'] = len(sky_temp) >= 1
+        good_delay['sky_temp'] = params.SKYTEMP_GOODDELAY
+        bad_delay['sky_temp'] = params.SKYTEMP_BADDELAY
 
         # internal flag
         good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
@@ -769,13 +807,22 @@ class ConditionsDaemon(BaseDaemon):
             msg += '  None yet, try again'
             return msg
 
-        msg = 'FLAGS ({}):\n'.format(info['timestamp'])
+        msg = 'CONDITIONS ({}):\n'.format(info['timestamp'])
+
         flags = info['flags']
         normal_flags = sorted(info['normal_flags'])
         critical_flags = sorted(info['critical_flags'])
+        info_flags = sorted(info['info_flags'])
+        m_normal = max([len(flag) for flag in normal_flags])
+        m_critical = max([len(flag) for flag in critical_flags])
+        m_info = max([len(flag) for flag in info_flags])
         ignored_flags = sorted(info['ignored_flags'])
-        for i in range(max(len(normal_flags), len(critical_flags))):
-            # Print normal flags on the left, and critical flags on the right
+        msg += 'FLAGS:'
+        msg += f'  {" "*(m_normal-6)}   normal   '
+        msg += f'  {" "*m_critical}   critical '
+        msg += f'  {" "*m_info}   info\n'
+        for i in range(max(len(normal_flags), len(critical_flags), len(info_flags))):
+            # Print normal flags on the left, critical in the middle and info on the right
             if len(normal_flags) >= i + 1:
                 flag = normal_flags[i]
                 if flag in ignored_flags:
@@ -786,7 +833,7 @@ class ConditionsDaemon(BaseDaemon):
                     status = rtxt('Bad')
                 else:
                     status = rtxt('ERROR')
-                msg += '  {: >12} : {: <16} ({})'.format(flag, status, flags[flag])
+                msg += f'  {flag: >{m_normal}} : {status: <16} ({flags[flag]})'
             else:
                 msg += '                          '
 
@@ -800,9 +847,23 @@ class ConditionsDaemon(BaseDaemon):
                     status = rtxt('Bad')
                 else:
                     status = rtxt('ERROR')
-                msg += '  {: >12} : {: <16} ({})\n'.format(flag, status, flags[flag])
+                msg += f'  {flag: >{m_critical}} : {status: <16} ({flags[flag]})'
             else:
-                msg += ''
+                msg += '                          '
+
+            if len(info_flags) >= i + 1:
+                flag = info_flags[i]
+                if flag in ignored_flags:
+                    status = '----' + '\u200c' * 11
+                elif flags[flag] == 0:
+                    status = gtxt('Good')
+                elif flags[flag] == 1:
+                    status = rtxt('Bad')
+                else:
+                    status = rtxt('ERROR')
+                msg += f'  {flag: >{m_info}} : {status: <16} ({flags[flag]})\n'
+            else:
+                msg += '\n'
 
         msg += 'WEATHER:          temp   humid    dewpt  wind (gust, max)       rain\n'
         weather = info['weather']
@@ -938,16 +999,16 @@ class ConditionsDaemon(BaseDaemon):
         rain_unsafe = info['rain']['unsafe']
         rain_total = info['rain']['total']
         if info['rain']['rain'] == -999:
-            rain_str = rtxt('  ERR')
+            rain_str = rtxt('  ERR') + '\n'
         elif rain_unsafe > 0:
-            rain_str = rtxt('  True') + '   ({}/{})'.format(rain_unsafe, rain_total)
+            rain_str = rtxt('  True') + '   ({}/{})\n'.format(rain_unsafe, rain_total)
         else:
-            rain_str = gtxt(' False') + '   ({}/{})'.format(rain_unsafe, rain_total)
+            rain_str = gtxt(' False') + '   ({}/{})\n'.format(rain_unsafe, rain_total)
 
         msg += '  {: <10}\t'.format('rain')
         msg += rain_str
 
-        msg += 'CONDITIONS:\n'
+        msg += 'ENVIRONMENT:\n'
 
         seeing = info['robodimm']['seeing']
         dt = info['robodimm']['dt']
@@ -994,6 +1055,24 @@ class ConditionsDaemon(BaseDaemon):
         else:
             dt_str = gtxt('{:.0f}'.format(dt))
         msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
+
+        sky_temp = info['sky_temp']['sky_temp']
+        if sky_temp == -999:
+            sky_temp_str = rtxt('  ERR')
+        elif sky_temp < params.MAX_SKYTEMP:
+            sky_temp_str = ytxt('{:>5.1f}'.format(sky_temp))
+            if sky_temp < params.MAX_SKYTEMP - 5:
+                sky_temp_str = gtxt('{:>5.1f}'.format(sky_temp))
+        else:
+            sky_temp_str = rtxt('{:>5.1f}'.format(sky_temp))
+        dt = info['sky_temp']['dt']
+        if dt == -999:
+            dt_str = rtxt('ERR')
+        elif dt > params.WEATHER_TIMEOUT:
+            dt_str = rtxt('{:.0f}'.format(dt))
+        else:
+            dt_str = gtxt('{:.0f}'.format(dt))
+        msg += '  sky_temp     {}°C          dt={}\n'.format(sky_temp_str, dt_str)
 
         clouds = info['clouds']
         if clouds == -999:
@@ -1261,6 +1340,23 @@ class ConditionsDaemon(BaseDaemon):
 
         msg += '{} μg/m³   (max={:.1f} μg/m³)      \t : {}\n'.format(
             dust_str, params.MAX_DUSTLEVEL, status)
+
+        msg += '  {: <10}\t'.format('sky_temp')
+        sky_temp = info['sky_temp']['sky_temp']
+        if sky_temp == -999:
+            status = rtxt('ERROR')
+            sky_temp_str = rtxt('  ERR')
+        elif sky_temp < params.MAX_SKYTEMP:
+            status = gtxt('Good')
+            sky_temp_str = ytxt('{:>5.1f}'.format(sky_temp))
+            if sky_temp < params.MAX_SKYTEMP - 5:
+                sky_temp_str = gtxt('{:>5.1f}'.format(sky_temp))
+        else:
+            status = rtxt('Bad')
+            sky_temp_str = rtxt('{:>5.1f}'.format(sky_temp))
+
+        msg += '{}°C       (max={:.1f}°C)            \t : {}\n'.format(
+            sky_temp_str, params.MAX_SKYTEMP, status)
 
         msg += '  {: <10}\t'.format('sat_clouds')
         clouds = info['clouds']

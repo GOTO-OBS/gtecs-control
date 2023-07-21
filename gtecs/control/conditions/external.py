@@ -1,7 +1,6 @@
 """Conditions functions for other on-site observatories."""
 
 import json
-import os
 import re
 import traceback
 from datetime import datetime
@@ -285,7 +284,8 @@ def get_aat():
                     'windspeed': -999,
                     'windgust': -999,
                     'humidity': -999,
-                    'dew_point': -999
+                    'dew_point': -999,
+                    'sky_temp': -999,
                     }
     data = re.split('\n|\t', indata)
     try:
@@ -306,7 +306,7 @@ def get_aat():
         weather_dict['temperature'] = -999
 
     try:
-        weather_dict['dew_point'] = float(data[2])-float(data[5])
+        weather_dict['dew_point'] = float(data[2]) - float(data[5])
     except Exception:
         weather_dict['dew_point'] = -999
 
@@ -334,6 +334,11 @@ def get_aat():
         weather_dict['winddir'] = float(data[10])
     except Exception:
         weather_dict['winddir'] = -999
+
+    try:
+        weather_dict['sky_temp'] = float(data[14])
+    except Exception:
+        weather_dict['sky_temp'] = -999
 
     try:
         weather_dict['rain'] = bool(int(data[17]))
