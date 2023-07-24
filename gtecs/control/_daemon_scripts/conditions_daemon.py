@@ -276,7 +276,7 @@ class ConditionsDaemon(BaseDaemon):
                     rain_dict = get_rain_domealert(params.RAINDAEMON_URI)
                 else:
                     rain_dict = get_rain_daemon(params.RAINDAEMON_URI)
-                # Remove any other readings
+                # If we have the rain boards then remove rain readings from other sources
                 if temp_info['weather'] is not None:
                     for source in temp_info['weather']:
                         if 'rain' in temp_info['weather'][source]:
@@ -289,14 +289,17 @@ class ConditionsDaemon(BaseDaemon):
                 rain_dict = {'total': 0,
                              'unsafe': 0,
                              }
+                rain_dts = []
                 for source in temp_info['weather']:
                     if ('rain' in temp_info['weather'][source] and
                             temp_info['weather'][source]['rain'] != -999):
                         rain_dict['total'] += 1
                         rain_dict['unsafe'] += int(temp_info['weather'][source]['rain'])
+                        rain_dts.append(temp_info['weather'][source]['dt'])
                 rain_dict['rain'] = rain_dict['unsafe'] > 0
                 if rain_dict['total'] == 0:
                     raise ValueError('No weather sources included rain readings')
+                rain_dict['dt'] = max(rain_dts)
             else:
                 raise ValueError('No weather sources for rain readings')
         except Exception:
@@ -304,6 +307,7 @@ class ConditionsDaemon(BaseDaemon):
                 rain_dict = {'total': 9,
                              'unsafe': 0,
                              'rain': False,
+                             'dt': 0,
                              }
             else:
                 self.log.error('Failed to get rain info')
@@ -311,6 +315,7 @@ class ConditionsDaemon(BaseDaemon):
                 rain_dict = {'total': -999,
                              'unsafe': -999,
                              'rain': -999,
+                             'dt': -999,
                              }
         temp_info['rain'] = rain_dict
 
@@ -1002,65 +1007,24 @@ class ConditionsDaemon(BaseDaemon):
             temperature_str, humidity_str, dt_str)
         msg += weather_str
 
+        msg += 'ENVIRONMENT:\n'
+
         rain_unsafe = info['rain']['unsafe']
         rain_total = info['rain']['total']
         if info['rain']['rain'] == -999:
-            rain_str = rtxt('  ERR') + '\n'
+            rain_str = rtxt(' ERR') + '\n'
         elif rain_unsafe > 0:
-            rain_str = rtxt('  True') + '   ({}/{})\n'.format(rain_unsafe, rain_total)
+            rain_str = rtxt(' True') + ' ({}/{})'.format(rain_unsafe, rain_total)
         else:
-            rain_str = gtxt(' False') + '   ({}/{})\n'.format(rain_unsafe, rain_total)
-
-        msg += '  {: <10}\t'.format('rain')
-        msg += rain_str
-
-        msg += 'ENVIRONMENT:\n'
-
-        seeing = info['robodimm']['seeing']
-        dt = info['robodimm']['dt']
-        if seeing == -999:
-            seeing_str = rtxt('ERR')
-        else:
-            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
+            rain_str = gtxt('False') + ' ({}/{})'.format(rain_unsafe, rain_total)
+        dt = info['rain']['dt']
         if dt == -999:
             dt_str = rtxt('ERR')
-        elif dt > params.SEEING_TIMEOUT:
+        elif dt > params.WEATHER_TIMEOUT:
             dt_str = rtxt('{:.0f}'.format(dt))
         else:
             dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  seeing (ing)   {}"           dt={}\n'.format(seeing_str, dt_str)
-
-        seeing = info['tng']['seeing']
-        dt = info['tng']['seeing_dt']
-        if seeing == -999:
-            seeing_str = rtxt('ERR')
-        else:
-            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.SEEING_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  seeing (tng)   {}"           dt={}\n'.format(seeing_str, dt_str)
-
-        dust = info['tng']['dust']
-        if dust == -999:
-            dust_str = rtxt('  ERR')
-        elif dust < params.MAX_DUSTLEVEL:
-            dust_str = ytxt('{:>5.1f}'.format(dust))
-            if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = gtxt('{:>5.1f}'.format(dust))
-        else:
-            dust_str = rtxt('{:>5.1f}'.format(dust))
-        dt = info['tng']['dust_dt']
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.DUSTLEVEL_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
+        msg += '  rain         {}      dt={}\n'.format(rain_str, dt_str)
 
         sky_temp = info['sky_temp']['sky_temp']
         if sky_temp == -999:
@@ -1089,7 +1053,54 @@ class ConditionsDaemon(BaseDaemon):
                 clouds_str = gtxt('{:>5.1f}'.format(clouds))
         else:
             clouds_str = rtxt('{:>5.1f}'.format(clouds))
-        msg += '  {: <10}   {}%\n'.format('sat_clouds', clouds_str)
+        dt_str = 'N/A'  # TODO: we don't get the image time for clouds
+        msg += '  sat_clouds   {}%           dt={}\n'.format(clouds_str, dt_str)
+
+        dust = info['tng']['dust']
+        if dust == -999:
+            dust_str = rtxt('  ERR')
+        elif dust < params.MAX_DUSTLEVEL:
+            dust_str = ytxt('{:>5.1f}'.format(dust))
+            if dust < params.MAX_DUSTLEVEL - 10:
+                dust_str = gtxt('{:>5.1f}'.format(dust))
+        else:
+            dust_str = rtxt('{:>5.1f}'.format(dust))
+        dt = info['tng']['dust_dt']
+        if dt == -999:
+            dt_str = rtxt('ERR')
+        elif dt > params.DUSTLEVEL_TIMEOUT:
+            dt_str = rtxt('{:.0f}'.format(dt))
+        else:
+            dt_str = gtxt('{:.0f}'.format(dt))
+        msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
+
+        seeing = info['tng']['seeing']
+        dt = info['tng']['seeing_dt']
+        if seeing == -999:
+            seeing_str = rtxt('ERR')
+        else:
+            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
+        if dt == -999:
+            dt_str = rtxt('ERR')
+        elif dt > params.SEEING_TIMEOUT:
+            dt_str = rtxt('{:.0f}'.format(dt))
+        else:
+            dt_str = gtxt('{:.0f}'.format(dt))
+        msg += '  seeing (tng)   {}"           dt={}\n'.format(seeing_str, dt_str)
+
+        seeing = info['robodimm']['seeing']
+        dt = info['robodimm']['dt']
+        if seeing == -999:
+            seeing_str = rtxt('ERR')
+        else:
+            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
+        if dt == -999:
+            dt_str = rtxt('ERR')
+        elif dt > params.SEEING_TIMEOUT:
+            dt_str = rtxt('{:.0f}'.format(dt))
+        else:
+            dt_str = gtxt('{:.0f}'.format(dt))
+        msg += '  seeing (ing)   {}"           dt={}\n'.format(seeing_str, dt_str)
 
         sunalt = info['sunalt']
         if sunalt < 0:
