@@ -864,9 +864,9 @@ class ConditionsDaemon(BaseDaemon):
                 elif flags[flag] == 0:
                     status = gtxt('Good')
                 elif flags[flag] == 1:
-                    status = rtxt('Bad')
+                    status = ytxt('Bad')  # Info flags don't trigger close if bad
                 else:
-                    status = rtxt('ERROR')
+                    status = ytxt('ERROR')
                 msg += f'  {flag: >{m_info}} : {status: <16} ({flags[flag]})\n'
             else:
                 msg += '\n'
