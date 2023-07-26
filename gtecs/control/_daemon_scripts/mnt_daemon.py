@@ -741,7 +741,7 @@ class MntDaemon(BaseDaemon):
             coords_altaz = coords
             coords = SkyCoord(coords_altaz).transform_to('icrs')
         try:
-            self._within_limits(self.current_position)
+            self._within_limits(coords)
         except Exception:
             raise
 
