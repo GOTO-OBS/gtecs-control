@@ -463,10 +463,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     positions = calculate_positions(range_frac, steps, scale_factors)
 
     # Define measurement regions
-    if use_annulus_region:
-        # Measure sources in an annulus around the centre
-        regions = [get_focus_region(binning)]
-    elif measure_corners:
+    if measure_corners:
         # Measure 5 corner regions independently
         regions = [(slice(2500 // binning, 6000 // binning),  # centre (same as default)
                     slice(1500 // binning, 4500 // binning)),
@@ -479,6 +476,9 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                    (slice(6000 // binning, 8000 // binning),  # top-right
                     slice(4500 // binning, 6000 // binning)),
                    ]
+    elif use_annulus_region:
+        # Measure sources in an annulus around the centre
+        regions = [get_focus_region(binning)]
     else:
         # Stick to the default central region
         regions = [(slice(2500 // binning, 6000 // binning),
