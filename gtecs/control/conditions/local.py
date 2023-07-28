@@ -211,7 +211,7 @@ def get_rain_domealert(uri):
     for key in info:
         if 'rain' in key and 'valid' not in key and info[key + '_valid']:
             total_boards += 1
-            unsafe = info[key] is True  # TODO: check if NO or NC
+            unsafe = info[key] is False  # boards are NC
             unsafe_boards += int(unsafe)
 
     weather_dict['total'] = total_boards
