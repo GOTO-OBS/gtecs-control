@@ -452,12 +452,20 @@ class MntDaemon(BaseDaemon):
 
                 # Log any errors or warnings from the mount, along with the time of occurrence
                 error_status = self.mount.error_check()
+                if isinstance(error_status, str):
+                    error_status = error_status.strip().replace('\n', ': ').replace('\r', '')
                 if error_status is not None:
-                    self.log.error(f'Mount raises error: {error_status}')
                     temp_info['error_status'] = error_status
-                    temp_info['error_status_time'] = self.loop_time
+                    if (not self.info or 'error_status' not in self.info or
+                            self.info['error_status'] != error_status):
+                        # Log only if it's a new error
+                        self.log.error(f'Mount raises error: {error_status}')
+                        temp_info['error_status_time'] = self.loop_time
+                    else:
+                        # Remember the time it began
+                        temp_info['error_status_time'] = self.info['error_status_time']
                 elif (self.info and 'error_status' in self.info and self.clear_error_flag == 0):
-                    # Keep old errors until a new one is raised, or we clear it
+                    # No error, but we want to keep until a new one is raised or we clear it
                     temp_info['error_status'] = self.info['error_status']
                     temp_info['error_status_time'] = self.info['error_status_time']
                 else:
