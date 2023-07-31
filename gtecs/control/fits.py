@@ -1350,7 +1350,7 @@ def read_fits(filepath, dtype='int32'):
     return data
 
 
-def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
+def get_image_data(run_number=None, direc=None, uts=None, timeout=90):
     """Open the most recent images and return the data.
 
     Parameters
@@ -1364,8 +1364,8 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
     uts : list of ints, default=None
         the UTs to read the files of
         if None, open files from all UTs
-    timeout : float, default=None
-        time in seconds after which to timeout. None to wait forever
+    timeout : float, default=90
+        time in seconds after which to timeout
 
     Returns
     -------
@@ -1390,25 +1390,15 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
 
     # wait until the images exist, if they don't already
     start_time = time.time()
-    files_exist = False
-    timed_out = False
-    while not files_exist and not timed_out:
+    while True:
         time.sleep(0.2)
+        done = [os.path.exists(filepaths[ut]) for ut in filepaths]
+        if np.all(done):
+            break
+        if (time.time() - start_time) > timeout:
+            raise TimeoutError('Image fetching timed out')
 
-        try:
-            done = [os.path.exists(filepaths[ut]) for ut in filepaths]
-            if np.all(done):
-                files_exist = True
-        except Exception:
-            pass
-
-        if timeout and time.time() - start_time > timeout:
-            timed_out = True
-
-    if timed_out:
-        raise TimeoutError('Image fetching timed out')
     filepaths = {ut: filepaths[ut] for ut in filepaths}
-
     print('Loading run r{:07d}: {} images'.format(run_number, len(filepaths)))
 
     # read the files
@@ -1416,7 +1406,7 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=None):
     return data
 
 
-def get_glance_data(uts=None, timeout=None):
+def get_glance_data(uts=None, timeout=90):
     """Open the most recent glance images and return the data.
 
     Parameters
@@ -1424,8 +1414,8 @@ def get_glance_data(uts=None, timeout=None):
     uts : list of ints, default=None
         the UTs to read the files of
         if None, open files from all UTs
-    timeout : float, default=None
-        time in seconds after which to timeout. None to wait forever
+    timeout : float, default=90
+        time in seconds after which to timeout
 
     Returns
     -------
@@ -1443,25 +1433,15 @@ def get_glance_data(uts=None, timeout=None):
     # NOTE this can be an issue since glance files get overwritten, so best to call
     #      `clear_glance_files` first to be sure.
     start_time = time.time()
-    files_exist = False
-    timed_out = False
-    while not files_exist and not timed_out:
+    while True:
         time.sleep(0.2)
+        done = [os.path.exists(filepaths[ut]) for ut in filepaths]
+        if np.all(done):
+            break
+        if (time.time() - start_time) > timeout:
+            raise TimeoutError('Image fetching timed out')
 
-        try:
-            done = [os.path.exists(filepaths[ut]) for ut in filepaths]
-            if np.all(done):
-                files_exist = True
-        except Exception:
-            pass
-
-        if timeout and time.time() - start_time > timeout:
-            timed_out = True
-
-    if timed_out:
-        raise TimeoutError('Image fetching timed out')
     filepaths = {ut: filepaths[ut] for ut in filepaths}
-
     print('Loading glances: {} images'.format(len(filepaths)))
 
     # read the files

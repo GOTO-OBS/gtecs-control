@@ -169,7 +169,7 @@ def prepare_for_images(open_covers=True):
                     raise TimeoutError('Mirror covers timed out')
 
 
-def slew_to_radec(ra, dec, wait=False, timeout=None):
+def slew_to_radec(ra, dec, timeout=120):
     """Move mount to given RA/Dec.
 
     Parameters
@@ -179,11 +179,8 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
     dec : float
         J2000 dec in decimal degrees
 
-    wait: bool, default=False
-        wait for the mount to complete the move
-    timeout : float, default=None
-        time in seconds after which to timeout, None to wait forever
-        if `wait` is False and a non-None timeout is given, still wait for that time
+    timeout : float, default=120
+        time in seconds after which to timeout
 
     """
     if not within_mount_limits(ra, dec, Time.now()):
@@ -197,25 +194,23 @@ def slew_to_radec(ra, dec, wait=False, timeout=None):
             time.sleep(2)
         coords = SkyCoord(ra * u.deg, dec * u.deg)
         daemon.slew(coords)
-
-        if wait or timeout is not None:
-            # TODO: blocking command with confirmation or timeout in daemon
-            start_time = time.time()
-            while True:
-                time.sleep(0.5)
-                info = daemon.get_info(force_update=True)
-                tolerance = 30 / (60 * 60)  # 30 arcsec
-                on_target = (info['status'] == 'Tracking' and
-                             np.isclose(info['target_ra'] * 360 / 24, ra, tolerance) and
-                             np.isclose(info['target_dec'], dec, tolerance) and
-                             info['target_dist'] < tolerance)
-                if on_target:
-                    break
-                if (time.time() - start_time) > timeout:
-                    raise TimeoutError('Mount timed out')
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            time.sleep(0.5)
+            info = daemon.get_info(force_update=True)
+            tolerance = 30 / (60 * 60)  # 30 arcsec
+            on_target = (info['status'] == 'Tracking' and
+                         np.isclose(info['target_ra'] * 360 / 24, ra, tolerance) and
+                         np.isclose(info['target_dec'], dec, tolerance) and
+                         info['target_dist'] < tolerance)
+            if on_target:
+                break
+            if (time.time() - start_time) > timeout:
+                raise TimeoutError('Mount timed out')
 
 
-def slew_to_altaz(alt, az, wait=False, timeout=None):
+def slew_to_altaz(alt, az, timeout=120):
     """Move mount to given Alt/Az.
 
     Parameters
@@ -225,16 +220,13 @@ def slew_to_altaz(alt, az, wait=False, timeout=None):
     az : float
         azimuth in decimal degrees
 
-    wait: bool, default=False
-        wait for the mount to complete the move
-    timeout : float, default=None
-        time in seconds after which to timeout, None to wait forever
-        if `wait` is False and a non-None timeout is given, still wait for that time
+    timeout : float, default=120
+        time in seconds after which to timeout
 
     """
     ra, dec = radec_from_altaz(alt, az, Time.now())
     print('Converting alt={}, az={} to ra/dec'.format(alt, az))
-    slew_to_radec(ra, dec, wait=wait, timeout=timeout)
+    slew_to_radec(ra, dec, timeout=timeout)
 
 
 def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None,
@@ -328,6 +320,7 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
                 raise TimeoutError('Cameras timed out')
 
     if get_data:
+        # TODO: blocking command with confirmation or timeout in daemon
         if not glance:
             # Use the run number, should be safer than the last modified which has messed up before
             # (perhaps due to the Warwick archiver?)
@@ -341,7 +334,7 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
             return image_data
     if get_headers:
         # Get the headers from the camera daemon
-        headers = get_image_headers(img_num, 30)
+        headers = get_image_headers(img_num, timeout=60)
         if uts is not None:
             headers = {ut: headers[ut] for ut in uts}  # Filter out Nones for UTs we didn't use
         if not get_data:
@@ -397,28 +390,18 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
                 raise TimeoutError('Exposure queue timed out')
 
 
-def get_image_headers(target_image_number, timeout=None):
+def get_image_headers(target_image_number, timeout=60):
     """Get the image headers for the given exposure."""
+    # TODO: blocking command with confirmation or timeout in daemon
     start_time = time.time()
-    finished = False
-    timed_out = False
-    while not finished and not timed_out:
+    while True:
         time.sleep(0.5)
-        # TODO: blocking command with confirmation or timeout in daemon
-        try:
-            with daemon_proxy('cam', timeout=timeout) as daemon:
-                image_num, headers = daemon.get_latest_headers()
-            if image_num >= target_image_number:
-                # Either these are the headers we wanted, or we missed them
-                finished = True
-        except Exception:
-            pass
-
-        if timeout and time.time() - start_time > timeout:
-            timed_out = True
-
-    if timed_out:
-        raise TimeoutError('Cameras timed out')
-    if image_num > target_image_number:
-        raise ValueError('A new exposure has already overriden the image headers, open the file')
+        with daemon_proxy('cam', timeout=timeout) as daemon:
+            image_num, headers = daemon.get_latest_headers()
+        if image_num == target_image_number:
+            break
+        elif image_num > target_image_number:
+            raise ValueError('A new exposure has already overriden the stored image headers')
+        if (time.time() - start_time) > timeout:
+            raise TimeoutError('Cameras timed out')
     return headers

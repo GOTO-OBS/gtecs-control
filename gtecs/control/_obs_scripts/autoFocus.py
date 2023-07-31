@@ -412,5 +412,5 @@ if __name__ == '__main__':
         run(num_exp, exptime, filt, binning, no_slew, no_report)
     except Exception:
         print('Error caught: Restoring original focus positions...')
-        set_focuser_positions(initial_positions)
+        set_focuser_positions(initial_positions, timeout=None)  # No need to wait
         raise

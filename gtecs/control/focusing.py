@@ -24,7 +24,7 @@ class RestoreFocusCloser(NeatCloser):
     def tidy_up(self):
         """Restore the original focus."""
         print('Interrupt caught: Restoring original focus positions...')
-        set_focuser_positions(self.positions)
+        set_focuser_positions(self.positions, timeout=None)  # No need to wait
 
 
 def get_focus_params():
@@ -130,7 +130,7 @@ def get_focuser_positions(uts=None):
     return positions
 
 
-def set_focuser_positions(positions, wait=False, timeout=None):
+def set_focuser_positions(positions, timeout=60):
     """Move each focuser to the requested position.
 
     Parameters
@@ -138,11 +138,8 @@ def set_focuser_positions(positions, wait=False, timeout=None):
     positions : float, dict
         position to move to, or a dictionary of unit telescope IDs and positions
 
-    wait: bool, default=False
-        wait for the focusers to complete their move
-    timeout : float, default=None
-        time in seconds after which to timeout, None to wait forever
-        if `wait` is False and a non-None timeout is given, still wait for that time
+    timeout : float, default=60
+        time in seconds after which to timeout, None to return immediately
 
     """
     if not isinstance(positions, dict):
@@ -160,14 +157,25 @@ def set_focuser_positions(positions, wait=False, timeout=None):
         print('Setting focusers:', positions)
         daemon.set_focusers(positions)
 
-        if wait or timeout is not None:
-            # TODO: blocking command with confirmation or timeout in daemon
-            if timeout is None:
-                timeout = 30
-            wait_for_focusers(positions, timeout)
+        if timeout is None:
+            return
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            time.sleep(0.5)
+            info = daemon.get_info(force_update=True)
+            # Note we say we're there when we're within 5 steps,
+            # because the ASA auto-adjustment means we can't be exact.
+            done = [abs(info[ut]['current_pos'] - int(positions[ut])) < 5 and
+                    info[ut]['status'] == 'Ready'
+                    for ut in positions]
+            if all(done):
+                break
+            if (time.time() - start_time) > timeout:
+                raise TimeoutError('Focuser timed out')
 
 
-def move_focusers(offsets, wait=False, timeout=None):
+def move_focusers(offsets, timeout=60):
     """Move each focuser by the given number of steps.
 
     Parameters
@@ -175,18 +183,15 @@ def move_focusers(offsets, wait=False, timeout=None):
     offsets : float, dict
         offsets in steps to move by, or a dictionary of unit telescope IDs and offsets
 
-    wait: bool, default=False
-        wait for the focusers to complete their move
-    timeout : float, default=None
-        time in seconds after which to timeout, None to wait forever
-        if `wait` is False and a non-None timeout is given, still wait for that time
+    timeout : float, default=60
+        time in seconds after which to timeout
 
     """
     if not isinstance(offsets, dict):
         offsets = {ut: offsets for ut in params.UTS_WITH_FOCUSERS}
 
-    # We can't overwrite moves once they have started, so need to wait for them to be ready
     with daemon_proxy('foc') as daemon:
+        # We can't overwrite moves once they have started, so need to wait for them to be ready
         while True:
             time.sleep(0.5)
             info = daemon.get_info(force_update=True)
@@ -194,21 +199,30 @@ def move_focusers(offsets, wait=False, timeout=None):
             if all(ready):
                 break
 
-        info = daemon.get_info(force_update=True)
-        start_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
-        finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
-
         print('Moving focusers:', offsets)
         daemon.move_focusers(offsets)
 
-        if wait or timeout is not None:
-            # TODO: blocking command with confirmation or timeout in daemon
-            if timeout is None:
-                timeout = 30
-            wait_for_focusers(finish_positions, timeout)
+        # Get the final positions to confirm when the move is finished
+        info = daemon.get_info(force_update=True)
+        start_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
+        finish_positions = {ut: start_positions[ut] + offsets[ut] for ut in offsets}
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            time.sleep(0.5)
+            info = daemon.get_info(force_update=True)
+            # Note we say we're there when we're within 5 steps,
+            # because the ASA auto-adjustment means we can't be exact.
+            done = [abs(info[ut]['current_pos'] - int(finish_positions[ut])) < 5 and
+                    info[ut]['status'] == 'Ready'
+                    for ut in finish_positions]
+            if all(done):
+                break
+            if (time.time() - start_time) > timeout:
+                raise TimeoutError('Focuser timed out')
 
 
-def wait_for_focusers(target_positions, timeout=None):
+def wait_for_focusers(target_positions, timeout=60):
     """Wait until focuser has reached the target position.
 
     Parameters
@@ -216,8 +230,8 @@ def wait_for_focusers(target_positions, timeout=None):
     target_positions : float, dict
         target position, or a dictionary of unit telescope IDs and positions
 
-    timeout : float, default=None
-        time in seconds after which to timeout, None to wait forever
+    timeout : float, default=60
+        time in seconds after which to timeout
 
     """
     if not isinstance(target_positions, dict):
@@ -235,7 +249,7 @@ def wait_for_focusers(target_positions, timeout=None):
                     for ut in target_positions]
             if all(done):
                 break
-            if timeout and time.time() - start_time > timeout:
+            if (time.time() - start_time) > timeout:
                 raise TimeoutError('Focuser timed out')
 
 
@@ -514,7 +528,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     # Step 1: Start to move out to the right (+ve steps), return immediately
     print('Moving to the right...')
-    set_focuser_positions(r_positions, wait=False)
+    set_focuser_positions(r_positions, timeout=None)
 
     # Step 2: Wait until the focusers have finished moving, return when stationary
     wait_for_focusers(r_positions, timeout=60)
@@ -526,7 +540,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     # Step 4: Start to move out to the left (return immediately)
     print('Moving to the left...')
-    set_focuser_positions(l_positions, wait=False)
+    set_focuser_positions(l_positions, timeout=None)
 
     # Step 5: Read the right HFDs from the image headers
     r_headers = get_image_headers(r_i, timeout=30)
@@ -543,7 +557,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     # Step 8: Start to move back to the centre
     print('Moving to the centre...')
-    set_focuser_positions(initial_positions, wait=False)
+    set_focuser_positions(initial_positions, timeout=None)
 
     # Step 9: Read the left HFDs from the image headers
     l_headers = get_image_headers(l_i, timeout=30)
@@ -566,7 +580,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
 
     # Step 12: Move to the best position
     print('Moving to best positions...')
-    set_focuser_positions(bf_positions, wait=False)
+    set_focuser_positions(bf_positions, timeout=None)
 
     # Step 13: Wait until the focusers have finished moving (or return immediately?)
     wait_for_focusers(bf_positions, timeout=60)

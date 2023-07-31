@@ -24,7 +24,7 @@ def handle_interrupt(pointing_id, start_time, min_time, initial_focus=None):
 
     if initial_focus is not None:
         print('Restoring original focus positions...')
-        set_focuser_positions(initial_focus)  # No need to wait
+        set_focuser_positions(initial_focus, timeout=None)  # No need to wait
 
     if min_time is None:
         # Return retcode 1
