@@ -1003,20 +1003,20 @@ class FakeDehumidifier:
     """Fake dehumidifier class."""
 
     def __init__(self):
-        self._status = '0'
+        self._on = False
 
     def on(self):
         """Turn on the dehumidifier."""
-        self._status = '1'
+        self._on = True
 
     def off(self):
         """Turn off the dehumidifier."""
-        self._status = '0'
+        self._on = False
 
     @property
     def status(self):
-        """Get the dehumidifier status."""
-        return self._status
+        """Get the dehumidifier status (True = on, False = off)."""
+        return self._on
 
 
 class ETH002Dehumidifier:
@@ -1037,8 +1037,8 @@ class ETH002Dehumidifier:
 
     @property
     def status(self):
-        """Get the dehumidifier status."""
-        return self.power.status()[0]
+        """Get the dehumidifier status (True = on, False = off)."""
+        return self.power.status()[0] == '1'
 
 
 class Dehumidifier:
@@ -1064,7 +1064,7 @@ class Dehumidifier:
 
     @property
     def status(self):
-        """Get the dehumidifier status."""
+        """Get the dehumidifier status (True = on, False = off)."""
         with self._proxy() as proxy:
             status = proxy.get_relay()
         return status
