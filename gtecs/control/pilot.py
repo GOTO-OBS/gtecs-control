@@ -595,7 +595,9 @@ class Pilot:
         script_name = name
         if name == 'OBS' and args is not None:
             # Add the pointing ID to the name used when logging
-            script_name += '-' + args[0]
+            # (and keep for later to check when we finish)
+            pointing_id = int(args[0])
+            script_name += f'-{pointing_id}'
         factory = functools.partial(protocol, script_name, self.running_script_result, 'pilot')
 
         # create the process coroutine
@@ -639,13 +641,24 @@ class Pilot:
             while self.scheduler_updating:
                 self.log.debug('waiting for scheduler to finish updating')
                 await asyncio.sleep(0.5)
-            if retcode == 0:
-                self.current_status = 'completed'
+            if self.current_pointing is None or self.current_pointing['id'] != pointing_id:
+                # The scheduler returned a new pointing (or nothing) while we were waiting!
+                # That's awkward, but it can happen if the new pointing would have interrupted
+                # this one that's just finished (e.g. it's a ToO and this one wasn't).
+                # The scheduler will have already marked this pointing as interrupted,
+                # and assumed we're starting the new one.
+                # So basically we don't have to do anything here, although it's annoying that this
+                # pointing will be considered interrupted and be rescheduled when it was actually
+                # completed successfully.
+                self.log.debug('pointing {} has already been overridden by the scheduler'.format(
+                    pointing_id))
             else:
-                self.current_status = 'interrupted'
-            self.log.debug('pointing {} was {}'.format(self.current_pointing['id'],
-                                                       self.current_status,
-                                                       ))
+                # Update the status of the completed pointing.
+                if retcode == 0:
+                    self.current_status = 'completed'
+                else:
+                    self.current_status = 'interrupted'
+                self.log.debug('pointing {} was {}'.format(pointing_id, self.current_status))
 
         return retcode, result
 
