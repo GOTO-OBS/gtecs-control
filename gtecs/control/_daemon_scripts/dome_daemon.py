@@ -528,10 +528,6 @@ class DomeDaemon(BaseDaemon):
             # hatch info
             temp_info['hatch_closed'] = temp_info['hatch'] == 'closed'
             temp_info['hatch_open_time'] = self.hatch_open_time
-
-            # heartbeat info
-            heartbeat_status = self.heartbeat.status
-            temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
             self.log.error('Failed to get dome info')
             self.log.debug('', exc_info=True)
@@ -541,12 +537,24 @@ class DomeDaemon(BaseDaemon):
             temp_info['dome'] = None
             temp_info['hatch_closed'] = None
             temp_info['hatch_open_time'] = None
-            temp_info['heartbeat_status'] = None
             # Report the connection as failed
             self.dome.disconnect()
             self.dome = None
             if 'dome' not in self.bad_hardware:
                 self.bad_hardware.add('dome')
+
+        # Get heartbeat info
+        try:
+            heartbeat_status = self.heartbeat.status
+            temp_info['heartbeat_status'] = heartbeat_status
+        except Exception:
+            self.log.error('Failed to get heartbeat info')
+            self.log.debug('', exc_info=True)
+            temp_info['heartbeat_status'] = None
+            # Report the connection as failed
+            self.heartbeat = None
+            if 'heartbeat' not in self.bad_hardware:
+                self.bad_hardware.add('heartbeat')
 
         # Get dehumidifier info
         if params.DOME_HAS_DEHUMIDIFIER:
@@ -595,6 +603,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['button_pressed'] = None
 
         # Get conditions info
+        # TODO: but we get conditions directly from the daemon above??
         try:
             conditions = Conditions()
             temp_info['conditions_bad'] = bool(conditions.bad)
