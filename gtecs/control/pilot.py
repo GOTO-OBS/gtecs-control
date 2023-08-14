@@ -647,6 +647,8 @@ class Pilot:
                 # this one that's just finished (e.g. it's a ToO and this one wasn't).
                 # The scheduler will have already marked this pointing as interrupted,
                 # and assumed we're starting the new one.
+                # Or if the link was down for some reason and the scheduler recognised the pilot
+                # hadn't been responding, so it should mark the pointing as interrupted.
                 # So basically we don't have to do anything here, although it's annoying that this
                 # pointing will be considered interrupted and be rescheduled when it was actually
                 # completed successfully.
