@@ -607,17 +607,14 @@ class ETHPDU:
         try:
             self.socket.shutdown(socket.SHUT_RDWR)
             self.socket.close()
-        except OSError:
+        except (OSError, AttributeError):
             pass
 
     def _tcp_command(self, command_bytes):
         """Send command bytes to the device, then fetch the reply bytes and return them."""
-        try:
-            self.socket.send(command_bytes)
-            reply = self.socket.recv(self.buffer_size)
-            return reply
-        except Exception as error:
-            return 'Socket error: {}'.format(error)
+        self.socket.send(command_bytes)
+        reply = self.socket.recv(self.buffer_size)
+        return reply
 
     def status(self):
         """Return the current status of the outlets."""
