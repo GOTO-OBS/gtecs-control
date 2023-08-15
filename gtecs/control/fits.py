@@ -1247,7 +1247,7 @@ def make_header(ut, daemon_info=None):
         raise ValueError('No conditions info provided')
 
     # Site conditions
-    sky_temp = daemon_info['sky_temp']['sky_temp']
+    sky_temp = daemon_info['conditions']['sky_temp']['sky_temp']
     if sky_temp == -999:
         sky_temp = 'NA'
     clouds = daemon_info['conditions']['clouds']
