@@ -10,7 +10,7 @@ import numpy as np
 
 from . import params
 from .astronomy import radec_from_altaz, within_mount_limits
-from .daemons import daemon_proxy
+from .daemons import daemon_proxy, HardwareError
 from .fits import clear_glance_files, get_glance_data, get_image_data
 
 
@@ -396,12 +396,16 @@ def get_image_headers(target_image_number, timeout=60):
     start_time = time.time()
     while True:
         time.sleep(0.5)
-        with daemon_proxy('cam', timeout=timeout) as daemon:
-            image_num, headers = daemon.get_latest_headers()
-        if image_num == target_image_number:
-            break
-        elif image_num > target_image_number:
-            raise ValueError('A new exposure has already overriden the stored image headers')
+        try:
+            with daemon_proxy('cam', timeout=timeout) as daemon:
+                image_num, headers = daemon.get_latest_headers()
+            if image_num == target_image_number:
+                break
+            elif image_num > target_image_number:
+                raise ValueError('A new exposure has already overriden the stored image headers')
+        except HardwareError:
+            # Cameras are currently reading out
+            pass
         if (time.time() - start_time) > timeout:
             raise TimeoutError('Cameras timed out')
     return headers
