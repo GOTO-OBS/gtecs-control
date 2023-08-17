@@ -182,7 +182,7 @@ def fit_to_data(df, nfvs=None):
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
-            print(traceback.format_exc())
+            traceback.print_exc()
 
     return fit_df
 
@@ -266,7 +266,7 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
 
         except Exception:
             print('UT{}: Error making HFD plot'.format(ut))
-            print(traceback.format_exc())
+            traceback.print_exc()
 
     # Save the plot
     if save_plot:
@@ -390,7 +390,7 @@ def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=No
 
             except Exception:
                 print('UT{}: Error making region {} plot'.format(ut, i))
-                print(traceback.format_exc())
+                traceback.print_exc()
 
         # Tilt plot
         try:
@@ -437,7 +437,7 @@ def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=No
 
         except Exception:
             print('UT{}: Error making tilt plot'.format(ut))
-            print(traceback.format_exc())
+            traceback.print_exc()
 
         # Save the plot
         if save_plot:
