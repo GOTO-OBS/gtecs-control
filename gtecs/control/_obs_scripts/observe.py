@@ -18,14 +18,15 @@ from gtecs.control.scheduling import get_pointing_info
 
 def handle_interrupt(pointing_id, start_time, min_time, initial_focus=None):
     """Long and return the correct error code depending on min time."""
-    print('Interrupt caught')
+    print('Handling interrupted pointing...')
     elapsed_time = time.time() - start_time
-    print('Elapsed time: {:.0f}s'.format(elapsed_time))
 
     if initial_focus is not None:
         print('Restoring original focus positions...')
-        set_focuser_positions(initial_focus, timeout=None)  # No need to wait
+        set_focuser_positions(initial_focus, timeout=60)
+        print('Restored focus: ', get_focuser_positions())
 
+    print('Elapsed time: {:.0f}s'.format(elapsed_time))
     if min_time is None:
         # Return retcode 1
         print('Pointing {} was interrupted'.format(pointing_id))
@@ -98,9 +99,12 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
                     focus_temp_compensation(take_images=params.OBS_FOCUS_IMAGES, verbose=True)
             except Exception:
                 # We can reset but don't interrupt the pointing
-                print('Error caught: Restoring original focus positions...')
+                print('Error caught:')
+                traceback.print_exc()
+                print('Restoring original focus positions...')
                 set_focuser_positions(initial_positions, timeout=60)
-                print('Focus reset, continuing with observing routine')
+                print('Restored focus: ', get_focuser_positions())
+                print('Continuing with observing routine')
 
         # Add pointing exposures
         print('Adding exposures to queue')
@@ -159,6 +163,7 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
         sys.exit(0)
 
     except Exception:
+        print('Error caught:')
         traceback.print_exc()
         retcode = handle_interrupt(pointing_id, start_time, min_time=pointing_info['min_time'])
         sys.exit(retcode)

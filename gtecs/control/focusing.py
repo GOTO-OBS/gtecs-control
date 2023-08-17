@@ -23,8 +23,9 @@ class RestoreFocusCloser(NeatCloser):
 
     def tidy_up(self):
         """Restore the original focus."""
-        print('Interrupt caught: Restoring original focus positions...')
-        set_focuser_positions(self.positions, timeout=None)  # No need to wait
+        print('Error caught: Restoring original focus positions...')
+        set_focuser_positions(self.positions, timeout=60)
+        print('Restored focus: ', get_focuser_positions())
 
 
 def get_focus_params():

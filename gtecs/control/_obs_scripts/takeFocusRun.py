@@ -554,7 +554,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     # Restore the original focus
     print('~~~~~~')
     print('Restoring original focuser positions...')
-    set_focuser_positions(initial_positions, timeout=120)
+    set_focuser_positions(initial_positions, timeout=60)
     print('Restored focus: ', get_focuser_positions())
 
     if no_analysis:
@@ -755,5 +755,6 @@ if __name__ == '__main__':
             )
     except Exception:
         print('Error caught: Restoring original focus positions...')
-        set_focuser_positions(initial_positions, timeout=None)  # No need to wait
+        set_focuser_positions(initial_positions, timeout=60)
+        print('Restored focus: ', get_focuser_positions())
         raise
