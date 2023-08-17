@@ -148,12 +148,15 @@ def set_focuser_positions(positions, timeout=60):
 
     with daemon_proxy('foc') as daemon:
         # We can't overwrite moves once they have started, so need to wait for them to be ready
+        start_time = time.time()
         while True:
             time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             ready = [info[ut]['status'] == 'Ready' for ut in positions]
             if all(ready):
                 break
+            if (time.time() - start_time) > timeout:
+                raise TimeoutError('Focuser timed out')
 
         print('Setting focusers:', positions)
         daemon.set_focusers(positions)
@@ -193,12 +196,15 @@ def move_focusers(offsets, timeout=60):
 
     with daemon_proxy('foc') as daemon:
         # We can't overwrite moves once they have started, so need to wait for them to be ready
+        start_time = time.time()
         while True:
             time.sleep(0.5)
             info = daemon.get_info(force_update=True)
             ready = [info[ut]['status'] == 'Ready' for ut in offsets]
             if all(ready):
                 break
+            if (time.time() - start_time) > timeout:
+                raise TimeoutError('Focuser timed out')
 
         print('Moving focusers:', offsets)
         daemon.move_focusers(offsets)
