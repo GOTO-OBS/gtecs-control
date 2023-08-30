@@ -759,6 +759,7 @@ class ConditionsDaemon(BaseDaemon):
         self.log.info(out_str)
         self.manual_override = enable
 
+    # Info function
     def get_info_string(self, force_update=False):
         """Get a string for printing status info."""
         info = self.get_info(force_update)

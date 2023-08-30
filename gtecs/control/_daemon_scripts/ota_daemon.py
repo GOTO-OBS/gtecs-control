@@ -228,6 +228,7 @@ class OTADaemon(BaseDaemon):
         self.active_uts = sorted(uts)
         self.stop_cover_flag = 1
 
+    # Info function
     def get_info_string(self, verbose=False, force_update=False):
         """Get a string for printing status info."""
         info = self.get_info(force_update)
