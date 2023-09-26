@@ -230,7 +230,7 @@ def get_night_times(time=None, location=None, horizon=-15):
         location = observatory_location()
     observer = Observer(location=location)
 
-    if observer.is_night(time, horizon=horizon):
+    if observer.is_night(time, horizon=horizon * u.deg):
         # The time is during the night
         sun_set_time = observer.sun_set_time(time, which='previous', horizon=horizon * u.deg)
     else:
