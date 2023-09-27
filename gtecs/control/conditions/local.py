@@ -179,8 +179,8 @@ def get_rain_daemon(uri):
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - weather_dict['update_time']
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     weather_dict['total'] = info['total_boards']
@@ -233,8 +233,8 @@ def get_cloudwatcher_daemon(uri):
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'])
-    dt = Time.now() - weather_dict['update_time']
+    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     weather_dict['sky_temp'] = info['sky_temp']
