@@ -693,7 +693,7 @@ class MntMonitor(BaseMonitor):
         # STATUS_MNT_AUTOSLEW_ERROR
         # Set the error if the mount is already reporting an error
         if self.hardware_status == STATUS_MNT_AUTOSLEW_ERROR:
-            self.add_error(ERROR_MNT_AUTOSLEW, delay=120)
+            self.add_error(ERROR_MNT_AUTOSLEW)
         # Clear the error if the mount is not moving
         if self.hardware_status != STATUS_MNT_AUTOSLEW_ERROR:
             self.clear_error(ERROR_MNT_AUTOSLEW)
