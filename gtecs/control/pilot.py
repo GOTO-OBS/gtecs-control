@@ -1015,7 +1015,7 @@ class Pilot:
             while attempts_remaining:
                 try:
                     if request_pointing:
-                        self.log.debug('checking scheduler')
+                        self.log.debug('checking scheduler')  # TODO add debug info (id/status etc)
                     else:
                         self.log.debug('updating scheduler')
                     if self.current_pointing is not None:
@@ -1065,6 +1065,8 @@ class Pilot:
                         self.log.error('Could not communicate with the scheduler, parking')
                         new_pointing = None
 
+            # TODO: WHAT IF WE PAUSED WHILE CHECKING?? (G3 2023-08-22 12:2)
+
             # Now that we've updated the database we can clear the current Pointing
             if self.current_status in ['completed', 'interrupted']:
                 self.current_pointing = None
@@ -1113,7 +1115,9 @@ class Pilot:
             # pointing as interrupted. So we need the database update to happen above.
             # Likewise if it's the end of the night we need to loop until observing=False.
             # But we can skip everything below.
-            if request_pointing is False:
+            # Note if we were already paused then request_pointing should be false, but we include
+            # the self.paused check in case we paused while we were waiting for the scheduler.
+            if request_pointing is False or self.paused:
                 msg = 'observing suspended'
                 if self.paused:
                     msg += ' while paused'
