@@ -834,11 +834,10 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_AUTOSLEW in self.errors:
             # PROBLEM: The ASA mount is reporting an error.
             recovery_procedure = {}
-            # SOLUTION 1: Try rebooting the mount.
-            recovery_procedure[1] = ['power off mount', 10]
-            recovery_procedure[2] = ['power on mount', 180]
-            # OUT OF SOLUTIONS: Sounds like a hardware issue.
-            return ERROR_MNT_CONNECTION, recovery_procedure
+            # SOLUTION 1: Try clearing the error.
+            recovery_procedure[1] = ['mnt clear_error', 60]
+            # OUT OF SOLUTIONS: If the error's still there is must be a hardware issue.
+            return ERROR_MNT_AUTOSLEW, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The mount computer has lost connection to the mount controller.
