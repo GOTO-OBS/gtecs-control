@@ -36,8 +36,9 @@ class ConditionsDaemon(BaseDaemon):
 
         self.info_flag_names = ['clouds',
                                 'dark',
-                                'dust',
                                 ]
+        if params.SITE_NAME == 'La Palma':
+            self.info_flag_names.append('dust')
         self.normal_flag_names = ['rain',
                                   'windspeed',
                                   'windgust',
@@ -1056,51 +1057,54 @@ class ConditionsDaemon(BaseDaemon):
         dt_str = 'N/A'  # TODO: we don't get the image time for clouds
         msg += '  sat_clouds   {}%           dt={}\n'.format(clouds_str, dt_str)
 
-        dust = info['tng']['dust']
-        if dust == -999:
-            dust_str = rtxt('  ERR')
-        elif dust < params.MAX_DUSTLEVEL:
-            dust_str = ytxt('{:>5.1f}'.format(dust))
-            if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = gtxt('{:>5.1f}'.format(dust))
-        else:
-            dust_str = rtxt('{:>5.1f}'.format(dust))
-        dt = info['tng']['dust_dt']
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.DUSTLEVEL_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
+        if params.SITE_NAME == 'La Palma':
+            dust = info['tng']['dust']
+            if dust == -999:
+                dust_str = rtxt('  ERR')
+            elif dust < params.MAX_DUSTLEVEL:
+                dust_str = ytxt('{:>5.1f}'.format(dust))
+                if dust < params.MAX_DUSTLEVEL - 10:
+                    dust_str = gtxt('{:>5.1f}'.format(dust))
+            else:
+                dust_str = rtxt('{:>5.1f}'.format(dust))
+            dt = info['tng']['dust_dt']
+            if dt == -999:
+                dt_str = rtxt('ERR')
+            elif dt > params.DUSTLEVEL_TIMEOUT:
+                dt_str = rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = gtxt('{:.0f}'.format(dt))
+            msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
 
-        seeing = info['tng']['seeing']
-        dt = info['tng']['seeing_dt']
-        if seeing == -999:
-            seeing_str = rtxt('ERR')
-        else:
-            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.SEEING_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  seeing (tng)   {}"           dt={}\n'.format(seeing_str, dt_str)
+        if params.SITE_NAME == 'La Palma':
+            seeing = info['tng']['seeing']
+            dt = info['tng']['seeing_dt']
+            if seeing == -999:
+                seeing_str = rtxt('ERR')
+            else:
+                seeing_str = boldtxt('{:>3.1f}'.format(seeing))
+            if dt == -999:
+                dt_str = rtxt('ERR')
+            elif dt > params.SEEING_TIMEOUT:
+                dt_str = rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = gtxt('{:.0f}'.format(dt))
+            msg += '  seeing (tng)   {}"           dt={}\n'.format(seeing_str, dt_str)
 
-        seeing = info['robodimm']['seeing']
-        dt = info['robodimm']['dt']
-        if seeing == -999:
-            seeing_str = rtxt('ERR')
-        else:
-            seeing_str = boldtxt('{:>3.1f}'.format(seeing))
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.SEEING_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  seeing (ing)   {}"           dt={}\n'.format(seeing_str, dt_str)
+        if params.SITE_NAME == 'La Palma':
+            seeing = info['robodimm']['seeing']
+            dt = info['robodimm']['dt']
+            if seeing == -999:
+                seeing_str = rtxt('ERR')
+            else:
+                seeing_str = boldtxt('{:>3.1f}'.format(seeing))
+            if dt == -999:
+                dt_str = rtxt('ERR')
+            elif dt > params.SEEING_TIMEOUT:
+                dt_str = rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = gtxt('{:.0f}'.format(dt))
+            msg += '  seeing (ing)   {}"           dt={}\n'.format(seeing_str, dt_str)
 
         sunalt = info['sunalt']
         if sunalt < 0:

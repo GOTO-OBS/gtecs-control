@@ -1253,25 +1253,27 @@ def make_header(ut, daemon_info=None):
     clouds = daemon_info['conditions']['clouds']
     if clouds == -999:
         clouds = 'NA'
-    seeing = daemon_info['conditions']['tng']['seeing']
-    if seeing == -999:
-        seeing = 'NA'
-    seeing_ing = daemon_info['conditions']['robodimm']['seeing']
-    if seeing_ing == -999:
-        seeing_ing = 'NA'
-    dust = daemon_info['conditions']['tng']['dust']
-    if dust == -999:
-        dust = 'NA'
     header.append(('SKYTEMP ', sky_temp,
                    'Sky temperature, Celsius'))
     header.append(('SATCLOUD', clouds,
                    'IR satellite cloud opacity, percent (sat24.com)'))
-    header.append(('SEEING  ', seeing,
-                   'Seeing, arcseconds (TNG DIMM)'))
-    header.append(('SEEING2 ', seeing_ing,
-                   'Seeing, arcseconds (ING RoboDIMM)'))
-    header.append(('DUST    ', dust,
-                   'Dust level, ug/m3 (TNG)'))
+
+    if params.SITE_NAME == 'La Palma':
+        seeing = daemon_info['conditions']['tng']['seeing']
+        if seeing == -999:
+            seeing = 'NA'
+        seeing_ing = daemon_info['conditions']['robodimm']['seeing']
+        if seeing_ing == -999:
+            seeing_ing = 'NA'
+        dust = daemon_info['conditions']['tng']['dust']
+        if dust == -999:
+            dust = 'NA'
+        header.append(('DUST    ', dust,
+                       'Dust level, ug/m3 (TNG)'))
+        header.append(('SEEING  ', seeing,
+                       'Seeing, arcseconds (TNG DIMM)'))
+        header.append(('SEEING2 ', seeing_ing,
+                       'Seeing, arcseconds (ING RoboDIMM)'))
 
     # External conditions
     ext_temp = daemon_info['conditions']['weather_ext']['temperature']
