@@ -352,7 +352,7 @@ class MntDaemon(BaseDaemon):
 
             # Connection successful
             self.log.info('Connected to mount')
-            if 'mount' in self.bad_hardware:
+            if 'mount' in self.bad_hardware:  # TODO: rename 'sitech' or 'autoslew', dome to plc...
                 self.bad_hardware.remove('mount')
 
         except Exception:
@@ -464,6 +464,10 @@ class MntDaemon(BaseDaemon):
                     else:
                         # Remember the time it began
                         temp_info['error_status_time'] = self.info['error_status_time']
+                    if self.clear_error_flag == 1:
+                        # We tried to clear, but the error is still there
+                        self.log.error(f'Mount raises error: {error_status}, clear failed')
+                        self.clear_error_flag = 0
                 elif (self.info and 'error_status' in self.info and self.clear_error_flag == 0):
                     # No error, but we want to keep until a new one is raised or we clear it
                     temp_info['error_status'] = self.info['error_status']
