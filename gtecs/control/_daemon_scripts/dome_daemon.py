@@ -1271,10 +1271,11 @@ class DomeDaemon(BaseDaemon):
                 gtxt('On') if info['windshield_enabled'] else 'Off',
                 ' ' if info['windshield_enabled'] else '',
                 rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
-            msg += '   Dehumidifier:    [{}]{} (Auto: {})\n'.format(
-                gtxt('On') if info['dehumidifier_on'] else 'Off',
-                ' ' if info['dehumidifier_on'] else '',
-                rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            if params.DOME_HAS_DEHUMIDIFIER:
+                msg += '   Dehumidifier:    [{}]{} (Auto: {})\n'.format(
+                    gtxt('On') if info['dehumidifier_on'] else 'Off',
+                    ' ' if info['dehumidifier_on'] else '',
+                    rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
             msg += '   Hatch:           [{}]\n'.format(
                 rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
                 else 'Closed')
@@ -1302,10 +1303,11 @@ class DomeDaemon(BaseDaemon):
                 gtxt('On') if info['windshield_enabled'] else 'Off')
             msg += ' - Autoshield:  {}\n'.format(
                 rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
-            msg += 'Dehumidifier: {}\n'.format(
-                gtxt('On') if info['dehumidifier_on'] else 'Off')
-            msg += ' - Autodehum:   {}\n'.format(
-                rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            if params.DOME_HAS_DEHUMIDIFIER:
+                msg += 'Dehumidifier: {}\n'.format(
+                    gtxt('On') if info['dehumidifier_on'] else 'Off')
+                msg += ' - Autodehum:   {}\n'.format(
+                    rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
             msg += 'Hatch:        {}\n'.format(
                 rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
                 else 'Closed')
