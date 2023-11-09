@@ -1274,6 +1274,13 @@ def make_header(ut, daemon_info=None):
                        'Seeing, arcseconds (TNG DIMM)'))
         header.append(('SEEING2 ', seeing_ing,
                        'Seeing, arcseconds (ING RoboDIMM)'))
+    else:
+        header.append(('DUST    ', 'NA',
+                       'Dust level, ug/m3 (unused)'))
+        header.append(('SEEING  ', 'NA',
+                       'Seeing, arcseconds (unused)'))
+        header.append(('SEEING2 ', 'NA',
+                       'Seeing, arcseconds (unused)'))
 
     # External conditions
     ext_temp = daemon_info['conditions']['weather_ext']['temperature']
