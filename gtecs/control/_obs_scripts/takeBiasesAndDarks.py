@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Script to take bias and dark frames."""
 
+import time
 from argparse import ArgumentParser
 
-from gtecs.common.system import execute_command
-from gtecs.control.observing import prepare_for_images, wait_for_exposure_queue
+from gtecs.control.daemons import daemon_proxy
+from gtecs.control.observing import prepare_for_images
 
 
 def run(num_exp=5, extras=False):
@@ -27,26 +28,42 @@ def run(num_exp=5, extras=False):
 
     # TODO: Get set of exposure times from the database?
     #       We'd need a camera/exposure database...
-    execute_command('exq multbias {} 1'.format(num_exp))
-    execute_command('exq multdark {} 45 1'.format(num_exp))
-    execute_command('exq multdark {} 60 1'.format(num_exp))
-    execute_command('exq multdark {} 90 1'.format(num_exp))
-    execute_command('exq multdark {} 120 1'.format(num_exp))
-    if extras:
-        # take a few extra long dark frames to test for hot pixels
-        execute_command('exq multdark 2 600 1')
-    execute_command('exq resume')  # just in case
 
-    # estimate a deliberately pessimistic timeout
-    readout = 10
-    total_time = (1 + readout +
-                  60 + readout +
-                  90 + readout +
-                  120 + readout) * num_exp
-    if extras:
-        total_time += (600 + readout) * 2
-    total_time *= 1.5
-    wait_for_exposure_queue(total_time)
+    with daemon_proxy('exq') as daemon:
+        print(f'Taking {num_exp} bias exposures')
+        daemon.add(exptime=0.0, nexp=num_exp, frametype='dark', imgtype='BIAS')
+
+        # TODO: this should be a param list (or args), match badConditionsTasks
+        for exptime in [45, 60, 90, 120]:
+            print(f'Taking {num_exp} {exptime:.0f}s dark exposures')
+            daemon.add(exptime=exptime, nexp=num_exp, frametype='dark', imgtype='DARK')
+        if extras:
+            print('Taking 2 extra 600s dark exposures')
+            daemon.add(exptime=600, nexp=2, frametype='dark', imgtype='DARK')
+
+        # estimate a deliberately pessimistic timeout
+        readout = 10
+        total_time = (1 + readout +
+                      60 + readout +
+                      90 + readout +
+                      120 + readout) * num_exp
+        if extras:
+            total_time += (600 + readout) * 2
+        total_time *= 1.5
+
+        # Resume the queue
+        daemon.resume()
+        # TODO: blocking command with confirmation or timeout in daemon
+        start_time = time.time()
+        while True:
+            time.sleep(0.5)
+            info = daemon.get_info(force_update=True)
+            if (info['queue_length'] == 0 and
+                    info['exposing'] is False and
+                    info['status'] == 'Ready'):
+                break
+            if (time.time() - start_time) > total_time:
+                raise TimeoutError('Exposure queue timed out')
 
     print('Biases and darks done')
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control filter wheels via the UT interface daemons."""
+"""Daemon to control filter wheels."""
 
 import threading
 import time
@@ -7,10 +7,9 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
-from gtecs.control.style import errortxt
+from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
+                                   daemon_proxy, get_daemon_host)
 
 
 class FiltDaemon(BaseDaemon):
@@ -19,10 +18,6 @@ class FiltDaemon(BaseDaemon):
     def __init__(self):
         super().__init__('filt')
 
-        # filt is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
-
         # command flags
         self.set_filter_flag = 0
         self.home_filter_flag = 0
@@ -30,10 +25,16 @@ class FiltDaemon(BaseDaemon):
         # filter wheel variables
         self.uts = params.UTS_WITH_FILTERWHEELS.copy()
         self.active_uts = []
+        self.interfaces = {f'filt{ut}' for ut in self.uts}
+
         self.new_filter = {ut: '' for ut in self.uts}
         self.filters = {ut: params.UT_DICT[ut]['FILTERS'] for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
+
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -44,6 +45,9 @@ class FiltDaemon(BaseDaemon):
     def _control_thread(self):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
+        self.check_period = params.DAEMON_CHECK_PERIOD
+        self.check_time = 0
+        self.force_check_flag = True
 
         while self.running:
             self.loop_time = time.time()
@@ -69,20 +73,18 @@ class FiltDaemon(BaseDaemon):
             if self.set_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         new_filter_num = self.filters[ut].index(self.new_filter[ut])
-
-                        self.log.info('Moving filter wheel {} ({}) to {} ({})'.format(
-                                      ut, interface_id, self.new_filter[ut], new_filter_num))
+                        self.log.info('Moving filter wheel {} to {} ({})'.format(
+                                      ut, self.new_filter[ut], new_filter_num))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.set_filter_pos(new_filter_num, ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'filt{ut}') as interface:
+                                reply = interface.move_filterwheel(new_filter_num)
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface filt{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_filter command failed')
@@ -95,19 +97,15 @@ class FiltDaemon(BaseDaemon):
             if self.home_filter_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Homing filter wheel {} ({})'.format(
-                                      ut, interface_id))
-
+                        self.log.info('Homing filter wheel {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.home_filter(ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'filt{ut}') as interface:
+                                reply = interface.home_filterwheel()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface filt{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('home_filter command failed')
@@ -119,7 +117,6 @@ class FiltDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -137,17 +134,15 @@ class FiltDaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
-
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_filter_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_filter_class(ut)
-                    ut_info['remaining'] = interface.get_filter_steps_remaining(ut)
-                    ut_info['current_filter_num'] = interface.get_filter_number(ut)
+                ut_info['interface_id'] = f'filt{ut}'
+                with daemon_proxy(f'filt{ut}') as interface:
+                    ut_info['serial_number'] = interface.get_serial_number()
+                    ut_info['hw_class'] = interface.get_class()
+                    ut_info['remaining'] = interface.get_steps_remaining()
+                    ut_info['current_filter_num'] = interface.get_position()
                     ut_info['current_filter'] = self.filters[ut][ut_info['current_filter_num']]
-                    ut_info['current_pos'] = interface.get_filter_position(ut)
-                    ut_info['homed'] = interface.get_filter_homed(ut)
+                    ut_info['current_pos'] = interface.get_motor_position()
+                    ut_info['homed'] = interface.get_homed()
 
                 if ut_info['remaining'] > 0:
                     ut_info['status'] = 'Moving'
@@ -165,13 +160,17 @@ class FiltDaemon(BaseDaemon):
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
+            now_strs = ['{}:{}'.format(ut,
+                                       temp_info[ut]['status']
+                                       if temp_info[ut] is not None else 'ERROR')
                         for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Filter wheels are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                old_strs = ['{}:{}'.format(ut,
+                                           self.info[ut]['status']
+                                           if self.info[ut] is not None else 'ERROR')
                             for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
@@ -185,104 +184,98 @@ class FiltDaemon(BaseDaemon):
     # Control functions
     def set_filters(self, new_filter):
         """Move filter wheel(s) to given filter(s)."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
 
-        # Format input
         if not isinstance(new_filter, dict):
             new_filter = {ut: new_filter for ut in self.uts}
+        if any(ut not in self.uts for ut in new_filter):
+            raise ValueError(f'Invalid UTs: {[ut for ut in new_filter if ut not in self.uts]}')
+        if any(new_filter[ut] not in self.filters[ut] for ut in new_filter):
+            bad_filters = {ut: new_filter[ut]
+                           for ut in new_filter
+                           if new_filter[ut] not in self.filters[ut]}
+            raise HardwareError(f'Invalid filters: {bad_filters}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(new_filter):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
+        if any(not self.info[ut]['homed'] for ut in new_filter):
+            bad_uts = [ut for ut in new_filter if not self.info[ut]['homed']]
+            raise HardwareError(f'Filter Wheels are not homed: {bad_uts}')
+        if any(self.info[ut]['remaining'] > 0 for ut in new_filter):
+            bad_uts = [ut for ut in new_filter if self.info[ut]['remaining'] > 0]
+            raise HardwareError(f'Filter Wheels are already moving: {bad_uts}')
 
-            # Check the new filter is a valid input
-            try:
-                new_filt = new_filter[ut]
-            except Exception:
-                s = '"{}" is not a valid filter'.format(new_filter[ut])
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the new filter is in the filter list
-            if new_filt not in self.filters[ut]:
-                s = 'New filter "{}" not in list ({})'.format(new_filt, ','.join(self.filters[ut]))
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the new filter is different from the current filter
-            # if new_filt == self.info[ut]['current_filter']:
-            #     s = 'Filter Wheel is already at position {}'.format(new_filt)
-            #     retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-            #     continue
-
-            # Check the filter wheel is not already moving
-            if self.info[ut]['remaining'] > 0:
-                s = 'Filter Wheel is already moving'
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the filter wheel is homed
-            if not self.info[ut]['homed']:
-                s = 'Filter Wheel is not homed'
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.new_filter[ut] = new_filt
-            s = 'Filter Wheel {}: Changing filter to {}'.format(ut, new_filt)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted([ut for ut in new_filter
+                                  if new_filter[ut] == self.info[ut]['current_filter']])
+        self.new_filter.update(new_filter)
         self.set_filter_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
-
-    def home_filters(self, ut_list=None):
+    def home_filters(self, uts=None):
         """Move filter wheel(s) to the home position."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
-        if ut_list is None:
-            ut_list = self.uts.copy()
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
+        if any(self.info[ut]['remaining'] > 0 for ut in uts):
+            bad_uts = [ut for ut in uts if self.info[ut]['remaining'] > 0]
+            raise HardwareError(f'Filter Wheels are already moving: {bad_uts}')
 
-            # Check the filter wheel is not already moving
-            if self.info[ut]['remaining'] > 0:
-                s = 'Filter Wheel is already moving'
-                retstrs.append('Filter Wheel {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'Filter Wheel {}: Moving to home position'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.home_filter_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
+    # Info function
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FILTER WHEEL {} ({}:{}) '.format(ut, host, port)
+                if info[ut]['status'] != 'Moving':
+                    if not info[ut]['homed']:
+                        msg += 'Current filter: UNHOMED '
+                    else:
+                        msg += '  Current filter: {} '.format(info[ut]['current_filter'])
+                        msg += '({}) '.format(info[ut]['current_filter_num'])
+                    msg += '  [{}]\n'.format(info[ut]['status'])
+                else:
+                    msg += '  {} ({})\n'.format(info[ut]['status'], info[ut]['remaining'])
+            msg = msg.rstrip()
+        else:
+            msg = '#### FILTER WHEEL INFO ####\n'
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FILTER WHEEL {} ({}:{})\n'.format(ut, host, port)
+                if info[ut]['status'] != 'Moving':
+                    msg += 'Status: {}\n'.format(info[ut]['status'])
+                    if not info[ut]['homed']:
+                        msg += 'Current filter: UNHOMED\n'
+                    else:
+                        msg += 'Current filter:     {}\n'.format(info[ut]['current_filter'])
+                else:
+                    msg += 'Status: {} ({})\n'.format(info[ut]['status'], info[ut]['remaining'])
+                    msg += 'Current filter:     N/A\n'
+                msg += 'Current filter num: {}\n'.format(info[ut]['current_filter_num'])
+                msg += 'Filters:            {}\n'.format(','.join(info[ut]['filters']))
+                msg += 'Current motor pos:  {}\n'.format(info[ut]['current_pos'])
+                msg += 'Serial number:      {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class:     {}\n'.format(info[ut]['hw_class'])
+                msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':
-    with make_pid_file('filt'):
-        FiltDaemon()._run()
+    daemon = FiltDaemon()
+    with make_pid_file(daemon.daemon_id):
+        host = params.DAEMONS[daemon.daemon_id]['HOST']
+        port = params.DAEMONS[daemon.daemon_id]['PORT']
+        pinglife = params.DAEMONS[daemon.daemon_id]['PINGLIFE']
+        daemon._run(host, port, pinglife, timeout=params.PYRO_TIMEOUT)

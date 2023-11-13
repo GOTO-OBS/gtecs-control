@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control cameras via the UT interface daemons."""
+"""Daemon to control cameras."""
 
 import os
 import threading
@@ -9,12 +9,12 @@ from concurrent.futures import ThreadPoolExecutor
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
+from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
+                                   daemon_proxy, get_daemon_host)
 from gtecs.control.exposures import Exposure
-from gtecs.control.fits import (clear_glance_files, get_all_info, glance_location,
-                                image_location, make_fits, save_fits)
+from gtecs.control.fits import (clear_glance_files, get_daemon_info, glance_location,
+                                image_location, make_fits, make_header, save_fits)
 from gtecs.control.slack import send_slack_msg
 
 
@@ -23,10 +23,6 @@ class CamDaemon(BaseDaemon):
 
     def __init__(self):
         super().__init__('cam')
-
-        # cam is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
 
         # command flags
         self.take_exposure_flag = 0
@@ -40,6 +36,7 @@ class CamDaemon(BaseDaemon):
         self.active_uts = []
         self.abort_uts = []
         self.clear_uts = self.uts.copy()  # clear on daemon restart
+        self.interfaces = {f'cam{ut}' for ut in self.uts}
 
         self.run_number_file = os.path.join(params.FILE_PATH, 'run_number')
         if not os.path.exists(self.run_number_file):
@@ -49,13 +46,13 @@ class CamDaemon(BaseDaemon):
         with open(self.run_number_file, 'r') as f:
             self.latest_run_number = int(f.read())
         self.num_taken = 0
-        self.latest_headers = (0, {ut: None for ut in self.uts})
 
         self.queues_cleared = {ut: False for ut in self.uts}
 
         self.exposure_state = 'none'
         self.current_exposure = None
-        self.all_info = None
+        self.temp_headers = None
+        self.latest_headers = (self.num_taken, {ut: None for ut in self.uts})
         self.exposure_start_time = {ut: 0 for ut in self.uts}
         self.exposure_finished = {ut: False for ut in self.uts}
         self.exposing_start_time = 0
@@ -69,6 +66,10 @@ class CamDaemon(BaseDaemon):
         self.warm_temp = int(params.CAM_STANDBY_TEMPERATURE)
         self.target_temp = {ut: self.warm_temp for ut in self.uts}
 
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
+
         # start control thread
         t = threading.Thread(target=self._control_thread)
         t.daemon = True
@@ -78,6 +79,9 @@ class CamDaemon(BaseDaemon):
     def _control_thread(self):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
+        self.check_period = params.DAEMON_CHECK_PERIOD
+        self.check_time = 0
+        self.force_check_flag = True
 
         while self.running:
             self.loop_time = time.time()
@@ -112,55 +116,53 @@ class CamDaemon(BaseDaemon):
                     binning = self.current_exposure.binning
                     frametype = self.current_exposure.frametype
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         argstr = '{:.1f}s, {:.0f}x{:.0f}, {}'.format(exptime,
                                                                      binning, binning,
                                                                      frametype)
-                        self.log.info('{}: Preparing exposure ({}) on camera {} ({})'.format(
-                                      expstr, argstr, ut, interface_id))
+                        self.log.info('{}: Preparing exposure ({}) on camera {}'.format(
+                                      expstr, argstr, ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
+                            with daemon_proxy(f'cam{ut}') as interface:
                                 # set exposure time and frame type
-                                c = interface.set_exposure(exptime_ms, frametype, ut)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.set_exposure(exptime_ms, frametype)
+                                if reply:
+                                    self.log.info(reply)
                                 # set binning factor
-                                c = interface.set_camera_binning(binning, binning, ut)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.set_binning(binning, binning)
+                                if reply:
+                                    self.log.info(reply)
                                 # set window
                                 if self.target_window[ut] is None:
                                     # we need to set the default to full-frame here, since on
                                     # startup the cameras default to the active area only
-                                    c = interface.set_camera_window_full(ut)
+                                    reply = interface.set_window_full()
                                 else:
                                     # if the area isn't None then it should have been set by the
                                     # set_window function, however it could be forgotten
                                     # if the cameras are rebooted
                                     x, y, dx, dy = self.target_window[ut]
-                                    c = interface.set_camera_window(x, y, dx, dy, ut)
-                                if c:
-                                    self.log.info(c)
+                                    reply = interface.set_window(x, y, dx, dy)
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                     # Start the exposure
                     # (separate from the above, so they all start closer together)
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-                        self.log.info('{}: Starting exposure on camera {} ({})'.format(
-                                      expstr, ut, interface_id))
+                        self.log.info('{}: Starting exposure on camera {}'.format(
+                                      expstr, ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
+                            with daemon_proxy(f'cam{ut}') as interface:
                                 # save the exact start time for each camera
                                 self.exposure_start_time[ut] = time.time()
                                 # start the exposure
-                                c = interface.start_exposure(ut)
-                                if c:
-                                    self.log.info(c)
+                                reply = interface.start_exposure()
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
                     self.exposing_start_time = self.loop_time
                     self.exposure_state = 'exposing'
@@ -176,16 +178,15 @@ class CamDaemon(BaseDaemon):
                     # read out of the cameras first: that usually takes ~5s, and is done by a
                     # thread within the interfaces (actually within fliapi.USBCamera)
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                remaining = interface.get_camera_time_remaining(ut)
+                            with daemon_proxy(f'cam{ut}') as interface:
+                                remaining = interface.get_time_remaining()
                             if remaining == 0 and not self.exposure_finished[ut]:
-                                self.log.info('{}: Finished exposure on camera {} ({})'.format(
-                                              expstr, ut, interface_id))
+                                self.log.info('{}: Finished exposure on camera {}'.format(
+                                              expstr, ut))
                                 self.exposure_finished[ut] = True
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                     if all(self.exposure_finished[ut] for ut in self.active_uts):
@@ -195,28 +196,42 @@ class CamDaemon(BaseDaemon):
                     # STATE 3: Wait for the readout to finish and images are ready to be saved
                     # The exposure is finished but the cameras are still reading out
 
-                    # Fetch the daemon info
-                    if self.all_info is None:
+                    # Construct the image headers
+                    # We only need to do this once per exposure
+                    if self.temp_headers is None:
+                        # Fetch info from the other daemons
                         self.log.info('{}: Fetching info from other daemons'.format(expstr))
-                        self.all_info, bad_info = get_all_info(self.info.copy(), log=self.log)
+                        daemon_info, bad = get_daemon_info(self.info.copy(), log=self.log)
                         self.log.info('{}: Fetched info from other daemons'.format(expstr))
-                        if len(bad_info) > 0:
+                        if len(bad) > 0:
                             # We failed to get at least one info set, log and tell Slack
-                            self.log.error('Bad info: {}'.format(bad_info))
-                            send_slack_msg('Cam failed to get info for: {}'.format(bad_info))
+                            self.log.error('Bad info: {}'.format(bad))
+                            send_slack_msg(f'Cam failed to get info for: {bad}')
+                        # Now make the headers for each camera
+                        self.log.info('{}: Creating image headers'.format(expstr))
+                        headers = {}
+                        for ut in self.active_uts:
+                            try:
+                                headers[ut] = make_header(ut, daemon_info)
+                            except Exception:
+                                self.log.error('Failed to make header for camera {}'.format(ut))
+                                self.log.debug('', exc_info=True)
+                                send_slack_msg(f'Cam failed to make image header for UT{ut}')
+                                headers[ut] = None
+                        self.temp_headers = headers
+                        self.log.info('{}: Created image headers'.format(expstr))
 
                     # Wait for the images to be ready
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                ready = interface.exposure_ready(ut)
+                            with daemon_proxy(f'cam{ut}') as interface:
+                                ready = interface.exposure_ready()
                             if ready and not self.image_ready[ut]:
-                                self.log.info('{}: Ready to save exposure on camera {} ({})'.format(
-                                              expstr, ut, interface_id))
+                                self.log.info('{}: Ready to save exposure on camera {}'.format(
+                                              expstr, ut))
                                 self.image_ready[ut] = True
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                     if all(self.image_ready[ut] for ut in self.active_uts):
@@ -232,11 +247,15 @@ class CamDaemon(BaseDaemon):
                     if params.SAVE_IMAGES_LOCALLY:
                         # fetch image data from the interfaces and save them from the cam daemon
                         t = threading.Thread(target=self._save_images_cam,
-                                             args=[self.active_uts.copy(), self.all_info.copy()])
+                                             args=[self.active_uts.copy(),
+                                                   self.temp_headers.copy(),
+                                                   self.info.copy()])
                     else:
                         # tell the interfaces to save the files themselves
                         t = threading.Thread(target=self._save_images_intf,
-                                             args=[self.active_uts.copy(), self.all_info.copy()])
+                                             args=[self.active_uts.copy(),
+                                                   self.temp_headers.copy(),
+                                                   self.info.copy()])
                     t.daemon = True
                     t.start()
 
@@ -247,7 +266,7 @@ class CamDaemon(BaseDaemon):
                     self.exposure_start_time = {ut: 0 for ut in self.uts}
                     self.exposure_finished = {ut: False for ut in self.uts}
                     self.image_ready = {ut: False for ut in self.uts}
-                    self.all_info = None
+                    self.temp_headers = None
                     self.active_uts = []
                     self.num_taken += 1
                     self.take_exposure_flag = 0
@@ -257,17 +276,16 @@ class CamDaemon(BaseDaemon):
             if self.abort_exposure_flag:
                 try:
                     for ut in self.abort_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         expstr = self.current_exposure.expstr.capitalize()
-                        self.log.info('{}: Aborting exposure on camera {} ({})'.format(
-                                      expstr, ut, interface_id))
+                        self.log.info('{}: Aborting exposure on camera {}'.format(
+                                      expstr, ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.abort_exposure(ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'cam{ut}') as interface:
+                                reply = interface.abort_exposure()
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                         if ut in self.active_uts:
@@ -281,7 +299,7 @@ class CamDaemon(BaseDaemon):
                         self.exposure_start_time = {ut: 0 for ut in self.uts}
                         self.exposure_finished = {ut: False for ut in self.uts}
                         self.image_ready = {ut: False for ut in self.uts}
-                        self.all_info = None
+                        self.temp_headers = None
                         self.active_uts = []
                         self.num_taken += 1
                         self.take_exposure_flag = 0
@@ -298,13 +316,12 @@ class CamDaemon(BaseDaemon):
                 # TODO: Also verify the data size matches what's expected for the binfac!)
                 try:
                     for ut in self.clear_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-                        self.log.info('Clearing queue on camera {} ({})'.format(ut, interface_id))
+                        self.log.info('Clearing queue on camera {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                interface.clear_exposure_queue(ut)
+                            with daemon_proxy(f'cam{ut}') as interface:
+                                interface.clear_exposure_queue()
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                         if ut in self.active_uts:
@@ -321,26 +338,24 @@ class CamDaemon(BaseDaemon):
             if self.set_window_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-                        camstr = 'camera {} ({})'.format(ut, interface_id)
                         if self.target_window[ut] is None:
                             # reset to full
                             areastr = 'full-frame'
                         else:
                             x, y, dx, dy = self.target_window[ut]
                             areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
-                        self.log.info('Setting window on {} to {}'.format(camstr, areastr))
+                        self.log.info('Setting window on camera {} to {}'.format(ut, areastr))
                         try:
-                            with daemon_proxy(interface_id) as interface:
+                            with daemon_proxy(f'cam{ut}') as interface:
                                 if self.target_window[ut] is None:
-                                    c = interface.set_camera_window_full(ut)
+                                    reply = interface.set_window_full()
                                 else:
                                     x, y, dx, dy = self.target_window[ut]
-                                    c = interface.set_camera_window(x, y, dx, dy, ut)
-                                if c:
-                                    self.log.info(c)
+                                    reply = interface.set_window(x, y, dx, dy)
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_window command failed')
@@ -353,17 +368,16 @@ class CamDaemon(BaseDaemon):
             if self.set_temp_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
                         target_temp = self.target_temp[ut]
-                        camstr = 'camera {} ({})'.format(ut, interface_id)
-                        self.log.info('Setting temperature on {} to {}'.format(camstr, target_temp))
+                        self.log.info('Setting temperature on camera {} to {}'.format(
+                            ut, target_temp))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.set_camera_temp(target_temp, ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'cam{ut}') as interface:
+                                reply = interface.set_temp(target_temp)
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_temp command failed')
@@ -375,7 +389,6 @@ class CamDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -393,8 +406,7 @@ class CamDaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
+                ut_info['interface_id'] = f'cam{ut}'
 
                 if ut in self.active_uts:
                     if self.exposure_state == 'exposing':
@@ -408,23 +420,23 @@ class CamDaemon(BaseDaemon):
                 ut_info['exposure_start_time'] = self.exposure_start_time[ut]
                 ut_info['image_ready'] = self.image_ready[ut]
 
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_camera_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_camera_class(ut)
-                    ut_info['remaining'] = interface.get_camera_time_remaining(ut)
-                    ut_info['in_queue'] = interface.get_camera_queue_length(ut)
-                    ut_info['ccd_temp'] = interface.get_camera_temp('CCD', ut)
-                    ut_info['base_temp'] = interface.get_camera_temp('BASE', ut)
+                with daemon_proxy(f'cam{ut}') as interface:
+                    ut_info['serial_number'] = interface.get_serial_number()
+                    ut_info['hw_class'] = interface.get_class()
+                    ut_info['remaining'] = interface.get_time_remaining()
+                    ut_info['in_queue'] = interface.get_queue_length()
+                    ut_info['ccd_temp'] = interface.get_temp('CCD')
+                    ut_info['base_temp'] = interface.get_temp('BASE')
                     ut_info['target_temp'] = self.target_temp[ut]
-                    ut_info['cooler_power'] = interface.get_camera_cooler_power(ut)
-                    cam_info = interface.get_camera_info(ut)
+                    ut_info['cooler_power'] = interface.get_cooler_power()
+                    cam_info = interface.get_camera_info()
                     ut_info['cam_info'] = cam_info
                     ut_info['x_pixel_size'] = cam_info['pixel_size'][0]
                     ut_info['y_pixel_size'] = cam_info['pixel_size'][1]
-                    ut_info['image_size'] = interface.get_camera_image_size(ut)
-                    ut_info['window_area'] = interface.get_camera_window(ut)
-                    ut_info['active_area'] = interface.get_camera_active_area(ut)
-                    ut_info['full_area'] = interface.get_camera_full_area(ut)
+                    ut_info['image_size'] = interface.get_image_size()
+                    ut_info['window_area'] = interface.get_window()
+                    ut_info['active_area'] = interface.get_active_area()
+                    ut_info['full_area'] = interface.get_full_area()
 
                 temp_info[ut] = ut_info
             except Exception:
@@ -437,13 +449,13 @@ class CamDaemon(BaseDaemon):
             current_info = {}
             current_info['expstr'] = self.current_exposure.expstr
             current_info['run_number'] = self.current_exposure.run_number
-            current_info['ut_list'] = self.current_exposure.ut_list
             current_info['exptime'] = self.current_exposure.exptime
             current_info['binning'] = self.current_exposure.binning
             current_info['frametype'] = self.current_exposure.frametype
             current_info['target'] = self.current_exposure.target
             current_info['imgtype'] = self.current_exposure.imgtype
             current_info['glance'] = self.current_exposure.glance
+            current_info['uts'] = self.current_exposure.uts
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
             current_info['set_tot'] = self.current_exposure.set_tot
@@ -457,13 +469,17 @@ class CamDaemon(BaseDaemon):
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
+            now_strs = ['{}:{}'.format(ut,
+                                       temp_info[ut]['status']
+                                       if temp_info[ut] is not None else 'ERROR')
                         for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Cameras are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                old_strs = ['{}:{}'.format(ut,
+                                           self.info[ut]['status']
+                                           if self.info[ut] is not None else 'ERROR')
                             for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
@@ -474,7 +490,7 @@ class CamDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-    def _save_images_cam(self, active_uts, all_info):
+    def _save_images_cam(self, active_uts, header_info, cam_info):
         """Thread to be started whenever an exposure is completed.
 
         By containing fetching images from the interfaces and saving them to
@@ -482,7 +498,6 @@ class CamDaemon(BaseDaemon):
         the previous one is finished.
         """
         self.saving_thread_running = True
-        cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
         self.log.info('{}: Saving thread started'.format(expstr))
@@ -514,26 +529,22 @@ class CamDaemon(BaseDaemon):
         future_images = {ut: None for ut in active_uts}
         with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
             for ut in active_uts:
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                interface = daemon_proxy(interface_id, timeout=99)
-                try:
-                    self.log.info('{}: Fetching exposure from camera {} ({})'.format(
-                                  expstr, ut, interface_id))
-                    future_images[ut] = executor.submit(interface.fetch_exposure, ut)
-                except Exception:
-                    self.log.error('No response from interface {}'.format(interface_id))
-                    self.log.debug('', exc_info=True)
+                with daemon_proxy(f'cam{ut}', timeout=99) as interface:
+                    try:
+                        self.log.info('{}: Fetching exposure from camera {}'.format(expstr, ut))
+                        future_images[ut] = executor.submit(interface.fetch_exposure)
+                    except Exception:
+                        self.log.error('No response from interface cam{}'.format(ut))
+                        self.log.debug('', exc_info=True)
 
             # wait for images to be fetched
             images = {ut: None for ut in active_uts}
             while True:
                 time.sleep(0.001)
                 for ut in active_uts:
-                    interface_id = params.UT_DICT[ut]['INTERFACE']
                     if future_images[ut].done() and images[ut] is None:
                         images[ut] = future_images[ut].result()
-                        self.log.info('{}: Fetched exposure from camera {} ({})'.format(
-                                      expstr, ut, interface_id))
+                        self.log.info('{}: Fetched exposure from camera {}'.format(expstr, ut))
 
                 # keep looping until all the images and info are fetched
                 # TODO: won't work if it fails
@@ -547,7 +558,9 @@ class CamDaemon(BaseDaemon):
 
         # save images in parallel
         with ThreadPoolExecutor(max_workers=len(active_uts)) as executor:
-            headers = {ut: None for ut in self.uts}
+            # We store the returned final headers, as they will include any extra cards which depend
+            # on the image data (e.g. median counts, HFDs etc).
+            full_headers = {ut: None for ut in self.uts}
             for ut in active_uts:
                 # get image data and filename
                 image_data = images[ut]
@@ -558,28 +571,27 @@ class CamDaemon(BaseDaemon):
                     filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
                 # create and fill the FITS HDU
-                hdu = make_fits(image_data, ut, all_info,
+                hdu = make_fits(image_data,
+                                header_cards=header_info[ut],
                                 compress=params.COMPRESS_IMAGES,
                                 measure_hfds=self.measure_hfds,
                                 log=self.log
                                 )
-                headers[ut] = hdu.header
+                full_headers[ut] = hdu.header
 
                 # write the FITS file
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                self.log.info('{}: Saving exposure from camera {} ({}) to {}'.format(
-                              expstr, ut, interface_id, filename))
+                self.log.info('{}: Saving exposure from camera {} to {}'.format(
+                              expstr, ut, filename))
                 executor.submit(save_fits, hdu, filename,
                                 log=self.log, log_debug=False, fancy_log=True)
 
-        self.latest_headers = (self.num_taken, headers)
+        self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
-    def _save_images_intf(self, active_uts, all_info):
+    def _save_images_intf(self, active_uts, header_info, cam_info):
         """Save the images on the interfaces, rather than fetching and saving locally."""
         self.saving_thread_running = True
-        cam_info = all_info['cam']
         current_exposure = cam_info['current_exposure']
         expstr = current_exposure['expstr'].capitalize()
         self.log.info('{}: Saving thread started'.format(expstr))
@@ -598,83 +610,95 @@ class CamDaemon(BaseDaemon):
         # save images on the interfaces in turn
         # no need for parallelisation here, they should return immediately as the interface
         # creates new processes for each
-        headers = {ut: None for ut in self.uts}
+        # We store the returned final headers, as they will include any extra cards which depend
+        # on the image data (e.g. median counts, HFDs etc).
+        full_headers = {ut: None for ut in self.uts}
         for ut in active_uts:
-            interface_id = params.UT_DICT[ut]['INTERFACE']
+            # get filename
+            if not glance:
+                run_number = current_exposure['run_number']
+                filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
+            else:
+                filename = glance_location(ut, params.TELESCOPE_NUMBER)
 
-            self.log.info('{}: Saving exposure on camera {} ({})'.format(expstr, ut, interface_id))
+            self.log.info('{}: Saving exposure on camera {}'.format(expstr, ut))
             try:
-                with daemon_proxy(interface_id) as interface:
-                    headers[ut] = interface.save_exposure(ut, all_info,
-                                                          compress=params.COMPRESS_IMAGES,
-                                                          measure_hfds=self.measure_hfds,
-                                                          method='thread',
-                                                          )
+                with daemon_proxy(f'cam{ut}') as interface:
+                    full_headers[ut] = interface.save_exposure(
+                        filename=filename,
+                        header_cards=header_info[ut],
+                        compress=params.COMPRESS_IMAGES,
+                        measure_hfds=self.measure_hfds,
+                    )
             except Exception:
-                self.log.error('No response from interface {}'.format(interface_id))
+                self.log.error('No response from interface cam{}'.format(ut))
                 self.log.debug('', exc_info=True)
 
-        self.latest_headers = (self.num_taken, headers)
+        self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
 
     # Control functions
-    def take_image(self, exptime, binning, imgtype, ut_list):
+    def take_image(self, exptime, binning, imgtype, uts=None):
         """Take a normal frame with the camera."""
-        # Create exposure object
-        exposure = Exposure(ut_list, exptime,
-                            binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype.upper())
-
-        # Use the common function
+        if uts is None:
+            uts = self.uts.copy()
+        exposure = Exposure(
+            exptime,
+            binning=binning,
+            frametype='normal',
+            target='NA',
+            imgtype=imgtype.upper(),
+            glance=False,
+            uts=uts,
+        )
         return self.take_exposure(exposure)
 
-    def take_dark(self, exptime, binning, imgtype, ut_list):
+    def take_dark(self, exptime, binning, imgtype, uts=None):
         """Take dark frame with the camera."""
-        # Create exposure object
-        exposure = Exposure(ut_list, exptime,
-                            binning=binning, frametype='dark',
-                            target='NA', imgtype=imgtype.upper())
-
-        # Use the common function
+        if uts is None:
+            uts = self.uts.copy()
+        exposure = Exposure(
+            exptime,
+            binning=binning,
+            frametype='dark',
+            target='NA',
+            imgtype=imgtype.upper(),
+            glance=False,
+            uts=uts,
+        )
         return self.take_exposure(exposure)
 
-    def take_glance(self, exptime, binning, imgtype, ut_list):
+    def take_glance(self, exptime, binning, imgtype, uts=None):
         """Take a glance frame with the camera (no run number)."""
-        # Create exposure object
-        exposure = Exposure(ut_list, exptime,
-                            binning=binning, frametype='normal',
-                            target='NA', imgtype=imgtype.upper(),
-                            glance=True)
-
-        # Use the common function
+        if uts is None:
+            uts = self.uts.copy()
+        exposure = Exposure(
+            exptime,
+            binning=binning,
+            frametype='normal',
+            target='NA',
+            imgtype=imgtype.upper(),
+            glance=True,
+            uts=uts,
+        )
         return self.take_exposure(exposure)
 
     def take_exposure(self, exposure):
         """Take an exposure with the camera from an Exposure object."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        ut_list = exposure.ut_list
-        exptime = exposure.exptime
-        binning = exposure.binning
-        frametype = exposure.frametype
-
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-        if int(exptime) < 0:
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if int(exposure.exptime) < 0:
             raise ValueError('Exposure time must be > 0')
-        if int(binning) < 1 or (int(binning) - binning) != 0:
+        if int(exposure.binning) < 1 or (int(exposure.binning) - exposure.binning) != 0:
             raise ValueError('Binning factor must be a positive integer')
-        if frametype not in params.FRAMETYPE_LIST:
-            raise ValueError('Frame type must be in {}'.format(params.FRAMETYPE_LIST))
-
-        # Check current status
-        if self.exposure_state != 'none':
-            raise errors.HardwareStatusError('Cameras are already exposing')
+        if exposure.frametype not in ['normal', 'dark']:
+            raise ValueError('Invalid frame type: "{}"'.format(exposure.frametype))
+        uts = exposure.uts
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
+        if self.exposure_state != 'none' or len(self.active_uts) > 0:
+            raise HardwareError(f'Cameras are already exposing: {self.active_uts}')
 
         # Find and update run number, and store on the Exposure
         if not exposure.glance:
@@ -684,197 +708,109 @@ class CamDaemon(BaseDaemon):
             with open(self.run_number_file, 'w') as f:
                 f.write('{:d}'.format(new_run_number))
             exposure.run_number = new_run_number
-            exposure.expstr = 'exposure r{:07d}'.format(new_run_number)
+            exposure.expstr = f'exposure r{new_run_number:07d}'
             self.latest_run_number = new_run_number
         else:
             exposure.run_number = None
             exposure.expstr = 'glance'
 
-        # Set values
         self.current_exposure = exposure
-        self.active_uts = sorted([ut for ut in ut_list])
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.take_exposure_flag = 1
 
-        # Format return string
-        s = 'Taking {}:'.format(exposure.expstr)
-        for ut in ut_list:
-            argstr = '{:.1f}s, {:.0f}x{:.0f}, {}'.format(exptime, binning, binning, frametype)
-            s += '\n  '
-            s += 'Taking exposure {} on camera {}'.format(argstr, ut)
-        return s
+        return exposure.expstr
 
-    def abort_exposure(self, ut_list):
+    def abort_exposure(self, uts=None):
         """Abort current exposure."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
+        if self.exposure_state == 'exposing':
+            self.abort_uts = sorted([ut for ut in uts if ut in self.active_uts])
+            self.clear_uts = self.abort_uts.copy()
+            self.abort_exposure_flag = 1
+            self.clear_queue_flag = 1
 
-        # Check current status
-        if self.exposure_state != 'exposing':
-            return 'Cameras are not currently exposing'
-
-        # Set values
-        self.abort_uts = sorted([ut for ut in ut_list if ut in self.active_uts])
-        self.clear_uts = self.abort_uts.copy()
-
-        # Set flag
-        self.abort_exposure_flag = 1
-        self.clear_queue_flag = 1
-
-        # Format return string
-        s = 'Aborting:'
-        for ut in ut_list:
-            s += '\n  '
-            if ut not in self.abort_uts:
-                s += 'Camera {} is not currently exposing'.format(ut)
-            else:
-                s += 'Aborting exposure on camera {}'.format(ut)
-        return s
-
-    def clear_queue(self, ut_list):
+    def clear_queue(self, uts=None):
         """Clear any leftover images in the camera memory."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
-        self.clear_uts = sorted([ut for ut in ut_list])
-
-        # Set flag
+        queue_length = {ut: self.info[ut]['in_queue'] for ut in uts}
+        self.clear_uts = sorted(uts)
         self.clear_queue_flag = 1
 
-        # Format return string
-        s = 'Clearing:'
-        for ut in ut_list:
-            s += '\n  '
-            if self.info[ut]['in_queue'] == 0:
-                s += 'Camera {} has no images to clear'.format(ut)
-            else:
-                s += 'Clearing {} images from queue on camera {}'.format(
-                    self.info[ut]['in_queue'], ut)
-        return s
+        return queue_length
 
     def get_latest_headers(self):
         """Get the headers for the last completed exposure."""
         while self.saving_thread_running:
             # If we're currently saving we need to wait for the headers to be stored
-            time.sleep(0.1)
+            raise HardwareError('Cameras are currently reading out')
         return self.latest_headers
 
-    def set_window(self, x, y, dx, dy, ut_list):
+    def set_window(self, x, y, dx, dy, uts=None):
         """Set the camera's image window area."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if x < 0 or y < 0:
             raise ValueError('Coordinates must be >= 0')
         if dx < 1 or dy < 1:
-            raise ValueError('Width./height must be >= 1')
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise ValueError('Width/height must be >= 1')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
-        self.active_uts = sorted([ut for ut in ut_list])
-        for ut in ut_list:
+        self.active_uts = sorted(uts)
+        for ut in uts:
             self.target_window[ut] = (int(x), int(y), int(dx), int(dy))
-
-        # Set flag
         self.set_window_flag = 1
 
-        # Format return string
-        s = 'Setting:'
-        areastr = '({:.0f},{:.0f},{:.0f},{:.0f})'.format(x, y, dx, dy)
-        for ut in ut_list:
-            s += '\n  '
-            s += 'Setting window on camera {} to {}'.format(ut, areastr)
-        return s
-
-    def remove_window(self, ut_list):
+    def remove_window(self, uts=None):
         """Set the camera's image window area to full-frame."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
-        self.active_uts = sorted([ut for ut in ut_list])
-        for ut in ut_list:
+        self.active_uts = sorted(uts)
+        for ut in uts:
             self.target_window[ut] = None
-
-        # Set flag
         self.set_window_flag = 1
-
-        # Format return string
-        s = 'Setting:'
-        for ut in ut_list:
-            s += '\n  '
-            s += 'Setting window on camera {} to full-frame'.format(ut)
-        return s
 
     def measure_image_hfds(self, command):
         """Enable or disable measuring image HFDs when saving."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
-        self.wait_for_info()
-        if command == 'on' and self.measure_hfds:
-            return 'Measuring HFDs is already enabled'
-        elif command == 'off' and not self.measure_hfds:
-            return 'Measuring HFDs is already disabled'
-
-        # Set flag
-        if command == 'on':
+        if command == 'on' and self.measure_hfds is False:
             self.log.info('Enabling HFD measurement')
             self.measure_hfds = True
-        elif command == 'off':
+        elif command == 'off' and self.measure_hfds is True:
             self.log.info('Disabling HFD measurement')
             self.measure_hfds = False
 
-        if command == 'on':
-            return 'Enabling image HFD measurement'
-        elif command == 'off':
-            return 'Disabling image HFD measurement'
-
-    def set_temperature(self, target_temp, ut_list):
+    def set_temperature(self, target_temp, uts=None):
         """Set the camera's temperature."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Check input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if target_temp.lower() == 'cool':
             target_temp = self.cool_temp
         elif target_temp.lower() == 'warm':
@@ -886,28 +822,17 @@ class CamDaemon(BaseDaemon):
                 raise ValueError('Temperature must be a float or "cool" or "warm"')
             if not (-55 <= target_temp <= 45):
                 raise ValueError('Temperature must be between -55 and 45')
-        for ut in ut_list:
-            if ut not in self.uts:
-                raise ValueError('Unit telescope ID not in list {}'.format(self.uts))
-
-        # Check current status
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
         if self.exposure_state != 'none' or len(self.active_uts) > 0:
-            raise errors.HardwareStatusError('Cameras are exposing')
+            raise HardwareError(f'Cameras are exposing: {self.active_uts}')
 
-        # Set values
-        self.active_uts = sorted([ut for ut in ut_list])
-        for ut in ut_list:
+        self.active_uts = sorted(uts)
+        for ut in uts:
             self.target_temp[ut] = target_temp
-
-        # Set flag
         self.set_temp_flag = 1
-
-        # Format return string
-        s = 'Setting:'
-        for ut in ut_list:
-            s += '\n  '
-            s += 'Setting temperature on camera {} to {}'.format(ut, target_temp)
-        return s
 
     def is_exposing(self):
         """Return if the cameras are exposing.
@@ -916,7 +841,65 @@ class CamDaemon(BaseDaemon):
         """
         return self.take_exposure_flag
 
+    # Info function
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'CAMERA {} ({}:{}) '.format(ut, host, port)
+                if info[ut]['status'] != 'Exposing':
+                    msg += '  Temp: {:6.2f}C '.format(info[ut]['ccd_temp'])
+                    msg += '  [{}]\n'.format(info[ut]['status'])
+                else:
+                    current_exposure = info['current_exposure']
+                    expstr = current_exposure['expstr']
+                    if 'exposure' in expstr:
+                        expstr = expstr.split(' ')[1]
+                    msg += '  {} {} ({:.2f}s)\n'.format(
+                        info[ut]['status'], expstr, info[ut]['remaining'])
+            msg = msg.rstrip()
+        else:
+            msg = '####### CAMERA INFO #######\n'
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'CAMERA {} ({}:{})\n'.format(ut, host, port)
+                if info[ut]['status'] != 'Exposing':
+                    msg += 'Status: {}\n'.format(info[ut]['status'])
+                else:
+                    current_exposure = info['current_exposure']
+                    expstr = current_exposure['expstr']
+                    if 'exposure' in expstr:
+                        expstr = expstr.split(' ')[1]
+                    if current_exposure and ut in current_exposure['uts']:
+                        msg += 'Status: {} {} ({:.2f}s)\n'.format(
+                            info[ut]['status'], expstr, info[ut]['remaining'])
+                        msg += 'Exposure time:      {:.2f}s\n'.format(current_exposure['exptime'])
+                        msg += 'Binning:            {:.0f}\n'.format(current_exposure['binning'])
+                        msg += 'Frame type:         {}\n'.format(current_exposure['frametype'])
+                msg += 'Image window:       {}\n'.format(info[ut]['window_area'])
+                msg += 'CCD Temperature:    {:.2f}C\n'.format(info[ut]['ccd_temp'])
+                msg += 'Target Temperature: {:.2f}C\n'.format(info[ut]['target_temp'])
+                msg += 'Base Temperature:   {:.2f}C\n'.format(info[ut]['base_temp'])
+                msg += 'Cooler power:       {:.0f}%\n'.format(info[ut]['cooler_power'])
+                msg += 'Serial number:      {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class:     {}\n'.format(info[ut]['hw_class'])
+                msg += '~~~~~~~\n'
+            msg += 'Latest run number:  {:d}\n'.format(info['latest_run_number'])
+            msg += 'Exposures taken:    {:d}\n'.format(info['num_taken'])
+            msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
+
 
 if __name__ == '__main__':
-    with make_pid_file('cam'):
-        CamDaemon()._run()
+    daemon = CamDaemon()
+    with make_pid_file(daemon.daemon_id):
+        host = params.DAEMONS[daemon.daemon_id]['HOST']
+        port = params.DAEMONS[daemon.daemon_id]['PORT']
+        pinglife = params.DAEMONS[daemon.daemon_id]['PINGLIFE']
+        daemon._run(host, port, pinglife, timeout=params.PYRO_TIMEOUT)

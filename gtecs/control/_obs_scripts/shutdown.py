@@ -11,9 +11,9 @@ This script should perform the following simple tasks:
 """
 
 import time
+import traceback
 
-from gtecs.common.system import execute_command
-from gtecs.control.observing import wait_for_dome, wait_for_mirror_covers, wait_for_mount_parking
+from gtecs.control.daemons import daemon_proxy
 from gtecs.control.slack import send_slack_msg
 
 
@@ -21,54 +21,89 @@ def run():
     """Run shutdown tasks."""
     print('Running shutdown tasks')
 
-    # Pause and clear the exposure queue
-    execute_command('exq pause')
-    time.sleep(1)
-    execute_command('exq clear')
-
-    # Abort any current exposures
-    execute_command('cam abort')
+    # Pause and clear the exposure queue & abort any ongoing images
+    try:
+        with daemon_proxy('exq') as daemon:
+            daemon.pause()
+            time.sleep(1)
+            daemon.clear()
+        with daemon_proxy('cam') as daemon:
+            daemon.abort_exposure()
+    except Exception:
+        print('Failed to clear image queue, continuing with shutdown')
+        traceback.print_exc()
+        send_slack_msg('Shutdown script could not clear the exposure queue!')
 
     # Close the mirror covers
-    # (we need to do this before powering off the cameras, when we lose the interfaces)
-    execute_command('ota close')
+    print('Closing mirror covers')
     try:
-        wait_for_mirror_covers(opening=False, timeout=60)
-    except TimeoutError:
-        print('Mirror covers timed out, continuing with shutdown')
+        with daemon_proxy('ota') as daemon:
+            daemon.close_covers()
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                time.sleep(0.5)
+                info = daemon.get_info(force_update=True)
+                if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
+                    break
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mirror covers timed out')
+        print('  Mirror covers closed')
+    except Exception:
+        print('Failed to close mirror covers, continuing with shutdown')
+        traceback.print_exc()
         send_slack_msg('Shutdown script could not close the mirror covers!')
 
-    # # Shutdown the interfaces (kill to be sure, they can be sticky sometimes)
-    # execute_command('intf shutdown')
-    # time.sleep(2)
-    # execute_command('intf kill')
-    # time.sleep(2)
-
-    # # Power off the cameras, focusers etc
-    # execute_command('power off cams,focs,filts,fans')
-    # if params.MOUNT_CLASS == 'ASA':
-    #     execute_command('power off asa_gateways')
-
-    # Set camera temps to warm during the day (don't shutdown any more)
-    execute_command('cam temp warm')
+    # Set camera temps to warm during the day
+    print('Setting cameras to warm')
+    try:
+        with daemon_proxy('cam') as daemon:
+            daemon.set_temperature('warm')
+        # We don't need to wait for them to warm up
+        print('  Camera temperature set')
+    except Exception:
+        print('Failed to warm cameras, continuing with shutdown')
+        traceback.print_exc()
+        send_slack_msg('Shutdown script could not warm the cameras!')
 
     # Park the mount
-    execute_command('mnt park')
+    print('Parking the mount')
     try:
-        wait_for_mount_parking(timeout=60)
-    except TimeoutError:
-        print('Mount timed out, continuing with shutdown')
+        with daemon_proxy('mnt') as daemon:
+            daemon.park()
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                time.sleep(0.5)
+                info = daemon.get_info(force_update=True)
+                if info['status'] in ['Parked', 'IN BLINKY MODE', 'MOTORS OFF']:
+                    break
+                if (time.time() - start_time) > 60:
+                    raise TimeoutError('Mount parking timed out')
+        print('  Mount parked')
+    except Exception:
+        print('Failed to park the mount, continuing with shutdown')
+        traceback.print_exc()
         send_slack_msg('Shutdown script could not park the mount!')
-    # Leave the mount motors on, so it can't move accidentally (e.g. in the wind)
-    # Note we don't power off the mount control computers here,
-    # we just make sure they are powered on during startup
 
     # Close the dome and wait (pilot will try again before shutdown)
-    execute_command('dome close')
+    print('Closing the dome')
     try:
-        wait_for_dome(target_position='closed', timeout=120)
+        with daemon_proxy('dome') as daemon:
+            daemon.close_dome()
+            # TODO: blocking command with confirmation or timeout in daemon
+            start_time = time.time()
+            while True:
+                time.sleep(0.5)
+                info = daemon.get_info(force_update=True)
+                if info['dome'] == 'closed':
+                    break
+                if (time.time() - start_time) > 120:
+                    raise TimeoutError('Dome timed out')
+        print('  Dome closed')
     except TimeoutError:
-        print('Dome timed out')
+        print('Failed to close the dome!')
+        traceback.print_exc()
         send_slack_msg('Shutdown script could not close the dome!')
 
 

@@ -16,7 +16,6 @@ from gtecs.common.system import execute_command
 from . import monitors
 from . import params
 from .astronomy import get_sunalt, local_midnight, sunalt_time
-from .errors import RecoveryError
 from .flags import Conditions, Status
 from .scheduling import update_schedule_pyro, update_schedule_server_async
 from .slack import send_slack_msg, send_startup_report, send_timing_report
@@ -297,9 +296,9 @@ class Pilot:
                     self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
                     try:
                         monitor.recover()  # Will log recovery commands
-                    except RecoveryError as err:
+                    except monitors.RecoveryError as error:
                         # Uh oh, we're out of options
-                        send_slack_msg(str(err))
+                        send_slack_msg(str(error))
                         asyncio.ensure_future(self.emergency_shutdown('Unfixable hardware error'))
 
             if error_count > 0:
@@ -596,7 +595,9 @@ class Pilot:
         script_name = name
         if name == 'OBS' and args is not None:
             # Add the pointing ID to the name used when logging
-            script_name += '-' + args[0]
+            # (and keep for later to check when we finish)
+            pointing_id = int(args[0])
+            script_name += f'-{pointing_id}'
         factory = functools.partial(protocol, script_name, self.running_script_result, 'pilot')
 
         # create the process coroutine
@@ -624,6 +625,7 @@ class Pilot:
                 send_slack_msg(msg)
             elif name not in ['OBS', 'BADCOND']:
                 # It's not uncommon for OBS and BADCOND to be canceled early
+                # TODO should send a message if OBS failed due to error, not scheduler interrupt
                 msg = 'Pilot {} task ended abnormally'.format(name)
                 send_slack_msg(msg)
 
@@ -639,13 +641,26 @@ class Pilot:
             while self.scheduler_updating:
                 self.log.debug('waiting for scheduler to finish updating')
                 await asyncio.sleep(0.5)
-            if retcode == 0:
-                self.current_status = 'completed'
+            if self.current_pointing is None or self.current_pointing['id'] != pointing_id:
+                # The scheduler returned a new pointing (or nothing) while we were waiting!
+                # That's awkward, but it can happen if the new pointing would have interrupted
+                # this one that's just finished (e.g. it's a ToO and this one wasn't).
+                # The scheduler will have already marked this pointing as interrupted,
+                # and assumed we're starting the new one.
+                # Or if the link was down for some reason and the scheduler recognised the pilot
+                # hadn't been responding, so it should mark the pointing as interrupted.
+                # So basically we don't have to do anything here, although it's annoying that this
+                # pointing will be considered interrupted and be rescheduled when it was actually
+                # completed successfully.
+                self.log.debug('pointing {} has already been overridden by the scheduler'.format(
+                    pointing_id))
             else:
-                self.current_status = 'interrupted'
-            self.log.debug('pointing {} was {}'.format(self.current_pointing['id'],
-                                                       self.current_status,
-                                                       ))
+                # Update the status of the completed pointing.
+                if retcode == 0:
+                    self.current_status = 'completed'
+                else:
+                    self.current_status = 'interrupted'
+                self.log.debug('pointing {} was {}'.format(pointing_id, self.current_status))
 
         return retcode, result
 
@@ -1000,7 +1015,7 @@ class Pilot:
             while attempts_remaining:
                 try:
                     if request_pointing:
-                        self.log.debug('checking scheduler')
+                        self.log.debug('checking scheduler')  # TODO add debug info (id/status etc)
                     else:
                         self.log.debug('updating scheduler')
                     if self.current_pointing is not None:
@@ -1050,6 +1065,8 @@ class Pilot:
                         self.log.error('Could not communicate with the scheduler, parking')
                         new_pointing = None
 
+            # TODO: WHAT IF WE PAUSED WHILE CHECKING?? (G3 2023-08-22 12:2)
+
             # Now that we've updated the database we can clear the current Pointing
             if self.current_status in ['completed', 'interrupted']:
                 self.current_pointing = None
@@ -1098,7 +1115,9 @@ class Pilot:
             # pointing as interrupted. So we need the database update to happen above.
             # Likewise if it's the end of the night we need to loop until observing=False.
             # But we can skip everything below.
-            if request_pointing is False:
+            # Note if we were already paused then request_pointing should be false, but we include
+            # the self.paused check in case we paused while we were waiting for the scheduler.
+            if request_pointing is False or self.paused:
                 msg = 'observing suspended'
                 if self.paused:
                     msg += ' while paused'
@@ -1230,11 +1249,7 @@ class Pilot:
             elif reason == 'manual':
                 self.log.warning('Pausing (system in manual mode)')
                 send_slack_msg('Pilot is pausing (system in manual mode)')
-
-                # kill the current script, we usually do it manually anyway
                 await self.cancel_running_script('system to manual mode')
-                if self.mount_is_tracking:
-                    self.stop_mount()
 
         if not pause:
             if self.time_paused[reason] > 0:

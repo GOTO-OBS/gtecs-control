@@ -209,3 +209,12 @@ class Status:
                 with open(self.emergency_file, 'a') as f:
                     f.write(reason + '\n')
             self._load()
+
+
+class ModeError(Exception):
+    """To be raised if a command isn't possible due to the system mode.
+
+    e.g. trying to enable certain dome functions when in engineering mode.
+    """
+
+    pass

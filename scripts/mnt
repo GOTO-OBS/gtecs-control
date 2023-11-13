@@ -6,51 +6,47 @@ import os
 import sys
 
 import astropy.units as u
-from astropy.coordinates import AltAz, Angle, SkyCoord, get_body
+from astropy.coordinates import AltAz, SkyCoord, get_body
 from astropy.time import Time
 
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
-from gtecs.control import errors
 from gtecs.control import misc
-from gtecs.control import params
-from gtecs.control import style
 from gtecs.control.astronomy import observatory_location
-from gtecs.control.style import errortxt
 
 
 def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    elif command == 'i':
-        raise errors.InputError('Already in interactive mode')
+    daemon_id = os.path.basename(__file__)
 
     # Primary daemon control
-    elif command == 'start':
-        reply = daemons.start_daemon('mnt')
-        print(reply)
+    if command == 'start':
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.start_daemon(daemon_id)
+        print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon('mnt')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        daemons.shutdown_daemon(daemon_id)
+        print(f'Daemon {daemon_id} shutdown on {host}:{port}')
 
     elif command == 'restart':
-        reply = daemons.restart_daemon('mnt')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.restart_daemon(daemon_id)
+        print(f'Daemon {daemon_id} restarted on {host}:{port} (PID {pid})')
 
     elif command == 'kill':
-        reply = daemons.kill_daemon('mnt')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        daemons.shutdown_daemon(daemon_id, kill=True)
+        print(f'Daemon {daemon_id} killed on {host}:{port}')
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon('mnt')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.check_daemon(daemon_id)
+        print(f'Daemon {daemon_id} is running on {host}:{port} (PID {pid})')
+
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -78,34 +74,28 @@ def query(command, args):
             info_type = 'raw'
             force = True
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'get_info', args=[force])
-        # print response
-        if not reply:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(reply)
-        elif info_type == 'verbose':
-            print_info(reply)
-        elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            if info_type != 'raw':
+                info_str = daemon.get_info_string(info_type == 'verbose', force)
+            else:
+                info = daemon.get_info(force)
+                info_str = json.dumps(info, indent=2, default=repr)
+        print(info_str)
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
-            log_file = 'mnt-stdout.log'
+            log_file = f'{daemon_id}-stdout.log'
             args.remove('stdout')
         else:
-            log_file = 'mnt.log'
+            log_file = f'{daemon_id}.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'target':
-        # parse arguments
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
@@ -120,22 +110,23 @@ def query(command, args):
                 try:
                     coords = get_body(name, Time.now())
                 except Exception:
-                    raise errors.InputError('Cannot find target "{}"'.format(name))
+                    raise ValueError('Cannot find target "{}"'.format(name))
             print('Found coordinates for "{}":'.format(name), end='  ')
             print(f'RA: {coords.ra.deg:.4f} Dec: {coords.dec.deg:.4f}')
         else:
-            raise errors.InputError('Invalid arguments')
-        # send commands
-        reply = daemons.daemon_function('mnt', 'set_target', [coords])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_target(coords)
+        print('Set target')
 
     elif command == 'clear':
-        # send command
-        reply = daemons.daemon_function('mnt', 'clear_target')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.clear_target()
+        print('Cleared target')
 
     elif command == 'slew':
-        # parse arguments
         if len(args) == 0:
             # slew to already set target
             coords = None
@@ -145,13 +136,13 @@ def query(command, args):
             dec_deg = float(args[1])
             coords = SkyCoord(ra_deg * u.deg, dec_deg * u.deg)
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'slew', [coords])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.slew(coords)
+        print('Slewing to target')
 
     elif command in ['slew_altaz', 'altaz']:
-        # parse arguments
         if len(args) == 2:
             # decimal alt and az
             alt = float(args[0])
@@ -163,13 +154,13 @@ def query(command, args):
             # Convert to RA/Dec and go to that position instead
             coords = SkyCoord(coords).transform_to('icrs')
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'slew', [coords])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.slew(coords)
+        print('Slewing to target')
 
     elif command in ['slew_altaz_target', 'altaz_target']:
-        # parse arguments
         if len(args) == 2:
             alt = float(args[0])
             if alt == 90:  # We don't want to go to the exact zenith
@@ -178,82 +169,119 @@ def query(command, args):
             coords = AltAz(alt=alt * u.deg, az=az * u.deg,
                            obstime=Time.now(), location=observatory_location())
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'slew', [coords])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.slew(coords)
+        print('Slewing to target')
 
     elif command == 'track':
-        reply = daemons.daemon_function('mnt', 'track')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.track()
+        print('Started tracking')
 
     elif command in ['stop', 'halt', 'abort']:
-        reply = daemons.daemon_function('mnt', 'halt')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.halt()
+        print('Stopping mount')
 
     elif command == 'park':
-        reply = daemons.daemon_function('mnt', 'park')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.park()
+        print('Mount parking')
 
     elif command == 'unpark':
-        reply = daemons.daemon_function('mnt', 'unpark')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.unpark()
+        print('Mount unparked')
 
     elif command == 'offset':
-        # parse arguments
         if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
             direction = args[0].upper()
             distance = float(args[1])
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'offset', [direction, distance])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.offset(direction, distance)
+        print('Slewing to offset coordinates')
 
     elif command in ['pulseguide', 'pulse_guide', 'guide']:
-        # parse arguments
         if len(args) == 2 and args[0].upper() in ['N', 'E', 'S', 'W']:
             direction = args[0].upper()
             duration = float(args[1])
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'pulse_guide', [direction, duration])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.pulse_guide(direction, duration)
+        print('Pulse guiding')
 
     elif command == 'sync':
-        # parse arguments
         if len(args) == 2:
             # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
             dec_deg = float(args[1])
             coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'sync_mount', [coords])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.sync_mount(coords)
+        print('Set sync coordinates')
 
     elif command == 'set_offset':
-        # parse arguments
         if len(args) == 2:
             # decimal ra and dec (in degrees)
             ra_deg = float(args[0])
             dec_deg = float(args[1])
             coords = SkyCoord(ra_deg, dec_deg, unit=u.deg)
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'set_position_offset', [coords])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_position_offset(coords)
+        print('Set internal offset')
 
     elif command == 'clear_offset':
-        # send command
-        reply = daemons.daemon_function('mnt', 'clear_position_offset')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.clear_position_offset()
+        print('Cleared internal offset')
+
+    elif command == 'blinky':
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.blinky(command)
+        if command == 'on':
+            out_str = 'Blinky mode enabled'
+        elif command == 'off':
+            out_str = 'Blinky mode disabled'
+        print(out_str)
+
+    elif command == 'motors':
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.power_motors(command)
+        if command == 'on':
+            out_str = 'Mount motors enabled'
+        elif command == 'off':
+            out_str = 'Mount motors disabled'
+        print(out_str)
 
     elif command == 'trackrate':
-        # parse arguments
         if len(args) == 1 and args[0].lower() == 'reset':
             ra_rate = 0
             dec_rate = 0
@@ -261,214 +289,74 @@ def query(command, args):
             ra_rate = float(args[0])
             dec_rate = float(args[1])
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'set_trackrate', [ra_rate, dec_rate])
-        print(reply)
-
-    elif command == 'blinky':
-        # parse arguments
-        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
-            activate = True
-        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
-            activate = False
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_trackrate(ra_rate, dec_rate)
+        if ra_rate == 0 and dec_rate == 0:
+            out_str = 'Reset track rate to sidereal'
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'blinky', [activate])
-        print(reply)
-
-    elif command == 'motors':
-        # parse arguments
-        if len(args) == 1 and args[0] in ['on', 'On', 'ON']:
-            activate = True
-        elif len(args) == 1 and args[0] in ['off', 'Off', 'OFF']:
-            activate = False
-        else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('mnt', 'power_motors', [activate])
-        print(reply)
+            out_str = 'Set track rate'
+        print(out_str)
 
     elif command == 'clear_error':
-        # send command
-        reply = daemons.daemon_function('mnt', 'clear_error')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.clear_error()
+        print('Cleared any errors')
+
+    # Help
+    elif command in ['help', '?']:
+        print(
+            'Usage: mnt command [options]',
+            'Daemon commands:',
+            '  start                        start the daemon',
+            '  shutdown                     shutdown the daemon',
+            '  restart                      restart the daemon',
+            '  kill                         kill the daemon',
+            '  check/ping                   check the daemon for errors',
+            'Mount commands:',
+            '  target [ra dec]|name         set target to ra/dec (in decimal deg) or named object',
+            '  clear                        clear the stored target',
+            '  slew [ra dec]                slew to target or given ra/dec (in decimal deg)',
+            '  slew_altaz alt az            slew to given alt/az, then track at sidereal rate',
+            '  slew_altaz_target alt az     slew to given alt/az, then "track" alt/az position',
+            '  track                        start tracking',
+            '  stop/halt/abort              stop moving (tracking/slewing)',
+            '  park                         enter park state',
+            '  unpark                       leave park state',
+            '  offset N|E|S|W dist          offset in direction by dist (in arcsec)',
+            '  guide N|E|S|W duration       pulse guide in direction for duration (in ms)',
+            '  sync ra dec                  sync current position to given ra/dec (in decimal deg)',
+            '  set_offset ra dec            set internal offset from given ra/dec (in decimal deg)',
+            '  clear_offset                 clear any internal offset',
+            '  trackrate [ra dec]|reset     set track rate in arcsec/sec (reset for sidereal)',
+            '  blinky on|off                turn on or off blinky mode (SiTech only)',
+            '  motors on|off                turn on or off the mount motors (ASA only)',
+            '  clear_error                  clear any current mount errors (ASA only)',
+            '  info/status [-r|-v] [-f]     report current status [raw/verbose/force-update]',
+            '  log [stdout]                 print daemon log (tail alias)',
+            'Control commands:',
+            '  i                            enter interactive mode',
+            '  q/exit                       quit interactive mode',
+            '  ?/help                       print these instructions',
+            sep='\n')
 
     # Unrecognized function
     else:
-        raise errors.InputError('Unrecognized command "{}"'.format(command))
-
-
-def print_info(info):
-    """Print the full info dict."""
-    print('####### MOUNT INFO ########')
-    if info['status'] != 'Slewing':
-        print('Status: {}'.format(info['status']))
-    else:
-        if info['target_dist']:
-            print('Status: {} ({:.2f} deg)'.format(info['status'], info['target_dist']))
-        else:
-            print('Status: {}'.format(info['status']))
-    print('~~~~~~~')
-    ra, dec = info['mount_ra'], info['mount_dec']
-    ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-    dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-    print('Telescope RA:     {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
-    print('Telescope Dec:    {:>11} / {:8.4f} deg'.format(dec_str, dec))
-
-    if info['target_alt'] is None:
-        # Assume RA/Dec target, unless Alt/Az is set
-        if info['target_ra'] is not None:
-            ra = info['target_ra']
-            ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-            print('Target RA:        {:>11} / {:8.4f} deg'.format(ra_str, ra * 360 / 24))
-        else:
-            print('Target RA:        NOT SET')
-        if info['target_dec'] is not None:
-            dec = info['target_dec']
-            dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-            print('Target Dec:       {:>11} / {:8.4f} deg'.format(dec_str, dec))
-        else:
-            print('Target Dec:       NOT SET')
-
-    print('Mount Alt:        {:7.3f} deg'.format(info['mount_alt']))
-    print('Mount Az:         {:7.3f} deg'.format(info['mount_az']))
-
-    if info['target_alt'] is not None:
-        print('Target Alt:       {:7.3f} deg'.format(info['target_alt']))
-        print('Target Az:        {:7.3f} deg'.format(info['target_az']))
-
-    if info['target_dist'] is not None:
-        print('Target distance:  {:7.3f} deg'.format(info['target_dist']))
-    else:
-        print('Target distance:  NO TARGET')
-
-    print('~~~~~~~')
-    if info['class'] == 'SITECH':
-        if info['trackrate_ra'] == 0:
-            print('RA track rate:    SIDEREAL')
-        else:
-            print('RA track rate:    {:.2f} arcsec/sec'.format(info['trackrate_ra']))
-        if info['trackrate_dec'] == 0:
-            print('Dec track rate:   SIDEREAL')
-        else:
-            print('Dec track rate:   {:.2f} arcsec/sec'.format(info['trackrate_dec']))
-    elif info['class'] == 'ASA':
-        if info['error_status'] is not None:
-            t = Time(info['error_status_time'], format='unix', precision=0)
-            print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
-        if info['warning_status'] is not None:
-            t = Time(info['warning_status_time'], format='unix', precision=0)
-            print(style.ytxt('WARNING: "{}" (at {})'.format(info['warning_status'], t.iso)))
-        print('RA track rate:    {:>6.2f} arcsec/sec'.format(info['tracking_rate']['ra']))
-        print('Dec track rate:   {:>6.2f} arcsec/sec'.format(info['tracking_rate']['dec']))
-        print('RA tracking err:   {:+.4f} arcsec'.format(info['tracking_error']['ra']))
-        print('Dec tracking err:  {:+.4f} arcsec'.format(info['tracking_error']['dec']))
-        print('RA position err:   {:+.4f} arcsec'.format(info['position_error']['ra']))
-        print('Dec position err:  {:+.4f} arcsec'.format(info['position_error']['dec']))
-        print('RA current:         {:.1f} A'.format(info['motor_current']['ra']))
-        print('Dec current:        {:.1f} A'.format(info['motor_current']['dec']))
-
-    print('~~~~~~~')
-    print('Hour Angle:       {:+6.2f} h'.format(info['mount_ha']))
-
-    lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
-    print('Sidereal Time:    {:>11}'.format(lst_str))
-
-    print('Sun alt:          {:+6.2f} deg'.format(info['sun_alt']))
-    print('Moon alt:         {:+6.2f} deg'.format(info['moon_alt']))
-    print('Moon phase:         {} ({:.0%})'.format(info['moon_phase'], info['moon_ill']))
-    print('Moon distance:    {:6.2f} deg'.format(info['moon_dist']))
-
-    print('~~~~~~~')
-    print('Uptime: {:.1f}s'.format(info['uptime']))
-    print('Timestamp: {}'.format(info['timestamp']))
-    print('###########################')
-
-
-def print_info_s(info):
-    """Print the info dict in a compact way."""
-    status = info['status']
-    if status != 'Slewing':
-        if status == 'Tracking' and 'nonsidereal' in info and info['nonsidereal']:
-            status += ' (non-sidereal)'
-        print('MOUNT ({})        [{}]'.format(params.MOUNT_HOST, status))
-    else:
-        if info['target_dist']:
-            print('MOUNT ({})        Slewing ({:.2f} deg)'.format(params.MOUNT_HOST,
-                                                                  info['target_dist']))
-        else:
-            print('MOUNT ({})        Slewing '.format(params.MOUNT_HOST))
-
-    alt, az = info['mount_alt'], info['mount_az']
-    ra, dec = info['mount_ra'], info['mount_dec']
-    ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-    dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-
-    print('  RA:  {:>11} | {:8.4f} deg    Alt: {:7.3f}'.format(ra_str, ra * 360 / 24, alt))
-    print('  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}'.format(dec_str, dec, az))
-    if info['moon_dist'] <= 30:
-        print(style.ytxt('  WARNING: Moon dist < 30 deg ({:.2f})'.format(info['moon_dist'])))
-    if info['error_status'] is not None:
-        t = Time(info['error_status_time'], format='unix', precision=0)
-        print(style.rtxt('ERROR: "{}" (at {})'.format(info['error_status'], t.iso)))
-    if info['warning_status'] is not None:
-        t = Time(info['warning_status_time'], format='unix', precision=0)
-        print(style.ytxt('WARNING: "{}" (at {})'.format(info['warning_status'], t.iso)))
-
-
-def print_instructions():
-    """Print instructions for using the daemon."""
-    print('Usage: mnt command [options]',
-          'Daemon commands:',
-          '  start                          start the daemon',
-          '  shutdown                       shutdown the daemon',
-          '  restart                        restart the daemon',
-          '  kill                           kill the daemon',
-          '  check/ping                     check the daemon for errors',
-          'Mount commands:',
-          '  target [ra dec]|name           set target to ra/dec (in decimal deg) or named object',
-          '  clear                          clear the stored target',
-          '  slew [ra dec]                  slew to target or given ra/dec (in decimal deg)',
-          '  slew_altaz alt az              slew to given alt/az, then track at siderial rate',
-          '  slew_altaz_target alt az       slew to given alt/az, then "track" alt/az position',
-          '  track                          start tracking',
-          '  stop/halt/abort                stop moving (tracking/slewing)',
-          '  park                           enter park state',
-          '  unpark                         leave park state',
-          '  offset N|E|S|W dist            offset in direction by dist (in arcsec)',
-          '  guide N|E|S|W duration         pulse guide in direction for duration (in ms)',
-          '  sync ra dec                    sync current position to given ra/dec (in decimal deg)',
-          '  set_offset ra dec              set internal offset from given ra/dec (in decimal deg)',
-          '  clear_offset                   clear any internal offset',
-          '  trackrate [ra dec]|reset       set track rate in arcsec/sec (reset for sidereal)',
-          '  blinky on|off                  turn on or off blinky mode (SiTech only)',
-          '  motors on|off                  turn on or off the mount motors (ASA only)',
-          '  clear_error                    clear any current mount errors (ASA only)',
-          '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
-          '  log [stdout]                   print daemon log (tail alias)',
-          'Control commands:',
-          '  i                              enter interactive mode',
-          '  q/exit                         quit interactive mode',
-          '  ?/help                         print these instructions',
-          sep='\n')
+        raise ValueError('Unrecognized command "{}"'.format(command))
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
-        sys.exit()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        command, args = 'help', None
 
-    command, *args = sys.argv[1:]
-    if command != 'i':
-        query(command, args)
-    else:
-        # Interactive mode
+    if command == 'i':
         while True:
             try:
-                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+                interactive_input = input(f'{os.path.basename(__file__)}> ').split()
             except EOFError:
                 print()
                 sys.exit()
@@ -476,7 +364,10 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
-                try:
+                elif command == 'i':
+                    print('Already in interactive mode')
+                    continue
+                else:
                     query(command, args)
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+    else:
+        query(command, args)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control focusers  via the UT interface daemons."""
+"""Daemon to control focusers."""
 
 import threading
 import time
@@ -7,11 +7,9 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
-from gtecs.control.observing import get_conditions
-from gtecs.control.style import errortxt
+from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
+                                   daemon_proxy, get_daemon_host)
 
 
 class FocDaemon(BaseDaemon):
@@ -19,10 +17,6 @@ class FocDaemon(BaseDaemon):
 
     def __init__(self):
         super().__init__('foc')
-
-        # foc is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
 
         # command flags
         self.move_focuser_flag = 0
@@ -34,12 +28,18 @@ class FocDaemon(BaseDaemon):
         # focuser variables
         self.uts = params.UTS_WITH_FOCUSERS.copy()
         self.active_uts = []
+        self.interfaces = {f'foc{ut}' for ut in self.uts}
+
         self.move_steps = {ut: 0 for ut in self.uts}
         self.set_position = {ut: 0 for ut in self.uts}
         self.sync_position = {ut: 0 for ut in self.uts}
 
         self.last_move_time = {ut: None for ut in self.uts}
         self.last_move_temp = {ut: None for ut in self.uts}
+
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -50,6 +50,9 @@ class FocDaemon(BaseDaemon):
     def _control_thread(self):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
+        self.check_period = params.DAEMON_CHECK_PERIOD
+        self.check_time = 0
+        self.force_check_flag = True
 
         while self.running:
             self.loop_time = time.time()
@@ -75,26 +78,23 @@ class FocDaemon(BaseDaemon):
             if self.move_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-                        move_steps = self.move_steps[ut]
+                        move_steps = int(self.move_steps[ut])
                         current_pos = self.info[ut]['current_pos']
                         new_pos = current_pos + move_steps
-
-                        s = 'Moving focuser {} ({}) ' .format(ut, interface_id)
-                        s += '{:+d} steps from {} to {} (moving)'.format(
-                            move_steps, current_pos, new_pos)
-                        self.log.info(s)
+                        msg = 'Moving focuser {} {:+d} steps from {} to {} (moving)'.format(
+                            ut, move_steps, current_pos, new_pos)
+                        self.log.info(msg)
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.move_focuser(move_steps, ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.move_focuser(move_steps)
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                             self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('move_focuser command failed')
@@ -107,31 +107,28 @@ class FocDaemon(BaseDaemon):
             if self.set_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-                        new_pos = self.set_position[ut]
+                        new_pos = int(self.set_position[ut])
                         current_pos = self.info[ut]['current_pos']
                         move_steps = new_pos - current_pos
-
-                        s = 'Moving focuser {} ({}) ' .format(ut, interface_id)
-                        s += '{:+d} steps from {} to {} (setting)'.format(
-                            move_steps, current_pos, new_pos)
-                        self.log.info(s)
+                        msg = 'Moving focuser {} {:+d} steps from {} to {} (setting)'.format(
+                            ut, move_steps, current_pos, new_pos)
+                        self.log.info(msg)
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
+                            with daemon_proxy(f'foc{ut}') as interface:
                                 # Only the ASA focusers have explicit set commands,
                                 # the others we just do moves
                                 if self.info[ut]['can_set']:
-                                    c = interface.set_focuser(new_pos, ut)
+                                    reply = interface.set_focuser(new_pos)
                                 else:
-                                    c = interface.move_focuser(move_steps, ut)
-                                if c:
-                                    self.log.info(c)
+                                    reply = interface.move_focuser(move_steps)
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
                             self.last_move_temp[ut] = self.info[ut]['current_temp']
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('set_focuser command failed')
@@ -144,23 +141,20 @@ class FocDaemon(BaseDaemon):
             if self.home_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Homing focuser {} ({})'.format(
-                                      ut, interface_id))
+                        self.log.info('Homing focuser {}'.format(ut))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.home_focuser(ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.home_focuser()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
 
                             # mark that it's homing
                             self.move_steps[ut] = 0
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                 except Exception:
@@ -174,23 +168,20 @@ class FocDaemon(BaseDaemon):
             if self.stop_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Stopping focuser {} ({})'.format(
-                                      ut, interface_id))
+                        self.log.info('Stopping focuser {}'.format(ut))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.stop_focuser(ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.stop_focuser()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
 
                             # mark that it's stopped
                             self.move_steps[ut] = 0
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
                 except Exception:
@@ -204,19 +195,17 @@ class FocDaemon(BaseDaemon):
             if self.sync_focuser_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-                        position = self.sync_position[ut]
-
-                        self.log.info('Syncing focuser position to {}'.format(position))
+                        position = int(self.sync_position[ut])
+                        self.log.info('Syncing focuser {} position to {}'.format(ut, position))
 
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.sync_focuser(position, ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.sync_focuser(position)
+                                if reply:
+                                    self.log.info(reply)
 
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('sync_focuser command failed')
@@ -228,7 +217,6 @@ class FocDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -248,8 +236,9 @@ class FocDaemon(BaseDaemon):
         # UPDATE: The H400s don't have temperature sensors, so that simplifies things even further.
         #         We still have to get the dome temp here so we can store it each time we move.
         try:
-            int_conditions = get_conditions()['internal']
-            temp_info['dome_temp'] = int_conditions['temperature']
+            with daemon_proxy('conditions', timeout=30) as daemon:
+                conditions_info = daemon.get_info(force_update=False)
+            temp_info['dome_temp'] = conditions_info['internal']['temperature']
         except Exception:
             self.log.error('Failed to get dome internal temperature')
             self.log.debug('', exc_info=True)
@@ -260,31 +249,30 @@ class FocDaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
+                ut_info['interface_id'] = f'foc{ut}'
 
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_focuser_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_focuser_class(ut)
-                    ut_info['current_pos'] = interface.get_focuser_position(ut)
-                    ut_info['limit'] = interface.get_focuser_limit(ut)
-                    ut_info['can_set'] = interface.focuser_can_set(ut)
-                    ut_info['can_stop'] = interface.focuser_can_stop(ut)
-                    ut_info['can_sync'] = interface.focuser_can_sync(ut)
+                with daemon_proxy(f'foc{ut}') as interface:
+                    ut_info['serial_number'] = interface.get_serial_number()
+                    ut_info['hw_class'] = interface.get_class()
+                    ut_info['current_pos'] = interface.get_position()
+                    ut_info['limit'] = interface.get_limit()
+                    ut_info['can_set'] = interface.can_set()
+                    ut_info['can_stop'] = interface.can_stop()
+                    ut_info['can_sync'] = interface.can_sync()
                     try:
-                        ut_info['remaining'] = interface.get_focuser_steps_remaining(ut)
+                        ut_info['remaining'] = interface.get_steps_remaining()
                     except NotImplementedError:
                         # The ASA H400s don't store steps remaining
                         ut_info['remaining'] = 0
                     try:
-                        ut_info['int_temp'] = interface.get_focuser_temp('internal', ut)
-                        ut_info['ext_temp'] = interface.get_focuser_temp('external', ut)
+                        ut_info['int_temp'] = interface.get_temp('internal')
+                        ut_info['ext_temp'] = interface.get_temp('external')
                     except NotImplementedError:
                         # The ASA H400s don't have temperature sensors
                         ut_info['int_temp'] = None
                         ut_info['ext_temp'] = None
                     try:
-                        ut_info['status'] = interface.get_focuser_status(ut)
+                        ut_info['status'] = interface.get_focuser_status()
                     except NotImplementedError:
                         # The FLI focusers don't have a status
                         if ut_info['remaining'] > 0:
@@ -307,13 +295,17 @@ class FocDaemon(BaseDaemon):
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(ut, temp_info[ut]['status'])
+            now_strs = ['{}:{}'.format(ut,
+                                       temp_info[ut]['status']
+                                       if temp_info[ut] is not None else 'ERROR')
                         for ut in self.uts]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Focusers are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(ut, self.info[ut]['status'])
+                old_strs = ['{}:{}'.format(ut,
+                                           self.info[ut]['status']
+                                           if self.info[ut] is not None else 'ERROR')
                             for ut in self.uts]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
@@ -327,259 +319,183 @@ class FocDaemon(BaseDaemon):
     # Control functions
     def set_focusers(self, new_position):
         """Move focuser(s) to the given position(s)."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if not isinstance(new_position, dict):
             new_position = {ut: new_position for ut in self.uts}
+        if any(ut not in self.uts for ut in new_position):
+            raise ValueError(f'Invalid UTs: {[ut for ut in new_position if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(new_position):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(new_position[ut] < 0 for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position if new_position[ut] < 0}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(new_position[ut] > self.info[ut]['limit'] for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position
+                             if new_position[ut] > self.info[ut]['limit']}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in new_position):
+            bad_uts = [ut for ut in new_position
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the new position is a valid input
-            try:
-                new_pos = int(new_position[ut])
-                assert new_pos == new_position[ut]
-            except Exception:
-                s = '"{}" is not a valid integer'.format(new_position[ut])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        # Need to be integers
+        new_position = {ut: int(new_position[ut]) for ut in new_position}
 
-            # Check the new position is within the focuser limit
-            if new_pos < 0 or new_pos > self.info[ut]['limit']:
-                s = 'New position {} is outside focuser limits (0-{})'.format(
-                    new_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # # Check the new position is different from the current position
-            # if new_pos == self.info[ut]['current_pos']:
-            #     s = 'Focuser is already at position {}'.format(new_pos)
-            #     retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-            #     continue
-
-            # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.set_position[ut] = new_pos
-            s = 'Focuser {}: Moving from {} to {} ({:+d} steps)'.format(
-                ut, self.info[ut]['current_pos'], self.set_position[ut],
-                self.set_position[ut] - self.info[ut]['current_pos'])
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(new_position)
+        self.set_position.update(new_position)
         self.set_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def move_focusers(self, move_steps):
         """Move focuser(s) by the given number of steps."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if not isinstance(move_steps, dict):
             move_steps = {ut: move_steps for ut in self.uts}
+        if any(ut not in self.uts for ut in move_steps):
+            raise ValueError(f'Invalid UTs: {[ut for ut in move_steps if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(move_steps):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        new_position = {ut: self.info[ut]['current_pos'] + move_steps[ut] for ut in move_steps}
+        if any(new_position[ut] < 0 for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position if new_position[ut] < 0}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(new_position[ut] > self.info[ut]['limit'] for ut in new_position):
+            bad_positions = {ut: new_position[ut] for ut in new_position
+                             if new_position[ut] > self.info[ut]['limit']}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in move_steps):
+            bad_uts = [ut for ut in move_steps
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the new position is a valid input
-            try:
-                steps = int(move_steps[ut])
-                assert steps == move_steps[ut]
-            except Exception:
-                s = '"{}" is not a valid integer'.format(move_steps[ut])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        # Need to be integers
+        move_steps = {ut: int(move_steps[ut]) for ut in move_steps}
 
-            # Check the new position is within the focuser limit
-            new_pos = self.info[ut]['current_pos'] + steps
-            if new_pos < 0 or new_pos > self.info[ut]['limit']:
-                s = 'New position {} is outside focuser limits (0-{})'.format(
-                    new_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # # Check the new position is different from the current position
-            # if new_pos == self.info[ut]['current_pos']:
-            #     s = 'Focuser is already at position {}'.format(new_pos)
-            #     retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-            #     continue
-
-            # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.move_steps[ut] = new_pos - self.info[ut]['current_pos']
-            s = 'Focuser {}: Moving {:+d} steps (from {} to {})'.format(
-                ut, self.move_steps[ut], self.info[ut]['current_pos'], new_pos)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(move_steps)
+        self.move_steps.update(move_steps)
         self.move_focuser_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
-
-    def home_focusers(self, ut_list=None):
+    def home_focusers(self, uts=None):
         """Move focuser(s) to the home position."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
-        if ut_list is None:
-            ut_list = self.uts.copy()
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in uts):
+            bad_uts = [ut for ut in uts
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the focuser is not already moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is already moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'Focuser {}: Moving to home position'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.home_focuser_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
-
-    def stop_focusers(self, ut_list=None):
+    def stop_focusers(self, uts=None):
         """Stop focuser(s) moving."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
-        if ut_list is None:
-            ut_list = self.uts.copy()
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(not self.info[ut]['can_stop'] for ut in uts):
+            bad_uts = [ut for ut in uts if not self.info[ut]['can_stop']]
+            raise HardwareError(f'Focusers do not a stop command: {bad_uts}')
 
-            # Check if the focuser has a stop command
-            if not self.info[ut]['can_stop']:
-                s = 'Focuser does not a stop command'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'Focuser {}: Stopping movement'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.stop_focuser_flag = 1
-
-        # Format return string
-        return '\n'.join(retstrs)
 
     def sync_focusers(self, position):
         """Sync focuser(s) position to the given value."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if not isinstance(position, dict):
             position = {ut: position for ut in self.uts}
+        if any(ut not in self.uts for ut in position):
+            raise ValueError(f'Invalid UTs: {[ut for ut in position if ut not in self.uts]}')
 
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(position):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        if any(not self.info[ut]['can_sync'] for ut in position):
+            bad_uts = [ut for ut in position if not self.info[ut]['can_sync']]
+            raise HardwareError(f'Focusers do not a sync command: {bad_uts}')
+        if any(position[ut] < 0 for ut in position):
+            bad_positions = {ut: position[ut] for ut in position if position[ut] < 0}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(position[ut] > self.info[ut]['limit'] for ut in position):
+            bad_positions = {ut: position[ut] for ut in position
+                             if position[ut] > self.info[ut]['limit']}
+            raise HardwareError(f'Invalid focuser positions: {bad_positions}')
+        if any(self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving'
+               for ut in position):
+            bad_uts = [ut for ut in position
+                       if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving']
+            raise HardwareError(f'Focusers are already moving: {bad_uts}')
 
-            # Check the new position is a valid input
-            try:
-                sync_pos = int(position[ut])
-                assert sync_pos == position[ut]
-            except Exception:
-                s = '"{}" is not a valid integer'.format(position[ut])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
+        # Need to be integers
+        position = {ut: int(position[ut]) for ut in position}
 
-            # Check if the focuser has a sync command
-            if not self.info[ut]['can_sync']:
-                s = 'Focuser does not a sync command'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the new position is within the focuser limit
-            if sync_pos < 0 or sync_pos > self.info[ut]['limit']:
-                s = 'New position {} is outside focuser limits (0-{})'.format(
-                    sync_pos, self.info[ut]['limit'])
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the focuser is not moving
-            if self.info[ut]['remaining'] > 0 or self.info[ut]['status'] == 'Moving':
-                s = 'Focuser is moving'
-                retstrs.append('Focuser {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Set values
-            self.active_uts += [ut]
-            self.sync_position[ut] = sync_pos
-            s = 'Focuser {}: Setting current position {} to {}'.format(
-                ut, self.info[ut]['current_pos'], sync_pos)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(position)
+        self.sync_position.update(position)
         self.sync_focuser_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
+    # Info function
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            lim = max(len(str(info[ut]['limit'])) for ut in info['uts'])
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FOCUSER {} ({}:{}) '.format(ut, host, port)
+                if info[ut]['status'] != 'Moving':
+                    cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], lim)
+                    limit = '{:<{}d}'.format(info[ut]['limit'], lim)
+                    msg += '  Current position: {}/{} '.format(cur_pos, limit)
+                    msg += '  [{}]\n'.format(info[ut]['status'])
+                else:
+                    msg += '  Moving '
+                    if info[ut]['remaining'] > 0:
+                        msg += ' ({})\n'.format(info[ut]['remaining'])
+                    else:
+                        msg += '\n'
+            msg = msg.rstrip()
+        else:
+            msg = '###### FOCUSER INFO #######\n'
+            for ut in info['uts']:
+                host, port = get_daemon_host(info[ut]['interface_id'])
+                msg += 'FOCUSER {} ({}:{})\n'.format(ut, host, port)
+                msg += 'Status: {} '.format(info[ut]['status'])
+                if info[ut]['remaining'] > 0:
+                    msg += (' ({})\n'.format(info[ut]['remaining']))
+                else:
+                    msg += ('\n')
+                msg += 'Current motor pos:    {}\n'.format(info[ut]['current_pos'])
+                msg += 'Maximum motor limit:  {}\n'.format(info[ut]['limit'])
+                msg += 'Internal temperature: {}\n'.format(info[ut]['int_temp'])
+                msg += 'External temperature: {}\n'.format(info[ut]['ext_temp'])
+                msg += 'Serial number:        {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class:       {}\n'.format(info[ut]['hw_class'])
+                msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':
-    with make_pid_file('foc'):
-        FocDaemon()._run()
+    daemon = FocDaemon()
+    with make_pid_file(daemon.daemon_id):
+        host = params.DAEMONS[daemon.daemon_id]['HOST']
+        port = params.DAEMONS[daemon.daemon_id]['PORT']
+        pinglife = params.DAEMONS[daemon.daemon_id]['PINGLIFE']
+        daemon._run(host, port, pinglife, timeout=params.PYRO_TIMEOUT)

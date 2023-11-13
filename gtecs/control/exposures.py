@@ -17,8 +17,6 @@ class Exposure:
 
     Parameters
     ----------
-    ut_list : list of int
-        The UTs to take this exposure with.
     exptime : float
         The time to expose for.
 
@@ -29,7 +27,7 @@ class Exposure:
     binning : int, default=1
         The binning factor to use for the exposure.
     frametype : str, default='normal'
-        Valid frametypes are 'normal' or 'dark'
+        Valid frame types are 'normal' or 'dark'
     target : str, default='NA'
         Exposure target name
     imgtype : str, default='SCIENCE'
@@ -37,6 +35,9 @@ class Exposure:
         Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK
     glance : bool, default=False
         If True then the exposure is a glance
+    uts : list of int or None, default=None
+        The UTs to take this exposure with.
+        If None then default to all UTS with cameras
 
     set_num : int or None, default=None
         Set number (assigned by the exq daemon)
@@ -52,23 +53,23 @@ class Exposure:
 
     """
 
-    def __init__(self, ut_list, exptime,
-                 filt=None, binning=1, frametype='normal', target='NA', imgtype='SCIENCE',
-                 glance=False, set_num=None, set_pos=1, set_tot=1,
+    def __init__(self, exptime, filt=None, binning=1, frametype='normal',
+                 target='NA', imgtype='SCIENCE', glance=False, uts=None,
+                 set_num=None, set_pos=1, set_tot=1,
                  set_id=None, pointing_id=None):
-        # Required arguments
-        self.ut_list = ut_list
-        self.ut_mask = misc.ut_list_to_mask(ut_list)
-        self.ut_string = misc.ut_mask_to_string(self.ut_mask)
+        # Exposure arguments
         self.exptime = exptime
         self.filt = filt
-
-        # Optional arguments
         self.binning = binning
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype.upper()
         self.glance = glance
+        if uts is None:
+            uts = params.UTS_WITH_CAMERAS.copy()
+        self.uts = uts
+        self.ut_mask = misc.ut_list_to_mask(uts)
+        self.ut_string = misc.ut_mask_to_string(self.ut_mask)
 
         # Set arguments
         self.set_num = set_num
@@ -88,30 +89,30 @@ class Exposure:
     @classmethod
     def from_line(cls, line):
         """Create an Exposure object from a formatted string."""
-        # eg '1011;20;R;2;normal;NA;SCIENCE;0;1000;1;3;-1;-1'
+        # eg '20;R;2;normal;NA;SCIENCE;0;1011;1000;1;3;-1;-1'
         ls = line.split(';')
-        ut_list = misc.ut_string_to_list(ls[0])
-        exptime = float(ls[1])
-        filt = ls[2] if ls[2] != 'X' else None
-        binning = int(ls[3])
-        frametype = ls[4]
-        target = ls[5]
-        imgtype = ls[6].upper()
-        glance = bool(int(ls[7]))
+        exptime = float(ls[0])
+        filt = ls[1] if ls[1] != 'X' else None
+        binning = int(ls[2])
+        frametype = ls[3]
+        target = ls[4]
+        imgtype = ls[5].upper()
+        glance = bool(int(ls[6]))
+        uts = misc.ut_string_to_list(ls[7])
         set_num = int(ls[8]) if int(ls[8]) != -1 else None
         set_pos = int(ls[9])
         set_tot = int(ls[10])
         set_id = int(ls[11]) if int(ls[11]) != -1 else None
         pointing_id = int(ls[12]) if int(ls[12]) != -1 else None
 
-        exposure = cls(ut_list,
-                       exptime,
+        exposure = cls(exptime,
                        filt,
                        binning,
                        frametype,
                        target,
                        imgtype,
                        glance,
+                       uts,
                        set_num,
                        set_pos,
                        set_tot,
@@ -140,24 +141,24 @@ class Exposure:
         return line
 
     def info(self):
-        """Return a readable string of summary infomation about this Exposure."""
-        s = 'EXPOSURE \n'
-        s += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
-        s += '  Unit telescope(s): {}\n'.format(self.ut_list)
-        s += '  Exposure time: {:.1f}s\n'.format(self.exptime)
-        s += '  Filter: {}\n'.format(self.filt)
-        s += '  Binning: {:.0f}x{:.0f}\n'.format(self.binning, self.binning)
-        s += '  Frame type: {}\n'.format(self.frametype)
-        s += '  Target: {}\n'.format(self.target)
-        s += '  Image type: {}\n'.format(self.imgtype)
-        s += '  Glance: {}\n'.format(self.glance)
+        """Return a readable string of summary information about this Exposure."""
+        msg = 'EXPOSURE \n'
+        msg += '  ' + time.strftime('%Y-%m-%d %H:%M:%S UT', self.creation_time) + '\n'
+        msg += '  Exposure time: {:.1f}s\n'.format(self.exptime)
+        msg += '  Filter: {}\n'.format(self.filt)
+        msg += '  Binning: {:.0f}x{:.0f}\n'.format(self.binning, self.binning)
+        msg += '  Frame type: {}\n'.format(self.frametype)
+        msg += '  Target: {}\n'.format(self.target)
+        msg += '  Image type: {}\n'.format(self.imgtype)
+        msg += '  Glance: {}\n'.format(self.glance)
+        msg += '  Unit telescope(s): {}\n'.format(self.uts)
         if self.in_set:
-            s += '  Set number: {}\n'.format(self.set_num)
-            s += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
+            msg += '  Set number: {}\n'.format(self.set_num)
+            msg += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
         if self.from_database:
-            s += '  ExposureSet database ID: {}\n'.format(self.set_id)
-            s += '  Pointing database ID: {}\n'.format(self.pointing_id)
-        return s
+            msg += '  ExposureSet database ID: {}\n'.format(self.set_id)
+            msg += '  Pointing database ID: {}\n'.format(self.pointing_id)
+        return msg
 
     @property
     def in_set(self):
@@ -230,14 +231,14 @@ class ExposureQueue(MutableSequence):
 
     def get(self):
         """Return info() for all exposures in the queue."""
-        s = '{} items in queue:\n'.format(len(self.data))
+        msg = '{} items in queue:\n'.format(len(self.data))
         for n, exposure in enumerate(self.data):
-            s += '{:0>3.0f}: {}'.format(n + 1, exposure.info())
-        return s.rstrip()
+            msg += '{:0>3.0f}: {}'.format(n + 1, exposure.info())
+        return msg.rstrip()
 
     def get_simple(self):
         """Return string for all exposures in the queue."""
-        s = '{} items in queue:\n'.format(len(self.data))
+        msg = '{} items in queue:\n'.format(len(self.data))
         for n, exposure in enumerate(self.data):
-            s += '{:0>3.0f}: {}'.format(n + 1, exposure.as_line())
-        return s.rstrip()
+            msg += '{:0>3.0f}: {}'.format(n + 1, exposure.as_line())
+        return msg.rstrip()

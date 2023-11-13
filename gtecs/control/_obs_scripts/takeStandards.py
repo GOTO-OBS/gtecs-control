@@ -6,7 +6,6 @@ with a range of colours and airmasses.
 
 from astropy.time import Time
 
-from gtecs.control import params
 from gtecs.control.catalogs import standard_star
 from gtecs.control.observing import prepare_for_images, slew_to_radec, take_image_set
 

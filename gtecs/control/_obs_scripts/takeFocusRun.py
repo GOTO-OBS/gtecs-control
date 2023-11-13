@@ -16,10 +16,10 @@ from astropy.time import Time
 from gtecs.control import params
 from gtecs.control.analysis import get_focus_region
 from gtecs.control.catalogs import focus_star
+from gtecs.control.daemons import daemon_proxy
 from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
-                                    measure_focus)
-from gtecs.control.observing import (get_analysis_image, get_focuser_limits, get_focuser_positions,
-                                     prepare_for_images, set_focuser_positions,
+                                    get_focuser_positions, measure_focus, set_focuser_positions)
+from gtecs.control.observing import (get_analysis_image, prepare_for_images,
                                      slew_to_altaz, slew_to_radec)
 
 from matplotlib import pyplot as plt
@@ -42,16 +42,20 @@ DEFAULT_NFV = 4
 def calculate_positions(range_frac, steps, scale_factors=None):
     """Calculate the positions for the focus run."""
     # Get the current focus positions, and the maximum limit (assuming minimum is 0)
-    current = get_focuser_positions()
-    limits = get_focuser_limits()
+    with daemon_proxy('foc') as daemon:
+        info = daemon.get_info(force_update=True)
+    current_positions = {ut: info[ut]['current_pos'] for ut in info['uts']}
+    limits = {ut: info[ut]['limit'] for ut in info['uts']}
+
     if scale_factors is None:
-        scale_factors = {ut: 1 for ut in current}
+        scale_factors = {ut: 1 for ut in current_positions}
     else:
-        scale_factors = {ut: scale_factors[ut] if ut in scale_factors else 1 for ut in current}
+        scale_factors = {ut: scale_factors[ut] if ut in scale_factors else 1
+                         for ut in current_positions}
 
     all_positions = {}
-    for ut in current:
-        print('UT{}: current position={}/{}'.format(ut, current[ut], limits[ut]))
+    for ut in current_positions:
+        print('UT{}: current position={}/{}'.format(ut, current_positions[ut], limits[ut]))
 
         # Calculate the deltas
         width = int((limits[ut] * range_frac * scale_factors[ut]) / 2)
@@ -60,7 +64,7 @@ def calculate_positions(range_frac, steps, scale_factors=None):
         deltas = np.append(lower_deltas[:-1], upper_deltas)
 
         # Calculate the positions
-        positions = current[ut] + deltas
+        positions = current_positions[ut] + deltas
 
         # Check if any are beyond the limits
         if positions[0] < 0:
@@ -178,7 +182,7 @@ def fit_to_data(df, nfvs=None):
 
         except Exception:
             print('UT{}: Error fitting to HFD data'.format(ut))
-            print(traceback.format_exc())
+            traceback.print_exc()
 
     return fit_df
 
@@ -262,7 +266,7 @@ def plot_results(df, fit_df, nfvs=None, finish_time=None, save_plot=True):
 
         except Exception:
             print('UT{}: Error making HFD plot'.format(ut))
-            print(traceback.format_exc())
+            traceback.print_exc()
 
     # Save the plot
     if save_plot:
@@ -386,7 +390,7 @@ def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=No
 
             except Exception:
                 print('UT{}: Error making region {} plot'.format(ut, i))
-                print(traceback.format_exc())
+                traceback.print_exc()
 
         # Tilt plot
         try:
@@ -433,7 +437,7 @@ def plot_corners(df, fit_df, region_slices, binning=1, nfvs=None, finish_time=No
 
         except Exception:
             print('UT{}: Error making tilt plot'.format(ut))
-            print(traceback.format_exc())
+            traceback.print_exc()
 
         # Save the plot
         if save_plot:
@@ -459,10 +463,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     positions = calculate_positions(range_frac, steps, scale_factors)
 
     # Define measurement regions
-    if use_annulus_region:
-        # Measure sources in an annulus around the centre
-        regions = [get_focus_region(binning)]
-    elif measure_corners:
+    if measure_corners:
         # Measure 5 corner regions independently
         regions = [(slice(2500 // binning, 6000 // binning),  # centre (same as default)
                     slice(1500 // binning, 4500 // binning)),
@@ -475,6 +476,9 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                    (slice(6000 // binning, 8000 // binning),  # top-right
                     slice(4500 // binning, 6000 // binning)),
                    ]
+    elif use_annulus_region:
+        # Measure sources in an annulus around the centre
+        regions = [get_focus_region(binning)]
     else:
         # Stick to the default central region
         regions = [(slice(2500 // binning, 6000 // binning),
@@ -550,7 +554,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
     # Restore the original focus
     print('~~~~~~')
     print('Restoring original focuser positions...')
-    set_focuser_positions(initial_positions, timeout=120)
+    set_focuser_positions(initial_positions, timeout=60)
     print('Restored focus: ', get_focuser_positions())
 
     if no_analysis:
@@ -751,5 +755,6 @@ if __name__ == '__main__':
             )
     except Exception:
         print('Error caught: Restoring original focus positions...')
-        set_focuser_positions(initial_positions)
+        set_focuser_positions(initial_positions, timeout=60)
+        print('Restored focus: ', get_focuser_positions())
         raise

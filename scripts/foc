@@ -8,44 +8,41 @@ import sys
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
-from gtecs.control import errors
 from gtecs.control import misc
 from gtecs.control import params
-from gtecs.control.style import errortxt
 
 
 def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    elif command == 'i':
-        raise errors.InputError('Already in interactive mode')
+    daemon_id = os.path.basename(__file__)
 
     # Primary daemon control
-    elif command == 'start':
-        reply = daemons.start_daemon('foc')
-        print(reply)
+    if command == 'start':
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.start_daemon(daemon_id)
+        print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon('foc')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        daemons.shutdown_daemon(daemon_id)
+        print(f'Daemon {daemon_id} shutdown on {host}:{port}')
 
     elif command == 'restart':
-        reply = daemons.restart_daemon('foc')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.restart_daemon(daemon_id)
+        print(f'Daemon {daemon_id} restarted on {host}:{port} (PID {pid})')
 
     elif command == 'kill':
-        reply = daemons.kill_daemon('foc')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        daemons.shutdown_daemon(daemon_id, kill=True)
+        print(f'Daemon {daemon_id} killed on {host}:{port}')
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon('foc')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.check_daemon(daemon_id)
+        print(f'Daemon {daemon_id} is running on {host}:{port} (PID {pid})')
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'simple'
             force = False
@@ -73,209 +70,160 @@ def query(command, args):
             info_type = 'raw'
             force = True
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('foc', 'get_info', args=[force])
-        # print response
-        if not reply:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'simple':
-            print_info_s(reply)
-        elif info_type == 'verbose':
-            print_info(reply)
-        elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            if info_type != 'raw':
+                info_str = daemon.get_info_string(info_type == 'verbose', force)
+            else:
+                info = daemon.get_info(force)
+                info_str = json.dumps(info, indent=2, default=repr)
+        print(info_str)
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
-            log_file = 'foc-stdout.log'
+            log_file = f'{daemon_id}-stdout.log'
             args.remove('stdout')
         else:
-            log_file = 'foc.log'
+            log_file = f'{daemon_id}.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'set':
-        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
             # foc set <pos>
             pos = int(args[0])
             pos_dict = {ut: pos for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
             # foc set <ut>[,<ut>...] <pos>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             pos = int(args[1])
-            pos_dict = {ut: pos for ut in ut_list}
+            pos_dict = {ut: pos for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # foc set <ut>[,<ut>...] <pos>[,<pos>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             pos_list = [int(x) for x in args[1].split(',')]
-            pos_dict = {ut: pos for ut, pos in zip(ut_list, pos_list)}
+            pos_dict = {ut: pos for ut, pos in zip(uts, pos_list)}
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('foc', 'set_focusers', [pos_dict])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_focusers(pos_dict)
+        print('Moving Focusers')
 
     elif command == 'move':
-        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
             # foc move <steps>
             steps = int(args[0])
             steps_dict = {ut: steps for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
             # foc move <ut>[,<ut>...] <steps>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             steps = int(args[1])
-            steps_dict = {ut: steps for ut in ut_list}
+            steps_dict = {ut: steps for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # foc move <ut>[,<ut>...] <steps>[,<steps>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             steps_list = [int(x) for x in args[1].split(',')]
-            steps_dict = {ut: steps for ut, steps in zip(ut_list, steps_list)}
+            steps_dict = {ut: steps for ut, steps in zip(uts, steps_list)}
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('foc', 'move_focusers', [steps_dict])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.move_focusers(steps_dict)
+        print('Moving Focusers')
 
     elif command == 'home':
-        # parse arguments
         if len(args) == 0:
             # foc home
-            ut_list = params.UTS_WITH_FOCUSERS
+            uts = params.UTS_WITH_FOCUSERS
         elif len(args) == 1:
             # foc home <ut>[,<ut>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('foc', 'home_focusers', [ut_list])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.home_focusers(uts)
+        print('Homing Focusers')
 
     elif command in ['stop', 'halt', 'abort']:
-        # parse arguments
         if len(args) == 0:
             # foc stop
-            ut_list = params.UTS_WITH_FOCUSERS
+            uts = params.UTS_WITH_FOCUSERS
         elif len(args) == 1:
             # foc stop <ut>[,<ut>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('foc', 'stop_focusers', [ut_list])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.stop_focusers(uts)
+        print('Stopping Focusers')
 
     elif command == 'sync':
-        # parse arguments
         if len(args) == 1 and misc.is_num(args[0]):
             # foc sync <position>
             position = int(args[0])
             position_dict = {ut: position for ut in params.UTS_WITH_FOCUSERS}
         elif len(args) == 2 and misc.is_num(args[1]):
             # foc sync <ut>[,<ut>...] <position>
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             position = int(args[1])
-            position_dict = {ut: position for ut in ut_list}
+            position_dict = {ut: position for ut in uts}
         elif len(args) == 2 and len(args[0].split(',')) == len(args[1].split(',')):
             # foc sync <ut>[,<ut>...] <position>[,<position>...]
-            ut_list = [int(x) for x in args[0].split(',')]
+            uts = [int(x) for x in args[0].split(',')]
             position_list = [int(x) for x in args[1].split(',')]
-            position_dict = {ut: position for ut, position in zip(ut_list, position_list)}
+            position_dict = {ut: position for ut, position in zip(uts, position_list)}
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('foc', 'sync_focusers', [position_dict])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.sync_focusers(position_dict)
+        print('Syncing Focusers')
+
+    # Help
+    elif command in ['help', '?']:
+        print(
+            'Usage: foc command [options]',
+            'Daemon commands:',
+            '  start                          start the daemon',
+            '  shutdown                       shutdown the daemon',
+            '  restart                        restart the daemon',
+            '  kill                           kill the daemon',
+            '  check/ping                     check the daemon for errors',
+            'Focuser commands:',
+            '  move [uts] steps               move by the given steps',
+            '  set [uts] pos                  move to the given position',
+            '  home [uts]                     move to the home position',
+            '  stop/halt/abort [uts]          stop the focusers moving',
+            '  sync [uts] pos                 set the current focuser position to the given value',
+            '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
+            '  log [stdout]                   print daemon log (tail alias)',
+            'Control commands:',
+            '  i                              enter interactive mode',
+            '  q/exit                         quit interactive mode',
+            '  ?/help                         print these instructions',
+            sep='\n')
 
     # Unrecognized function
     else:
-        raise errors.InputError('Unrecognized command "{}"'.format(command))
-
-
-def print_info(info):
-    """Print the full info dict."""
-    print('###### FOCUSER INFO #######')
-    for ut in info['uts']:
-        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']))
-        print('Status: {}'.format(info[ut]['status']), end='')
-        if info[ut]['remaining'] > 0:
-            print(' ({})'.format(info[ut]['remaining']))
-        else:
-            print('')
-        print('Current motor pos:    {}'.format(info[ut]['current_pos']))
-        print('Maximum motor limit:  {}'.format(info[ut]['limit']))
-        print('Internal temperature: {}'.format(info[ut]['int_temp']))
-        print('External temperature: {}'.format(info[ut]['ext_temp']))
-        print('Serial number:        {}'.format(info[ut]['serial_number']))
-        print('Hardware class:       {}'.format(info[ut]['hw_class']))
-        print('~~~~~~~')
-    print('Uptime: {:.1f}s'.format(info['uptime']))
-    print('Timestamp: {}'.format(info['timestamp']))
-    print('###########################')
-
-
-def print_info_s(info):
-    """Print the info dict in a compact way."""
-    l = max(len(str(info[ut]['limit'])) for ut in info['uts'])
-    for ut in info['uts']:
-        print('FOCUSER {} ({})'.format(ut, params.UT_DICT[ut]['INTERFACE']), end=' ')
-        if info[ut]['status'] != 'Moving':
-            cur_pos = '{:>{}d}'.format(info[ut]['current_pos'], l)
-            limit = '{:<{}d}'.format(info[ut]['limit'], l)
-            print('  Current position: {}/{}'.format(cur_pos, limit), end=' ')
-            print('  [{}]'.format(info[ut]['status']))
-        else:
-            print('  Moving', end='')
-            if info[ut]['remaining'] > 0:
-                print(' ({})'.format(info[ut]['remaining']))
-            else:
-                print('')
-
-
-def print_instructions():
-    """Print instructions for using the daemon."""
-    print('Usage: foc command [options]',
-          'Daemon commands:',
-          '  start                          start the daemon',
-          '  shutdown                       shutdown the daemon',
-          '  restart                        restart the daemon',
-          '  kill                           kill the daemon',
-          '  check/ping                     check the daemon for errors',
-          'Focuser commands:',
-          '  move [uts] steps               move by the given steps',
-          '  set [uts] pos                  move to the given position',
-          '  home [uts]                     move to the home position',
-          '  stop/halt/abort [uts]          stop the focusers moving',
-          '  sync [uts] pos                 set the current focuser position to the given value',
-          '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
-          '  log [stdout]                   print daemon log (tail alias)',
-          'Control commands:',
-          '  i                              enter interactive mode',
-          '  q/exit                         quit interactive mode',
-          '  ?/help                         print these instructions',
-          sep='\n')
+        raise ValueError('Unrecognized command "{}"'.format(command))
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
-        sys.exit()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        command, args = 'help', None
 
-    command, *args = sys.argv[1:]
-    if command != 'i':
-        query(command, args)
-    else:
-        # Interactive mode
+    if command == 'i':
         while True:
             try:
-                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+                interactive_input = input(f'{os.path.basename(__file__)}> ').split()
             except EOFError:
                 print()
                 sys.exit()
@@ -283,7 +231,10 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
-                try:
+                elif command == 'i':
+                    print('Already in interactive mode')
+                    continue
+                else:
                     query(command, args)
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+    else:
+        query(command, args)

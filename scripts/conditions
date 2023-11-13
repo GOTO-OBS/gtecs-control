@@ -8,44 +8,39 @@ import sys
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command
 from gtecs.control import daemons
-from gtecs.control import errors
-from gtecs.control import params
-from gtecs.control import style
-from gtecs.control.style import errortxt
 
 
 def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    elif command == 'i':
-        raise errors.InputError('Already in interactive mode')
+    daemon_id = os.path.basename(__file__)
 
     # Primary daemon control
-    elif command == 'start':
-        reply = daemons.start_daemon('conditions')
-        print(reply)
+    if command == 'start':
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.start_daemon(daemon_id)
+        print(f'Daemon {daemon_id} started on {host}:{port} (PID {pid})')
 
     elif command == 'shutdown':
-        reply = daemons.shutdown_daemon('conditions')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        daemons.shutdown_daemon(daemon_id)
+        print(f'Daemon {daemon_id} shutdown on {host}:{port}')
 
     elif command == 'restart':
-        reply = daemons.restart_daemon('conditions')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.restart_daemon(daemon_id)
+        print(f'Daemon {daemon_id} restarted on {host}:{port} (PID {pid})')
 
     elif command == 'kill':
-        reply = daemons.kill_daemon('conditions')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        daemons.shutdown_daemon(daemon_id, kill=True)
+        print(f'Daemon {daemon_id} killed on {host}:{port}')
 
     elif command in ['check', 'ping']:
-        reply = daemons.check_daemon('conditions')
-        print(reply)
+        host, port = daemons.get_daemon_host(daemon_id)
+        pid = daemons.check_daemon(daemon_id)
+        print(f'Daemon {daemon_id} is running on {host}:{port} (PID {pid})')
 
     elif command in ['info', 'status']:
-        # parse arguments
         if len(args) == 0:
             info_type = 'verbose'
             force = False
@@ -63,673 +58,131 @@ def query(command, args):
             info_type = 'raw'
             force = True
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('conditions', 'get_info', args=[force])
-        # print response
-        if not reply:
-            raise ValueError('No info returned, check daemon')
-        elif info_type == 'verbose':
-            print_info(reply)
-        elif info_type == 'raw':
-            print(json.dumps(reply, indent=2, default=repr))
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            if info_type != 'raw':
+                info_str = daemon.get_info_string(force)
+            else:
+                info = daemon.get_info(force)
+                info_str = json.dumps(info, indent=2, default=repr)
+        print(info_str)
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
-            log_file = 'conditions-stdout.log'
+            log_file = f'{daemon_id}-stdout.log'
             args.remove('stdout')
         else:
-            log_file = 'conditions.log'
+            log_file = f'{daemon_id}.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-        # send command
         execute_long_command(tail_command)
 
     # Daemon functions
     elif command == 'update':
-        # send command
-        reply = daemons.daemon_function('conditions', 'update')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.update()
 
     elif command == 'ignore':
-        # parse arguments
         if len(args) == 1:
             flags = args[0].split(',')
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('conditions', 'ignore_flags', args=[flags])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.ignore_flags(flags)
+        print(f'Added flags to ignore list: {flags}')
 
     elif command == 'enable':
-        # parse arguments
         if len(args) == 1:
             flags = args[0].split(',')
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('conditions', 'enable_flags', args=[flags])
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.enable_flags(flags)
+        print(f'Removed flags from ignore list: {flags}')
 
     elif command == 'override':
-        # parse arguments
         if len(args) == 1:
             command = args[0]
         else:
-            raise errors.InputError('Invalid arguments')
-        # check arguments
-        if not command.lower() in ['on', 'off']:
-            raise errors.InputError("Command must be 'on' or 'off'")
-        # send command
-        if command.lower() == 'on':
-            reply = daemons.daemon_function('conditions', 'set_override')
-        else:
-            reply = daemons.daemon_function('conditions', 'clear_override')
-        print(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_override(command)
+        if command == 'on':
+            out_str = 'Override flag enabled'
+        elif command == 'off':
+            out_str = 'Override flag disabled'
+        print(out_str)
 
     elif command == 'pause':
-        # send command
-        reply = daemons.daemon_function('conditions', 'set_override')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_override('on')
+        print('Override flag enabled')
 
     elif command in ['resume', 'unpause']:
-        # send command
-        reply = daemons.daemon_function('conditions', 'clear_override')
-        print(reply)
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_override('off')
+        print('Override flag disabled')
 
     elif command == 'limits':
-        # parse arguments
         if len(args) == 0:
             force = False
         elif len(args) == 1 and args[0] in ['f', 'F', '-f', '-F', '--force-update']:
             force = True
         else:
-            raise errors.InputError('Invalid arguments')
-        # send command
-        reply = daemons.daemon_function('conditions', 'get_info', args=[force])
-        # print response
-        if not reply:
-            raise ValueError('No info returned, check daemon')
-        else:
-            print_limits(reply)
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            limits_str = daemon.get_limits_string(force)
+        print(limits_str)
+
+    # Help
+    elif command in ['help', '?']:
+        print(
+            'Usage: conditions command [options]',
+            'Daemon commands:',
+            '  start                          start the daemon',
+            '  shutdown                       shutdown the daemon',
+            '  restart                        restart the daemon',
+            '  kill                           kill the daemon',
+            '  check/ping                     check the daemon for errors',
+            'Conditions commands:',
+            '  update                         force update the conditions',
+            '  ignore <flag>                  ignore the given flag',
+            '  enable <flag>                  reenable the given ignored flag',
+            '  override [on|off]              enable/disable the manual override flag',
+            '  pause                          alias for "override on"',
+            '  unpause/resume                 alias for "override off"',
+            '  info/status [-r] [-f]          report current status [raw/force-update]',
+            '  limits [-f]                    report values and limits [force-update]',
+            '  log [stdout]                   print daemon log (tail alias)',
+            'Control commands:',
+            '  i                              enter interactive mode',
+            '  q/exit                         quit interactive mode',
+            '  ?/help                         print these instructions',
+            sep='\n')
 
     # Unrecognized function
     else:
-        raise errors.InputError('Unrecognized command "{}"'.format(command))
-
-
-def print_info(info):
-    """Print the full info dict."""
-    if info['flags'] is None or info['weather'] is None or info['internal'] is None:
-        print('CONDITIONS:')
-        print('  None yet, try again')
-    else:
-        print('FLAGS ({}):'.format(info['timestamp']))
-        flags = info['flags']
-        normal_flags = sorted(info['normal_flags'])
-        critical_flags = sorted(info['critical_flags'])
-        ignored_flags = sorted(info['ignored_flags'])
-        for i in range(max(len(normal_flags), len(critical_flags))):
-            # Print normal flags on the left, and critical flags on the right
-            if len(normal_flags) >= i + 1:
-                flag = normal_flags[i]
-                if flag in ignored_flags:
-                    status = '----' + '\u200c' * 11
-                elif flags[flag] == 0:
-                    status = style.gtxt('Good')
-                elif flags[flag] == 1:
-                    status = style.rtxt('Bad')
-                else:
-                    status = style.rtxt('ERROR')
-                print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]), end='')
-            else:
-                print('                          ', end='')
-
-            if len(critical_flags) >= i + 1:
-                flag = critical_flags[i]
-                if flag in ignored_flags:
-                    status = '----' + '\u200c' * 11
-                elif flags[flag] == 0:
-                    status = style.gtxt('Good')
-                elif flags[flag] == 1:
-                    status = style.rtxt('Bad')
-                else:
-                    status = style.rtxt('ERROR')
-                print('  {: >12} : {: <16} ({})'.format(flag, status, flags[flag]))
-            else:
-                print('')
-
-        print('WEATHER:          temp   humid    dewpt  wind (gust, max)       rain')
-        weather = info['weather']
-
-        for source in weather:
-            temperature = weather[source]['temperature']
-            if temperature == -999:
-                temperature_str = style.rtxt(' ERR')
-            elif (temperature < params.MAX_TEMPERATURE and
-                    temperature > params.MIN_TEMPERATURE):
-                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-                if (temperature < params.MAX_TEMPERATURE - 1 and
-                        temperature > params.MIN_TEMPERATURE + 1):
-                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
-            else:
-                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
-
-            dewpoint = weather[source]['dew_point']
-            if dewpoint == -999:
-                dewpoint_str = style.rtxt('  ERR')
-            elif (dewpoint > params.MIN_DEWPOINT):
-                dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
-                if (dewpoint > params.MIN_DEWPOINT + 1):
-                    dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
-            else:
-                dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
-
-            humidity = weather[source]['humidity']
-            if humidity == -999:
-                humidity_str = style.rtxt('  ERR')
-            elif (humidity < params.MAX_HUMIDITY):
-                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.MAX_HUMIDITY - 5):
-                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
-            else:
-                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
-
-            windspeed = weather[source]['windspeed']
-            if windspeed == -999:
-                windspeed_str = style.rtxt(' ERR')
-            elif (windspeed < params.MAX_WINDSPEED):
-                windspeed_str = style.ytxt('{:>4.1f}'.format(windspeed))
-                if (windspeed < params.MAX_WINDSPEED - 5):
-                    windspeed_str = style.gtxt('{:>4.1f}'.format(windspeed))
-            else:
-                windspeed_str = style.rtxt('{:>4.1f}'.format(windspeed))
-
-            windgust = weather[source]['windgust']
-            if windgust == -999:
-                windgust_str = style.rtxt(' ERR')
-            elif (windgust < params.MAX_WINDSPEED):
-                windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                if (windgust < params.MAX_WINDSPEED - 5):
-                    windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
-            else:
-                windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
-
-            windmax = weather[source]['windmax']
-            if windmax == -999:
-                windmax_str = style.rtxt(' ERR')
-            elif (windmax < params.MAX_WINDGUST):
-                windmax_str = style.ytxt('{:>4.1f}'.format(windmax))
-                if (windmax < params.MAX_WINDGUST - 5):
-                    windmax_str = style.gtxt('{:>4.1f}'.format(windmax))
-            else:
-                windmax_str = style.rtxt('{:>4.1f}'.format(windmax))
-
-            rain = weather[source]['rain'] if 'rain' in weather[source] else None
-            if rain is None:
-                rain_str = '  N/A'
-            elif rain == -999:
-                rain_str = style.rtxt('  ERR')
-            elif rain:
-                rain_str = style.rtxt(' True')
-            else:
-                rain_str = style.gtxt('False')
-
-            dt = weather[source]['dt']
-            if dt == -999:
-                dt_str = style.rtxt('ERR')
-            elif dt > params.WEATHER_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
-            else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
-
-            print('  {: <10}'.format(source), end='\t')
-            weather_str = '{}°C  {}%  {}°C  {} ({},{}) km/h  {}  dt={}'.format(temperature_str,
-                                                                               humidity_str,
-                                                                               dewpoint_str,
-                                                                               windspeed_str,
-                                                                               windgust_str,
-                                                                               windmax_str,
-                                                                               rain_str,
-                                                                               dt_str)
-            print(weather_str)
-
-        temperature = info['internal']['temperature']
-        if temperature == -999:
-            temperature_str = style.rtxt(' ERR')
-        elif (temperature < params.MAX_INTERNAL_TEMPERATURE and
-                temperature > params.MIN_INTERNAL_TEMPERATURE):
-            temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-            if (temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
-                    temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
-        else:
-            temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
-
-        humidity = info['internal']['humidity']
-        if humidity == -999:
-            humidity_str = style.rtxt('  ERR')
-        elif (humidity < params.MAX_INTERNAL_HUMIDITY):
-            humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-            if (humidity < params.MAX_INTERNAL_HUMIDITY - 5):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
-        else:
-            humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
-
-        dt = info['internal']['dt']
-        if dt == -999:
-            dt_str = style.rtxt('ERR')
-        elif dt > params.WEATHER_TIMEOUT:
-            dt_str = style.rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = style.gtxt('{:.0f}'.format(dt))
-
-        print('  {: <10}'.format('dome_int'), end='\t')
-        weather_str = '{}°C  {}%                                         dt={}'.format(
-            temperature_str, humidity_str, dt_str)
-        print(weather_str)
-
-        rain_unsafe = info['rain']['unsafe']
-        rain_total = info['rain']['total']
-        if info['rain']['rain'] == -999:
-            rain_str = style.rtxt('  ERR')
-        elif rain_unsafe > 0:
-            rain_str = style.rtxt('  True') + '   ({}/{})'.format(rain_unsafe, rain_total)
-        else:
-            rain_str = style.gtxt(' False') + '   ({}/{})'.format(rain_unsafe, rain_total)
-
-        print('  {: <10}'.format('rain'), end='\t')
-        print(rain_str)
-
-        print('CONDITIONS:')
-
-        if params.SITE_NAME == 'La Palma':
-            seeing = info['robodimm']['seeing']
-            dt = info['robodimm']['dt']
-            if seeing == -999:
-                seeing_str = style.rtxt('ERR')
-            else:
-                seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
-            if dt == -999:
-                dt_str = style.rtxt('ERR')
-            elif dt > params.SEEING_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
-            else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
-            print('  seeing (ing)   {}"           dt={}'.format(seeing_str, dt_str))
-
-        if params.SITE_NAME == 'La Palma':
-            seeing = info['tng']['seeing']
-            dt = info['tng']['seeing_dt']
-            if seeing == -999:
-                seeing_str = style.rtxt('ERR')
-            else:
-                seeing_str = style.boldtxt('{:>3.1f}'.format(seeing))
-            if dt == -999:
-                dt_str = style.rtxt('ERR')
-            elif dt > params.SEEING_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
-            else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
-            print('  seeing (tng)   {}"           dt={}'.format(seeing_str, dt_str))
-
-        if params.SITE_NAME == 'La Palma':
-            dust = info['tng']['dust']
-            if dust == -999:
-                dust_str = style.rtxt('  ERR')
-            elif dust < params.MAX_DUSTLEVEL:
-                dust_str = style.ytxt('{:>5.1f}'.format(dust))
-                if dust < params.MAX_DUSTLEVEL - 10:
-                    dust_str = style.gtxt('{:>5.1f}'.format(dust))
-            else:
-                dust_str = style.rtxt('{:>5.1f}'.format(dust))
-            dt = info['tng']['dust_dt']
-            if dt == -999:
-                dt_str = style.rtxt('ERR')
-            elif dt > params.DUSTLEVEL_TIMEOUT:
-                dt_str = style.rtxt('{:.0f}'.format(dt))
-            else:
-                dt_str = style.gtxt('{:.0f}'.format(dt))
-            print('  dust (tng)   {} μg/m³      dt={}'.format(dust_str, dt_str))
-
-        clouds = info['clouds']
-        if clouds == -999:
-            clouds_str = style.rtxt('  ERR')
-        elif clouds < params.MAX_SATCLOUDS:
-            clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
-            if clouds < params.MAX_SATCLOUDS - 5:
-                clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
-        else:
-            clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
-        print('  {: <10}   {}%'.format('sat_clouds', clouds_str))
-
-        sunalt = info['sunalt']
-        if sunalt < 0:
-            sunalt_str = style.ytxt('{:>+5.1f}'.format(sunalt))
-            if sunalt < params.SUN_ELEVATION_LIMIT:
-                sunalt_str = style.gtxt('{:>+5.1f}'.format(sunalt))
-        else:
-            sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
-        print('  {: <10}   {}°'.format('sunalt', sunalt_str))
-
-        print('OTHER:')
-        ups_percents = info['ups_percent']
-        ups_strings = []
-        for ups_percent in ups_percents:
-            if ups_percent < params.MIN_UPSBATTERY:
-                ups_strings.append(style.rtxt('{:>5.1f}'.format(ups_percent)))
-            else:
-                ups_strings.append(style.gtxt('{:>5.1f}'.format(ups_percent)))
-        print('  {: <10}   {}%'.format('ups', '%  '.join(ups_strings)))
-
-        free_diskspace = info['free_diskspace']
-        if free_diskspace < (params.MIN_DISKSPACE * 2):
-            diskspace_str = style.ytxt('{:>5.1f}'.format(free_diskspace))
-            if free_diskspace < params.MIN_DISKSPACE:
-                diskspace_str = style.rtxt('{:>5.1f}'.format(free_diskspace))
-        else:
-            diskspace_str = style.gtxt('{:>5.1f}'.format(free_diskspace))
-        print('  {: <10}   {}%'.format('diskspace', diskspace_str))
-
-
-def print_limits(info):
-    """Print the weather readings and limits."""
-    if info['weather'] is None:
-        print('WEATHER:')
-        print('  None yet, try again')
-    else:
-        weather = info['weather']
-        internal = info['internal']
-
-        print('TEMPERATURE:')
-        for source in weather:
-            if 'temperature' not in weather[source]:
-                continue
-
-            print('  {: <10}'.format(source), end='\t')
-            min_temp = params.MIN_TEMPERATURE
-            max_temp = params.MAX_TEMPERATURE
-
-            temperature = weather[source]['temperature']
-            if temperature == -999:
-                status = style.rtxt('ERROR')
-                temperature_str = style.rtxt(' ERR')
-            elif (temperature < max_temp and temperature > min_temp):
-                status = style.gtxt('Good')
-                temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-                if temperature < max_temp - 1 and temperature > min_temp + 1:
-                    temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
-            else:
-                status = style.rtxt('Bad')
-                temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
-
-            print(' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}'.format(
-                temperature_str, min_temp, max_temp, status))
-
-        # internal sensors
-        print('  {: <10}'.format('dome_int'), end='\t')
-        min_temp = params.MIN_INTERNAL_TEMPERATURE
-        max_temp = params.MAX_INTERNAL_TEMPERATURE
-
-        temperature = internal['temperature']
-        if temperature == -999:
-            status = style.rtxt('ERROR')
-            temperature_str = style.rtxt(' ERR')
-        elif (temperature < max_temp and temperature > min_temp):
-            status = style.gtxt('Good')
-            temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-            if temperature < max_temp - 1 and temperature > min_temp + 1:
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
-        else:
-            status = style.rtxt('Bad')
-            temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
-
-        print(' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}'.format(
-            temperature_str, min_temp, max_temp, status))
-
-        print('HUMIDITY:')
-        for source in weather:
-            if 'humidity' not in weather[source]:
-                continue
-
-            print('  {: <10}'.format(source), end='\t')
-            max_hum = params.MAX_HUMIDITY
-
-            humidity = weather[source]['humidity']
-            if humidity == -999:
-                status = style.rtxt('ERROR')
-                humidity_str = style.rtxt('  ERR')
-            elif (humidity < max_hum):
-                status = style.gtxt('Good')
-                humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < max_hum - 5):
-                    humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
-            else:
-                status = style.rtxt('Bad')
-                humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
-
-            print('{}%        (max={:.1f}%)            \t : {}'.format(
-                humidity_str, max_hum, status))
-
-        # internal sensors
-        print('  {: <10}'.format(source), end='\t')
-        max_hum = params.MAX_INTERNAL_HUMIDITY
-
-        humidity = weather[source]['humidity']
-        if humidity == -999:
-            status = style.rtxt('ERROR')
-            humidity_str = style.rtxt('  ERR')
-        elif (humidity < max_hum):
-            status = style.gtxt('Good')
-            humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-            if (humidity < max_hum - 5):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
-        else:
-            status = style.rtxt('Bad')
-            humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
-
-        print('{}%        (max={:.1f}%)            \t : {}'.format(
-            humidity_str, max_hum, status))
-
-        print('DEW POINT:')
-        for source in weather:
-            if 'dew_point' not in weather[source]:
-                continue
-
-            print('  {: <10}'.format(source), end='\t')
-
-            dewpoint = weather[source]['dew_point']
-            if dewpoint == -999:
-                status = style.rtxt('ERROR')
-                dewpoint_str = style.rtxt('  ERR')
-            elif (dewpoint > params.MIN_DEWPOINT):
-                status = style.gtxt('Good')
-                dewpoint_str = style.ytxt('{:>+5.1f}'.format(dewpoint))
-                if (dewpoint > params.MIN_DEWPOINT + 1):
-                    dewpoint_str = style.gtxt('{:>+5.1f}'.format(dewpoint))
-            else:
-                status = style.rtxt('Bad')
-                dewpoint_str = style.rtxt('{:>+5.1f}'.format(dewpoint))
-
-            print('{}°C       (min={:+.1f}°C)           \t : {}'.format(
-                dewpoint_str, params.MIN_DEWPOINT, status))
-
-        print('WIND SPEED:')
-        for source in weather:
-            if 'windgust' not in weather[source]:
-                continue
-
-            print('  {: <10}'.format(source), end='\t')
-
-            windgust = weather[source]['windgust']
-            if windgust == -999:
-                status = style.rtxt('ERROR')
-                windgust_str = style.rtxt(' ERR')
-            elif (windgust < params.MAX_WINDSPEED):
-                status = style.gtxt('Good')
-                windgust_str = style.ytxt('{:>4.1f}'.format(windgust))
-                if (windgust < params.MAX_WINDSPEED - 5):
-                    windgust_str = style.gtxt('{:>4.1f}'.format(windgust))
-            else:
-                status = style.rtxt('Bad')
-                windgust_str = style.rtxt('{:>4.1f}'.format(windgust))
-
-            print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
-                windgust_str, params.MAX_WINDSPEED, status))
-
-        print('WIND GUST ({:.0f} min maximum):'.format(params.WINDGUST_PERIOD / 60))
-        for source in weather:
-            if 'windmax' not in weather[source]:
-                continue
-
-            print('  {: <10}'.format(source), end='\t')
-
-            windmax = weather[source]['windmax']
-            if windmax == -999:
-                status = style.rtxt('ERROR')
-                windmax_str = style.rtxt(' ERR')
-            elif (windmax < params.MAX_WINDGUST):
-                status = style.gtxt('Good')
-                windmax_str = style.ytxt('{:>4.1f}'.format(windmax))
-                if (windmax < params.MAX_WINDGUST - 5):
-                    windmax_str = style.gtxt('{:>4.1f}'.format(windmax))
-            else:
-                status = style.rtxt('Bad')
-                windmax_str = style.rtxt('{:>4.1f}'.format(windmax))
-
-            print(' {} km/h    (max={:.1f} km/h)        \t : {}'.format(
-                windmax_str, params.MAX_WINDGUST, status))
-
-        print('INTERNAL (critical limits):')
-        print('  {: <10}'.format('temperature'), end='\t')
-
-        temperature = internal['temperature']
-        if temperature == -999:
-            status = style.rtxt('ERROR')
-            temperature_str = style.rtxt(' ERR')
-        elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
-            status = style.gtxt('Good')
-            temperature_str = style.ytxt('{:>4.1f}'.format(temperature))
-            if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
-                temperature_str = style.gtxt('{:>4.1f}'.format(temperature))
-        else:
-            status = style.rtxt('Bad')
-            temperature_str = style.rtxt('{:>4.1f}'.format(temperature))
-
-        print(' {}°C       (min={:.1f}°C          \t : {}'.format(
-            temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status))
-
-        print('  {: <10}'.format('humidity'), end='\t')
-
-        humidity = internal['humidity']
-        if humidity == -999:
-            status = style.rtxt('ERROR')
-            humidity_str = style.rtxt('  ERR')
-        elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
-            status = style.gtxt('Good')
-            humidity_str = style.ytxt('{:>5.1f}'.format(humidity))
-            if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
-                humidity_str = style.gtxt('{:>5.1f}'.format(humidity))
-        else:
-            status = style.rtxt('Bad')
-            humidity_str = style.rtxt('{:>5.1f}'.format(humidity))
-
-        print('{}%        (max={:.1f}%)           \t : {}'.format(
-            humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status))
-
-        print('OTHER:')
-
-        print('  {: <10}'.format('dust_level'), end='\t')
-        dust = info['tng']['dust']
-        if dust == -999:
-            status = style.rtxt('ERROR')
-            dust_str = style.rtxt('  ERR')
-        elif dust < params.MAX_DUSTLEVEL:
-            status = style.gtxt('Good')
-            dust_str = style.ytxt('{:>5.1f}'.format(dust))
-            if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = style.gtxt('{:>5.1f}'.format(dust))
-        else:
-            status = style.rtxt('Bad')
-            dust_str = style.rtxt('{:>5.1f}'.format(dust))
-
-        print('{} μg/m³   (max={:.1f} μg/m³)      \t : {}'.format(
-            dust_str, params.MAX_DUSTLEVEL, status))
-
-        print('  {: <10}'.format('sat_clouds'), end='\t')
-        clouds = info['clouds']
-        if clouds == -999:
-            status = style.rtxt('ERROR')
-            clouds_str = style.rtxt('  ERR')
-        elif clouds < params.MAX_SATCLOUDS:
-            status = style.gtxt('Good')
-            clouds_str = style.ytxt('{:>5.1f}'.format(clouds))
-            if clouds < params.MAX_SATCLOUDS - 5:
-                clouds_str = style.gtxt('{:>5.1f}'.format(clouds))
-        else:
-            status = style.rtxt('Bad')
-            clouds_str = style.rtxt('{:>5.1f}'.format(clouds))
-
-        print('{}%        (max={:.1f}%)            \t : {}'.format(
-            clouds_str, params.MAX_SATCLOUDS, status))
-
-        print('  {: <10}'.format('sunalt'), end='\t')
-        sunalt = info['sunalt']
-        if sunalt < 0:
-            status = style.rtxt('Bad')
-            sunalt_str = style.ytxt('{:>+5.1f}'.format(sunalt))
-            if sunalt < params.SUN_ELEVATION_LIMIT:
-                status = style.gtxt('Good')
-                sunalt_str = style.gtxt('{:>+5.1f}'.format(sunalt))
-        else:
-            status = style.rtxt('Bad')
-            sunalt_str = style.rtxt('{:>+5.1f}'.format(sunalt))
-
-        print('{}°        (max={:.1f}°)           \t : {}'.format(
-            sunalt_str, params.SUN_ELEVATION_LIMIT, status))
-
-
-def print_instructions():
-    """Print instructions for using the daemon."""
-    print('Usage: conditions command [options]',
-          'Daemon commands:',
-          '  start                          start the daemon',
-          '  shutdown                       shutdown the daemon',
-          '  restart                        restart the daemon',
-          '  kill                           kill the daemon',
-          '  check/ping                     check the daemon for errors',
-          'Conditions commands:',
-          '  update                         force update the conditions',
-          '  ignore <flag>                  ignore the given flag',
-          '  enable <flag>                  reenable the given ignored flag',
-          '  override [on|off]              enable/disable the manual override flag',
-          '  pause                          alias for "override on"',
-          '  unpause/resume                 alias for "override off"',
-          '  info/status [-r] [-f]          report current status [raw/force-update]',
-          '  limits [-f]                    report values and limits [force-update]',
-          '  log [stdout]                   print daemon log (tail alias)',
-          'Control commands:',
-          '  i                              enter interactive mode',
-          '  q/exit                         quit interactive mode',
-          '  ?/help                         print these instructions',
-          sep='\n')
+        raise ValueError('Unrecognized command "{}"'.format(command))
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
-        sys.exit()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        command, args = 'help', None
 
-    command, *args = sys.argv[1:]
-    if command != 'i':
-        query(command, args)
-    else:
-        # Interactive mode
+    if command == 'i':
         while True:
             try:
-                interactive_input = input('{}> '.format(os.path.basename(__file__))).split()
+                interactive_input = input(f'{os.path.basename(__file__)}> ').split()
             except EOFError:
                 print()
                 sys.exit()
@@ -737,7 +190,10 @@ if __name__ == '__main__':
                 command, *args = interactive_input
                 if command in ['q', 'exit']:
                     sys.exit()
-                try:
+                elif command == 'i':
+                    print('Already in interactive mode')
+                    continue
+                else:
                     query(command, args)
-                except Exception as error:
-                    print(errortxt('"{}: {}"'.format(type(error).__name__, error)))
+    else:
+        query(command, args)

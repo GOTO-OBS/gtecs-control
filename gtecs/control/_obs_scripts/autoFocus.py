@@ -22,9 +22,9 @@ from gtecs.control import params
 from gtecs.control.analysis import get_focus_region
 from gtecs.control.catalogs import focus_star
 from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
-                                    get_focus_params, get_hfd_position, measure_focus)
-from gtecs.control.observing import (get_focuser_positions, prepare_for_images,
-                                     set_focuser_positions, slew_to_radec)
+                                    get_focus_params, get_focuser_positions, get_hfd_position,
+                                    measure_focus, set_focuser_positions)
+from gtecs.control.observing import prepare_for_images, slew_to_radec
 
 import numpy as np
 
@@ -143,7 +143,7 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
         print('UTs to move: {}'.format(','.join([str(ut) for ut in moving_uts])))
 
         print('Moving focusers out again...')
-        new_positions = {ut: current_positions[ut] + foc_params['big_step'][ut] / 2
+        new_positions = {ut: int(current_positions[ut] + foc_params['big_step'][ut] / 2)
                          for ut in moving_uts}
         set_focuser_positions(new_positions, timeout=60)
         current_positions = get_focuser_positions(active_uts)
@@ -346,14 +346,14 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
         print('~~~~~~')
         print('Sending best focus measurements to Slack...')
         from gtecs.control.slack import send_slack_msg
-        s = '*Autofocus results*\n'
-        s += 'Focus data at final position:\n'
-        s += '```' + repr(foc_data.round(1)) + '```\n'
+        msg = '*Autofocus results*\n'
+        msg += 'Focus data at final position:\n'
+        msg += '```' + repr(foc_data.round(1)) + '```\n'
         if len(failed_uts) > 0:
-            s += 'Failed to focus:\n'
+            msg += 'Failed to focus:\n'
             for ut in sorted(failed_uts):
-                s += '- UT{}: {}\n'.format(ut, failed_uts[ut])
-        send_slack_msg(s)
+                msg += '- UT{}: {}\n'.format(ut, failed_uts[ut])
+        send_slack_msg(msg)
 
     # Store the best focus data in a database
     foc_data['ts'] = Time.now().iso
@@ -412,5 +412,6 @@ if __name__ == '__main__':
         run(num_exp, exptime, filt, binning, no_slew, no_report)
     except Exception:
         print('Error caught: Restoring original focus positions...')
-        set_focuser_positions(initial_positions)
+        set_focuser_positions(initial_positions, timeout=60)
+        print('Restored focus: ', get_focuser_positions())
         raise

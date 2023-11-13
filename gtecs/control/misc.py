@@ -1,7 +1,6 @@
 """Miscellaneous common functions."""
 
 from . import params
-from .style import errortxt
 
 
 def valid_ints(array, allowed):
@@ -10,10 +9,8 @@ def valid_ints(array, allowed):
     for i in array:
         if i == '':
             pass
-        elif not i.isdigit():
-            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
-        elif i not in [str(x) for x in allowed]:
-            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
+        elif (not i.isdigit()) or (i not in [str(x) for x in allowed]):
+            print('"{}" is invalid, must be in {}'.format(i, allowed))
         elif int(i) not in valid:
             valid += [int(i)]
     valid.sort()
@@ -26,10 +23,10 @@ def valid_strings(array, allowed):
     for i in array:
         if i == '':
             pass
-        elif i.upper() not in [str(x) for x in allowed]:
-            print(errortxt('"{}" is invalid, must be in {}'.format(i, allowed)))
-        elif i.upper() not in valid:
-            valid += [i.upper()]
+        elif i not in [str(x) for x in allowed]:
+            print('"{}" is invalid, must be in {}'.format(i, allowed))
+        elif i not in valid:
+            valid += [i]
     return valid
 
 

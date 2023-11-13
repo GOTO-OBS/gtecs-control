@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daemon to control OTA hardware (e.g. mirror covers) via the UT interface daemons."""
+"""Daemon to control OTA hardware (e.g. mirror covers)."""
 
 import threading
 import time
@@ -7,10 +7,8 @@ import time
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon, daemon_proxy
-from gtecs.control.style import errortxt
+from gtecs.control.daemons import BaseDaemon, DaemonDependencyError, daemon_proxy, get_daemon_host
 
 
 class OTADaemon(BaseDaemon):
@@ -18,10 +16,6 @@ class OTADaemon(BaseDaemon):
 
     def __init__(self):
         super().__init__('ota')
-
-        # ota is dependent on all the interfaces
-        for interface_id in params.INTERFACES:
-            self.dependencies.add(interface_id)
 
         # command flags
         self.open_cover_flag = 0
@@ -32,8 +26,13 @@ class OTADaemon(BaseDaemon):
         self.uts = params.UTS.copy()
         self.uts_with_covers = params.UTS_WITH_COVERS.copy()
         self.active_uts = []
+        self.interfaces = {f'foc{ut}' for ut in self.uts_with_covers}
 
         self.last_move_time = {ut: None for ut in self.uts}
+
+        # dependencies
+        for interface_id in self.interfaces:
+            self.dependencies.add(interface_id)
 
         # start control thread
         t = threading.Thread(target=self._control_thread)
@@ -44,6 +43,9 @@ class OTADaemon(BaseDaemon):
     def _control_thread(self):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
+        self.check_period = params.DAEMON_CHECK_PERIOD
+        self.check_time = 0
+        self.force_check_flag = True
 
         while self.running:
             self.loop_time = time.time()
@@ -69,19 +71,15 @@ class OTADaemon(BaseDaemon):
             if self.open_cover_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Opening mirror cover {} ({})'.format(ut, interface_id))
-
+                        self.log.info('Opening mirror cover {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.open_mirror_cover(ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.open_cover()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
-
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('open_cover command failed')
@@ -94,19 +92,15 @@ class OTADaemon(BaseDaemon):
             if self.close_cover_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Closing mirror cover {} ({})'.format(ut, interface_id))
-
+                        self.log.info('Closing mirror cover {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.close_mirror_cover(ut)
-                                if c:
-                                    self.log.info(c)
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.close_cover()
+                                if reply:
+                                    self.log.info(reply)
                             self.last_move_time[ut] = self.loop_time
-
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('close_cover command failed')
@@ -119,18 +113,14 @@ class OTADaemon(BaseDaemon):
             if self.stop_cover_flag:
                 try:
                     for ut in self.active_uts:
-                        interface_id = params.UT_DICT[ut]['INTERFACE']
-
-                        self.log.info('Stopping mirror cover {} ({})'.format(ut, interface_id))
-
+                        self.log.info('Stopping mirror cover {}'.format(ut))
                         try:
-                            with daemon_proxy(interface_id) as interface:
-                                c = interface.stop_mirror_cover(ut)
-                                if c:
-                                    self.log.info(c)
-
+                            with daemon_proxy(f'foc{ut}') as interface:
+                                reply = interface.stop_cover()
+                                if reply:
+                                    self.log.info(reply)
                         except Exception:
-                            self.log.error('No response from interface {}'.format(interface_id))
+                            self.log.error('No response from interface foc{}'.format(ut))
                             self.log.debug('', exc_info=True)
                 except Exception:
                     self.log.error('stop_cover command failed')
@@ -142,7 +132,6 @@ class OTADaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _get_info(self):
@@ -161,18 +150,15 @@ class OTADaemon(BaseDaemon):
         for ut in self.uts:
             try:
                 ut_info = {}
-                interface_id = params.UT_DICT[ut]['INTERFACE']
-                ut_info['interface_id'] = interface_id
-
-                with daemon_proxy(interface_id) as interface:
-                    ut_info['serial_number'] = interface.get_ota_serial_number(ut)
-                    ut_info['hw_class'] = interface.get_ota_class(ut)
-                    if ut in self.uts_with_covers:
-                        ut_info['position'] = interface.get_mirror_cover_position(ut)
+                ut_info['interface_id'] = f'foc{ut}'
+                if ut in self.uts_with_covers:
+                    with daemon_proxy(f'foc{ut}') as interface:
+                        ut_info['position'] = interface.get_cover_position()
                         # See `H400.get_cover_position`
-                    else:
-                        ut_info['position'] = 'NA'
-
+                else:
+                    ut_info['position'] = 'NA'
+                ut_info['serial_number'] = params.UT_DICT[ut]['OTA']['SERIAL']
+                ut_info['hw_class'] = params.UT_DICT[ut]['OTA']['CLASS']
                 ut_info['last_move_time'] = self.last_move_time[ut]
 
                 temp_info[ut] = ut_info
@@ -183,13 +169,17 @@ class OTADaemon(BaseDaemon):
 
         # Write debug log line
         try:
-            now_strs = ['{}:{}'.format(ut, temp_info[ut]['position'])
+            now_strs = ['{}:{}'.format(ut,
+                                       temp_info[ut]['position']
+                                       if temp_info[ut] is not None else 'ERROR')
                         for ut in self.uts_with_covers]
             now_str = ' '.join(now_strs)
             if not self.info:
                 self.log.debug('Mirror covers are {}'.format(now_str))
             else:
-                old_strs = ['{}:{}'.format(ut, self.info[ut]['position'])
+                old_strs = ['{}:{}'.format(ut,
+                                           self.info[ut]['position']
+                                           if self.info[ut] is not None else 'ERROR')
                             for ut in self.uts_with_covers]
                 old_str = ' '.join(old_strs)
                 if now_str != old_str:
@@ -201,124 +191,85 @@ class OTADaemon(BaseDaemon):
         self.info = temp_info
 
     # Control functions
-    def open_covers(self, ut_list=None):
+    def open_covers(self, uts=None):
         """Open the mirror covers."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts_with_covers.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        # Format input
-        if ut_list is None:
-            ut_list = self.uts_with_covers.copy()
-
-        self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the UT has a mirror cover
-            if ut not in self.uts_with_covers:
-                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the mirror cover is not already moving
-            # TODO: We can't do that, but does it matter?
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'OTA {}: Opening mirror cover'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.open_cover_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
-
-    def close_covers(self, ut_list=None):
+    def close_covers(self, uts=None):
         """Close the mirror covers."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts_with_covers.copy()
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-        # Format input
-        if ut_list is None:
-            ut_list = self.uts_with_covers.copy()
-
-        self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the UT has a mirror cover
-            if ut not in self.uts_with_covers:
-                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check the mirror cover is not already moving
-            # TODO: We can't do that, but does it matter?
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'OTA {}: Closing mirror cover'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.close_cover_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
-
-    def stop_covers(self, ut_list=None):
+    def stop_covers(self, uts=None):
         """Stop the mirror covers moving."""
-        # Check restrictions
         if self.dependency_error:
-            raise errors.DaemonStatusError('Dependencies are not running')
-
-        # Format input
-        if ut_list is None:
-            ut_list = self.uts_with_covers.copy()
-
+            raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
+        if uts is None:
+            uts = self.uts_with_covers.copy()
         self.wait_for_info()
-        retstrs = []
-        for ut in sorted(ut_list):
-            # Check the UT ID is valid
-            if ut not in self.uts:
-                s = 'Unit telescope ID "{}" not in list {}'.format(ut, self.uts)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
+        if any(ut not in self.uts for ut in uts):
+            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
-            # Check the UT has a mirror cover
-            if ut not in self.uts_with_covers:
-                s = 'Unit telescope {} does not have a mirror cover'.format(ut)
-                retstrs.append('OTA {}: '.format(ut) + errortxt(s))
-                continue
-
-            # Check if the mirror cover is moving
-            # TODO: We can't do that, but does it matter?
-
-            # Set values
-            self.active_uts += [ut]
-            s = 'OTA {}: Stopping mirror cover'.format(ut)
-            retstrs.append(s)
-
-        # Set flag
+        self.active_uts = sorted(uts)
         self.stop_cover_flag = 1
 
-        # Format return string
-        return '\n'.join(retstrs)
+    # Info function
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = ''
+            for ut in info['uts']:
+                if ut in info['uts_with_covers']:
+                    host, port = get_daemon_host(info[ut]['interface_id'])
+                    msg += 'OTA {} ({}:{}) '.format(ut, host, port)
+                else:
+                    msg += 'OTA {}                      '.format(ut)
+                if ut in info['uts_with_covers']:
+                    msg += '  Mirror cover: [{}]\n'.format(info[ut]['position'].capitalize())
+                else:
+                    msg += '  Mirror cover: [NA]\n'
+            msg = msg.rstrip()
+        else:
+            msg = '#### OTA INFO ####\n'
+            for ut in info['uts']:
+                if ut in info['uts_with_covers']:
+                    host, port = get_daemon_host(info[ut]['interface_id'])
+                    msg += 'OTA {} ({}:{})\n'.format(ut, host, port)
+                else:
+                    msg += 'OTA {}                     \n'.format(ut)
+                msg += 'Serial number:  {}\n'.format(info[ut]['serial_number'])
+                msg += 'Hardware class: {}\n'.format(info[ut]['hw_class'])
+                if ut in info['uts_with_covers']:
+                    msg += 'Mirror cover:   {}\n'.format(info[ut]['position'].capitalize())
+                else:
+                    msg += 'Mirror cover:   NA\n'
+                msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':
-    with make_pid_file('ota'):
-        OTADaemon()._run()
+    daemon = OTADaemon()
+    with make_pid_file(daemon.daemon_id):
+        host = params.DAEMONS[daemon.daemon_id]['HOST']
+        port = params.DAEMONS[daemon.daemon_id]['PORT']
+        pinglife = params.DAEMONS[daemon.daemon_id]['PINGLIFE']
+        daemon._run(host, port, pinglife, timeout=params.PYRO_TIMEOUT)

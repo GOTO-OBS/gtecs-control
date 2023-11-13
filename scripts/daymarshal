@@ -12,9 +12,8 @@ from gtecs.common import logging
 from gtecs.common.system import execute_command, get_pid, kill_process, make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import night_startdate, sunalt_time
-from gtecs.control.daemons import daemon_info
+from gtecs.control.daemons import daemon_proxy, restart_daemon
 from gtecs.control.flags import Status
-from gtecs.control.observing import wait_for_dome
 from gtecs.control.slack import send_dome_report, send_slack_msg
 
 import numpy as np
@@ -57,8 +56,9 @@ def run(test=False):
     # Check the dome status
     confirmed_closed = False
     try:
-        dome_info = daemon_info('dome')
-        dome_status = dome_info['dome']
+        with daemon_proxy('dome') as daemon:
+            info = daemon.get_info(force_update=True)
+        dome_status = info['dome']
         if dome_status == 'closed':
             msg = '*Day marshal confirmed dome is closed*'
             log.info('Dome confirmed closed')
@@ -77,33 +77,35 @@ def run(test=False):
 
     # It's not closed...
     # Maybe something happened to the pilot or the dome daemon
+    # Note this deliberately keeps trying every 30 seconds and will spam Slack if the dome still
+    # can't close. Hopefully this should get someone's attention!
     while not confirmed_closed:
         time.sleep(30)
         try:
             # Try sending the command
             log.warning('Sending dome close command')
-            execute_command('dome close')
+            with daemon_proxy('dome') as daemon:
+                daemon.close_dome()
+                # TODO: blocking command with confirmation or timeout in daemon
+                start_time = time.time()
+                while True:
+                    time.sleep(0.5)
+                    info = daemon.get_info(force_update=True)
+                    if info['dome'] == 'closed':
+                        break
+                    if (time.time() - start_time) > 120:
+                        raise TimeoutError('Dome timed out')
 
-            # Wait for the dome to (hopefully) close
-            wait_for_dome(target_position='closed', timeout=120)
-
-            # Check again
-            dome_info = daemon_info('dome')
-            dome_status = dome_info['dome']
-            if dome_status == 'closed':
-                msg = '*Day marshal has closed the dome*'
-                log.info('Dome confirmed closed')
-                confirmed_closed = True
-            else:
-                # UH-OH
-                msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
-                log.warning('The dome is still not closed!')
-                # Try restarting the daemon before we try again
-                execute_command('dome restart')
+            # If we got here and didn't time out the dome should be closed
+            msg = '*Day marshal has closed the dome*'
+            log.info('Dome confirmed closed')
+            confirmed_closed = True
 
         except Exception:
             log.error('Error sending dome command', exc_info=True)
             msg = ':warning: *CRITICAL: Day marshal could not close the dome!* :warning:'
+            # Try restarting the daemon before we try again
+            restart_daemon('dome')
 
         # Send the report to Slack again
         send_dome_report(msg, confirmed_closed)
@@ -117,7 +119,7 @@ def run(test=False):
         if host == params.LOCAL_HOST:
             execute_command(command, timeout=120)
         else:
-            execute_command("ssh {} '{}'".format(host, command), timeout=120)
+            execute_command("ssh {} '{}'".format(host, command), timeout=120)  # TODO: use fabric?
 
     log.info('Done')
 

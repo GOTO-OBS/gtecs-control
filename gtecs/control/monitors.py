@@ -4,11 +4,10 @@ import logging
 import time
 from abc import ABC, abstractmethod
 
-from gtecs.common.system import execute_command
+from gtecs.common.system import execute_command, get_pid
 
 from . import params
-from .daemons import daemon_is_running, daemon_proxy
-from .errors import RecoveryError
+from .daemons import daemon_proxy
 
 # Daemon statuses
 DAEMON_RUNNING = 'running'
@@ -91,6 +90,12 @@ ERROR_FOC_UNSET = 'FOC:NOT_SET'
 ERROR_FOC_MOVETIMEOUT = 'FOC:MOVING_TIMEOUT'
 
 
+class RecoveryError(Exception):
+    """To be used if a hardware monitor is out of recovery commands."""
+
+    pass
+
+
 class BaseMonitor(ABC):
     """Generic monitor class, inherited by specific classes for each daemon.
 
@@ -139,7 +144,7 @@ class BaseMonitor(ABC):
     def is_running(self):
         """Check if the daemon is running."""
         try:
-            return daemon_is_running(self.daemon_id)
+            return get_pid(self.daemon_id) is not None
         except Exception:
             return False
 
@@ -147,13 +152,7 @@ class BaseMonitor(ABC):
         """Get the current status of the daemon (not to be confused with the hardware status)."""
         try:
             with daemon_proxy(self.daemon_id) as daemon:
-                status = daemon.get_status()
-            try:
-                status, args = status.split(':')
-                return status, args.split(',')
-            except ValueError:
-                # no arguments
-                return status, None
+                return daemon.get_status()
         except Exception:
             return DAEMON_ERROR_STATUS, None
 
@@ -169,7 +168,8 @@ class BaseMonitor(ABC):
                     info = daemon.get_info(force_update=True)
                 else:
                     info = daemon.get_info(force_update=False)
-            assert isinstance(info, dict)
+            if not isinstance(info, dict):
+                raise ValueError('Invalid info returned')
         except Exception:
             info = None
         if info is not None:
@@ -693,7 +693,7 @@ class MntMonitor(BaseMonitor):
         # STATUS_MNT_AUTOSLEW_ERROR
         # Set the error if the mount is already reporting an error
         if self.hardware_status == STATUS_MNT_AUTOSLEW_ERROR:
-            self.add_error(ERROR_MNT_AUTOSLEW, delay=120)
+            self.add_error(ERROR_MNT_AUTOSLEW)
         # Clear the error if the mount is not moving
         if self.hardware_status != STATUS_MNT_AUTOSLEW_ERROR:
             self.clear_error(ERROR_MNT_AUTOSLEW)
@@ -834,11 +834,10 @@ class MntMonitor(BaseMonitor):
         elif ERROR_MNT_AUTOSLEW in self.errors:
             # PROBLEM: The ASA mount is reporting an error.
             recovery_procedure = {}
-            # SOLUTION 1: Try rebooting the mount.
-            recovery_procedure[1] = ['power off mount', 10]
-            recovery_procedure[2] = ['power on mount', 180]
-            # OUT OF SOLUTIONS: Sounds like a hardware issue.
-            return ERROR_MNT_CONNECTION, recovery_procedure
+            # SOLUTION 1: Try clearing the error.
+            recovery_procedure[1] = ['mnt clear_error', 60]
+            # OUT OF SOLUTIONS: If the error's still there is must be a hardware issue.
+            return ERROR_MNT_AUTOSLEW, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The mount computer has lost connection to the mount controller.
@@ -935,7 +934,7 @@ class MntMonitor(BaseMonitor):
             if self.mount_class == 'SITECH':
                 recovery_procedure[2] = ['power off sitech', 10]
             elif self.mount_class == 'ASA':
-                recovery_procedure[2] = ['mount motors off', 10]
+                recovery_procedure[2] = ['mnt motors off', 10]
             # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
             #                   it's been put into stopped mode. It could be parked, but that's
             #                   a different error.
@@ -1070,7 +1069,7 @@ class CamMonitor(BaseMonitor):
 
         # Hardware parameters
         self.uts = uts
-        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+        self.interfaces = {f'cam{ut}' for ut in self.uts}
 
         # Initialise after attributes are set
         super().__init__('cam', log)
@@ -1127,23 +1126,22 @@ class CamMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The cam daemon depends on the interfaces.
-            for interface_id in self.interfaces:
-                if interface_id in self.bad_dependencies:
-                    # PROBLEM: The interfaces aren't responding.
-                    recovery_procedure = {}
-                    # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['intf start', 30]
-                    # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['intf restart', 30]
-                    # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['intf kill', 10]
-                    recovery_procedure[4] = ['intf start', 30]
-                    # SOLUTION 4: Maybe the hardware isn't powered on.
-                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['intf kill', 10]
-                    recovery_procedure[7] = ['intf start', 30]
-                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
+            if any(interface_id in self.bad_dependencies for interface_id in self.interfaces):
+                # PROBLEM: The interfaces aren't responding.
+                recovery_procedure = {}
+                # SOLUTION 1: Make sure the interfaces are started.
+                recovery_procedure[1] = ['intf start cam', 30]
+                # SOLUTION 2: Try restarting them.
+                recovery_procedure[2] = ['intf restart cam', 30]
+                # SOLUTION 3: Kill them, then start them again.
+                recovery_procedure[3] = ['intf kill cam', 10]
+                recovery_procedure[4] = ['intf start cam', 30]
+                # SOLUTION 4: Maybe the hardware isn't powered on.
+                recovery_procedure[5] = ['power on cams', 30]
+                recovery_procedure[6] = ['intf kill cam', 10]
+                recovery_procedure[7] = ['intf start cam', 30]
+                # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1207,7 +1205,7 @@ class OTAMonitor(BaseMonitor):
 
         # Hardware parameters
         self.uts = uts
-        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+        self.interfaces = {f'foc{ut}' for ut in self.uts}
 
         # Initialise after attributes are set
         super().__init__('ota', log)
@@ -1261,23 +1259,22 @@ class OTAMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The OTA daemon depends on the interfaces.
-            for interface_id in self.interfaces:
-                if interface_id in self.bad_dependencies:
-                    # PROBLEM: The interfaces aren't responding.
-                    recovery_procedure = {}
-                    # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['intf start', 30]
-                    # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['intf restart', 30]
-                    # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['intf kill', 10]
-                    recovery_procedure[4] = ['intf start', 30]
-                    # SOLUTION 4: Maybe the hardware isn't powered on.
-                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['intf kill', 10]
-                    recovery_procedure[7] = ['intf start', 30]
-                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
+            if any(interface_id in self.bad_dependencies for interface_id in self.interfaces):
+                # PROBLEM: The interfaces aren't responding.
+                recovery_procedure = {}
+                # SOLUTION 1: Make sure the interfaces are started.
+                recovery_procedure[1] = ['intf start foc', 30]
+                # SOLUTION 2: Try restarting them.
+                recovery_procedure[2] = ['intf restart foc', 30]
+                # SOLUTION 3: Kill them, then start them again.
+                recovery_procedure[3] = ['intf kill foc', 10]
+                recovery_procedure[4] = ['intf start foc', 30]
+                # SOLUTION 4: Maybe the hardware isn't powered on.
+                recovery_procedure[5] = ['power on focs', 30]
+                recovery_procedure[6] = ['intf kill foc', 10]
+                recovery_procedure[7] = ['intf start foc', 30]
+                # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1341,7 +1338,7 @@ class FiltMonitor(BaseMonitor):
 
         # Hardware parameters
         self.uts = uts
-        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+        self.interfaces = {f'filt{ut}' for ut in self.uts}
 
         # Initialise after attributes are set
         super().__init__('filt', log)
@@ -1393,23 +1390,22 @@ class FiltMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The filt daemon depends on the interfaces.
-            for interface_id in self.interfaces:
-                if interface_id in self.bad_dependencies:
-                    # PROBLEM: The interfaces aren't responding.
-                    recovery_procedure = {}
-                    # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['intf start', 30]
-                    # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['intf restart', 30]
-                    # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['intf kill', 10]
-                    recovery_procedure[4] = ['intf start', 30]
-                    # SOLUTION 4: Maybe the hardware isn't powered on.
-                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['intf kill', 10]
-                    recovery_procedure[7] = ['intf start', 30]
-                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
+            if any(interface_id in self.bad_dependencies for interface_id in self.interfaces):
+                # PROBLEM: The interfaces aren't responding.
+                recovery_procedure = {}
+                # SOLUTION 1: Make sure the interfaces are started.
+                recovery_procedure[1] = ['intf start filt', 30]
+                # SOLUTION 2: Try restarting them.
+                recovery_procedure[2] = ['intf restart filt', 30]
+                # SOLUTION 3: Kill them, then start them again.
+                recovery_procedure[3] = ['intf kill filt', 10]
+                recovery_procedure[4] = ['intf start filt', 30]
+                # SOLUTION 4: Maybe the hardware isn't powered on.
+                recovery_procedure[5] = ['power on filts', 30]
+                recovery_procedure[6] = ['intf kill filt', 10]
+                recovery_procedure[7] = ['intf start filt', 30]
+                # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1471,7 +1467,7 @@ class FocMonitor(BaseMonitor):
 
         # Hardware parameters
         self.uts = uts
-        self.interfaces = {params.UT_DICT[ut]['INTERFACE'] for ut in self.uts}
+        self.interfaces = {f'foc{ut}' for ut in self.uts}
 
         # Initialise after attributes are set
         super().__init__('foc', log)
@@ -1523,23 +1519,22 @@ class FocMonitor(BaseMonitor):
 
         elif ERROR_DEPENDENCY in self.errors:
             # The foc daemon depends on the interfaces.
-            for interface_id in self.interfaces:
-                if interface_id in self.bad_dependencies:
-                    # PROBLEM: The interfaces aren't responding.
-                    recovery_procedure = {}
-                    # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['intf start', 30]
-                    # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['intf restart', 30]
-                    # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['intf kill', 10]
-                    recovery_procedure[4] = ['intf start', 30]
-                    # SOLUTION 4: Maybe the hardware isn't powered on.
-                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['intf kill', 10]
-                    recovery_procedure[7] = ['intf start', 30]
-                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
+            if any(interface_id in self.bad_dependencies for interface_id in self.interfaces):
+                # PROBLEM: The interfaces aren't responding.
+                recovery_procedure = {}
+                # SOLUTION 1: Make sure the interfaces are started.
+                recovery_procedure[1] = ['intf start foc', 30]
+                # SOLUTION 2: Try restarting them.
+                recovery_procedure[2] = ['intf restart foc', 30]
+                # SOLUTION 3: Kill them, then start them again.
+                recovery_procedure[3] = ['intf kill foc', 10]
+                recovery_procedure[4] = ['intf start foc', 30]
+                # SOLUTION 4: Maybe the hardware isn't powered on.
+                recovery_procedure[5] = ['power on focs', 30]
+                recovery_procedure[6] = ['intf kill foc', 10]
+                recovery_procedure[7] = ['intf start foc', 30]
+                # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
+                return ERROR_DEPENDENCY + 'intf', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the dependency error is from?
             return ERROR_DEPENDENCY, {}
 
@@ -1599,9 +1594,6 @@ class ExqMonitor(BaseMonitor):
         self.available_modes = [MODE_ACTIVE]
         self.mode = starting_mode
 
-        # Hardware parameters
-        self.interfaces = params.INTERFACES.keys()
-
         # Initialise after attributes are set
         super().__init__('exq', log)
 
@@ -1634,27 +1626,9 @@ class ExqMonitor(BaseMonitor):
             return ERROR_HARDWARE, {}
 
         elif ERROR_DEPENDENCY in self.errors:
-            # The exq daemon depends on the interfaces, cam and filt daemons.
-            # Note that all being well the CamMonitor and FiltMonitor will be trying to fix
-            # themselves too, but ideally the ExqMonitor should be standalone in case one of them
-            # fails.
-            for interface_id in self.interfaces:
-                if interface_id in self.bad_dependencies:
-                    # PROBLEM: The interfaces aren't responding.
-                    recovery_procedure = {}
-                    # SOLUTION 1: Make sure the interfaces are started.
-                    recovery_procedure[1] = ['intf start', 30]
-                    # SOLUTION 2: Try restarting them.
-                    recovery_procedure[2] = ['intf restart', 30]
-                    # SOLUTION 3: Kill them, then start them again.
-                    recovery_procedure[3] = ['intf kill', 10]
-                    recovery_procedure[4] = ['intf start', 30]
-                    # SOLUTION 4: Maybe the hardware isn't powered on.
-                    recovery_procedure[5] = ['power on cams,focs,filts', 30]
-                    recovery_procedure[6] = ['intf kill', 10]
-                    recovery_procedure[7] = ['intf start', 30]
-                    # OUT OF SOLUTIONS: It might be the hardware isn't connected, e.g. USB failure.
-                    return ERROR_DEPENDENCY + 'intf', recovery_procedure
+            # The exq daemon depends on the cam filt and mnt daemons.
+            # Note that all being well their own monitors will be trying to fix themselves too,
+            # but ideally the ExqMonitor should be standalone in case one of them fails.
             if 'cam' in self.bad_dependencies:
                 # PROBLEM: Cam daemon is not responding or not returning info.
                 recovery_procedure = {}

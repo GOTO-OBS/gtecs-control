@@ -6,15 +6,14 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.style import gtxt, rtxt, ytxt
 from gtecs.common.system import make_pid_file
-from gtecs.control import errors
 from gtecs.control import params
-from gtecs.control.daemons import BaseDaemon
-from gtecs.control.flags import Conditions, Status
+from gtecs.control.daemons import BaseDaemon, HardwareError, daemon_proxy
+from gtecs.control.flags import Conditions, ModeError, Status
 from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
 from gtecs.control.hardware.dome import Dehumidifier, ETH002Dehumidifier, FakeDehumidifier
 from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
-from gtecs.control.observing import get_conditions
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -77,6 +76,9 @@ class DomeDaemon(BaseDaemon):
     def _control_thread(self):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
+        self.check_period = params.DAEMON_CHECK_PERIOD
+        self.check_time = 0
+        self.force_check_flag = True
 
         while self.running:
             self.loop_time = time.time()
@@ -164,9 +166,9 @@ class DomeDaemon(BaseDaemon):
                                 if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
                                     time.sleep(5)
 
-                                c = self.dome.open_side(side, self.move_frac)
-                                if c:
-                                    self.log.info(c)
+                                reply = self.dome.open_side(side, self.move_frac)
+                                if reply:
+                                    self.log.info(reply)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
                                 self.force_check_flag = True
@@ -244,9 +246,9 @@ class DomeDaemon(BaseDaemon):
                                 if params.DOME_HAS_BUMPERGUARD or self.alarm_enabled:
                                     time.sleep(5)
 
-                                c = self.dome.close_side(side, self.move_frac)
-                                if c:
-                                    self.log.info(c)
+                                reply = self.dome.close_side(side, self.move_frac)
+                                if reply:
+                                    self.log.info(reply)
                                 self.move_started = 1
                                 self.move_start_time = time.time()
                                 self.force_check_flag = True
@@ -290,9 +292,9 @@ class DomeDaemon(BaseDaemon):
                 try:
                     try:
                         self.log.info('Halting dome')
-                        c = self.dome.halt()
-                        if c:
-                            self.log.info(c)
+                        reply = self.dome.halt()
+                        if reply:
+                            self.log.info(reply)
                     except Exception:
                         self.log.error('Failed to halt dome')
                         self.log.debug('', exc_info=True)
@@ -316,12 +318,12 @@ class DomeDaemon(BaseDaemon):
                 try:
                     if self.heartbeat_enabled:
                         self.log.info('Enabling heartbeat')
-                        c = self.heartbeat.enable()
+                        reply = self.heartbeat.enable()
                     else:
                         self.log.info('Disabling heartbeat')
-                        c = self.heartbeat.disable()
-                    if c:
-                        self.log.info(c)
+                        reply = self.heartbeat.disable()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('set heartbeat command failed')
                     self.log.debug('', exc_info=True)
@@ -332,9 +334,9 @@ class DomeDaemon(BaseDaemon):
             if self.dehumidifier_on_flag:
                 try:
                     self.log.info('Turning dehumidifer on')
-                    c = self.dehumidifier.on()
-                    if c:
-                        self.log.info(c)
+                    reply = self.dehumidifier.on()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('dehumidifer on command failed')
                     self.log.debug('', exc_info=True)
@@ -345,9 +347,9 @@ class DomeDaemon(BaseDaemon):
             if self.dehumidifier_off_flag:
                 try:
                     self.log.info('Turning dehumidifer off')
-                    c = self.dehumidifier.off()
-                    if c:
-                        self.log.info(c)
+                    reply = self.dehumidifier.off()
+                    if reply:
+                        self.log.info(reply)
                 except Exception:
                     self.log.error('dehumidifer off command failed')
                     self.log.debug('', exc_info=True)
@@ -357,125 +359,148 @@ class DomeDaemon(BaseDaemon):
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
-        return
 
     # Internal functions
     def _connect(self):
-        """Connect to hardware."""
-        # Connect to the dome
-        if self.dome is None:
-            if params.FAKE_DOME:
-                self.dome = FakeDome(self.log, params.DOME_DEBUG)
-                self.log.info('Connected to dome')
-            else:
-                try:
-                    self.dome = AstroHavenDome(params.DOME_LOCATION,
-                                               domealert_uri=params.DOMEALERT_URI,
-                                               log=self.log,
-                                               log_debug=params.DOME_DEBUG,
-                                               )
-                    self.log.info('Connected to dome')
-                    if 'dome' in self.bad_hardware:
-                        self.bad_hardware.remove('dome')
-                    # sleep briefly, to make sure the connection has started
-                    time.sleep(3)
-                except Exception:
-                    self.dome.disconnect()
-                    self.dome = None
-                    if 'dome' not in self.bad_hardware:
-                        self.log.error('Failed to connect to dome')
-                        self.bad_hardware.add('dome')
+        """Connect to hardware.
 
-        # Connect to the heartbeat monitor
-        if self.heartbeat is None:
-            if params.FAKE_DOME:
-                self.heartbeat = FakeHeartbeat()
-                self.log.info('Connected to heartbeat')
-            else:
-                try:
-                    self.heartbeat = DomeHeartbeat(params.DOME_HEARTBEAT_LOCATION,
-                                                   params.DOME_HEARTBEAT_PERIOD,
-                                                   self.log,
-                                                   params.DOME_DEBUG,
-                                                   )
-                    self.log.info('Connected to heartbeat')
-                    if 'heartbeat' in self.bad_hardware:
-                        self.bad_hardware.remove('heartbeat')
-                    # sleep briefly, to make sure the connection has started
-                    time.sleep(3)
-                except Exception:
-                    self.heartbeat.disconnect()
-                    self.heartbeat = None
-                    if 'heartbeat' not in self.bad_hardware:
-                        self.log.error('Failed to connect to heartbeat')
-                        self.bad_hardware.add('heartbeat')
+        If the connection fails the hardware will be added to the bad_hardware list,
+        which will trigger a hardware_error.
+        """
+        self._connect_to_dome()
+        self._connect_to_heartbeat()
+        self._connect_to_dehumidifier()
 
-        # Check the device connections
+    def _connect_to_dome(self):
+        """Connect to the dome."""
         if self.dome is not None:
+            # Already connected
+            return
+
+        if params.FAKE_DOME:
+            self.log.info('Creating Dome simulator')
+            self.dome = FakeDome(self.log, params.DOME_DEBUG)
+            return
+
+        try:
+            self.log.info('Connecting to Dome')
+            self.dome = AstroHavenDome(
+                params.DOME_LOCATION,  # TODO: JSON params file, or pass as arg?
+                domealert_uri=params.DOMEALERT_URI,
+                log=self.log,
+                log_debug=params.DOME_DEBUG,
+            )
+
+            # Check if it's connected
+            time.sleep(3)  # sleep briefly, to make sure the connection has started
             if self.dome.plc_error:
-                self.log.error('Failed to connect to dome PLC')
-                self.dome.disconnect()
-                self.dome = None
-                self.bad_hardware.add('dome')
+                raise ValueError('Failed to connect to dome PLC')
             if self.dome.switch_error and not params.DOME_IGNORE_SWITCH_ERRORS:
-                self.log.error('Failed to connect to dome switches')
-                self.dome.disconnect()
-                self.dome = None
-                self.bad_hardware.add('dome')
+                raise ValueError('Failed to connect to dome switches')
             if ((not self.dome.status_thread_running) or
                     (time.time() - self.dome.status_update_time) > params.DOME_CHECK_PERIOD):
-                self.log.error('Failed to check dome status')
                 if params.DOME_DEBUG:
                     msg = 'running={}, delta={}/{}'.format(
                         self.dome.status_thread_running,
                         (time.time() - self.dome.status_update_time),
                         params.DOME_CHECK_PERIOD)
                     self.log.debug(msg)
-                self.dome.disconnect()
-                self.dome = None
+                raise ValueError('Failed to check dome status')
+
+            # Connection successful
+            self.log.info('Connected to dome')
+            if 'dome' in self.bad_hardware:
+                self.bad_hardware.remove('dome')
+
+        except Exception:
+            # Connection failed
+            self.dome.disconnect()
+            self.dome = None
+            if 'dome' not in self.bad_hardware:
+                self.log.error('Failed to connect to dome')
                 self.bad_hardware.add('dome')
+
+    def _connect_to_heartbeat(self):
+        """Connect to the heartbeat monitor."""
         if self.heartbeat is not None:
+            # Already connected
+            return
+
+        if params.FAKE_DOME:
+            self.log.info('Creating Heartbeat simulator')
+            self.heartbeat = FakeHeartbeat()
+            return
+
+        try:
+            self.log.info('Connecting to Heartbeat')
+            self.heartbeat = DomeHeartbeat(
+                params.DOME_HEARTBEAT_LOCATION,
+                params.DOME_HEARTBEAT_PERIOD,
+                self.log,
+                params.DOME_DEBUG,
+            )
+
+            # Check if it's connected
             if self.heartbeat.connection_error:
-                self.log.error('Failed to connect to dome heartbeat monitor')
-                self.heartbeat.disconnect()
-                self.heartbeat = None
+                raise ValueError('Failed to connect to heartbeat monitor')
+
+            # Connection successful
+            self.log.info('Connected to heartbeat')
+            if 'heartbeat' in self.bad_hardware:
+                self.bad_hardware.remove('heartbeat')
+
+        except Exception:
+            # Connection failed
+            self.heartbeat.disconnect()
+            self.heartbeat = None
+            if 'heartbeat' not in self.bad_hardware:
+                self.log.error('Failed to connect to heartbeat')
                 self.bad_hardware.add('heartbeat')
 
-        # Connect to the dehumidifer
-        if self.dehumidifier is None and params.DOME_HAS_DEHUMIDIFIER:
-            if params.FAKE_DOME:
-                self.dehumidifier = FakeDehumidifier()
-                self.log.info('Connected to dehumidifier')
-            elif 'DEHUMIDIFIER' in params.POWER_UNITS:
-                try:
-                    dehumidifier_address = params.POWER_UNITS['DEHUMIDIFIER']['IP']
-                    dehumidifier_port = int(params.POWER_UNITS['DEHUMIDIFIER']['PORT'])
-                    self.dehumidifier = ETH002Dehumidifier(dehumidifier_address, dehumidifier_port)
-                    self.log.info('Connected to dehumidifier')
-                    if 'dehumidifier' in self.bad_hardware:
-                        self.bad_hardware.remove('dehumidifier')
-                except Exception:
-                    self.dehumidifier = None
-                    if 'dehumidifier' not in self.bad_hardware:
-                        self.log.exception('Failed to connect to dehumidifier')
-                        self.bad_hardware.add('dehumidifier')
-            else:
-                try:
-                    self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
-                    self.log.info('Connected to dehumidifier')
-                    if 'dehumidifier' in self.bad_hardware:
-                        self.bad_hardware.remove('dehumidifier')
-                except Exception:
-                    self.dehumidifier = None
-                    if 'dehumidifier' not in self.bad_hardware:
-                        self.log.error('Failed to connect to dehumidifier')
-                        self.bad_hardware.add('dehumidifier')
+    def _connect_to_dehumidifier(self):
+        """Connect to the dehumidifer."""
+        if self.dehumidifier is not None:
+            # Already connected
+            return
+        if not params.DOME_HAS_DEHUMIDIFIER:
+            # No dehumidifier to connect to!
+            return
 
-        # Finally check if we need to report an error
-        self._check_errors()
+        if params.FAKE_DOME:
+            self.log.info('Creating Dehumidifier simulator')
+            self.dehumidifier = FakeDehumidifier()
+            return
+
+        try:
+            self.log.info('Connecting to Dehumidifier')
+            if 'DEHUMIDIFIER' in params.POWER_UNITS:
+                # Connect through the power control unit
+                self.dehumidifier = ETH002Dehumidifier(
+                    params.POWER_UNITS['DEHUMIDIFIER']['IP'],
+                    int(params.POWER_UNITS['DEHUMIDIFIER']['PORT']),
+                )
+            else:
+                # Connect though the DomeAlert
+                self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
+
+            # Connection successful
+            self.log.info('Connected to dehumidifier')
+            if 'dehumidifier' in self.bad_hardware:
+                self.bad_hardware.remove('dehumidifier')
+
+        except Exception:
+            # Connection failed
+            self.dehumidifier = None
+            if 'dehumidifier' not in self.bad_hardware:
+                self.log.error('Failed to connect to dehumidifier')
+                self.bad_hardware.add('dehumidifier')
 
     def _get_info(self):
-        """Get the latest status info from the hardware."""
+        """Get the latest status info from the hardware.
+
+        This function will check if any piece of hardware is not responding and save it to
+        the bad_hardware list if so, which will trigger a hardware_error.
+        """
         temp_info = {}
 
         # Get basic daemon info
@@ -503,10 +528,6 @@ class DomeDaemon(BaseDaemon):
             # hatch info
             temp_info['hatch_closed'] = temp_info['hatch'] == 'closed'
             temp_info['hatch_open_time'] = self.hatch_open_time
-
-            # heartbeat info
-            heartbeat_status = self.heartbeat.status
-            temp_info['heartbeat_status'] = heartbeat_status
         except Exception:
             self.log.error('Failed to get dome info')
             self.log.debug('', exc_info=True)
@@ -516,12 +537,24 @@ class DomeDaemon(BaseDaemon):
             temp_info['dome'] = None
             temp_info['hatch_closed'] = None
             temp_info['hatch_open_time'] = None
-            temp_info['heartbeat_status'] = None
             # Report the connection as failed
             self.dome.disconnect()
             self.dome = None
             if 'dome' not in self.bad_hardware:
                 self.bad_hardware.add('dome')
+
+        # Get heartbeat info
+        try:
+            heartbeat_status = self.heartbeat.status
+            temp_info['heartbeat_status'] = heartbeat_status
+        except Exception:
+            self.log.error('Failed to get heartbeat info')
+            self.log.debug('', exc_info=True)
+            temp_info['heartbeat_status'] = None
+            # Report the connection as failed
+            self.heartbeat = None
+            if 'heartbeat' not in self.bad_hardware:
+                self.bad_hardware.add('heartbeat')
 
         # Get dehumidifier info
         if params.DOME_HAS_DEHUMIDIFIER:
@@ -539,13 +572,14 @@ class DomeDaemon(BaseDaemon):
 
         # Get the conditions values and limits
         try:
-            conditions = get_conditions(timeout=10)
+            with daemon_proxy('conditions', timeout=30) as daemon:
+                conditions_info = daemon.get_info(force_update=False)
             # Windspeed - take the maximum gust from all stations
-            temp_info['windspeed'] = np.max([conditions['weather'][source]['windmax']
-                                             for source in conditions['weather']])
+            temp_info['windspeed'] = np.max([conditions_info['weather'][source]['windmax']
+                                             for source in conditions_info['weather']])
             # Internal
-            temp_info['temperature'] = conditions['internal']['temperature']
-            temp_info['humidity'] = conditions['internal']['humidity']
+            temp_info['temperature'] = conditions_info['internal']['temperature']
+            temp_info['humidity'] = conditions_info['internal']['humidity']
         except Exception:
             self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)
@@ -569,6 +603,7 @@ class DomeDaemon(BaseDaemon):
             temp_info['button_pressed'] = None
 
         # Get conditions info
+        # TODO: but we get conditions directly from the daemon above??
         try:
             conditions = Conditions()
             temp_info['conditions_bad'] = bool(conditions.bad)
@@ -625,9 +660,6 @@ class DomeDaemon(BaseDaemon):
 
         # Update the master info dict
         self.info = temp_info
-
-        # Finally check if we need to report an error
-        self._check_errors()
 
     def _mode_check(self):
         """Check the current system mode and make sure the alarm is on/off."""
@@ -988,362 +1020,324 @@ class DomeDaemon(BaseDaemon):
     # Control functions
     def open_dome(self, side='both', frac=1):
         """Open the dome."""
-        # Check restrictions
         if self.lockdown:
-            raise errors.HardwareStatusError('Dome is in lockdown')
-
-        # Check input
+            raise HardwareError('Dome is in lockdown')
         if side not in ['a_side', 'b_side', 'both']:
             raise ValueError('Side must be one of "a_side", "b_side" or "both"')
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
-
-        # Check current status
         if self.open_flag:
-            return 'The dome is already opening'
+            # TODO: If we're already opening we assume that's fine, but what if it's not as far?
+            #       Should we compare and override?
+            raise HardwareError('Dome is already opening')
         elif self.close_flag:
             # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
+
         self.wait_for_info()
         a_side_status = self.info['a_side']
         b_side_status = self.info['b_side']
         if side == 'a_side' and a_side_status == 'full_open':
-            return 'The "a" side is already fully open'
+            return  # TODO: Some sort of HardwareAlreadyThere code?
         elif side == 'b_side' and b_side_status == 'full_open':
-            return 'The "b"" side is already fully open'
+            return
         elif side == 'both':
             if a_side_status == 'full_open' and b_side_status == 'full_open':
-                return 'The dome is already fully open'
+                return
             elif a_side_status == 'full_open' and b_side_status != 'full_open':
                 side = 'b_side'
             elif a_side_status != 'full_open' and b_side_status == 'full_open':
                 side = 'a_side'
 
-        # Set values
+        self.log.info(f'Starting: Opening dome ({side} {frac})')
         self.move_side = side
         self.move_frac = frac
-
-        # Set flag
-        self.log.info('Starting: Opening dome')
         self.open_flag = 1
-
-        return 'Opening dome'
 
     def close_dome(self, side='both', frac=1):
         """Close the dome."""
-        # Check input
         if side not in ['a_side', 'b_side', 'both']:
             raise ValueError('Side must be one of "a_side", "b_side" or "both"')
         if not (0 < frac <= 1):
             raise ValueError('Fraction must be between 0 and 1')
-
-        # Check current status
         if self.close_flag:
-            return 'The dome is already closing'
+            # TODO: If we're already closing we assume that's fine, but what if it's not as far?
+            #       Should we compare and override?
+            raise HardwareError('The dome is already closing')
         elif self.open_flag:
             # We want to overwrite the previous command
             self.halt_flag = 1
             time.sleep(3)
+
         self.wait_for_info()
         a_side_status = self.info['a_side']
         b_side_status = self.info['b_side']
         if side == 'a_side' and a_side_status == 'closed':
-            return 'The "a" side is already fully closed'
+            return
         elif side == 'b_side' and b_side_status == 'closed':
-            return 'The "b" side is already fully closed'
+            return
         elif side == 'both':
             if a_side_status == 'closed' and b_side_status == 'closed':
-                return 'The dome is already fully closed'
+                return
             elif a_side_status != 'closed' and b_side_status == 'closed':
                 side = 'a_side'
             elif a_side_status == 'closed' and b_side_status != 'closed':
                 side = 'b_side'
 
-        # Set values
+        self.log.info(f'Starting: Closing dome ({side} {frac})')
         self.move_side = side
         self.move_frac = frac
-
-        # Set flag
-        self.log.info('Starting: Closing dome')
         self.close_flag = 1
-
-        return 'Closing dome'
 
     def halt_dome(self):
         """Stop the dome moving."""
-        # Set flag
+        self.log.info('Starting: Halting dome')
         self.halt_flag = 1
-
-        return 'Halting dome'
 
     def override_dehumidifier(self, command):
         """Turn the dehumidifier on or off manually."""
-        # Check input
         if not params.DOME_HAS_DEHUMIDIFIER:
             raise ValueError('Dome has no dehumidifer')
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        dehumidifier_on = self.info['dehumidifier_on']
-        currently_open = self.info['dome'] != 'closed'
-        if command == 'on' and currently_open:
-            raise errors.HardwareStatusError("Dome is open, dehumidifier won't turn on")
-        elif command == 'on' and dehumidifier_on:
-            return 'Dehumidifier is already on'
-        elif command == 'off' and not dehumidifier_on:
-            return 'Dehumidifier is already off'
-
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.info['dehumidifier_on']:
             self.log.info('Turning on dehumidifier (manual command)')
             self.dehumidifier_on_flag = 1
-        elif command == 'off':
+        elif command == 'off' and self.info['dehumidifier_on']:
             self.log.info('Turning off dehumidifier (manual command)')
             self.dehumidifier_off_flag = 1
 
-        if command == 'on':
-            s = 'Turning on dehumidifier'
-            if self.autodehum_enabled:
-                s += ' (autodehum is enabled, so the daemon may turn it off again)'
-            return s
-        elif command == 'off':
-            s = 'Turning off dehumidifier'
-            if self.autodehum_enabled:
-                s += ' (autodehum is enabled, so the daemon may turn it on again)'
-            return s
-
     def set_autodehum(self, command):
         """Enable or disable the dome automatically turning the dehumidifier on and off."""
-        # Check input
         if not params.DOME_HAS_DEHUMIDIFIER:
             raise ValueError('Dome has no dehumidifer')
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autodehum in engineering mode')
-            elif self.autodehum_enabled:
-                return 'Autodehum is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autodehum in robotic mode')
-            elif not self.autodehum_enabled:
-                return 'Autodehum is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autodehum in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autodehum in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.autodehum_enabled:
             self.log.info('Enabling autodehum')
             self.autodehum_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.autodehum_enabled:
             self.log.info('Disabling autodehum')
             self.autodehum_enabled = False
 
-        if command == 'on':
-            return 'Enabling autodehum, the dehumidifier will turn on and off automatically'
-        elif command == 'off':
-            return 'Disabling autodehum, the dehumidifier will NOT turn on or off automatically'
-
     def set_autoclose(self, command, timeout=None):
         """Enable or disable the dome autoclosing in bad conditions."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
         if timeout is not None and not isinstance(timeout, (int, float)):
-            raise ValueError("Timeout must be a number (time in seconds)")
+            raise ValueError('Timeout must be a number (time in seconds)')
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autoclose in engineering mode')
-            elif self.autoclose_enabled:
-                return 'Autoclose is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autoclose in robotic mode')
-            elif not self.autoclose_enabled and timeout == self.autoclose_timeout:
-                return 'Autoclose is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autoclose in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autoclose in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.autoclose_enabled:
             self.log.info('Enabling autoclose')
             self.autoclose_enabled = True
             self.autoclose_timeout = None
-        elif command == 'off':
-            msg = 'Disabling autoclose'
+        elif command == 'off' and (self.autoclose_enabled or timeout != self.autoclose_timeout):
+            log_str = 'Disabling autoclose'
             if timeout is not None:
-                msg += f' for {timeout / 60:.1f} minutes'
-            self.log.info(msg)
+                log_str += f' for {timeout / 60:.1f} minutes'
+            self.log.info(log_str)
             self.autoclose_enabled = False
             if timeout is not None:
                 self.autoclose_timeout = time.time() + timeout
             else:
                 self.autoclose_timeout = None
 
-        if command == 'on':
-            return 'Enabling autoclose, dome will close in bad conditions'
-        elif command == 'off':
-            msg = 'Disabling autoclose'
-            if timeout is not None:
-                msg += f' for {timeout / 60:.1f} minutes'
-            msg += ', dome will NOT close in bad conditions'
-            return msg
-
     def set_alarm(self, command):
         """Enable or disable the dome alarm when moving."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable alarm in engineering mode')
-            elif self.alarm_enabled:
-                return 'Alarm is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable alarm in robotic mode')
-            elif not self.alarm_enabled:
-                return 'Alarm is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable alarm in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable alarm in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.alarm_enabled:
             self.log.info('Enabling alarm')
             self.alarm_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.alarm_enabled:
             self.log.info('Disabling alarm')
             self.alarm_enabled = False
 
-        if command == 'on':
-            return 'Enabling dome alarm'
-        elif command == 'off':
-            return 'Disabling dome alarm'
-
     def sound_alarm(self):
         """Sound the dome alarm."""
-        # Check current status
         self.wait_for_info()
         if not self.alarm_enabled:
-            raise errors.HardwareStatusError('Alarm is disabled')
+            raise HardwareError('Alarm is disabled')
 
-        # Just call the internal command
+        self.log.info('Sounding alarm')
         self._sound_alarm()
 
     def reset_bumperguard(self):
         """Reset the dome bumper guard."""
         if not params.DOME_HAS_BUMPERGUARD:
-            raise errors.HardwareStatusError('Dome does not have a bumper guard to reset')
+            raise HardwareError('Dome does not have a bumper guard to reset')
 
         self.dome.reset_bumperguard()
 
     def set_heartbeat(self, command):
         """Enable or disable the dome heartbeat system."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
-            raise errors.HardwareStatusError('Cannot enable heartbeat in engineering mode')
+            raise ModeError('Cannot enable heartbeat in engineering mode')
         elif command == 'off' and self.info['mode'] == 'manual':
-            raise errors.HardwareStatusError('Cannot disable heartbeat in manual mode')
+            raise ModeError('Cannot disable heartbeat in manual mode')
         elif command == 'off' and self.info['mode'] == 'robotic':
-            raise errors.HardwareStatusError('Cannot disable heartbeat in robotic mode')
+            raise ModeError('Cannot disable heartbeat in robotic mode')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.heartbeat_enabled:
             self.heartbeat_enabled = True
             self.heartbeat_set_flag = 1
-        elif command == 'off':
+        elif command == 'off' and self.heartbeat_enabled:
             self.heartbeat_enabled = False
             self.heartbeat_set_flag = 1
 
-        if command == 'on':
-            return 'Enabling dome heartbeat'
-        elif command == 'off':
-            return 'Disabling dome heartbeat'
-
     def override_windshield(self, command):
         """Turn windshielding on or off manually."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
-            raise errors.HardwareStatusError('Cannot enable windshielding in engineering mode')
-        windshield_enabled = self.info['windshield_enabled']
-        if command == 'on' and windshield_enabled:
-            return 'Windshielding is already enabled'
-        elif command == 'off' and not windshield_enabled:
-            return 'Windshielding is already disabled'
-        elif command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
-            return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
+            raise ModeError('Cannot enable windshielding in engineering mode')
+        if command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
+            raise HardwareError('Windshielding is disabled system-wide')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.windshield_enabled:
             self.log.info('Enabling windshield mode (manual command)')
             self.windshield_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.windshield_enabled:
             self.log.info('Disabling windshield mode (manual command)')
             self.windshield_enabled = False
 
-        if command == 'on':
-            s = 'Enabling windshield mode'
-            if self.autoshield_enabled:
-                s += ' (autoshield is enabled, so the daemon may turn it off again)'
-            return s
-        elif command == 'off':
-            s = 'Disabling windshield mode'
-            if self.autoshield_enabled:
-                s += ' (autoshield is enabled, so the daemon may turn it on again)'
-            return s
-
     def set_autoshield(self, command):
         """Enable or disable the dome automatically raising shields in high wind."""
-        # Check input
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
-        # Check current status
         self.wait_for_info()
-        if command == 'on':
-            if self.info['mode'] == 'engineering':
-                raise errors.HardwareStatusError('Cannot enable autoshield in engineering mode')
-            elif not params.DOME_WINDSHIELD_PERMITTED:
-                return 'Windshielding is disabled system-wide (DOME_WINDSHIELD_PERMITTED = False)'
-            elif self.autoshield_enabled:
-                return 'Autoshield is already enabled'
-        else:
-            if self.info['mode'] == 'robotic':
-                raise errors.HardwareStatusError('Cannot disable autoshield in robotic mode')
-            elif not self.autoshield_enabled:
-                return 'Autoshield is already disabled'
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autoshield in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autoshield in robotic mode')
+        if command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
+            raise HardwareError('Windshielding is disabled system-wide')
 
-        # Set flag
-        if command == 'on':
+        if command == 'on' and not self.autoshield_enabled:
             self.log.info('Enabling autoshield')
             self.autoshield_enabled = True
-        elif command == 'off':
+        elif command == 'off' and self.autoshield_enabled:
             self.log.info('Disabling autoshield')
             self.autoshield_enabled = False
 
-        if command == 'on':
-            return 'Enabling autoshield, the dome will raise and lower shields automatically'
-        elif command == 'off':
-            return 'Disabling autoshield, the dome will NOT raise and lower shields automatically'
+    # Info function
+    def get_info_string(self, verbose=False, force_update=False):
+        """Get a string for printing status info."""
+        info = self.get_info(force_update)
+        if not verbose:
+            msg = 'DOME:               [{}|{}]\n'.format(
+                info['a_side'].capitalize(), info['b_side'].capitalize())
+            if info['lockdown']:
+                msg += rtxt('   LOCKDOWN ACTIVE: {}\n'.format(
+                            ';'.join(info['lockdown_reasons'])))
+            elif info['shielding']:
+                msg += ytxt('   WINDSHIELD ACTIVE\n')
+            msg += '   Autoclose:       [{}]\n'.format(
+                rtxt('Disabled') +
+                (f' for {info["autoclose_timeout"]-time.time():.1f}s'
+                 if info['autoclose_timeout'] is not None else '')
+                if not info['autoclose_enabled'] else 'Enabled')
+            msg += '   Windshield:      [{}]{} (Auto: {})\n'.format(
+                gtxt('On') if info['windshield_enabled'] else 'Off',
+                ' ' if info['windshield_enabled'] else '',
+                rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
+            if params.DOME_HAS_DEHUMIDIFIER:
+                msg += '   Dehumidifier:    [{}]{} (Auto: {})\n'.format(
+                    gtxt('On') if info['dehumidifier_on'] else 'Off',
+                    ' ' if info['dehumidifier_on'] else '',
+                    rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            msg += '   Hatch:           [{}]\n'.format(
+                rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
+                else 'Closed')
+            msg += '   Alarm:           [{}]\n'.format(
+                rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
+            msg += '   Heartbeat:       [{}]\n'.format(
+                rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
+                else info['heartbeat_status'].capitalize())
+            if info['emergency']:
+                msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
+                msg += rtxt('REASON(S): {}\n'.format(info['emergency_reasons']))
+            msg = msg.rstrip()
+        else:
+            msg = '######## DOME INFO ########\n'
+            msg += 'A side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
+                                               info['a_side'].capitalize())
+            msg += 'B side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
+                                               info['b_side'].capitalize())
+            msg += 'Autoclose:    {}\n'.format(
+                rtxt('Disabled') +
+                (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
+                 if info['autoclose_timeout'] is not None else '')
+                if not info['autoclose_enabled'] else 'Enabled')
+            msg += 'Windshield:   {}\n'.format(
+                gtxt('On') if info['windshield_enabled'] else 'Off')
+            msg += ' - Autoshield:  {}\n'.format(
+                rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
+            if params.DOME_HAS_DEHUMIDIFIER:
+                msg += 'Dehumidifier: {}\n'.format(
+                    gtxt('On') if info['dehumidifier_on'] else 'Off')
+                msg += ' - Autodehum:   {}\n'.format(
+                    rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            msg += 'Hatch:        {}\n'.format(
+                rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
+                else 'Closed')
+            msg += 'Alarm:        {}\n'.format(
+                rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
+            msg += 'Heartbeat:    {}\n'.format(
+                rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
+                else info['heartbeat_status'].capitalize())
+            msg += 'Lockdown:     {}\n'.format(
+                rtxt('ACTIVE') if info['lockdown'] else 'Clear')
+            if info['lockdown']:
+                msg += ' - Lockdown reasons:\n'
+                for reason in info['lockdown_reasons']:
+                    msg += rtxt('   {}\n'.format(reason))
+            msg += 'Shielding:    {}\n'.format(
+                ytxt('ACTIVE') if info['shielding'] else 'Clear')
+            if info['emergency']:
+                msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
+                msg += rtxt('REASON(S): {}\n'.format(info['emergency_reasons']))
+            msg += '~~~~~~~\n'
+            msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
+            msg += 'Timestamp: {}\n'.format(info['timestamp'])
+            msg += '###########################'
+        return msg
 
 
 if __name__ == '__main__':
-    with make_pid_file('dome'):
-        DomeDaemon()._run()
+    daemon = DomeDaemon()
+    with make_pid_file(daemon.daemon_id):
+        host = params.DAEMONS[daemon.daemon_id]['HOST']
+        port = params.DAEMONS[daemon.daemon_id]['PORT']
+        pinglife = params.DAEMONS[daemon.daemon_id]['PINGLIFE']
+        daemon._run(host, port, pinglife, timeout=params.PYRO_TIMEOUT)

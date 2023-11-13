@@ -6,7 +6,6 @@ import sys
 
 from gtecs.common import logging
 from gtecs.common.system import execute_long_command, get_pid, kill_process, make_pid_file
-from gtecs.control import errors
 from gtecs.control.flags import Status
 from gtecs.control.pilot import run
 from gtecs.control.slack import send_slack_msg
@@ -14,12 +13,8 @@ from gtecs.control.slack import send_slack_msg
 
 def query(command, args):
     """Process a query."""
-    # Command functions
-    if command in ['help', '?']:
-        print_instructions()
-
-    # Primary control
-    elif command == 'start':
+    # Primary daemon control
+    if command == 'start':
         # Disable pilot in engineering mode or emergency shutdown
         status = Status()
         if status.mode == 'engineering':
@@ -58,11 +53,9 @@ def query(command, args):
         if not get_pid('pilot'):
             print('Pilot is not running')
             return
-
         kill_process('pilot')
 
     elif command in ['log', 'tail']:
-        # parse arguments
         if 'stdout' in args:
             log_file = 'pilot' + '-stdout.log'
             args.remove('stdout')
@@ -70,36 +63,34 @@ def query(command, args):
             log_file = 'pilot' + '.log'
         log_path = logging.get_log_path() / log_file
         tail_command = 'tail {} {}'.format(log_path, ' '.join(args))
-
         execute_long_command(tail_command)
+
+    # Help
+    elif command in ['help', '?']:
+        print(
+            'Usage: pilot command [options]',
+            'The pilot is the master control program for the observatory.',
+            '',
+            'Commands:',
+            '   start [options]        start the pilot',
+            '         -l, --late       run the evening tasks even if it is too late',
+            '         -r, --restart    skip the evening tasks and go straight to observing',
+            '         -t, --test       start the pilot in testing mode',
+            '   ping                   check if the pilot is running',
+            '   kill                   kill the pilot',
+            '   log [tail args]        print pilot log (alias for tail)',
+            '   help                   print these instructions',
+            sep='\n')
 
     # Unrecognized function
     else:
-        raise errors.InputError('Unrecognized command "{}"'.format(command))
-
-
-def print_instructions():
-    """Print instructions for using the script."""
-    print('Usage: pilot command [options]',
-          'The pilot is the master control program for the observatory.',
-          '',
-          'Commands:',
-          '   start [options]        start the pilot',
-          '         -l, --late       run the evening tasks even if it is too late',
-          '         -r, --restart    skip the evening tasks and go straight to observing',
-          '         -t, --test       start the pilot in testing mode',
-          '   ping                   check if the pilot is running',
-          '   kill                   kill the pilot',
-          '   log [tail args]        print pilot log (alias for tail)',
-          '   help                   print these instructions',
-          sep='\n')
+        raise ValueError('Unrecognized command "{}"'.format(command))
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        # No command: print help and exit
-        print_instructions()
-        sys.exit()
+    try:
+        command, *args = sys.argv[1:]
+    except ValueError:
+        command, args = 'help', None
 
-    command, *args = sys.argv[1:]
     query(command, args)
