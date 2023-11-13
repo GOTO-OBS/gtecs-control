@@ -934,7 +934,7 @@ class MntMonitor(BaseMonitor):
             if self.mount_class == 'SITECH':
                 recovery_procedure[2] = ['power off sitech', 10]
             elif self.mount_class == 'ASA':
-                recovery_procedure[2] = ['mount motors off', 10]
+                recovery_procedure[2] = ['mnt motors off', 10]
             # OUT OF SOLUTIONS: We don't want to try and move it, since there must be a reason
             #                   it's been put into stopped mode. It could be parked, but that's
             #                   a different error.
