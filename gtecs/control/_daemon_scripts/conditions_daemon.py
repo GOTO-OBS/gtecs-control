@@ -277,13 +277,16 @@ class ConditionsDaemon(BaseDaemon):
             # Get readings from any standalone boards, connected to
             # the dome alert or with their own daemon
             if params.RAINDAEMON_URI != 'none':
-                if 'domealert' in params.RAINDAEMON_URI:
-                    rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
-                else:
-                    rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
-                rain_dict['total'] += rain_daemon_dict['total']
-                rain_dict['unsafe'] += rain_daemon_dict['unsafe']
-                rain_dict['dt'] = rain_daemon_dict['dt']
+                try:
+                    if 'domealert' in params.RAINDAEMON_URI:
+                        rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
+                    else:
+                        rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
+                    rain_dict['total'] += rain_daemon_dict['total']
+                    rain_dict['unsafe'] += rain_daemon_dict['unsafe']
+                    rain_dict['dt'] = rain_daemon_dict['dt']
+                except Exception:
+                    self.log.error('Failed to get rain daemon info')
 
             # We've attached rain boards to some of the Vaisalas, so include them in the count too
             if temp_info['weather'] is not None:
