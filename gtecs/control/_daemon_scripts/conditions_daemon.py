@@ -272,42 +272,53 @@ class ConditionsDaemon(BaseDaemon):
 
         # Get rain board readings
         try:
+            rain_dict = {'total': 0, 'unsafe': 0, 'dt': 0}
+
+            # Get readings from any standalone boards, connected to
+            # the dome alert or with their own daemon
             if params.RAINDAEMON_URI != 'none':
                 if 'domealert' in params.RAINDAEMON_URI:
-                    rain_dict = get_rain_domealert(params.RAINDAEMON_URI)
+                    rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
                 else:
-                    rain_dict = get_rain_daemon(params.RAINDAEMON_URI)
-                # If we have the rain boards then remove rain readings from other sources
+                    rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
+                rain_dict['total'] += rain_daemon_dict['total']
+                rain_dict['unsafe'] += rain_daemon_dict['unsafe']
+                rain_dict['dt'] = rain_daemon_dict['dt']
+
+            # We've attached rain boards to some of the Vaisalas, so include them in the count too
+            if temp_info['weather'] is not None:
+                for source in temp_info['weather']:
+                    if (any('rainboard_' in key for key in temp_info['weather']) and
+                            temp_info['weather'][source]['rainboard_rain'] == -999):
+                        rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
+                        rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
+                        # Use the longer update time I guess??
+                        rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
+
+            if rain_dict['total'] > 0:
+                # If we have any rain boards then remove rain readings from other sources
                 if temp_info['weather'] is not None:
                     for source in temp_info['weather']:
                         if 'rain' in temp_info['weather'][source]:
                             temp_info['weather'][source]['rain'] = None
-            elif temp_info['weather'] is not None:
-                # Fallback to the weather readings
-                # We don't usually trust the vaisala rain detectors,
-                # and any external ones are too far away.
-                # That's why we prefer the local boards.
-                rain_dict = {'total': 0,
-                             'unsafe': 0,
-                             }
-                rain_dts = []
+            else:
+                # If we have no other option then we'll use the readings from the stations
                 for source in temp_info['weather']:
                     if ('rain' in temp_info['weather'][source] and
                             temp_info['weather'][source]['rain'] != -999):
                         rain_dict['total'] += 1
                         rain_dict['unsafe'] += int(temp_info['weather'][source]['rain'])
-                        rain_dts.append(temp_info['weather'][source]['dt'])
-                rain_dict['rain'] = rain_dict['unsafe'] > 0
-                if rain_dict['total'] == 0:
-                    raise ValueError('No weather sources included rain readings')
-                rain_dict['dt'] = max(rain_dts)
-            else:
+                        rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
+
+            # Now if we still have no readings then we have a problem...
+            if rain_dict['total'] == 0:
                 raise ValueError('No weather sources for rain readings')
+
         except Exception:
             if params.FAKE_CONDITIONS:
+                self.log.debug('', exc_info=True)
                 rain_dict = {'total': 9,
                              'unsafe': 0,
-                             'rain': False,
                              'dt': 0,
                              }
             else:
@@ -315,7 +326,6 @@ class ConditionsDaemon(BaseDaemon):
                 self.log.debug('', exc_info=True)
                 rain_dict = {'total': -999,
                              'unsafe': -999,
-                             'rain': -999,
                              'dt': -999,
                              }
         temp_info['rain'] = rain_dict
@@ -516,7 +526,7 @@ class ConditionsDaemon(BaseDaemon):
         dew_point = dew_point[dew_point != -999]
 
         # Rain
-        rain = np.array(self.info['rain']['rain'])
+        rain = np.array(self.info['rain']['unsafe'])
         rain = rain[rain != -999]
 
         # Sky temperature
@@ -877,7 +887,7 @@ class ConditionsDaemon(BaseDaemon):
             else:
                 msg += '\n'
 
-        msg += 'WEATHER:          temp   humid    dewpt  wind (gust, max)       rain\n'
+        msg += 'WEATHER:          temp   humid    dewpt  wind (gust, max)        rain\n'
         weather = info['weather']
 
         for source in weather:
@@ -1012,7 +1022,7 @@ class ConditionsDaemon(BaseDaemon):
 
         rain_unsafe = info['rain']['unsafe']
         rain_total = info['rain']['total']
-        if info['rain']['rain'] == -999:
+        if rain_unsafe == -999:
             rain_str = rtxt('  ERR') + '      '
         elif rain_unsafe > 0:
             rain_str = rtxt(' True') + ' ({}/{})'.format(rain_unsafe, rain_total)

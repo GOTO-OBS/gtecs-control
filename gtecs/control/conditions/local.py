@@ -160,7 +160,6 @@ def get_vaisala_daemon(uri):
 
     # rain boards (custom additions)
     if any('rg11' in key for key in data):
-        weather_dict['has_rainboards'] = True
         try:
             assert data['rg11_unsafe_valid']
             assert data['rg11_total_valid']
@@ -174,8 +173,6 @@ def get_vaisala_daemon(uri):
             weather_dict['rainboard_unsafe'] = -999
             weather_dict['rainboard_total'] = -999
             weather_dict['rainboard_rain'] = -999
-    else:
-        weather_dict['has_rainboards'] = False
 
     # time
     try:
