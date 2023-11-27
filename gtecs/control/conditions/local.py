@@ -194,22 +194,22 @@ def get_rain_daemon(uri):
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
-        info = proxy.last_measurement()
+        data = proxy.last_measurement()
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    weather_dict['update_time'] = Time(data['date'], precision=0).iso
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
-    if any('rg11' in key for key in info):
+    if any('rg11' in key for key in data):
         # It's a Vaisala with the custom boards
-        weather_dict['unsafe'] = int(info['rg11_unsafe'])
-        weather_dict['total'] = int(info['rg11_total'])
+        weather_dict['unsafe'] = int(data['rg11_unsafe'])
+        weather_dict['total'] = int(data['rg11_total'])
     else:
         # It's the standalone rain daemon
-        weather_dict['unsafe'] = int(info['unsafe_boards'])
-        weather_dict['total'] = int(info['total_boards'])
+        weather_dict['unsafe'] = int(data['unsafe_boards'])
+        weather_dict['total'] = int(data['total_boards'])
 
     # Single good/bad flag
     if weather_dict['unsafe'] > 0:
@@ -225,20 +225,20 @@ def get_rain_domealert(uri):
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
-        info = proxy.last_measurement()
+        data = proxy.last_measurement()
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    weather_dict['update_time'] = Time(data['date'], precision=0).iso
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     total_boards = 0
     unsafe_boards = 0
-    for key in info:
-        if 'rain' in key and 'valid' not in key and info[key + '_valid']:
+    for key in data:
+        if 'rain' in key and 'valid' not in key and data[key + '_valid']:
             total_boards += 1
-            unsafe = info[key] is False  # boards are NC
+            unsafe = data[key] is False  # boards are NC
             unsafe_boards += int(unsafe)
 
     weather_dict['total'] = total_boards
@@ -256,14 +256,14 @@ def get_cloudwatcher_daemon(uri):
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
-        info = proxy.last_measurement()
+        data = proxy.last_measurement()
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    weather_dict['update_time'] = Time(data['date'], precision=0).iso
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
-    weather_dict['sky_temp'] = info['sky_temp']
+    weather_dict['sky_temp'] = data['sky_temp']
 
     return weather_dict
