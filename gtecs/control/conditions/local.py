@@ -163,8 +163,8 @@ def get_vaisala_daemon(uri):
         try:
             assert data['rg11_unsafe_valid']
             assert data['rg11_total_valid']
-            weather_dict['rainboard_unsafe'] = float(data['rg11_unsafe'])
-            weather_dict['rainboard_total'] = float(data['rg11_total'])
+            weather_dict['rainboard_unsafe'] = int(data['rg11_unsafe'])
+            weather_dict['rainboard_total'] = int(data['rg11_total'])
             if weather_dict['rainboard_unsafe'] > 0:
                 weather_dict['rainboard_rain'] = True
             else:

@@ -288,8 +288,8 @@ class ConditionsDaemon(BaseDaemon):
             # We've attached rain boards to some of the Vaisalas, so include them in the count too
             if temp_info['weather'] is not None:
                 for source in temp_info['weather']:
-                    if (any('rainboard_' in key for key in temp_info['weather']) and
-                            temp_info['weather'][source]['rainboard_rain'] == -999):
+                    if (any('rainboard_' in key for key in temp_info['weather'][source]) and
+                            temp_info['weather'][source]['rainboard_rain'] != -999):
                         rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
                         rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
                         # Use the longer update time I guess??
