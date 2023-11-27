@@ -144,6 +144,13 @@ def get_vaisala_daemon(uri):
     except Exception:
         weather_dict['humidity'] = -999
 
+    # dew point
+    try:
+        assert data['dew_point_delta_valid']
+        weather_dict['dew_point'] = float(data['dew_point_delta'])
+    except Exception:
+        weather_dict['dew_point'] = -999
+
     # rain
     try:
         assert data['rain_intensity_valid']
@@ -151,12 +158,24 @@ def get_vaisala_daemon(uri):
     except Exception:
         weather_dict['rain'] = -999
 
-    # dew point
-    try:
-        assert data['dew_point_delta_valid']
-        weather_dict['dew_point'] = float(data['dew_point_delta'])
-    except Exception:
-        weather_dict['dew_point'] = -999
+    # rain boards (custom additions)
+    if any('rg11' in key for key in data):
+        weather_dict['has_rainboards'] = True
+        try:
+            assert data['rg11_unsafe_valid']
+            assert data['rg11_total_valid']
+            weather_dict['rainboard_unsafe'] = float(data['rg11_unsafe'])
+            weather_dict['rainboard_total'] = float(data['rg11_total'])
+            if weather_dict['rainboard_unsafe'] > 0:
+                weather_dict['rainboard_rain'] = True
+            else:
+                weather_dict['rainboard_rain'] = False
+        except Exception:
+            weather_dict['rainboard_unsafe'] = -999
+            weather_dict['rainboard_total'] = -999
+            weather_dict['rainboard_rain'] = -999
+    else:
+        weather_dict['has_rainboards'] = False
 
     # time
     try:
@@ -171,7 +190,7 @@ def get_vaisala_daemon(uri):
 
 
 def get_rain_daemon(uri):
-    """Get rain readings from the rain daemon."""
+    """Get rain readings from the rain daemon, or a Vaisala with additional RG-11 boards."""
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
@@ -183,8 +202,16 @@ def get_rain_daemon(uri):
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
-    weather_dict['total'] = info['total_boards']
-    weather_dict['unsafe'] = info['unsafe_boards']
+    if any('rg11' in key for key in info):
+        # It's a Vaisala with the custom boards
+        weather_dict['unsafe'] = int(info['rg11_unsafe'])
+        weather_dict['total'] = int(info['rg11_total'])
+    else:
+        # It's the standalone rain daemon
+        weather_dict['unsafe'] = int(info['unsafe_boards'])
+        weather_dict['total'] = int(info['total_boards'])
+
+    # Single good/bad flag
     if weather_dict['unsafe'] > 0:
         weather_dict['rain'] = True
     else:
