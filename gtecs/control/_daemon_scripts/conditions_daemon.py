@@ -1013,7 +1013,7 @@ class ConditionsDaemon(BaseDaemon):
         rain_unsafe = info['rain']['unsafe']
         rain_total = info['rain']['total']
         if info['rain']['rain'] == -999:
-            rain_str = rtxt(' ERR') + '\n'
+            rain_str = rtxt('  ERR') + '      '
         elif rain_unsafe > 0:
             rain_str = rtxt(' True') + ' ({}/{})'.format(rain_unsafe, rain_total)
         else:
