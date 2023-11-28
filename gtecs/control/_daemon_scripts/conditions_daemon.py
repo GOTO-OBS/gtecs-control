@@ -1028,9 +1028,9 @@ class ConditionsDaemon(BaseDaemon):
         if rain_unsafe == -999:
             rain_str = rtxt('  ERR') + '      '
         elif rain_unsafe > 0:
-            rain_str = rtxt(' True') + ' ({}/{})'.format(rain_unsafe, rain_total)
+            rain_str = rtxt('  Bad') + ' ({}/{})'.format(rain_unsafe, rain_total)
         else:
-            rain_str = gtxt('False') + ' ({}/{})'.format(rain_unsafe, rain_total)
+            rain_str = gtxt(' Good') + ' ({}/{})'.format(rain_unsafe, rain_total)
         dt = info['rain']['dt']
         if dt == -999:
             dt_str = rtxt('ERR')
@@ -1038,7 +1038,7 @@ class ConditionsDaemon(BaseDaemon):
             dt_str = rtxt('{:.0f}'.format(dt))
         else:
             dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  rain         {}      dt={}\n'.format(rain_str, dt_str)
+        msg += '  rain_sensors {}      dt={}\n'.format(rain_str, dt_str)
 
         sky_temp = info['sky_temp']['sky_temp']
         if sky_temp == -999:
