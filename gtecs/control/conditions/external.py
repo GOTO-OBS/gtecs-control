@@ -203,7 +203,7 @@ def get_robodimm():
 
     # seeing
     try:
-        weather_dict['seeing'] = data[9]
+        weather_dict['seeing'] = float(data[9])
     except Exception:
         weather_dict['seeing'] = -999
 
