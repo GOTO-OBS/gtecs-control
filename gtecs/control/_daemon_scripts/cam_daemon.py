@@ -569,6 +569,10 @@ class CamDaemon(BaseDaemon):
                     filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
                 else:
                     filename = glance_location(ut, params.TELESCOPE_NUMBER)
+                if header_info[ut] is None:
+                    # There's not much we can do with no header, but we can save the raw data
+                    # in a clearly-marked invalid file
+                    filename += '.no_header'
 
                 # create and fill the FITS HDU
                 hdu = make_fits(image_data,
@@ -620,6 +624,10 @@ class CamDaemon(BaseDaemon):
                 filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
             else:
                 filename = glance_location(ut, params.TELESCOPE_NUMBER)
+            if header_info[ut] is None:
+                # There's not much we can do with no header, but we can save the raw data
+                # in a clearly-marked invalid file
+                filename += '.no_header'
 
             self.log.info('{}: Saving exposure on camera {}'.format(expstr, ut))
             try:
