@@ -131,124 +131,112 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['uptime'] = self.loop_time - self.start_time
 
         # Get info from the weather masts
-        try:
-            weather = {}
+        temp_info['weather'] = {}
 
-            # Get the weather values from local vaisala stations
-            weather_sources = [params.VAISALA_URI]
-            for source in params.BACKUP_VAISALA_URIS:
-                if source != 'none':
-                    weather_sources.append(source)
-            for source in weather_sources:
-                try:
-                    if source.startswith('PYRO:'):
-                        uri = source
-                        source = uri[5:].split('_')[0]
-                        weather_dict = get_vaisala_daemon(uri)
+        weather_sources = [params.VAISALA_URI]
+        for source in [source for source in params.BACKUP_VAISALA_URIS if source != 'none']:
+            weather_sources.append(source)
+        # Add fallback sources just in case
+        if params.SITE_NAME == 'La Palma':
+            weather_sources.append('ing')
+        elif params.SITE_NAME == 'Siding Spring':
+            weather_sources.append('aat')
+
+        for source in weather_sources:
+            try:
+                if source.startswith('PYRO:'):
+                    uri = source
+                    source = uri[5:].split('_')[0].lower()  # Extract source name from URI
+                    weather_dict = get_vaisala_daemon(uri)
+                else:
+                    # As long as we have a single local source then we don't need the backups.
+                    # We should have done the local masts already, so we can check if they all
+                    # failed by looking at the temp dict.
+                    if all(temp_info['weather'][source]['dt'] == -999
+                           for source in temp_info['weather']):
+                        self.log.warning('All local weather sources failed!')
+                        if source == 'ing':
+                            weather_dict = get_ing()
+                        elif source == 'aat':
+                            weather_dict = get_aat()
+                        else:
+                            raise ValueError('Unknown weather source "{}"'.format(source))
                     else:
-                        raise ValueError('Unknown weather source')
-                except Exception:
-                    if params.FAKE_CONDITIONS:
-                        weather_dict = {'temperature': 10,
-                                        'pressure': 800,
-                                        'windspeed': 5,
-                                        'winddir': 0,
-                                        'windgust': 10,
-                                        'humidity': 50,
-                                        'rain': False,
-                                        'dew_point': 10,
-                                        'update_time': Time.now().iso,
-                                        'dt': 0,
-                                        }
-                    else:
-                        self.log.error('Error getting weather from "{}"'.format(source))
-                        self.log.debug('', exc_info=True)
-                        weather_dict = {'temperature': -999,
-                                        'pressure': -999,
-                                        'windspeed': -999,
-                                        'winddir': -999,
-                                        'windgust': -999,
-                                        'humidity': -999,
-                                        'rain': -999,
-                                        'dew_point': -999,
-                                        'update_time': -999,
-                                        'dt': -999,
-                                        }
+                        continue
 
-                # Store the dict
-                weather[source.lower()] = weather_dict
+                # Save a history of windgusts so we can log the maximum
+                if (self.info and source in self.info['weather'] and
+                        'windgust_history' in self.info['weather'][source] and
+                        self.info['weather'][source]['windgust_history'] != -999):
+                    windgust_history = self.info['weather'][source]['windgust_history']
+                else:
+                    windgust_history = []
+                # remove old readings (limit to params.WINDGUST_PERIOD) and any invalid values
+                windgust_history = [hist for hist in windgust_history
+                                    if (hist[0] > self.loop_time - params.WINDGUST_PERIOD and
+                                        hist[1] != -999)]
+                # add the latest value (if it's valid)
+                if 'windgust' in weather_dict and weather_dict['windgust'] != -999:
+                    windgust_history.append((self.loop_time, weather_dict['windgust']))
+                # save the history and maximum value to the dict
+                weather_dict['windgust_history'] = windgust_history
+                if len(windgust_history) > 1:
+                    weather_dict['windmax'] = max(hist[1] for hist in windgust_history)
+                else:
+                    weather_dict['windmax'] = -999
 
-            if all([weather[source]['dt'] == -999 for source in weather]):
-                # If none of the local sources are valid, fall back to external on-site stations
-                try:
-                    if params.SITE_NAME == 'La Palma':
-                        source = 'ing'
-                        weather[source] = get_ing()
-                    elif params.SITE_NAME == 'Siding Spring':
-                        source = 'aat'
-                        weather[source] = get_aat()
-                except Exception:
-                    self.log.error('Error getting weather from "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-                    # Don't add to the dict, no need for another failed source
+                # Check if the timeout has been exceeded
+                if weather_dict['dt'] >= params.WEATHER_TIMEOUT or weather_dict['dt'] == -999:
+                    raise ValueError('Timeout exceeded ({:.1f} > {:.1f})'.format(
+                        weather_dict['dt'], params.WEATHER_TIMEOUT))
 
-            for source in weather:
-                try:
-                    # Save a history of windgusts so we can log the maximum
-                    if (self.info and source in self.info['weather'] and
-                            'windgust_history' in self.info['weather'][source] and
-                            self.info['weather'][source]['windgust_history'] != -999):
-                        windgust_history = self.info['weather'][source]['windgust_history']
-                    else:
-                        windgust_history = []
-                    # remove old readings (limit to params.WINDGUST_PERIOD) and any invalid values
-                    windgust_history = [hist for hist in windgust_history
-                                        if (hist[0] > self.loop_time - params.WINDGUST_PERIOD and
-                                            hist[1] != -999)]
-                    if weather[source]['windgust'] != -999:
-                        # add the latest value
-                        windgust_history.append((self.loop_time, weather[source]['windgust']))
-                    # save the history
-                    weather[source]['windgust_history'] = windgust_history
-                    # store maximum (windmax)
-                    if len(windgust_history) > 1:
-                        weather[source]['windmax'] = max(hist[1] for hist in windgust_history)
-                    else:
-                        weather[source]['windmax'] = -999
-                except Exception:
-                    self.log.error('Error getting windmax for "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-                    weather[source]['windmax'] = -999
-
-            temp_info['weather'] = {}
-            for source in weather:
-                source_info = weather[source].copy()
-
-                # check if the weather timeout has been exceeded
-                dt = source_info['dt']
-                if dt >= params.WEATHER_TIMEOUT or dt == -999:
-                    self.log.error('Timeout exceeded for source "{}" ({:.1f} > {:.1f})'.format(
-                        source, dt, params.WEATHER_TIMEOUT))
-                    source_info = {key: -999 for key in source_info}
-
-                # check if the weather hasn't changed for a certain time
-                source_info['changed_time'] = self.loop_time
-                if self.info and self.info['weather'][source]:
+                # Also check if the weather hasn't changed for a given time
+                weather_dict['changed_time'] = self.loop_time
+                if self.info and source in self.info['weather'] and self.info['weather'][source]:
                     changed_time = self.info['weather'][source]['changed_time']
-                    unchanged = [source_info[key] == self.info['weather'][source][key]
-                                 for key in source_info]
+                    unchanged = [
+                        weather_dict[key] == self.info['weather'][source][key]
+                        for key in weather_dict
+                        if key in self.info['weather'][source]
+                    ]
                     dt = self.loop_time - changed_time
                     if all(unchanged) and dt > params.WEATHER_STATIC:
-                        self.log.error('Values unchanged for source "{}" ({:.1f} > {:.1f})'.format(
-                            source, dt, params.WEATHER_STATIC))
-                        source_info = {key: -999 for key in source_info}
-                        source_info['changed_time'] = changed_time
+                        raise ValueError('Weather values unchanged ({:.1f} > {:.1f})'.format(
+                            dt, params.WEATHER_STATIC))
 
-                temp_info['weather'][source] = source_info
-        except Exception:
-            self.log.error('Failed to get weather info')
-            self.log.debug('', exc_info=True)
-            temp_info['weather'] = None
+            except Exception:
+                if params.FAKE_CONDITIONS:
+                    weather_dict = {'temperature': 10,
+                                    'pressure': 800,
+                                    'windspeed': 5,
+                                    'winddir': 0,
+                                    'windgust': 10,
+                                    'windmax': 15,
+                                    'windgust_history': [],
+                                    'humidity': 50,
+                                    'rain': False,
+                                    'dew_point': 10,
+                                    'update_time': Time.now().iso,
+                                    'dt': 0,
+                                    }
+                else:
+                    self.log.error('Error getting weather from "{}"'.format(source))
+                    self.log.debug('', exc_info=True)
+                    weather_dict = {'temperature': -999,
+                                    'pressure': -999,
+                                    'windspeed': -999,
+                                    'winddir': -999,
+                                    'windgust': -999,
+                                    'windmax': -999,
+                                    'windgust_history': -999,
+                                    'humidity': -999,
+                                    'rain': -999,
+                                    'dew_point': -999,
+                                    'update_time': -999,
+                                    'dt': -999,
+                                    }
+
+            temp_info['weather'][source] = weather_dict
 
         # Get the internal conditions from Paul's DomeAlert
         try:
@@ -289,21 +277,19 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.error('Failed to get rain daemon info')
 
             # We've attached rain boards to some of the Vaisalas, so include them in the count too
-            if temp_info['weather'] is not None:
-                for source in temp_info['weather']:
-                    if (any('rainboard_' in key for key in temp_info['weather'][source]) and
-                            temp_info['weather'][source]['rainboard_rain'] != -999):
-                        rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
-                        rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
-                        # Use the longer update time I guess??
-                        rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
+            for source in temp_info['weather']:
+                if (any('rainboard_' in key for key in temp_info['weather'][source]) and
+                        temp_info['weather'][source]['rainboard_rain'] != -999):
+                    rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
+                    rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
+                    # Use the longer update time I guess??
+                    rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
 
             if rain_dict['total'] > 0:
                 # If we have any rain boards then remove rain readings from other sources
-                if temp_info['weather'] is not None:
-                    for source in temp_info['weather']:
-                        if 'rain' in temp_info['weather'][source]:
-                            temp_info['weather'][source]['rain'] = None
+                for source in temp_info['weather']:
+                    if 'rain' in temp_info['weather'][source]:
+                        temp_info['weather'][source]['rain'] = None
             else:
                 # If we have no other option then we'll use the readings from the stations
                 for source in temp_info['weather']:
@@ -827,7 +813,7 @@ class ConditionsDaemon(BaseDaemon):
         """Get a string for printing status info."""
         info = self.get_info(force_update)
 
-        if info is None or info['flags'] is None or info['weather'] is None:
+        if info is None:
             msg = 'CONDITIONS:\n'
             msg += '  None yet, try again'
             return msg
@@ -1152,7 +1138,7 @@ class ConditionsDaemon(BaseDaemon):
     def get_limits_string(self, force_update=False):
         """Get a string for printing weather values and limits."""
         info = self.get_info(force_update)
-        if info is None or info['weather'] is None:
+        if info is None:
             msg = 'WEATHER:\n'
             msg += '  None yet, try again'
             return msg
