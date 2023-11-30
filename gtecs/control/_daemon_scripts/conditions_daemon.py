@@ -441,15 +441,19 @@ class ConditionsDaemon(BaseDaemon):
                 temp_info['free_diskspace'] = -999
 
         # Get info from the satellite IR cloud image
+        # Note if if fails (which is common) we only log the start and end
         try:
             clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
             temp_info['clouds'] = clouds
+            if self.info and self.info['clouds'] == -999:
+                self.log.info('Satellite clouds info restored')
         except Exception:
             if params.FAKE_CONDITIONS:
                 temp_info['clouds'] = 0
             else:
-                self.log.error('Failed to get satellite clouds info')
-                self.log.debug('', exc_info=True)
+                if not self.info or (self.info and self.info['clouds'] != -999):
+                    self.log.error('Failed to get satellite clouds info')
+                    self.log.debug('', exc_info=True)
                 temp_info['clouds'] = -999
 
         # Get current sun alt
