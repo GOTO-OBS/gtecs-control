@@ -357,32 +357,11 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
             daemon_info['mnt']['motor_current_info'] = None
             bad_daemons.append('mnt_history')
 
-    # Conditions sources
+    # Conditions history
     if daemon_info['conditions'] is not None:
         try:
-            # Select external source
-            ext_source = params.VAISALA_URI[5:].split('_')[0]
-            ext_weather = daemon_info['conditions']['weather'][ext_source].copy()
-            daemon_info['conditions']['weather_ext'] = ext_weather
-
-            # Select internal source
-            int_weather = daemon_info['conditions']['internal'].copy()
-            daemon_info['conditions']['weather_int'] = int_weather
-
-        except Exception:
-            if log is None:
-                raise
-            log.error('Failed to find conditions sources')
-            log.debug('', exc_info=True)
-            daemon_info['conditions']['weather_ext'] = None
-            daemon_info['conditions']['weather_int'] = None
-            bad_daemons.append('conditions_sources')
-
-    # Conditions history
-    if (daemon_info['conditions'] is not None and
-            daemon_info['conditions']['weather_ext'] is not None):
-        try:
             exptime = daemon_info['cam']['current_exposure']['exptime']
+            source = params.VAISALA_URI[5:].split('_')[0]
 
             # Wind gust history
             hist_info = {}
@@ -390,7 +369,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
             hist_info['max'] = 'NA'
             hist_info['mean'] = 'NA'
             hist_info['std'] = 'NA'
-            history = daemon_info['conditions']['weather_ext']['windgust_history']
+            history = daemon_info['conditions'][source]['windgust_history']
             if history != -999:
                 # Get lookback time
                 max_hist = info_time.unix - history[0][0]
@@ -407,14 +386,14 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                     hist_info['max'] = np.max(gust_hist)
                     hist_info['mean'] = np.mean(gust_hist)
                     hist_info['std'] = np.std(gust_hist)
-            daemon_info['conditions']['weather_ext']['windgust_history_info'] = hist_info
+            daemon_info['conditions'][source]['windgust_history_info'] = hist_info
 
         except Exception:
             if log is None:
                 raise
             log.error('Failed to calculate conditions history info')
             log.debug('', exc_info=True)
-            daemon_info['conditions']['weather_ext']['windgust_history_info'] = None
+            daemon_info['conditions'][source]['windgust_history_info'] = None
             bad_daemons.append('conditions_history')
 
     # Database
@@ -1283,10 +1262,11 @@ def make_header(ut, daemon_info=None):
                        'Seeing, arcseconds (unused)'))
 
     # External conditions
-    ext_temp = daemon_info['conditions']['weather_ext']['temperature']
+    source = params.VAISALA_URI[5:].split('_')[0]
+    ext_temp = daemon_info['conditions'][source]['temperature']
     if ext_temp == -999:
         ext_temp = 'NA'
-    ext_hum = daemon_info['conditions']['weather_ext']['humidity']
+    ext_hum = daemon_info['conditions'][source]['humidity']
     if ext_hum == -999:
         ext_hum = 'NA'
     header.append(('EXT-TEMP', ext_temp,
@@ -1295,20 +1275,20 @@ def make_header(ut, daemon_info=None):
                    'External humidity, percent (GOTO mast)'))
 
     # Wind (+ history)
-    ext_wind = daemon_info['conditions']['weather_ext']['windspeed']
+    ext_wind = daemon_info['conditions'][source]['windspeed']
     if ext_wind == -999:
         ext_wind = 'NA'
-    ext_winddir = daemon_info['conditions']['weather_ext']['winddir']
+    ext_winddir = daemon_info['conditions'][source]['winddir']
     if ext_winddir == -999:
         ext_winddir = 'NA'
-    ext_gust = daemon_info['conditions']['weather_ext']['windgust']
+    ext_gust = daemon_info['conditions'][source]['windgust']
     if ext_gust == -999:
         ext_gust = 'NA'
-    if daemon_info['conditions']['weather_ext']['windgust_history_info'] is not None:
-        hist_time = daemon_info['conditions']['weather_ext']['windgust_history_info']['hist_time']
-        ext_gustmax = daemon_info['conditions']['weather_ext']['windgust_history_info']['max']
-        ext_gustmean = daemon_info['conditions']['weather_ext']['windgust_history_info']['mean']
-        ext_guststd = daemon_info['conditions']['weather_ext']['windgust_history_info']['std']
+    if daemon_info['conditions'][source]['windgust_history_info'] is not None:
+        hist_time = daemon_info['conditions'][source]['windgust_history_info']['hist_time']
+        ext_gustmax = daemon_info['conditions'][source]['windgust_history_info']['max']
+        ext_gustmean = daemon_info['conditions'][source]['windgust_history_info']['mean']
+        ext_guststd = daemon_info['conditions'][source]['windgust_history_info']['std']
     else:
         hist_time = -999
         ext_gustmax = 'NA'
@@ -1328,10 +1308,11 @@ def make_header(ut, daemon_info=None):
                    'Std wind gust, km/h (last {:.0f}s)'.format(hist_time)))
 
     # Internal conditions
-    int_temp = daemon_info['conditions']['weather_int']['temperature']
+    source = 'internal'
+    int_temp = daemon_info['conditions'][source]['temperature']
     if int_temp == -999:
         int_temp = 'NA'
-    int_hum = daemon_info['conditions']['weather_int']['humidity']
+    int_hum = daemon_info['conditions'][source]['humidity']
     if int_hum == -999:
         int_hum = 'NA'
     header.append(('INT-TEMP', int_temp,
