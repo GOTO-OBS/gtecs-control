@@ -192,7 +192,10 @@ class ConditionsDaemon(BaseDaemon):
 
                 # Also check if the weather hasn't changed for a given time
                 weather_dict['changed_time'] = self.loop_time
-                if self.info and source in self.info['weather'] and self.info['weather'][source]:
+                if (self.info and
+                        source in self.info['weather'] and
+                        self.info['weather'][source] and
+                        'changed_time' in self.info['weather'][source]):
                     changed_time = self.info['weather'][source]['changed_time']
                     unchanged = [
                         weather_dict[key] == self.info['weather'][source][key]
