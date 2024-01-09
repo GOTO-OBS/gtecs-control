@@ -15,7 +15,6 @@ REQUIRES = ['Pyro4',
             'aiohttp',
             'pyserial',
             'opencv-python',
-            'pytz'
             ]
 
 setup(name='gtecs-control',

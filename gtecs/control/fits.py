@@ -357,31 +357,13 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
             daemon_info['mnt']['motor_current_info'] = None
             bad_daemons.append('mnt_history')
 
-    # Conditions sources
+    # Conditions history
     if daemon_info['conditions'] is not None:
         try:
-            # Select external source
-            ext_source = params.VAISALA_URI_PRIMARY[5:].split('_')[0]
-            ext_weather = daemon_info['conditions']['weather'][ext_source].copy()
-            daemon_info['conditions']['weather_ext'] = ext_weather
+            # We only care about the primary weather source for the header
+            source = params.VAISALA_URI[5:].split('_')[0]
+            daemon_info['conditions']['weather_ext'] = daemon_info['conditions']['weather'][source]
 
-            # Select internal source
-            int_weather = daemon_info['conditions']['internal'].copy()
-            daemon_info['conditions']['weather_int'] = int_weather
-
-        except Exception:
-            if log is None:
-                raise
-            log.error('Failed to find conditions sources')
-            log.debug('', exc_info=True)
-            daemon_info['conditions']['weather_ext'] = None
-            daemon_info['conditions']['weather_int'] = None
-            bad_daemons.append('conditions_sources')
-
-    # Conditions history
-    if (daemon_info['conditions'] is not None and
-            daemon_info['conditions']['weather_ext'] is not None):
-        try:
             exptime = daemon_info['cam']['current_exposure']['exptime']
 
             # Wind gust history
@@ -1247,26 +1229,40 @@ def make_header(ut, daemon_info=None):
         raise ValueError('No conditions info provided')
 
     # Site conditions
+    sky_temp = daemon_info['conditions']['sky_temp']['sky_temp']
+    if sky_temp == -999:
+        sky_temp = 'NA'
     clouds = daemon_info['conditions']['clouds']
     if clouds == -999:
         clouds = 'NA'
-    seeing = daemon_info['conditions']['tng']['seeing']
-    if seeing == -999:
-        seeing = 'NA'
-    seeing_ing = daemon_info['conditions']['robodimm']['seeing']
-    if seeing_ing == -999:
-        seeing_ing = 'NA'
-    dust = daemon_info['conditions']['tng']['dust']
-    if dust == -999:
-        dust = 'NA'
+    header.append(('SKYTEMP ', sky_temp,
+                   'Sky temperature, Celsius'))
     header.append(('SATCLOUD', clouds,
                    'IR satellite cloud opacity, percent (sat24.com)'))
-    header.append(('SEEING  ', seeing,
-                   'Seeing, arcseconds (TNG DIMM)'))
-    header.append(('SEEING2 ', seeing_ing,
-                   'Seeing, arcseconds (ING RoboDIMM)'))
-    header.append(('DUST    ', dust,
-                   'Dust level, ug/m3 (TNG)'))
+
+    if params.SITE_NAME == 'La Palma':
+        seeing = daemon_info['conditions']['tng']['seeing']
+        if seeing == -999:
+            seeing = 'NA'
+        seeing_ing = daemon_info['conditions']['robodimm']['seeing']
+        if seeing_ing == -999:
+            seeing_ing = 'NA'
+        dust = daemon_info['conditions']['tng']['dust']
+        if dust == -999:
+            dust = 'NA'
+        header.append(('DUST    ', dust,
+                       'Dust level, ug/m3 (TNG)'))
+        header.append(('SEEING  ', seeing,
+                       'Seeing, arcseconds (TNG DIMM)'))
+        header.append(('SEEING2 ', seeing_ing,
+                       'Seeing, arcseconds (ING RoboDIMM)'))
+    else:
+        header.append(('DUST    ', 'NA',
+                       'Dust level, ug/m3 (unused)'))
+        header.append(('SEEING  ', 'NA',
+                       'Seeing, arcseconds (unused)'))
+        header.append(('SEEING2 ', 'NA',
+                       'Seeing, arcseconds (unused)'))
 
     # External conditions
     ext_temp = daemon_info['conditions']['weather_ext']['temperature']
@@ -1314,10 +1310,10 @@ def make_header(ut, daemon_info=None):
                    'Std wind gust, km/h (last {:.0f}s)'.format(hist_time)))
 
     # Internal conditions
-    int_temp = daemon_info['conditions']['weather_int']['temperature']
+    int_temp = daemon_info['conditions']['internal']['temperature']
     if int_temp == -999:
         int_temp = 'NA'
-    int_hum = daemon_info['conditions']['weather_int']['humidity']
+    int_hum = daemon_info['conditions']['internal']['humidity']
     if int_hum == -999:
         int_hum = 'NA'
     header.append(('INT-TEMP', int_temp,

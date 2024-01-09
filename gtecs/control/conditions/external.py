@@ -1,14 +1,11 @@
 """Conditions functions for other on-site observatories."""
 
 import json
-import os
 import re
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from astropy.time import Time
-
-import pytz
 
 from .utils import download_data_from_url
 
@@ -206,7 +203,7 @@ def get_robodimm():
 
     # seeing
     try:
-        weather_dict['seeing'] = data[9]
+        weather_dict['seeing'] = float(data[9])
     except Exception:
         weather_dict['seeing'] = -999
 
@@ -285,17 +282,20 @@ def get_aat():
                     'windspeed': -999,
                     'windgust': -999,
                     'humidity': -999,
-                    'dew_point': -999
+                    'dew_point': -999,
+                    'sky_temp': -999,
                     }
     data = re.split('\n|\t', indata)
     try:
         y, d, month = [int(x) for x in
                        data[0].replace('"', '').lstrip().replace('.', '').split('-')[::-1]]
         h, mins, s = [int(x) for x in data[1].split(':')]
-        update = pytz.timezone('Australia/Sydney').localize(datetime(y, month, d, h, mins, s))
-
-        weather_dict['update_time'] = Time(update).iso
-        dt = Time.now() - Time(update)
+        # The AAT seems to always gives time in AEST (UTC+10), even in the summer when
+        # local time is AEDT (UTC+11).
+        # So we don't need to worry about the timezone, just subtract 10 hours to get UTC.
+        time = datetime(y, month, d, h, mins, s) - timedelta(hours=10)
+        weather_dict['update_time'] = Time(time).iso
+        dt = Time.now() - Time(time)
         weather_dict['dt'] = dt.sec
     except Exception:
         weather_dict['update_time'] = -999
@@ -306,7 +306,7 @@ def get_aat():
         weather_dict['temperature'] = -999
 
     try:
-        weather_dict['dew_point'] = float(data[2])-float(data[5])
+        weather_dict['dew_point'] = float(data[2]) - float(data[5])
     except Exception:
         weather_dict['dew_point'] = -999
 
@@ -334,6 +334,11 @@ def get_aat():
         weather_dict['winddir'] = float(data[10])
     except Exception:
         weather_dict['winddir'] = -999
+
+    try:
+        weather_dict['sky_temp'] = float(data[14])
+    except Exception:
+        weather_dict['sky_temp'] = -999
 
     try:
         weather_dict['rain'] = bool(int(data[17]))

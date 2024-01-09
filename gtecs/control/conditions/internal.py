@@ -102,21 +102,21 @@ def get_domealert_daemon(uri):
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
-        info = proxy.last_measurement()
+        data = proxy.last_measurement()
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    weather_dict['update_time'] = Time(data['date'], precision=0).iso
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     try:
-        if info['internal_temp_valid']:
-            weather_dict['temperature'] = info['internal_temp']
+        if data['internal_temp_valid']:
+            weather_dict['temperature'] = data['internal_temp']
         else:
             weather_dict['temperature'] = -999
-        if info['internal_humidity_valid']:
-            weather_dict['humidity'] = info['internal_humidity']
+        if data['internal_humidity_valid']:
+            weather_dict['humidity'] = data['internal_humidity']
         else:
             weather_dict['humidity'] = -999
     except Exception:
@@ -131,21 +131,21 @@ def get_SHT35_daemon(uri):
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
-        info = proxy.last_measurement()
+        data = proxy.last_measurement()
 
     weather_dict = {}
 
-    weather_dict['update_time'] = Time(info['date'], precision=0).iso
+    weather_dict['update_time'] = Time(data['date'], precision=0).iso
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
     try:
-        if info['temperature_valid']:
-            weather_dict['temperature'] = info['temperature']
+        if data['temperature_valid']:
+            weather_dict['temperature'] = data['temperature']
         else:
             weather_dict['temperature'] = -999
-        if info['relative_humidity_valid']:
-            weather_dict['humidity'] = info['relative_humidity']
+        if data['relative_humidity_valid']:
+            weather_dict['humidity'] = data['relative_humidity']
         else:
             weather_dict['humidity'] = -999
     except Exception:
