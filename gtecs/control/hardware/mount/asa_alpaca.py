@@ -43,7 +43,7 @@ class DDM500:
     """
 
     def __init__(self, address, port, api_version=1, device_number=0,
-                 fake_parking=False,
+                 fake_parking=False, force_pier_side=-1,
                  log=None, log_debug=False):
         self.address = address
         self.port = port
@@ -53,9 +53,21 @@ class DDM500:
         self.client_id = random.randint(0, 2**32)
         self.transaction_count = 0
 
-        # These are to acocunt for errors in AutoSlew which mean we can't use the park functions
+        # These are to account for errors in AutoSlew which mean we can't use the park functions
         self._fake_parking = fake_parking
         self._fake_parked = False
+
+        # For the GOTO mounts we want to force no pier flips
+        # Note ASA use the opposite convention to ASCOM!
+        #   For 0 the mount is on the *east* side of the pier,
+        #     but the telescope is looking towards the *west*
+        #   ASCOM calls 0 pierEast, but AutoSlew GUI reports PierSide West
+        # We just want to make sure the mount stays on whatever side it's been setup for,
+        # so it doesn't really matter which is which (basically we just have "up" and "down")
+        # -1 is code for we don't care, let AutoSlew decide for each slew
+        if force_pier_side not in [0, 1, -1]:
+            raise ValueError('Invalid option for force_pier_side: {}'.format(force_pier_side))
+        self._force_pier_side = force_pier_side
 
         self._status_update_time = 0
 
@@ -169,7 +181,6 @@ class DDM500:
         info['driverinfo'] = self._http_get('driverinfo')
         info['driverversion'] = self._http_get('driverversion')
         info['interfaceversion'] = self._http_get('interfaceversion')
-        info['sideofpier'] = self._http_get('sideofpier')  # Should stay fixed
         # AutoSlew params
         info['mounttype'] = self._http_put('action',
                                            {'Action': 'telescope:reportmounttype',
@@ -241,6 +252,7 @@ class DDM500:
                                    'dec': self._http_get('declinationrate')}
             self._guide_rate = {'ra': self._http_get('guideraterightascension'),
                                 'dec': self._http_get('guideratedeclination')}
+            self._pier_side = self._http_get('sideofpier')
 
             # store update time
             self._status_update_time = time.time()
@@ -368,7 +380,13 @@ class DDM500:
         self._update_status()
         return self._guide_rate
 
-    def slew_to_radec(self, ra, dec):
+    @property
+    def pier_side(self):
+        """Return which side of the pier the mount is currently on."""
+        self._update_status()
+        return self._pier_side
+
+    def slew_to_radec(self, ra, dec, force_pier_side=None):
         """Slew to given RA and Dec coordinates (J2000)."""
         # first need to "cook" the coordinates into apparent
         ra_jnow, dec_jnow = j2000_to_apparent(ra * 360 / 24, dec, Time.now().jd)
@@ -379,18 +397,59 @@ class DDM500:
             self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                 ra, dec, ra_jnow, dec_jnow))
 
-        # Force pier side to not change
-        self._http_put('action', {'Action': 'forcenextpierside',
-                                  'Parameters': self.info['sideofpier']})
-
+        # Force (ask) pier side to not change
+        data_dict = {'Action': 'forcenextpierside'}
+        if force_pier_side is None and self._force_pier_side != -1:
+            data_dict['Parameters'] = self._force_pier_side
+        elif force_pier_side in [0, 1]:
+            data_dict['Parameters'] = force_pier_side
+        else:
+            # Using argument force_pier_side=-1 will override any saved on the class
+            data_dict['Parameters'] = -1
+        self._http_put('action', data_dict)
+        # Although it's called "forcenextpierside", it will only try to enforce the request
+        # It can still flip, which is bad for us and makes the command fairly useless
+        # ASCOM has a built-in command to check the destination, so we'll use that
         data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
+        destination_side = self._http_get('destinationsideofpier', data_dict)
+        if destination_side == -1:
+            raise ValueError('Slew command is not within allowed limits')
+        if ((self._force_pier_side != -1 and destination_side != self._force_pier_side) or
+                force_pier_side in [0, 1] and destination_side != force_pier_side):
+            raise ValueError('Mount wants to flip despite force_pier_side, will not slew')
+
         self._http_put('slewtocoordinatesasync', data_dict)
 
-    def slew_to_altaz(self, alt, az):
+    def slew_to_altaz(self, alt, az, force_pier_side=None):
         """Slew mount to given Alt/Az."""
-        # Force pier side to not change
-        self._http_put('action', {'Action': 'forcenextpierside',
-                                  'Parameters': self.info['sideofpier']})
+        # Force (ask) pier side to not change
+        data_dict = {'Action': 'forcenextpierside'}
+        if force_pier_side is None and self._force_pier_side != -1:
+            data_dict['Parameters'] = self._force_pier_side
+        elif force_pier_side in [0, 1]:
+            data_dict['Parameters'] = force_pier_side
+        else:
+            # Using argument force_pier_side=-1 will override any saved on the class
+            data_dict['Parameters'] = -1
+        self._http_put('action', data_dict)
+        # Unfortunately there's no easy equivalent to "destinationsideofpier" for Alt/Az
+        # So we'll have to convert into RA/Dec and check that (we also have to uncook first)
+        # It should be close enough...
+        ra, dec = radec_from_altaz(alt, az)
+        print(ra, dec)
+        ra_jnow, dec_jnow = j2000_to_apparent(ra, dec, Time.now().jd)
+        ra_jnow *= 24 / 360
+        if ra_jnow >= 24:
+            ra_jnow -= 24
+        data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
+        print(data_dict)
+        destination_side = self._http_get('destinationsideofpier', data_dict)
+        print(destination_side)
+        if destination_side == -1:
+            raise ValueError('Slew command is not within allowed limits')
+        if ((self._force_pier_side != -1 and destination_side != self._force_pier_side) or
+                force_pier_side in [0, 1] and destination_side != force_pier_side):
+            raise ValueError('Mount wants to flip despite force_pier_side, will not slew')
 
         data_dict = {'Azimuth': az, 'Altitude': alt}
         self._http_put('slewtoaltazasync', data_dict)
