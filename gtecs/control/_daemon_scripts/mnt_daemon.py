@@ -346,6 +346,7 @@ class MntDaemon(BaseDaemon):
                     params.MOUNT_HOST,
                     params.MOUNT_PORT,
                     fake_parking=params.FAKE_MOUNT_PARKING,
+                    force_pier_side=params.FORCE_MOUNT_PIER_SIDE,
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
                 )
