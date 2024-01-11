@@ -416,40 +416,23 @@ class MntDaemon(BaseDaemon):
                 # temp_info['nonsidereal'] = self.mount.nonsidereal
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
-                temp_info['position_error'] = self.mount.position_error
-                temp_info['tracking_error'] = self.mount.tracking_error
-                temp_info['motor_current'] = self.mount.motor_current
                 temp_info['tracking_rate'] = self.mount.tracking_rate
                 temp_info['motors_on'] = self.mount.motors_on
-
-                # Save a history of errors so we can add to image headers
-                if (self.info and 'position_error_history' in self.info and
-                        self.info['position_error_history'] is not None):
-                    p_error_history = self.info['position_error_history']
-                else:
-                    p_error_history = []
-                if (self.info and 'tracking_error_history' in self.info and
-                        self.info['tracking_error_history'] is not None):
-                    t_error_history = self.info['tracking_error_history']
-                else:
-                    t_error_history = []
-                if (self.info and 'motor_current_history' in self.info and
-                        self.info['motor_current_history'] is not None):
-                    current_history = self.info['motor_current_history']
-                else:
-                    current_history = []
-                p_error_history = [hist for hist in p_error_history
-                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
-                t_error_history = [hist for hist in t_error_history
-                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
-                current_history = [hist for hist in current_history
-                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
-                p_error_history.append((self.loop_time, temp_info['position_error']))
-                t_error_history.append((self.loop_time, temp_info['tracking_error']))
-                current_history.append((self.loop_time, temp_info['motor_current']))
-                temp_info['position_error_history'] = p_error_history
-                temp_info['tracking_error_history'] = t_error_history
-                temp_info['motor_current_history'] = current_history
+                temp_info['pier_side'] = self.mount.pier_side
+                # Extra info from the report command
+                temp_info['encoder_position'] = self.mount.encoder_position
+                temp_info['position_error'] = self.mount.position_error
+                temp_info['tracking_error'] = self.mount.tracking_error
+                temp_info['velocity'] = self.mount.velocity
+                temp_info['acceleration'] = self.mount.acceleration
+                temp_info['motor_current'] = self.mount.motor_current
+                # Save history so we can add to the image headers
+                temp_info['encoder_position_history'] = self.mount.encoder_position_history
+                temp_info['position_error_history'] = self.mount.position_error_history
+                temp_info['tracking_error_history'] = self.mount.tracking_error_history
+                temp_info['velocity_history'] = self.mount.velocity_history
+                temp_info['acceleration_history'] = self.mount.acceleration_history
+                temp_info['motor_current_history'] = self.mount.motor_current_history
 
                 # Log any errors or warnings from the mount, along with the time of occurrence
                 error_status = self.mount.error_check()
@@ -510,13 +493,20 @@ class MntDaemon(BaseDaemon):
                 temp_info['nonsidereal'] = None
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
-                temp_info['position_error'] = None
-                temp_info['tracking_error'] = None
-                temp_info['motor_current'] = None
                 temp_info['tracking_rate'] = None
                 temp_info['motors_on'] = None
+                temp_info['pier_side'] = None
+                temp_info['encoder_position'] = None
+                temp_info['position_error'] = None
+                temp_info['tracking_error'] = None
+                temp_info['velocity'] = None
+                temp_info['acceleration'] = None
+                temp_info['motor_current'] = None
+                temp_info['encoder_position_history'] = None
                 temp_info['position_error_history'] = None
                 temp_info['tracking_error_history'] = None
+                temp_info['velocity_history'] = None
+                temp_info['acceleration_history'] = None
                 temp_info['motor_current_history'] = None
             # Report the connection as failed
             self.mount = None

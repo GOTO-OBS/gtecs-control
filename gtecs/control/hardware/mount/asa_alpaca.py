@@ -43,6 +43,7 @@ class DDM500:
     """
 
     def __init__(self, address, port, api_version=1, device_number=0,
+                 report_extra=True, report_history_limit=60,
                  fake_parking=False, force_pier_side=-1,
                  log=None, log_debug=False):
         self.address = address
@@ -87,6 +88,20 @@ class DDM500:
 
         # Update status
         self._update_status()
+
+        # Set report thread running
+        self.report_history_limit = report_history_limit
+        self._report_ra = None
+        self._report_dec = None
+        self.report_thread_running = False
+        if report_extra:
+            t = threading.Thread(target=self._report_thread)
+            t.daemon = True
+            t.start()
+
+    def __del__(self):
+        self.report_thread_running = False
+        self.disconnect()
 
     def _http_request(self, cmd, command_str, data=None):
         """Send a request to the device, then parse and return the reply."""
@@ -237,17 +252,6 @@ class DDM500:
             self._motors_on = self._http_put('commandstring',
                                              {'Command': 'MotStat', 'Raw': False}) == 'true'
 
-            # Most of these are not yet implemented
-            self._position_error = {'ra': -999,
-                                    'dec': -999}
-            self._tracking_error = {'ra': -999,
-                                    'dec': -999}
-            self._velocity = {'ra': -999,
-                              'dec': -999}
-            self._acceleration = {'ra': -999,
-                                  'dec': -999}
-            self._current = {'ra': -999,
-                             'dec': -999}
             self._tracking_rate = {'ra': self._http_get('rightascensionrate'),
                                    'dec': self._http_get('declinationrate')}
             self._guide_rate = {'ra': self._http_get('guideraterightascension'),
@@ -351,24 +355,6 @@ class DDM500:
         return self._az
 
     @property
-    def position_error(self):
-        """Return the current position error."""
-        self._update_status()
-        return self._position_error
-
-    @property
-    def tracking_error(self):
-        """Return the current tracking error."""
-        self._update_status()
-        return self._tracking_error
-
-    @property
-    def motor_current(self):
-        """Return the current motor current."""
-        self._update_status()
-        return self._current
-
-    @property
     def tracking_rate(self):
         """Return the current tracking rate (arcsec/sec)."""
         self._update_status()
@@ -385,6 +371,201 @@ class DDM500:
         """Return which side of the pier the mount is currently on."""
         self._update_status()
         return self._pier_side
+
+    def _report_thread(self):
+        if self.report_thread_running:
+            if self.log:
+                self.log.debug('status thread tried to start when already running')
+            return
+
+        if self.log:
+            self.log.debug('mount report thread started')
+        self.report_thread_running = True
+
+        # Turn on reporting
+        self._http_put('action', {'Action': 'reporting', 'Parameters': 'on'})
+
+        # Clear history
+        self._position_hist = {'ra': [], 'dec': []}
+        self._position_error_hist = {'ra': [], 'dec': []}
+        self._tracking_error_hist = {'ra': [], 'dec': []}
+        self._velocity_hist = {'ra': [], 'dec': []}
+        self._acceleration_hist = {'ra': [], 'dec': []}
+        self._current_hist = {'ra': [], 'dec': []}
+
+        while self.report_thread_running:
+            try:
+                report_ra = self._http_put('action', {'Action': 'report', 'Parameters': '1'})
+                report_dec = self._http_put('action', {'Action': 'report', 'Parameters': '2'})
+                if len(report_ra) == 0 or len(report_dec) == 0:
+                    raise ValueError('Invalid report string')
+                self._report_ra = json.loads(report_ra)
+                self._report_dec = json.loads(report_dec)
+
+                # Store the latest values from the report
+                self._position = {
+                    'ra': self._report_ra['EncPos'], 'dec': self._report_dec['EncPos']
+                }
+                self._position_error = {
+                    'ra': self._report_ra['PosErr'], 'dec': self._report_dec['PosErr']
+                }
+                self._tracking_error = {'ra': -999, 'dec': -999}  # Not implemented
+                self._velocity = {
+                    'ra': self._report_ra['Velocity'], 'dec': self._report_dec['Velocity']
+                }
+                self._acceleration = {'ra': -999, 'dec': -999}  # Not implemented
+                self._current = {
+                    'ra': self._report_ra['QCurr'], 'dec': self._report_dec['QCurr']
+                }
+
+                # Add to history, and remove old entries
+                report_time = {
+                    'ra': Time(self._report_ra['LastTime'].split('+')[0]).unix,
+                    'dec': Time(self._report_dec['LastTime'].split('+')[0]).unix
+                }
+                for axis in ('ra', 'dec'):
+                    # Add new entries, if they have changed
+                    if (len(self._position_hist[axis]) == 0 or
+                            self._position_hist[axis][-1][1] != self._position[axis]):
+                        self._position_hist[axis].append(
+                            (report_time[axis], self._position[axis]))
+                    if (len(self._position_error_hist[axis]) == 0 or
+                            self._position_error_hist[axis][-1][1] != self._position_error[axis]):
+                        self._position_error_hist[axis].append(
+                            (report_time[axis], self._position_error[axis]))
+                    if (len(self._tracking_error_hist[axis]) == 0 or
+                            self._tracking_error_hist[axis][-1][1] != self._tracking_error[axis]):
+                        self._tracking_error_hist[axis].append(
+                            (report_time[axis], self._tracking_error[axis]))
+                    if (len(self._velocity_hist[axis]) == 0 or
+                            self._velocity_hist[axis][-1][1] != self._velocity[axis]):
+                        self._velocity_hist[axis].append(
+                            (report_time[axis], self._velocity[axis]))
+                    if (len(self._acceleration_hist[axis]) == 0 or
+                            self._acceleration_hist[axis][-1][1] != self._acceleration[axis]):
+                        self._acceleration_hist[axis].append(
+                            (report_time[axis], self._acceleration[axis]))
+                    if (len(self._current_hist[axis]) == 0 or
+                            self._current_hist[axis][-1][1] != self._current[axis]):
+                        self._current_hist[axis].append(
+                            (report_time[axis], self._current[axis]))
+
+                    # Remove old entries
+                    time_limit = time.time() - self.report_history_limit
+                    self._position_hist[axis] = [
+                        hist for hist in self._position_hist[axis] if hist[0] > time_limit
+                    ]
+                    self._position_error_hist[axis] = [
+                        hist for hist in self._position_error_hist[axis] if hist[0] > time_limit
+                    ]
+                    self._tracking_error_hist[axis] = [
+                        hist for hist in self._tracking_error_hist[axis] if hist[0] > time_limit
+                    ]
+                    self._velocity_hist[axis] = [
+                        hist for hist in self._velocity_hist[axis] if hist[0] > time_limit
+                    ]
+                    self._acceleration_hist[axis] = [
+                        hist for hist in self._acceleration_hist[axis] if hist[0] > time_limit
+                    ]
+                    self._current_hist[axis] = [
+                        hist for hist in self._current_hist[axis] if hist[0] > time_limit
+                    ]
+
+                time.sleep(0.1)
+            except Exception:
+                if self.log:
+                    self.log.error('Error in report thread')
+                    self.log.debug('', exc_info=True)
+                self.report_thread_running = False
+
+        # Turn off reporting
+        self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
+        if self.log:
+            self.log.debug('report thread finished')
+
+    @property
+    def encoder_position(self):
+        """Return the current encoder position in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position
+
+    @property
+    def encoder_position_history(self):
+        """Return the history of encoder positions in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position_hist
+
+    @property
+    def position_error(self):
+        """Return the current encoder position error in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position_error
+
+    @property
+    def position_error_history(self):
+        """Return the history of encoder position errors in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position_error_hist
+
+    @property
+    def tracking_error(self):
+        """Return the current tracking error in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._tracking_error
+
+    @property
+    def tracking_error_history(self):
+        """Return the history of tracking errors in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._tracking_error_hist
+
+    @property
+    def velocity(self):
+        """Return the current motor velocity in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._velocity
+
+    @property
+    def velocity_history(self):
+        """Return the history of motor velocities in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._velocity_hist
+
+    @property
+    def acceleration(self):
+        """Return the current motor acceleration in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._acceleration
+
+    @property
+    def acceleration_history(self):
+        """Return the history of motor accelerations in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._acceleration_hist
+
+    @property
+    def motor_current(self):
+        """Return the current motor current in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._current
+
+    @property
+    def motor_current_history(self):
+        """Return the history of motor currents in both axes."""
+        if not self.report_params or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._current_hist
 
     def slew_to_radec(self, ra, dec, force_pier_side=None):
         """Slew to given RA and Dec coordinates (J2000)."""
