@@ -486,84 +486,84 @@ class DDM500:
     @property
     def encoder_position(self):
         """Return the current encoder position in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._position
 
     @property
     def encoder_position_history(self):
         """Return the history of encoder positions in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._position_hist
 
     @property
     def position_error(self):
         """Return the current encoder position error in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._position_error
 
     @property
     def position_error_history(self):
         """Return the history of encoder position errors in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._position_error_hist
 
     @property
     def tracking_error(self):
         """Return the current tracking error in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._tracking_error
 
     @property
     def tracking_error_history(self):
         """Return the history of tracking errors in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._tracking_error_hist
 
     @property
     def velocity(self):
         """Return the current motor velocity in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._velocity
 
     @property
     def velocity_history(self):
         """Return the history of motor velocities in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._velocity_hist
 
     @property
     def acceleration(self):
         """Return the current motor acceleration in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._acceleration
 
     @property
     def acceleration_history(self):
         """Return the history of motor accelerations in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._acceleration_hist
 
     @property
     def motor_current(self):
         """Return the current motor current in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._current
 
     @property
     def motor_current_history(self):
         """Return the history of motor currents in both axes."""
-        if not self.report_params or not self.report_thread_running:
+        if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._current_hist
 

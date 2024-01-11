@@ -241,11 +241,11 @@ FAKE_MOUNT = config['FAKE_MOUNT']
 
 FAKE_MOUNT_PARKING = config['FAKE_MOUNT_PARKING']
 FORCE_MOUNT_PIER_SIDE = config['FORCE_MOUNT_PIER_SIDE']
+MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 MIN_ELEVATION = config['MIN_ELEVATION']
 MAX_HOURANGLE = config['MAX_HOURANGLE']
 
-MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 ############################################################
 # Camera parameters
