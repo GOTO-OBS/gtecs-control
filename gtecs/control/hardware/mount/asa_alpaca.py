@@ -70,6 +70,10 @@ class DDM500:
             raise ValueError('Invalid option for force_pier_side: {}'.format(force_pier_side))
         self._force_pier_side = force_pier_side
 
+        self.report_extra = report_extra
+        self.report_history_limit = report_history_limit
+        self._report_ra = None
+        self._report_dec = None
         self._status_update_time = 0
 
         # Create a logger if one isn't given
@@ -86,14 +90,11 @@ class DDM500:
         # Get mount info (this shouldn't change, so just get once when starting)
         self.info = self._get_info()
 
-        # Update status
+        # Update status and report for initial values
         self._update_status()
+        self._get_report()
 
         # Set report thread running
-        self.report_extra = report_extra
-        self.report_history_limit = report_history_limit
-        self._report_ra = None
-        self._report_dec = None
         self.report_thread_running = False
         if self.report_extra:
             t = threading.Thread(target=self._report_thread)
@@ -373,6 +374,103 @@ class DDM500:
         self._update_status()
         return self._pier_side
 
+    def _get_report(self, disable_reporting_after=True):
+        """Get extra info from the mount report."""
+        # Make sure reporting is on
+        self._http_put('action', {'Action': 'reporting', 'Parameters': 'on'})
+
+        # Get report dicts
+        report_ra = self._http_put('action', {'Action': 'report', 'Parameters': '1'})
+        report_dec = self._http_put('action', {'Action': 'report', 'Parameters': '2'})
+        if len(report_ra) == 0 or len(report_dec) == 0:
+            raise ValueError('Invalid report string')
+        self._report_ra = json.loads(report_ra)
+        self._report_dec = json.loads(report_dec)
+
+        # Store the latest values from the report
+        self._position = {
+            'ra': self._report_ra['EncPos'], 'dec': self._report_dec['EncPos']
+        }
+        self._position_error = {
+            'ra': self._report_ra['PosErr'], 'dec': self._report_dec['PosErr']
+        }
+        self._tracking_error = {'ra': -999, 'dec': -999}  # Not implemented
+        self._velocity = {
+            'ra': self._report_ra['Velocity'], 'dec': self._report_dec['Velocity']
+        }
+        self._acceleration = {'ra': -999, 'dec': -999}  # Not implemented
+        self._current = {
+            'ra': self._report_ra['QCurr'], 'dec': self._report_dec['QCurr']
+        }
+
+        # Add to history, and remove old entries
+        report_time = {
+            'ra': Time(self._report_ra['LastTime'].split('+')[0]).unix,
+            'dec': Time(self._report_dec['LastTime'].split('+')[0]).unix
+        }
+        if not hasattr(self, '_position_hist'):
+            self._position_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_position_error_hist'):
+            self._position_error_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_tracking_error_hist'):
+            self._tracking_error_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_velocity_hist'):
+            self._velocity_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_acceleration_hist'):
+            self._acceleration_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_current_hist'):
+            self._current_hist = {'ra': [], 'dec': []}
+        for axis in ('ra', 'dec'):
+            # Add new entries, if they have changed
+            if (len(self._position_hist[axis]) == 0 or
+                    self._position_hist[axis][-1][1] != self._position[axis]):
+                self._position_hist[axis].append(
+                    (report_time[axis], self._position[axis]))
+            if (len(self._position_error_hist[axis]) == 0 or
+                    self._position_error_hist[axis][-1][1] != self._position_error[axis]):
+                self._position_error_hist[axis].append(
+                    (report_time[axis], self._position_error[axis]))
+            if (len(self._tracking_error_hist[axis]) == 0 or
+                    self._tracking_error_hist[axis][-1][1] != self._tracking_error[axis]):
+                self._tracking_error_hist[axis].append(
+                    (report_time[axis], self._tracking_error[axis]))
+            if (len(self._velocity_hist[axis]) == 0 or
+                    self._velocity_hist[axis][-1][1] != self._velocity[axis]):
+                self._velocity_hist[axis].append(
+                    (report_time[axis], self._velocity[axis]))
+            if (len(self._acceleration_hist[axis]) == 0 or
+                    self._acceleration_hist[axis][-1][1] != self._acceleration[axis]):
+                self._acceleration_hist[axis].append(
+                    (report_time[axis], self._acceleration[axis]))
+            if (len(self._current_hist[axis]) == 0 or
+                    self._current_hist[axis][-1][1] != self._current[axis]):
+                self._current_hist[axis].append(
+                    (report_time[axis], self._current[axis]))
+
+            # Remove old entries
+            time_limit = time.time() - self.report_history_limit
+            self._position_hist[axis] = [
+                hist for hist in self._position_hist[axis] if hist[0] > time_limit
+            ]
+            self._position_error_hist[axis] = [
+                hist for hist in self._position_error_hist[axis] if hist[0] > time_limit
+            ]
+            self._tracking_error_hist[axis] = [
+                hist for hist in self._tracking_error_hist[axis] if hist[0] > time_limit
+            ]
+            self._velocity_hist[axis] = [
+                hist for hist in self._velocity_hist[axis] if hist[0] > time_limit
+            ]
+            self._acceleration_hist[axis] = [
+                hist for hist in self._acceleration_hist[axis] if hist[0] > time_limit
+            ]
+            self._current_hist[axis] = [
+                hist for hist in self._current_hist[axis] if hist[0] > time_limit
+            ]
+
+        if disable_reporting_after:
+            self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
+
     def _report_thread(self):
         if self.report_thread_running:
             if self.log:
@@ -383,95 +481,9 @@ class DDM500:
             self.log.debug('mount report thread started')
         self.report_thread_running = True
 
-        # Turn on reporting
-        self._http_put('action', {'Action': 'reporting', 'Parameters': 'on'})
-
-        # Clear history
-        self._position_hist = {'ra': [], 'dec': []}
-        self._position_error_hist = {'ra': [], 'dec': []}
-        self._tracking_error_hist = {'ra': [], 'dec': []}
-        self._velocity_hist = {'ra': [], 'dec': []}
-        self._acceleration_hist = {'ra': [], 'dec': []}
-        self._current_hist = {'ra': [], 'dec': []}
-
         while self.report_thread_running:
             try:
-                report_ra = self._http_put('action', {'Action': 'report', 'Parameters': '1'})
-                report_dec = self._http_put('action', {'Action': 'report', 'Parameters': '2'})
-                if len(report_ra) == 0 or len(report_dec) == 0:
-                    raise ValueError('Invalid report string')
-                self._report_ra = json.loads(report_ra)
-                self._report_dec = json.loads(report_dec)
-
-                # Store the latest values from the report
-                self._position = {
-                    'ra': self._report_ra['EncPos'], 'dec': self._report_dec['EncPos']
-                }
-                self._position_error = {
-                    'ra': self._report_ra['PosErr'], 'dec': self._report_dec['PosErr']
-                }
-                self._tracking_error = {'ra': -999, 'dec': -999}  # Not implemented
-                self._velocity = {
-                    'ra': self._report_ra['Velocity'], 'dec': self._report_dec['Velocity']
-                }
-                self._acceleration = {'ra': -999, 'dec': -999}  # Not implemented
-                self._current = {
-                    'ra': self._report_ra['QCurr'], 'dec': self._report_dec['QCurr']
-                }
-
-                # Add to history, and remove old entries
-                report_time = {
-                    'ra': Time(self._report_ra['LastTime'].split('+')[0]).unix,
-                    'dec': Time(self._report_dec['LastTime'].split('+')[0]).unix
-                }
-                for axis in ('ra', 'dec'):
-                    # Add new entries, if they have changed
-                    if (len(self._position_hist[axis]) == 0 or
-                            self._position_hist[axis][-1][1] != self._position[axis]):
-                        self._position_hist[axis].append(
-                            (report_time[axis], self._position[axis]))
-                    if (len(self._position_error_hist[axis]) == 0 or
-                            self._position_error_hist[axis][-1][1] != self._position_error[axis]):
-                        self._position_error_hist[axis].append(
-                            (report_time[axis], self._position_error[axis]))
-                    if (len(self._tracking_error_hist[axis]) == 0 or
-                            self._tracking_error_hist[axis][-1][1] != self._tracking_error[axis]):
-                        self._tracking_error_hist[axis].append(
-                            (report_time[axis], self._tracking_error[axis]))
-                    if (len(self._velocity_hist[axis]) == 0 or
-                            self._velocity_hist[axis][-1][1] != self._velocity[axis]):
-                        self._velocity_hist[axis].append(
-                            (report_time[axis], self._velocity[axis]))
-                    if (len(self._acceleration_hist[axis]) == 0 or
-                            self._acceleration_hist[axis][-1][1] != self._acceleration[axis]):
-                        self._acceleration_hist[axis].append(
-                            (report_time[axis], self._acceleration[axis]))
-                    if (len(self._current_hist[axis]) == 0 or
-                            self._current_hist[axis][-1][1] != self._current[axis]):
-                        self._current_hist[axis].append(
-                            (report_time[axis], self._current[axis]))
-
-                    # Remove old entries
-                    time_limit = time.time() - self.report_history_limit
-                    self._position_hist[axis] = [
-                        hist for hist in self._position_hist[axis] if hist[0] > time_limit
-                    ]
-                    self._position_error_hist[axis] = [
-                        hist for hist in self._position_error_hist[axis] if hist[0] > time_limit
-                    ]
-                    self._tracking_error_hist[axis] = [
-                        hist for hist in self._tracking_error_hist[axis] if hist[0] > time_limit
-                    ]
-                    self._velocity_hist[axis] = [
-                        hist for hist in self._velocity_hist[axis] if hist[0] > time_limit
-                    ]
-                    self._acceleration_hist[axis] = [
-                        hist for hist in self._acceleration_hist[axis] if hist[0] > time_limit
-                    ]
-                    self._current_hist[axis] = [
-                        hist for hist in self._current_hist[axis] if hist[0] > time_limit
-                    ]
-
+                self._get_report(disable_reporting_after=False)
                 time.sleep(0.1)
             except Exception:
                 if self.log:
@@ -479,7 +491,7 @@ class DDM500:
                     self.log.debug('', exc_info=True)
                 self.report_thread_running = False
 
-        # Turn off reporting
+        # Turn off reporting when we're done
         self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
         if self.log:
             self.log.debug('report thread finished')
