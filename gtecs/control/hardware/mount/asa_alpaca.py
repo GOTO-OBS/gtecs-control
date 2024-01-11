@@ -90,11 +90,12 @@ class DDM500:
         self._update_status()
 
         # Set report thread running
+        self.report_extra = report_extra
         self.report_history_limit = report_history_limit
         self._report_ra = None
         self._report_dec = None
         self.report_thread_running = False
-        if report_extra:
+        if self.report_extra:
             t = threading.Thread(target=self._report_thread)
             t.daemon = True
             t.start()
