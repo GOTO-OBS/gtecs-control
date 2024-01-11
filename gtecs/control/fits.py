@@ -239,15 +239,66 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
         try:
             exptime = daemon_info['cam']['current_exposure']['exptime']
 
+            # Encoder position history
+            encpos_info = {}
+            encpos_info['ra_hist_time'] = -999
+            encpos_info['ra_hist'] = []
+            encpos_info['ra_min'] = 'NA'
+            encpos_info['ra_max'] = 'NA'
+            encpos_info['ra_mean'] = 'NA'
+            encpos_info['ra_std'] = 'NA'
+            encpos_info['dec_hist_time'] = -999
+            encpos_info['dec_hist'] = []
+            encpos_info['dec_min'] = 'NA'
+            encpos_info['dec_max'] = 'NA'
+            encpos_info['dec_mean'] = 'NA'
+            encpos_info['dec_std'] = 'NA'
+            if daemon_info['mnt']['encoder_position_history'] is not None:
+                # Get lookback time
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                # Get RA history values
+                oldest_hist = daemon_info['mnt']['encoder_position_history']['ra'][0][0]
+                max_hist_time = info_time.unix - oldest_hist
+                if hist_time > max_hist_time:
+                    hist_time = max_hist_time
+                encpos_info['ra_hist_time'] = hist_time
+                ra_hist = [h[1] for h in daemon_info['mnt']['encoder_position_history']['ra']
+                           if info_time.unix - h[0] <= hist_time]
+                if len(ra_hist) > 0:
+                    encpos_info['ra_hist'] = ra_hist
+                    encpos_info['ra_min'] = np.min(ra_hist)
+                    encpos_info['ra_max'] = np.max(ra_hist)
+                    encpos_info['ra_mean'] = np.mean(ra_hist)
+                    encpos_info['ra_std'] = np.std(ra_hist)
+                # Get Dec history values
+                oldest_hist = daemon_info['mnt']['encoder_position_history']['dec'][0][0]
+                max_hist_time = info_time.unix - oldest_hist
+                if hist_time > max_hist_time:
+                    hist_time = max_hist_time
+                encpos_info['dec_hist_time'] = hist_time
+                dec_hist = [h[1] for h in daemon_info['mnt']['encoder_position_history']['dec']
+                            if info_time.unix - h[0] <= hist_time]
+                if len(dec_hist) > 0:
+                    encpos_info['dec_hist'] = dec_hist
+                    encpos_info['dec_min'] = np.min(dec_hist)
+                    encpos_info['dec_max'] = np.max(dec_hist)
+                    encpos_info['dec_mean'] = np.mean(dec_hist)
+                    encpos_info['dec_std'] = np.std(dec_hist)
+            daemon_info['mnt']['encoder_position_info'] = encpos_info
+
             # Position error history
             poserr_info = {}
             poserr_info['ra_hist_time'] = -999
             poserr_info['ra_hist'] = []
+            poserr_info['ra_min'] = 'NA'
             poserr_info['ra_max'] = 'NA'
             poserr_info['ra_mean'] = 'NA'
             poserr_info['ra_std'] = 'NA'
             poserr_info['dec_hist_time'] = -999
             poserr_info['dec_hist'] = []
+            poserr_info['dec_min'] = 'NA'
             poserr_info['dec_max'] = 'NA'
             poserr_info['dec_mean'] = 'NA'
             poserr_info['dec_std'] = 'NA'
@@ -266,6 +317,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                            if info_time.unix - h[0] <= hist_time]
                 if len(ra_hist) > 0:
                     poserr_info['ra_hist'] = ra_hist
+                    poserr_info['ra_min'] = np.min(ra_hist)
                     poserr_info['ra_max'] = np.max(ra_hist)
                     poserr_info['ra_mean'] = np.mean(ra_hist)
                     poserr_info['ra_std'] = np.std(ra_hist)
@@ -279,6 +331,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                             if info_time.unix - h[0] <= hist_time]
                 if len(dec_hist) > 0:
                     poserr_info['dec_hist'] = dec_hist
+                    poserr_info['dec_min'] = np.min(dec_hist)
                     poserr_info['dec_max'] = np.max(dec_hist)
                     poserr_info['dec_mean'] = np.mean(dec_hist)
                     poserr_info['dec_std'] = np.std(dec_hist)
@@ -288,11 +341,13 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
             trackerr_info = {}
             trackerr_info['ra_hist_time'] = -999
             trackerr_info['ra_hist'] = []
+            trackerr_info['ra_min'] = 'NA'
             trackerr_info['ra_max'] = 'NA'
             trackerr_info['ra_mean'] = 'NA'
             trackerr_info['ra_std'] = 'NA'
             trackerr_info['dec_hist_time'] = -999
             trackerr_info['dec_hist'] = []
+            trackerr_info['dec_min'] = 'NA'
             trackerr_info['dec_max'] = 'NA'
             trackerr_info['dec_mean'] = 'NA'
             trackerr_info['dec_std'] = 'NA'
@@ -311,6 +366,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                            if info_time.unix - h[0] <= hist_time]
                 if len(ra_hist) > 0:
                     trackerr_info['ra_hist'] = ra_hist
+                    trackerr_info['ra_min'] = np.min(ra_hist)
                     trackerr_info['ra_max'] = np.max(ra_hist)
                     trackerr_info['ra_mean'] = np.mean(ra_hist)
                     trackerr_info['ra_std'] = np.std(ra_hist)
@@ -324,20 +380,121 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                             if info_time.unix - h[0] <= hist_time]
                 if len(dec_hist) > 0:
                     trackerr_info['dec_hist'] = dec_hist
+                    trackerr_info['dec_min'] = np.min(dec_hist)
                     trackerr_info['dec_max'] = np.max(dec_hist)
                     trackerr_info['dec_mean'] = np.mean(dec_hist)
                     trackerr_info['dec_std'] = np.std(dec_hist)
             daemon_info['mnt']['tracking_error_info'] = trackerr_info
 
+            # Velocity history
+            velocity_info = {}
+            velocity_info['ra_hist_time'] = -999
+            velocity_info['ra_hist'] = []
+            velocity_info['ra_min'] = 'NA'
+            velocity_info['ra_max'] = 'NA'
+            velocity_info['ra_mean'] = 'NA'
+            velocity_info['ra_std'] = 'NA'
+            velocity_info['dec_hist_time'] = -999
+            velocity_info['dec_hist'] = []
+            velocity_info['dec_min'] = 'NA'
+            velocity_info['dec_max'] = 'NA'
+            velocity_info['dec_mean'] = 'NA'
+            velocity_info['dec_std'] = 'NA'
+            if daemon_info['mnt']['velocity_history'] is not None:
+                # Get lookback time
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                # Get RA history values
+                oldest_hist = daemon_info['mnt']['velocity_history']['ra'][0][0]
+                max_hist_time = info_time.unix - oldest_hist
+                if hist_time > max_hist_time:
+                    hist_time = max_hist_time
+                velocity_info['ra_hist_time'] = hist_time
+                ra_hist = [h[1] for h in daemon_info['mnt']['velocity_history']['ra']
+                           if info_time.unix - h[0] <= hist_time]
+                if len(ra_hist) > 0:
+                    velocity_info['ra_hist'] = ra_hist
+                    velocity_info['ra_min'] = np.min(ra_hist)
+                    velocity_info['ra_max'] = np.max(ra_hist)
+                    velocity_info['ra_mean'] = np.mean(ra_hist)
+                    velocity_info['ra_std'] = np.std(ra_hist)
+                # Get Dec history values
+                oldest_hist = daemon_info['mnt']['velocity_history']['dec'][0][0]
+                max_hist_time = info_time.unix - oldest_hist
+                if hist_time > max_hist_time:
+                    hist_time = max_hist_time
+                velocity_info['dec_hist_time'] = hist_time
+                dec_hist = [h[1] for h in daemon_info['mnt']['velocity_history']['dec']
+                            if info_time.unix - h[0] <= hist_time]
+                if len(dec_hist) > 0:
+                    velocity_info['dec_hist'] = dec_hist
+                    velocity_info['dec_min'] = np.min(dec_hist)
+                    velocity_info['dec_max'] = np.max(dec_hist)
+                    velocity_info['dec_mean'] = np.mean(dec_hist)
+                    velocity_info['dec_std'] = np.std(dec_hist)
+            daemon_info['mnt']['velocity_info'] = velocity_info
+
+            # Acceleration history
+            accel_info = {}
+            accel_info['ra_hist_time'] = -999
+            accel_info['ra_hist'] = []
+            accel_info['ra_min'] = 'NA'
+            accel_info['ra_max'] = 'NA'
+            accel_info['ra_mean'] = 'NA'
+            accel_info['ra_std'] = 'NA'
+            accel_info['dec_hist_time'] = -999
+            accel_info['dec_hist'] = []
+            accel_info['dec_min'] = 'NA'
+            accel_info['dec_max'] = 'NA'
+            accel_info['dec_mean'] = 'NA'
+            accel_info['dec_std'] = 'NA'
+            if daemon_info['mnt']['acceleration_history'] is not None:
+                # Get lookback time
+                hist_time = params.MIN_HEADER_HIST_TIME
+                if exptime > hist_time:
+                    hist_time = exptime
+                # Get RA history values
+                oldest_hist = daemon_info['mnt']['acceleration_history']['ra'][0][0]
+                max_hist_time = info_time.unix - oldest_hist
+                if hist_time > max_hist_time:
+                    hist_time = max_hist_time
+                accel_info['ra_hist_time'] = hist_time
+                ra_hist = [h[1] for h in daemon_info['mnt']['acceleration_history']['ra']
+                           if info_time.unix - h[0] <= hist_time]
+                if len(ra_hist) > 0:
+                    accel_info['ra_hist'] = ra_hist
+                    accel_info['ra_min'] = np.min(ra_hist)
+                    accel_info['ra_max'] = np.max(ra_hist)
+                    accel_info['ra_mean'] = np.mean(ra_hist)
+                    accel_info['ra_std'] = np.std(ra_hist)
+                # Get Dec history values
+                oldest_hist = daemon_info['mnt']['acceleration_history']['dec'][0][0]
+                max_hist_time = info_time.unix - oldest_hist
+                if hist_time > max_hist_time:
+                    hist_time = max_hist_time
+                accel_info['dec_hist_time'] = hist_time
+                dec_hist = [h[1] for h in daemon_info['mnt']['acceleration_history']['dec']
+                            if info_time.unix - h[0] <= hist_time]
+                if len(dec_hist) > 0:
+                    accel_info['dec_hist'] = dec_hist
+                    accel_info['dec_min'] = np.min(dec_hist)
+                    accel_info['dec_max'] = np.max(dec_hist)
+                    accel_info['dec_mean'] = np.mean(dec_hist)
+                    accel_info['dec_std'] = np.std(dec_hist)
+            daemon_info['mnt']['acceleration_info'] = accel_info
+
             # Motor current history
             current_info = {}
             current_info['ra_hist_time'] = -999
             current_info['ra_hist'] = []
+            current_info['ra_min'] = 'NA'
             current_info['ra_max'] = 'NA'
             current_info['ra_mean'] = 'NA'
             current_info['ra_std'] = 'NA'
             current_info['dec_hist_time'] = -999
             current_info['dec_hist'] = []
+            current_info['dec_min'] = 'NA'
             current_info['dec_max'] = 'NA'
             current_info['dec_mean'] = 'NA'
             current_info['dec_std'] = 'NA'
@@ -356,6 +513,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                            if info_time.unix - h[0] <= hist_time]
                 if len(ra_hist) > 0:
                     current_info['ra_hist'] = ra_hist
+                    current_info['ra_min'] = np.min(ra_hist)
                     current_info['ra_max'] = np.max(ra_hist)
                     current_info['ra_mean'] = np.mean(ra_hist)
                     current_info['ra_std'] = np.std(ra_hist)
@@ -369,6 +527,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                             if info_time.unix - h[0] <= hist_time]
                 if len(dec_hist) > 0:
                     current_info['dec_hist'] = dec_hist
+                    current_info['dec_min'] = np.min(dec_hist)
                     current_info['dec_max'] = np.max(dec_hist)
                     current_info['dec_mean'] = np.mean(dec_hist)
                     current_info['dec_std'] = np.std(dec_hist)
@@ -396,6 +555,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
             # Wind gust history
             hist_info = {}
             hist_info['hist_time'] = -999
+            hist_info['min'] = 'NA'
             hist_info['max'] = 'NA'
             hist_info['mean'] = 'NA'
             hist_info['std'] = 'NA'
@@ -413,6 +573,7 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 gust_hist = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
                 if len(gust_hist) > 0:
                     hist_info['hist'] = gust_hist
+                    hist_info['min'] = np.min(gust_hist)
                     hist_info['max'] = np.max(gust_hist)
                     hist_info['mean'] = np.mean(gust_hist)
                     hist_info['std'] = np.std(gust_hist)
@@ -1128,27 +1289,77 @@ def make_header(ut, daemon_info=None):
     header.append(('DEC-TRKR', daemon_info['mnt']['trackrate_dec'],
                    'Dec tracking rate (0=sidereal)'))
 
+    # Encoder position (+ history)
+    if daemon_info['mnt']['encoder_position_info'] is not None:
+        encpos_ra_hist_time = daemon_info['mnt']['encoder_position_info']['ra_hist_time']
+        encpos_ra_min = daemon_info['mnt']['encoder_position_info']['ra_min']
+        encpos_ra_max = daemon_info['mnt']['encoder_position_info']['ra_max']
+        encpos_ra_mean = daemon_info['mnt']['encoder_position_info']['ra_mean']
+        encpos_ra_std = daemon_info['mnt']['encoder_position_info']['ra_std']
+        encpos_dec_hist_time = daemon_info['mnt']['encoder_position_info']['dec_hist_time']
+        encpos_dec_min = daemon_info['mnt']['encoder_position_info']['dec_min']
+        encpos_dec_max = daemon_info['mnt']['encoder_position_info']['dec_max']
+        encpos_dec_mean = daemon_info['mnt']['encoder_position_info']['dec_mean']
+        encpos_dec_std = daemon_info['mnt']['encoder_position_info']['dec_std']
+    else:
+        encpos_ra_hist_time = -999
+        encpos_ra_min = 'NA'
+        encpos_ra_max = 'NA'
+        encpos_ra_mean = 'NA'
+        encpos_ra_std = 'NA'
+        encpos_dec_hist_time = -999
+        encpos_dec_min = 'NA'
+        encpos_dec_max = 'NA'
+        encpos_dec_mean = 'NA'
+        encpos_dec_std = 'NA'
+    header.append(('RA-ENCP ', daemon_info['mnt']['encoder_position']['ra'],
+                   'RA encoder position (deg)'))
+    header.append(('RA-EMIN ', encpos_ra_min,
+                   'RA min encoder position (last {:.0f}s)'.format(encpos_ra_hist_time)))
+    header.append(('RA-EMAX ', encpos_ra_max,
+                   'RA max encoder position (last {:.0f}s)'.format(encpos_ra_hist_time)))
+    header.append(('RA-EMEA ', encpos_ra_mean,
+                   'RA mean encoder position (last {:.0f}s)'.format(encpos_ra_hist_time)))
+    header.append(('RA-ESTD ', encpos_ra_std,
+                   'RA std encoder position (last {:.0f}s)'.format(encpos_ra_hist_time)))
+    header.append(('DEC-ENCP', daemon_info['mnt']['encoder_position']['dec'],
+                   'Dec encoder position (deg)'))
+    header.append(('DEC-EMIN', encpos_dec_min,
+                   'Dec min encoder position (last {:.0f}s)'.format(encpos_dec_hist_time)))
+    header.append(('DEC-EMAX', encpos_dec_max,
+                   'Dec max encoder position (last {:.0f}s)'.format(encpos_dec_hist_time)))
+    header.append(('DEC-EMEA', encpos_dec_mean,
+                   'Dec mean encoder position (last {:.0f}s)'.format(encpos_dec_hist_time)))
+    header.append(('DEC-ESTD', encpos_dec_std,
+                   'Dec std encoder position (last {:.0f}s)'.format(encpos_dec_hist_time)))
+
     # Position error (+ history)
     if daemon_info['mnt']['position_error_info'] is not None:
         poserr_ra_hist_time = daemon_info['mnt']['position_error_info']['ra_hist_time']
+        poserr_ra_min = daemon_info['mnt']['position_error_info']['ra_min']
         poserr_ra_max = daemon_info['mnt']['position_error_info']['ra_max']
         poserr_ra_mean = daemon_info['mnt']['position_error_info']['ra_mean']
         poserr_ra_std = daemon_info['mnt']['position_error_info']['ra_std']
         poserr_dec_hist_time = daemon_info['mnt']['position_error_info']['dec_hist_time']
+        poserr_dec_min = daemon_info['mnt']['position_error_info']['dec_min']
         poserr_dec_max = daemon_info['mnt']['position_error_info']['dec_max']
         poserr_dec_mean = daemon_info['mnt']['position_error_info']['dec_mean']
         poserr_dec_std = daemon_info['mnt']['position_error_info']['dec_std']
     else:
         poserr_ra_hist_time = -999
+        poserr_ra_min = 'NA'
         poserr_ra_max = 'NA'
         poserr_ra_mean = 'NA'
         poserr_ra_std = 'NA'
         poserr_dec_hist_time = -999
+        poserr_dec_min = 'NA'
         poserr_dec_max = 'NA'
         poserr_dec_mean = 'NA'
         poserr_dec_std = 'NA'
     header.append(('RA-PERR ', daemon_info['mnt']['position_error']['ra'],
-                   'RA position error'))
+                   'RA position error (deg)'))
+    header.append(('RA-PMIN ', poserr_ra_min,
+                   'RA min position error (last {:.0f}s)'.format(poserr_ra_hist_time)))
     header.append(('RA-PMAX ', poserr_ra_max,
                    'RA max position error (last {:.0f}s)'.format(poserr_ra_hist_time)))
     header.append(('RA-PMEA ', poserr_ra_mean,
@@ -1156,7 +1367,9 @@ def make_header(ut, daemon_info=None):
     header.append(('RA-PSTD ', poserr_ra_std,
                    'RA std position error (last {:.0f}s)'.format(poserr_ra_hist_time)))
     header.append(('DEC-PERR', daemon_info['mnt']['position_error']['dec'],
-                   'Dec position error'))
+                   'Dec position error (deg)'))
+    header.append(('DEC-PMIN', poserr_dec_min,
+                   'Dec min position error (last {:.0f}s)'.format(poserr_dec_hist_time)))
     header.append(('DEC-PMAX', poserr_dec_max,
                    'Dec max position error (last {:.0f}s)'.format(poserr_dec_hist_time)))
     header.append(('DEC-PMEA', poserr_dec_mean,
@@ -1167,24 +1380,30 @@ def make_header(ut, daemon_info=None):
     # Tracking error (+ history)
     if daemon_info['mnt']['tracking_error_info'] is not None:
         trkerr_ra_hist_time = daemon_info['mnt']['tracking_error_info']['ra_hist_time']
+        trkerr_ra_min = daemon_info['mnt']['tracking_error_info']['ra_min']
         trkerr_ra_max = daemon_info['mnt']['tracking_error_info']['ra_max']
         trkerr_ra_mean = daemon_info['mnt']['tracking_error_info']['ra_mean']
         trkerr_ra_std = daemon_info['mnt']['tracking_error_info']['ra_std']
         trkerr_dec_hist_time = daemon_info['mnt']['tracking_error_info']['dec_hist_time']
+        trkerr_dec_min = daemon_info['mnt']['tracking_error_info']['dec_min']
         trkerr_dec_max = daemon_info['mnt']['tracking_error_info']['dec_max']
         trkerr_dec_mean = daemon_info['mnt']['tracking_error_info']['dec_mean']
         trkerr_dec_std = daemon_info['mnt']['tracking_error_info']['dec_std']
     else:
         trkerr_ra_hist_time = -999
+        trkerr_ra_min = 'NA'
         trkerr_ra_max = 'NA'
         trkerr_ra_mean = 'NA'
         trkerr_ra_std = 'NA'
         trkerr_dec_hist_time = -999
+        trkerr_dec_min = 'NA'
         trkerr_dec_max = 'NA'
         trkerr_dec_mean = 'NA'
         trkerr_dec_std = 'NA'
     header.append(('RA-TERR ', daemon_info['mnt']['tracking_error']['ra'],
-                   'RA tracking error'))
+                   'RA tracking error (arcsec)'))
+    header.append(('RA-TMIN ', trkerr_ra_min,
+                   'RA min tracking error (last {:.0f}s)'.format(trkerr_ra_hist_time)))
     header.append(('RA-TMAX ', trkerr_ra_max,
                    'RA max tracking error (last {:.0f}s)'.format(trkerr_ra_hist_time)))
     header.append(('RA-TMEA ', trkerr_ra_mean,
@@ -1192,7 +1411,9 @@ def make_header(ut, daemon_info=None):
     header.append(('RA-TSTD ', trkerr_ra_std,
                    'RA std tracking error (last {:.0f}s)'.format(trkerr_ra_hist_time)))
     header.append(('DEC-TERR', daemon_info['mnt']['tracking_error']['dec'],
-                   'Dec tracking error'))
+                   'Dec tracking error (arcsec)'))
+    header.append(('DEC-TMIN', trkerr_dec_min,
+                   'Dec min tracking error (last {:.0f}s)'.format(trkerr_dec_hist_time)))
     header.append(('DEC-TMAX', trkerr_dec_max,
                    'Dec max tracking error (last {:.0f}s)'.format(trkerr_dec_hist_time)))
     header.append(('DEC-TMEA', trkerr_dec_mean,
@@ -1200,27 +1421,121 @@ def make_header(ut, daemon_info=None):
     header.append(('DEC-TSTD', trkerr_dec_std,
                    'Dec std tracking error (last {:.0f}s)'.format(trkerr_dec_hist_time)))
 
+    # Velocity (+ history)
+    if daemon_info['mnt']['velocity_info'] is not None:
+        velocity_ra_hist_time = daemon_info['mnt']['velocity_info']['ra_hist_time']
+        velocity_ra_min = daemon_info['mnt']['velocity_info']['ra_min']
+        velocity_ra_max = daemon_info['mnt']['velocity_info']['ra_max']
+        velocity_ra_mean = daemon_info['mnt']['velocity_info']['ra_mean']
+        velocity_ra_std = daemon_info['mnt']['velocity_info']['ra_std']
+        velocity_dec_hist_time = daemon_info['mnt']['velocity_info']['dec_hist_time']
+        velocity_dec_min = daemon_info['mnt']['velocity_info']['dec_min']
+        velocity_dec_max = daemon_info['mnt']['velocity_info']['dec_max']
+        velocity_dec_mean = daemon_info['mnt']['velocity_info']['dec_mean']
+        velocity_dec_std = daemon_info['mnt']['velocity_info']['dec_std']
+    else:
+        velocity_ra_hist_time = -999
+        velocity_ra_min = 'NA'
+        velocity_ra_max = 'NA'
+        velocity_ra_mean = 'NA'
+        velocity_ra_std = 'NA'
+        velocity_dec_hist_time = -999
+        velocity_dec_min = 'NA'
+        velocity_dec_max = 'NA'
+        velocity_dec_mean = 'NA'
+        velocity_dec_std = 'NA'
+    header.append(('RA-VEL  ', daemon_info['mnt']['velocity']['ra'],
+                   'RA motor velocity (deg/sec)'))
+    header.append(('RA-VMIN ', velocity_ra_min,
+                   'RA min motor velocity (last {:.0f}s)'.format(velocity_ra_hist_time)))
+    header.append(('RA-VMAX ', velocity_ra_max,
+                   'RA max motor velocity (last {:.0f}s)'.format(velocity_ra_hist_time)))
+    header.append(('RA-VMEA ', velocity_ra_mean,
+                   'RA mean motor velocity (last {:.0f}s)'.format(velocity_ra_hist_time)))
+    header.append(('RA-VSTD ', velocity_ra_std,
+                   'RA std motor velocity (last {:.0f}s)'.format(velocity_ra_hist_time)))
+    header.append(('DEC-VEL ', daemon_info['mnt']['velocity']['dec'],
+                   'Dec motor velocity (deg/sec)'))
+    header.append(('DEC-VMIN', velocity_dec_min,
+                   'Dec min motor velocity (last {:.0f}s)'.format(velocity_dec_hist_time)))
+    header.append(('DEC-VMAX', velocity_dec_max,
+                   'Dec max motor velocity (last {:.0f}s)'.format(velocity_dec_hist_time)))
+    header.append(('DEC-VMEA', velocity_dec_mean,
+                   'Dec mean motor velocity (last {:.0f}s)'.format(velocity_dec_hist_time)))
+    header.append(('DEC-VSTD', velocity_dec_std,
+                   'Dec std motor velocity (last {:.0f}s)'.format(velocity_dec_hist_time)))
+
+    # Acceleration (+ history)
+    if daemon_info['mnt']['acceleration_info'] is not None:
+        accel_ra_hist_time = daemon_info['mnt']['acceleration_info']['ra_hist_time']
+        accel_ra_min = daemon_info['mnt']['acceleration_info']['ra_min']
+        accel_ra_max = daemon_info['mnt']['acceleration_info']['ra_max']
+        accel_ra_mean = daemon_info['mnt']['acceleration_info']['ra_mean']
+        accel_ra_std = daemon_info['mnt']['acceleration_info']['ra_std']
+        accel_dec_hist_time = daemon_info['mnt']['acceleration_info']['dec_hist_time']
+        accel_dec_min = daemon_info['mnt']['acceleration_info']['dec_min']
+        accel_dec_max = daemon_info['mnt']['acceleration_info']['dec_max']
+        accel_dec_mean = daemon_info['mnt']['acceleration_info']['dec_mean']
+        accel_dec_std = daemon_info['mnt']['acceleration_info']['dec_std']
+    else:
+        accel_ra_hist_time = -999
+        accel_ra_min = 'NA'
+        accel_ra_max = 'NA'
+        accel_ra_mean = 'NA'
+        accel_ra_std = 'NA'
+        accel_dec_hist_time = -999
+        accel_dec_min = 'NA'
+        accel_dec_max = 'NA'
+        accel_dec_mean = 'NA'
+        accel_dec_std = 'NA'
+    header.append(('RA-ACC  ', daemon_info['mnt']['acceleration']['ra'],
+                   'RA motor acceleration (deg/sec2)'))
+    header.append(('RA-AMIN ', accel_ra_min,
+                   'RA min motor acceleration (last {:.0f}s)'.format(accel_ra_hist_time)))
+    header.append(('RA-AMAX ', accel_ra_max,
+                   'RA max motor acceleration (last {:.0f}s)'.format(accel_ra_hist_time)))
+    header.append(('RA-AMEA ', accel_ra_mean,
+                   'RA mean motor acceleration (last {:.0f}s)'.format(accel_ra_hist_time)))
+    header.append(('RA-ASTD ', accel_ra_std,
+                   'RA std motor acceleration (last {:.0f}s)'.format(accel_ra_hist_time)))
+    header.append(('DEC-ACC ', daemon_info['mnt']['acceleration']['dec'],
+                   'Dec motor acceleration (deg/sec2)'))
+    header.append(('DEC-AMIN', accel_dec_min,
+                   'Dec min motor acceleration (last {:.0f}s)'.format(accel_dec_hist_time)))
+    header.append(('DEC-AMAX', accel_dec_max,
+                   'Dec max motor acceleration (last {:.0f}s)'.format(accel_dec_hist_time)))
+    header.append(('DEC-AMEA', accel_dec_mean,
+                   'Dec mean motor acceleration (last {:.0f}s)'.format(accel_dec_hist_time)))
+    header.append(('DEC-ASTD', accel_dec_std,
+                   'Dec std motor acceleration (last {:.0f}s)'.format(accel_dec_hist_time)))
+
     # Motor current (+ history)
     if daemon_info['mnt']['motor_current_info'] is not None:
         current_ra_hist_time = daemon_info['mnt']['motor_current_info']['ra_hist_time']
+        current_ra_min = daemon_info['mnt']['motor_current_info']['ra_min']
         current_ra_max = daemon_info['mnt']['motor_current_info']['ra_max']
         current_ra_mean = daemon_info['mnt']['motor_current_info']['ra_mean']
         current_ra_std = daemon_info['mnt']['motor_current_info']['ra_std']
         current_dec_hist_time = daemon_info['mnt']['motor_current_info']['dec_hist_time']
+        current_dec_min = daemon_info['mnt']['motor_current_info']['dec_min']
         current_dec_max = daemon_info['mnt']['motor_current_info']['dec_max']
         current_dec_mean = daemon_info['mnt']['motor_current_info']['dec_mean']
         current_dec_std = daemon_info['mnt']['motor_current_info']['dec_std']
     else:
         current_ra_hist_time = -999
+        current_ra_min = 'NA'
         current_ra_max = 'NA'
         current_ra_mean = 'NA'
         current_ra_std = 'NA'
         current_dec_hist_time = -999
+        current_dec_min = 'NA'
         current_dec_max = 'NA'
         current_dec_mean = 'NA'
         current_dec_std = 'NA'
     header.append(('RA-CURR ', daemon_info['mnt']['motor_current']['ra'],
-                   'RA motor current'))
+                   'RA motor current (amps)'))
+    header.append(('RA-CMIN ', current_ra_min,
+                   'RA min motor current (last {:.0f}s)'.format(current_ra_hist_time)))
     header.append(('RA-CMAX ', current_ra_max,
                    'RA max motor current (last {:.0f}s)'.format(current_ra_hist_time)))
     header.append(('RA-CMEA ', current_ra_mean,
@@ -1228,7 +1543,9 @@ def make_header(ut, daemon_info=None):
     header.append(('RA-CSTD ', current_ra_std,
                    'RA std motor current (last {:.0f}s)'.format(current_ra_hist_time)))
     header.append(('DEC-CURR', daemon_info['mnt']['motor_current']['dec'],
-                   'Dec motor current'))
+                   'Dec motor current (amps)'))
+    header.append(('DEC-CMIN', current_dec_min,
+                   'Dec min motor current (last {:.0f}s)'.format(current_dec_hist_time)))
     header.append(('DEC-CMAX', current_dec_max,
                    'Dec max motor current (last {:.0f}s)'.format(current_dec_hist_time)))
     header.append(('DEC-CMEA', current_dec_mean,
@@ -1321,11 +1638,13 @@ def make_header(ut, daemon_info=None):
         ext_gust = 'NA'
     if daemon_info['conditions']['weather_ext']['windgust_history_info'] is not None:
         hist_time = daemon_info['conditions']['weather_ext']['windgust_history_info']['hist_time']
+        ext_gustmin = daemon_info['conditions']['weather_ext']['windgust_history_info']['min']
         ext_gustmax = daemon_info['conditions']['weather_ext']['windgust_history_info']['max']
         ext_gustmean = daemon_info['conditions']['weather_ext']['windgust_history_info']['mean']
         ext_guststd = daemon_info['conditions']['weather_ext']['windgust_history_info']['std']
     else:
         hist_time = -999
+        ext_gustmin = 'NA'
         ext_gustmax = 'NA'
         ext_gustmean = 'NA'
         ext_guststd = 'NA'
@@ -1335,6 +1654,8 @@ def make_header(ut, daemon_info=None):
                    'External wind direction, degrees (GOTO mast)'))
     header.append(('EXT-GUST', ext_gust,
                    'External wind gust, km/h (GOTO mast)'))
+    header.append(('EXT-GMIN', ext_gustmin,
+                   'Min wind gust, km/h (last {:.0f}s)'.format(hist_time)))
     header.append(('EXT-GMAX', ext_gustmax,
                    'Max wind gust, km/h (last {:.0f}s)'.format(hist_time)))
     header.append(('EXT-GMEA', ext_gustmean,
