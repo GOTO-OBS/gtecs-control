@@ -1258,7 +1258,9 @@ class DomeDaemon(BaseDaemon):
         info = self.get_info(force_update)
         if not verbose:
             msg = 'DOME:               [{}|{}]\n'.format(
-                info['a_side'].capitalize(), info['b_side'].capitalize())
+                info['a_side'].capitalize() if info['a_side'] != 'ERROR' else rtxt('ERROR'),
+                info['b_side'].capitalize() if info['b_side'] != 'ERROR' else rtxt('ERROR'),
+            )
             if info['lockdown']:
                 msg += rtxt('   LOCKDOWN ACTIVE: {}\n'.format(
                             ';'.join(info['lockdown_reasons'])))
@@ -1285,17 +1287,20 @@ class DomeDaemon(BaseDaemon):
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
             msg += '   Heartbeat:       [{}]\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
-                else info['heartbeat_status'].capitalize())
+                else info['heartbeat_status'].capitalize() if info['heartbeat_status'] != 'ERROR'
+                else rtxt('ERROR'))
             if info['emergency']:
                 msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
                 msg += rtxt('REASON(S): {}\n'.format(info['emergency_reasons']))
             msg = msg.rstrip()
         else:
             msg = '######## DOME INFO ########\n'
-            msg += 'A side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
-                                               info['a_side'].capitalize())
-            msg += 'B side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
-                                               info['b_side'].capitalize())
+            msg += 'A side ({}):  {}\n'.format(
+                params.DOME_ASIDE_NAME.capitalize(),
+                info['a_side'].capitalize() if info['a_side'] != 'ERROR' else rtxt('ERROR'))
+            msg += 'B side ({}):  {}\n'.format(
+                params.DOME_ASIDE_NAME.capitalize(),
+                info['b_side'].capitalize() if info['b_side'] != 'ERROR' else rtxt('ERROR'))
             msg += 'Autoclose:    {}\n'.format(
                 rtxt('Disabled') +
                 (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
@@ -1317,7 +1322,8 @@ class DomeDaemon(BaseDaemon):
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
             msg += 'Heartbeat:    {}\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
-                else info['heartbeat_status'].capitalize())
+                else info['heartbeat_status'].capitalize() if info['heartbeat_status'] != 'ERROR'
+                else rtxt('ERROR'))
             msg += 'Lockdown:     {}\n'.format(
                 rtxt('ACTIVE') if info['lockdown'] else 'Clear')
             if info['lockdown']:
