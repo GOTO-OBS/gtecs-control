@@ -856,7 +856,7 @@ class DomeHeartbeat:
 
         self.enabled = True
         self.timeout = timeout
-        self.status = 'ERROR'
+        self.status = None
         self.old_status = None
         self.connection_error = False
 
