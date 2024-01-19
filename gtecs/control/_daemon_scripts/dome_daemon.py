@@ -1288,7 +1288,8 @@ class DomeDaemon(BaseDaemon):
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
             msg += '   Heartbeat:       [{}]\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
-                else info['heartbeat_status'].capitalize() if info['heartbeat_status'] != 'ERROR'
+                else info['heartbeat_status'].capitalize()
+                if (info['heartbeat_status'] and info['heartbeat_status'] != 'ERROR')
                 else rtxt('ERROR'))
             if info['emergency']:
                 msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
@@ -1323,7 +1324,8 @@ class DomeDaemon(BaseDaemon):
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
             msg += 'Heartbeat:       {}\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
-                else info['heartbeat_status'].capitalize() if info['heartbeat_status'] != 'ERROR'
+                else info['heartbeat_status'].capitalize()
+                if (info['heartbeat_status'] and info['heartbeat_status'] != 'ERROR')
                 else rtxt('ERROR'))
             msg += 'Lockdown:        {}\n'.format(
                 rtxt('ACTIVE') if info['lockdown'] else 'Clear')
