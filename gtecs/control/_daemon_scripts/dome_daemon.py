@@ -1299,38 +1299,38 @@ class DomeDaemon(BaseDaemon):
                 params.DOME_ASIDE_NAME.capitalize(),
                 info['a_side'].capitalize() if info['a_side'] != 'ERROR' else rtxt('ERROR'))
             msg += 'B side ({}):  {}\n'.format(
-                params.DOME_ASIDE_NAME.capitalize(),
+                params.DOME_BSIDE_NAME.capitalize(),
                 info['b_side'].capitalize() if info['b_side'] != 'ERROR' else rtxt('ERROR'))
-            msg += 'Autoclose:    {}\n'.format(
+            msg += 'Autoclose:       {}\n'.format(
                 rtxt('Disabled') +
                 (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
                  if info['autoclose_timeout'] is not None else '')
                 if not info['autoclose_enabled'] else 'Enabled')
-            msg += 'Windshield:   {}\n'.format(
+            msg += 'Windshield:      {}\n'.format(
                 gtxt('On') if info['windshield_enabled'] else 'Off')
-            msg += ' - Autoshield:  {}\n'.format(
+            msg += ' - Autoshield:   {}\n'.format(
                 rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
             if params.DOME_HAS_DEHUMIDIFIER:
-                msg += 'Dehumidifier: {}\n'.format(
+                msg += 'Dehumidifier:    {}\n'.format(
                     gtxt('On') if info['dehumidifier_on'] else 'Off')
-                msg += ' - Autodehum:   {}\n'.format(
+                msg += ' - Autodehum:    {}\n'.format(
                     rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
-            msg += 'Hatch:        {}\n'.format(
+            msg += 'Hatch:           {}\n'.format(
                 rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
                 else 'Closed')
-            msg += 'Alarm:        {}\n'.format(
+            msg += 'Alarm:           {}\n'.format(
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
-            msg += 'Heartbeat:    {}\n'.format(
+            msg += 'Heartbeat:       {}\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
                 else info['heartbeat_status'].capitalize() if info['heartbeat_status'] != 'ERROR'
                 else rtxt('ERROR'))
-            msg += 'Lockdown:     {}\n'.format(
+            msg += 'Lockdown:        {}\n'.format(
                 rtxt('ACTIVE') if info['lockdown'] else 'Clear')
             if info['lockdown']:
                 msg += ' - Lockdown reasons:\n'
                 for reason in info['lockdown_reasons']:
                     msg += rtxt('   {}\n'.format(reason))
-            msg += 'Shielding:    {}\n'.format(
+            msg += 'Shielding:       {}\n'.format(
                 ytxt('ACTIVE') if info['shielding'] else 'Clear')
             if info['emergency']:
                 msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
