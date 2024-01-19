@@ -441,6 +441,7 @@ class DomeDaemon(BaseDaemon):
             )
 
             # Check if it's connected and the thread is running
+            time.sleep(3)  # sleep briefly, to make sure the connection has started
             if self.heartbeat.connection_error or not self.heartbeat.thread_running:
                 raise ValueError('Failed to connect to heartbeat monitor')
 
