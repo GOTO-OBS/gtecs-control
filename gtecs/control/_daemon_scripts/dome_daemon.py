@@ -440,8 +440,8 @@ class DomeDaemon(BaseDaemon):
                 params.DOME_DEBUG,
             )
 
-            # Check if it's connected
-            if self.heartbeat.connection_error:
+            # Check if it's connected and the thread is running
+            if self.heartbeat.connection_error or not self.heartbeat.thread_running:
                 raise ValueError('Failed to connect to heartbeat monitor')
 
             # Connection successful
@@ -547,10 +547,12 @@ class DomeDaemon(BaseDaemon):
         try:
             heartbeat_status = self.heartbeat.status
             temp_info['heartbeat_status'] = heartbeat_status
+            if heartbeat_status == 'ERROR':
+                raise ValueError('Heartbeat status is ERROR')
         except Exception:
             self.log.error('Failed to get heartbeat info')
             self.log.debug('', exc_info=True)
-            temp_info['heartbeat_status'] = None
+            temp_info['heartbeat_status'] = 'ERROR'
             # Report the connection as failed
             self.heartbeat = None
             if 'heartbeat' not in self.bad_hardware:
