@@ -538,6 +538,10 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 raise
             log.error('Failed to calculate mount history info')
             log.debug('', exc_info=True)
+            try:
+                log.debug('info: {}'.format(daemon_info['mnt']))
+            except Exception:
+                pass
             daemon_info['mnt']['position_error_info'] = None
             daemon_info['mnt']['tracking_error_info'] = None
             daemon_info['mnt']['motor_current_info'] = None
@@ -584,6 +588,10 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 raise
             log.error('Failed to calculate conditions history info')
             log.debug('', exc_info=True)
+            try:
+                log.debug('info: {}'.format(daemon_info['conditions']))
+            except Exception:
+                pass
             daemon_info['conditions']['weather_ext']['windgust_history_info'] = None
             bad_daemons.append('conditions_history')
 
