@@ -542,8 +542,11 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 log.debug('info: {}'.format(daemon_info['mnt']))
             except Exception:
                 pass
+            daemon_info['mnt']['encoder_position_info'] = None
             daemon_info['mnt']['position_error_info'] = None
             daemon_info['mnt']['tracking_error_info'] = None
+            daemon_info['mnt']['velocity_info'] = None
+            daemon_info['mnt']['acceleration_info'] = None
             daemon_info['mnt']['motor_current_info'] = None
             bad_daemons.append('mnt_history')
 
