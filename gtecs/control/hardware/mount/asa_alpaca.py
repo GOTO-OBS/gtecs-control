@@ -447,26 +447,33 @@ class DDM500:
                 self._current_hist[axis].append(
                     (report_time[axis], self._current[axis]))
 
-            # Remove old entries
+            # Remove old entries, as long as there's more than one
+            # (we had issues with -999 readings being filtered out)
             time_limit = time.time() - self.report_history_limit
-            self._position_hist[axis] = [
-                hist for hist in self._position_hist[axis] if hist[0] > time_limit
-            ]
-            self._position_error_hist[axis] = [
-                hist for hist in self._position_error_hist[axis] if hist[0] > time_limit
-            ]
-            self._tracking_error_hist[axis] = [
-                hist for hist in self._tracking_error_hist[axis] if hist[0] > time_limit
-            ]
-            self._velocity_hist[axis] = [
-                hist for hist in self._velocity_hist[axis] if hist[0] > time_limit
-            ]
-            self._acceleration_hist[axis] = [
-                hist for hist in self._acceleration_hist[axis] if hist[0] > time_limit
-            ]
-            self._current_hist[axis] = [
-                hist for hist in self._current_hist[axis] if hist[0] > time_limit
-            ]
+            if len(self._position_hist[axis]) > 1:
+                self._position_hist[axis] = [
+                    hist for hist in self._position_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._position_error_hist[axis]) > 1:
+                self._position_error_hist[axis] = [
+                    hist for hist in self._position_error_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._tracking_error_hist[axis]) > 1:
+                self._tracking_error_hist[axis] = [
+                    hist for hist in self._tracking_error_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._velocity_hist[axis]) > 1:
+                self._velocity_hist[axis] = [
+                    hist for hist in self._velocity_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._acceleration_hist[axis]) > 1:
+                self._acceleration_hist[axis] = [
+                    hist for hist in self._acceleration_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._current_hist[axis]) > 1:
+                self._current_hist[axis] = [
+                    hist for hist in self._current_hist[axis] if hist[0] > time_limit
+                ]
 
         if disable_reporting_after:
             self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
