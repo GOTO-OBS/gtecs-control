@@ -528,26 +528,37 @@ class DomeMonitor(BaseMonitor):
 
         elif ERROR_HARDWARE in self.errors:
             # The dome daemon connects to the dome plc, the heartbeat monitor and the dehumidifier.
-            # The dome is obviously the higher priority to try and fix.
+            # The daemon itself should be trying to restart the connection, so it's not ideal if
+            # our first response is to reboot the power. It would be a good use of the delay
+            # system, but ERROR_HARDWARE is a catch-all for hardware errors so we can't add one in.
+            # Instead we'll cheat by just issuing a non-command to delay for a few seconds,
+            # before resorting to rebooting the power.
+            # TODO: Allow per-error delays (or split ERROR_HARDWARE into specific errors).
             if 'dome' in self.bad_hardware:
                 # PROBLEM: We've lost connection to the dome.
                 recovery_procedure = {}
-                # SOLUTION 1: Try rebooting the dome power.
-                recovery_procedure[1] = ['power reboot dome', 60]
+                # SOLUTION 1: Give it a few seconds for the daemon to try to reconnect.
+                recovery_procedure[1] = ['dome info', 10]
+                # SOLUTION 2: Try rebooting the dome power.
+                recovery_procedure[2] = ['power reboot dome', 60]
                 # OUT OF SOLUTIONS: We can't contact the dome, panic! Send out the alert.
                 return ERROR_HARDWARE + 'dome', recovery_procedure
             elif 'heartbeat' in self.bad_hardware:
                 # PROBLEM: We've lost connection to the heartbeat monitor.
                 recovery_procedure = {}
-                # SOLUTION 1: Also try rebooting the dome power, since it powers the heartbeat too.
-                recovery_procedure[1] = ['power reboot dome', 60]
+                # SOLUTION 1: Give it a few seconds for the daemon to try to reconnect.
+                recovery_procedure[1] = ['dome info', 10]
+                # SOLUTION 2: Also try rebooting the dome power, since it powers the heartbeat too.
+                recovery_procedure[2] = ['power reboot dome', 60]
                 # OUT OF SOLUTIONS: We can't contact the monitor, send out the alert.
                 return ERROR_HARDWARE + 'dome', recovery_procedure
             elif 'dehumidifer' in self.bad_hardware:
                 # PROBLEM: We've lost connection to the dehumidifer.
                 recovery_procedure = {}
+                # SOLUTION 1: Give it a few seconds for the daemon to try to reconnect.
+                recovery_procedure[1] = ['dome info', 10]
                 # SOLUTION 1: Try rebooting the dehumidifier power.
-                recovery_procedure[1] = ['power reboot dehumid', 60]
+                recovery_procedure[2] = ['power reboot dehumid', 60]
                 # OUT OF SOLUTIONS: Not much else we can do, must be a hardware problem.
                 return ERROR_HARDWARE + 'dehumidifer', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
