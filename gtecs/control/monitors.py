@@ -527,7 +527,7 @@ class DomeMonitor(BaseMonitor):
             return None, {}
 
         elif ERROR_HARDWARE in self.errors:
-            # The dome daemon connects to the dome and the dehumidifier.
+            # The dome daemon connects to the dome plc, the heartbeat monitor and the dehumidifier.
             # The dome is obviously the higher priority to try and fix.
             if 'dome' in self.bad_hardware:
                 # PROBLEM: We've lost connection to the dome.
@@ -535,6 +535,13 @@ class DomeMonitor(BaseMonitor):
                 # SOLUTION 1: Try rebooting the dome power.
                 recovery_procedure[1] = ['power reboot dome', 60]
                 # OUT OF SOLUTIONS: We can't contact the dome, panic! Send out the alert.
+                return ERROR_HARDWARE + 'dome', recovery_procedure
+            elif 'heartbeat' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the heartbeat monitor.
+                recovery_procedure = {}
+                # SOLUTION 1: Also try rebooting the dome power, since it powers the heartbeat too.
+                recovery_procedure[1] = ['power reboot dome', 60]
+                # OUT OF SOLUTIONS: We can't contact the monitor, send out the alert.
                 return ERROR_HARDWARE + 'dome', recovery_procedure
             elif 'dehumidifer' in self.bad_hardware:
                 # PROBLEM: We've lost connection to the dehumidifer.
