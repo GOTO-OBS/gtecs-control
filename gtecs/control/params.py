@@ -402,3 +402,11 @@ for ut in AUTOFOCUS_PARAMS:
 ENABLE_SLACK = config['ENABLE_SLACK']
 SLACK_BOT_TOKEN = config['SLACK_BOT_TOKEN']
 SLACK_DEFAULT_CHANNEL = config['SLACK_DEFAULT_CHANNEL']
+
+############################################################
+# Database parameters
+DATABASE_USER = config['DATABASE_USER']
+DATABASE_PASSWORD = config['DATABASE_PASSWORD']
+DATABASE_HOST = config['DATABASE_HOST']
+DATABASE_ECHO = bool(config['DATABASE_ECHO'])
+DATABASE_PRE_PING = bool(config['DATABASE_PRE_PING'])
