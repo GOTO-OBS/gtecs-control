@@ -47,9 +47,9 @@ class Exposure:
         Total number of exposures in this set
 
     set_id : int or None, default=None
-        The ExposureSet ID, if this exposure comes from the database
+        The ExposureSet ID from the observation database, if this exposure comes via the scheduler
     pointing_id : int or None, default=None
-        The pointing ID, if this exposure comes from the database
+        The Pointing ID from the observation database, if this exposure comes via the scheduler
 
     """
 
@@ -76,7 +76,7 @@ class Exposure:
         self.set_pos = set_pos
         self.set_tot = set_tot
 
-        # Database arguments
+        # ObsDB arguments
         self.set_id = set_id
         self.pointing_id = pointing_id
 
@@ -155,7 +155,7 @@ class Exposure:
         if self.in_set:
             msg += '  Set number: {}\n'.format(self.set_num)
             msg += '  Position in set: {}/{}\n'.format(self.set_pos, self.set_tot)
-        if self.from_database:
+        if self.set_id is not None:
             msg += '  ExposureSet database ID: {}\n'.format(self.set_id)
             msg += '  Pointing database ID: {}\n'.format(self.pointing_id)
         return msg
@@ -164,11 +164,6 @@ class Exposure:
     def in_set(self):
         """Return True if this exposure is part of a set."""
         return self.set_num is not None
-
-    @property
-    def from_database(self):
-        """Return True if this exposure is from the database."""
-        return self.set_id is not None
 
 
 class ExposureQueue(MutableSequence):

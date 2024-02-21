@@ -329,17 +329,17 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 pass
             bad_daemons.append('conditions_history')
 
-    # Database
+    # Observing database
     if daemon_info['cam']['current_exposure']['set_id'] is not None:
         try:
             if log and log_debug:
-                log.debug('Fetching database info')
+                log.debug('Fetching observation database info')
             db_info = {}
-            db_info['from_database'] = True
+            db_info['from_obsdb'] = True
             db_info['expset_id'] = daemon_info['cam']['current_exposure']['set_id']
             db_info['pointing_id'] = daemon_info['cam']['current_exposure']['pointing_id']
 
-            # Get Pointing info from the scheduler
+            # Get info from the observation database via the scheduler
             pointing_info = get_pointing_info(db_info['pointing_id'])
             db_info.update(pointing_info)
 
@@ -352,17 +352,17 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
 
             daemon_info['db'] = db_info
             if log and log_debug:
-                log.debug('Fetched database info')
+                log.debug('Fetched observation database info')
         except Exception:
             if log is None:
                 raise
-            log.error('Failed to fetch database info')
+            log.error('Failed to fetch observation database info')
             log.debug('', exc_info=True)
             daemon_info['db'] = None
             bad_daemons.append('database')
     else:
         db_info = {}
-        db_info['from_database'] = False
+        db_info['from_obsdb'] = False
         daemon_info['db'] = db_info
 
     # Other params (do this here to ensure they're the same for all UTs)
@@ -523,24 +523,24 @@ def make_header(ut, daemon_info=None):
                    'Recommended dark section for right channel'))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # Database info
+    # Observation database info
     if daemon_info.get('db') is None:
-        raise ValueError('No database info provided')
+        raise ValueError('No observation database info provided')
 
-    # Was this pointing linked to the database (darks, flats etc are False)?
-    header.append(('FROMDB  ', daemon_info['db']['from_database'],
-                   'Exposure linked to database pointing?'))
+    # Was this exposure linked to a pointing in the ObsDB (darks, flats etc are False)?
+    header.append(('FROMDB  ', daemon_info['db']['from_obsdb'],
+                   'Exposure linked to observation database pointing?'))
 
     # DB ExposureSet properties
-    if daemon_info['db']['from_database']:
+    if daemon_info['db']['from_obsdb']:
         expset_id = daemon_info['db']['expset_id']  # from Exposure
     else:
         expset_id = 'NA'
     header.append(('DB-EXPS ', expset_id,
-                   'Database ExposureSet ID'))
+                   'Observation database ExposureSet ID'))
 
     # DB Pointing properties
-    if daemon_info['db']['from_database']:
+    if daemon_info['db']['from_obsdb']:
         pointing_id = daemon_info['db']['pointing_id']
         if daemon_info['db']['rank'] is not None:
             rank = daemon_info['db']['rank']
@@ -560,7 +560,7 @@ def make_header(ut, daemon_info=None):
         start_time = 'NA'
         stop_time = 'NA'
     header.append(('DB-PNT  ', pointing_id,
-                   'Database Pointing ID'))
+                   'Observation database Pointing ID'))
     header.append(('RANK    ', rank,
                    'Rank of this pointing when observed'))
     header.append(('LIM-STRT', start_time,
@@ -569,7 +569,7 @@ def make_header(ut, daemon_info=None):
                    'Valid stop time limit for this pointing'))
 
     # DB Target properties
-    if daemon_info['db']['from_database']:
+    if daemon_info['db']['from_obsdb']:
         target_id = daemon_info['db']['target_id']
         if daemon_info['db']['start_rank'] is not None:
             initial_rank = daemon_info['db']['start_rank']
@@ -585,7 +585,7 @@ def make_header(ut, daemon_info=None):
         num_observed = 'NA'
         is_template = 'NA'
     header.append(('DB-TARG ', target_id,
-                   'Database Target ID'))
+                   'Observation database Target ID'))
     header.append(('BASERANK', initial_rank,
                    'Initial rank of this Target'))
     header.append(('WEIGHT  ', weight,
@@ -596,7 +596,7 @@ def make_header(ut, daemon_info=None):
                    'Is this Pointing a template observation?'))
 
     # DB Strategy properties
-    if daemon_info['db']['from_database']:
+    if daemon_info['db']['from_obsdb']:
         strategy_id = daemon_info['db']['strategy_id']
         infinite = daemon_info['db']['infinite']
         if daemon_info['db']['min_time'] is not None:
@@ -620,7 +620,7 @@ def make_header(ut, daemon_info=None):
         max_moon = 'NA'
         min_moonsep = 'NA'
     header.append(('DB-STRAT', strategy_id,
-                   'Database Strategy ID'))
+                   'Observation database Strategy ID'))
     header.append(('INFINITE', infinite,
                    'Is this an infinitely repeating pointing?'))
     header.append(('LIM-TIME', min_time,
@@ -639,7 +639,7 @@ def make_header(ut, daemon_info=None):
                    'Minimum Moon distance limit for this pointing'))
 
     # DB TimeBlock properties
-    if daemon_info['db']['from_database']:
+    if daemon_info['db']['from_obsdb']:
         time_block_id = daemon_info['db']['time_block_id']
         block_num = daemon_info['db']['block_num']
         if daemon_info['db']['wait_time'] is not None:
@@ -656,7 +656,7 @@ def make_header(ut, daemon_info=None):
         wait_time = 'NA'
         valid_time = 'NA'
     header.append(('DB-TIMBK', time_block_id,
-                   'Database TimeBlock ID'))
+                   'Observation database TimeBlock ID'))
     header.append(('TIMBKNUM', block_num,
                    'Number of this time block'))
     header.append(('TIMEVALD', wait_time,
@@ -665,7 +665,7 @@ def make_header(ut, daemon_info=None):
                    'How long between Pointings for this Target'))
 
     # DB User properties
-    if daemon_info['db']['from_database']:
+    if daemon_info['db']['from_obsdb']:
         user_id = daemon_info['db']['user_id']
         user_name = daemon_info['db']['user_name']
         user_fullname = daemon_info['db']['user_fullname']
@@ -674,14 +674,14 @@ def make_header(ut, daemon_info=None):
         user_name = 'NA'
         user_fullname = 'NA'
     header.append(('DB-USER ', user_id,
-                   'Database User ID who submitted this pointing'))
+                   'Observation database User ID who submitted this pointing'))
     header.append(('USERNAME', user_name,
                    'Username that submitted this pointing'))
     header.append(('USERFULL', user_fullname,
                    'User who submitted this pointing'))
 
     # DB Grid properties (optional)
-    if daemon_info['db']['from_database'] and daemon_info['db']['grid_id'] is not None:
+    if daemon_info['db']['from_obsdb'] and daemon_info['db']['grid_id'] is not None:
         grid_id = daemon_info['db']['grid_id']
         grid_name = daemon_info['db']['grid_name']
         tile_id = daemon_info['db']['tile_id']
@@ -692,28 +692,28 @@ def make_header(ut, daemon_info=None):
         tile_id = 'NA'
         tile_name = 'NA'
     header.append(('DB-GRID ', grid_id,
-                   'Database Grid ID'))
+                   'Observation database Grid ID'))
     header.append(('GRID    ', grid_name,
                    'Sky grid name'))
     header.append(('DB-GTILE', tile_id,
-                   'Database GridTile ID'))
+                   'Observation database GridTile ID'))
     header.append(('TILENAME', tile_name,
                    'Name of this grid tile'))
 
     # DB Survey properties (optional)
-    if daemon_info['db']['from_database'] and daemon_info['db']['survey_id'] is not None:
+    if daemon_info['db']['from_obsdb'] and daemon_info['db']['survey_id'] is not None:
         survey_id = daemon_info['db']['survey_id']
         survey_name = daemon_info['db']['survey_name']
     else:
         survey_id = 'NA'
         survey_name = 'NA'
     header.append(('DB-SURVY', survey_id,
-                   'Database Survey ID'))
+                   'Observation database Survey ID'))
     header.append(('SURVEY  ', survey_name,
                    'Name of this survey'))
 
     # DB Notice/Event properties (optional)
-    if daemon_info['db']['from_database'] and daemon_info['db']['notice_id'] is not None:
+    if daemon_info['db']['from_obsdb'] and daemon_info['db']['notice_id'] is not None:
         notice_id = daemon_info['db']['notice_id']
         notice_ivorn = daemon_info['db']['notice_ivorn']
         if daemon_info['db']['notice_time'] is not None:
@@ -738,13 +738,13 @@ def make_header(ut, daemon_info=None):
         event_origin = 'NA'
         event_time = 'NA'
     header.append(('DB-NOTIC', notice_id,
-                   'Database Notice ID'))
+                   'Observation database Notice ID'))
     header.append(('IVORN   ', notice_ivorn,
                    'GCN Notice IVORN'))
     header.append(('RCVTIME ', notice_time,
                    'Time the GCN Notice was received'))
     header.append(('DB-EVENT', event_id,
-                   'Database Event ID'))
+                   'Observation database Event ID'))
     header.append(('EVENT   ', event_name,
                    'Event name for this pointing'))
     header.append(('EVNTTYPE', event_type,

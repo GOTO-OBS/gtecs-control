@@ -635,7 +635,7 @@ class Pilot:
         # cleanup for specific scripts
         if name == 'OBS':
             # If it was an observation that just finished then update the status.
-            # It should then be sent to the database in the next scheduler update.
+            # It should then be sent to the observation database in the next scheduler update.
             # First we need to wait just in case the scheduler is currently being updated,
             # otherwise things get messed up.
             while self.scheduler_updating:
@@ -975,8 +975,8 @@ class Pilot:
                 if sunalt_now > until_sunalt:
                     # We've reached the limit and we're still observing, so we need to abort
                     # any current observation.
-                    # This should set current_status, and then we'll update the database and
-                    # exit the loop below.
+                    # This should set current_status, then we'll update the observation database
+                    # one last time and exit the loop below.
                     self.log.info('sunalt={:.1f}, finished observing'.format(sunalt_now))
                     await self.cancel_running_script('obs finished')
                     request_pointing = False
@@ -1009,7 +1009,7 @@ class Pilot:
                 # Don't spam None if we didn't want anything
                 self.log.debug('current pointing: None')
 
-            # Now update the database and get the latest pointing from the scheduler
+            # Now update the observation database and get the latest pointing from the scheduler
             self.scheduler_updating = True
             attempts_remaining = 3
             while attempts_remaining:
@@ -1067,7 +1067,7 @@ class Pilot:
 
             # TODO: WHAT IF WE PAUSED WHILE CHECKING?? (G3 2023-08-22 12:2)
 
-            # Now that we've updated the database we can clear the current Pointing
+            # Now that we've updated the observation database we can clear the current Pointing
             if self.current_status in ['completed', 'interrupted']:
                 self.current_pointing = None
                 self.current_status = None
@@ -1112,7 +1112,7 @@ class Pilot:
             # Exit the loop if we didn't request a pointing.
             # We still want the above scheduler communication to happen if we're paused.
             # If we were observing then pausing should have killed OBS, which will have flagged the
-            # pointing as interrupted. So we need the database update to happen above.
+            # pointing as interrupted. So we need the ObsDB update to happen above.
             # Likewise if it's the end of the night we need to loop until observing=False.
             # But we can skip everything below.
             # Note if we were already paused then request_pointing should be false, but we include

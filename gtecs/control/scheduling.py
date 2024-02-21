@@ -31,7 +31,7 @@ def scheduler_proxy(asynchronous=False, timeout=30):
 def update_schedule_pyro(current_pointing=None, current_status=None,
                          shielding=False, request_pointing=True, force_update=False,
                          asynchronous=False):
-    """Update the observing database and get what to observe next from the scheduler."""
+    """Update the observation database and get what to observe next from the scheduler."""
     with scheduler_proxy(asynchronous) as scheduler:
         new_pointing = scheduler.update_schedule(params.TELESCOPE_NUMBER,
                                                  current_pointing,
@@ -52,7 +52,7 @@ def get_pointing_info_pyro(pointing_id):
 
 def update_schedule_server(current_pointing=None, current_status=None,
                            shielding=False, request_pointing=True, force_update=False):
-    """Update the observing database and get what to observe next from the scheduler."""
+    """Update the observation database and get what to observe next from the scheduler."""
     if params.SCHEDULER_PORT == 9999:
         url = f'http://{params.SCHEDULER_HOST}/scheduler/'
     else:
@@ -75,7 +75,7 @@ def update_schedule_server(current_pointing=None, current_status=None,
 
 async def update_schedule_server_async(current_pointing=None, current_status=None,
                                        shielding=False, request_pointing=True, force_update=False):
-    """Update the observing database and get what to observe next from the scheduler."""
+    """Update the observation database and get what to observe next from the scheduler."""
     if params.SCHEDULER_PORT == 9999:
         url = f'http://{params.SCHEDULER_HOST}/scheduler/'
     else:

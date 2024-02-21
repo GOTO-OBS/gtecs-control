@@ -170,11 +170,11 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='Observe the given database pointing.')
+    parser = ArgumentParser(description='Observe the given pointing from the observation database.')
     # Mandatory arguments
     parser.add_argument('pointing_id',
                         type=int,
-                        help='Pointing Database ID',
+                        help='ObsDB Pointing ID',
                         )
     # Flags
     parser.add_argument('--refocus', action='store_true',
