@@ -856,7 +856,7 @@ class DomeHeartbeat:
 
         self.enabled = True
         self.timeout = timeout
-        self.status = 'ERROR'
+        self.status = None
         self.old_status = None
         self.connection_error = False
 
@@ -900,6 +900,13 @@ class DomeHeartbeat:
         while self.thread_running:
             # check heartbeat status
             self._read_heartbeat()
+
+            if self.connection_error:
+                # if we can't communicate with the heartbeat monitor after 3 tries then exit
+                if self.log:
+                    self.log.error('Connection error, exiting heartbeat thread')
+                self.thread_running = False
+                break
 
             if not self.enabled:
                 # send a 0 to make sure the system is disabled

@@ -440,8 +440,9 @@ class DomeDaemon(BaseDaemon):
                 params.DOME_DEBUG,
             )
 
-            # Check if it's connected
-            if self.heartbeat.connection_error:
+            # Check if it's connected and the thread is running
+            time.sleep(3)  # sleep briefly, to make sure the connection has started
+            if self.heartbeat.connection_error or not self.heartbeat.thread_running:
                 raise ValueError('Failed to connect to heartbeat monitor')
 
             # Connection successful
@@ -547,10 +548,12 @@ class DomeDaemon(BaseDaemon):
         try:
             heartbeat_status = self.heartbeat.status
             temp_info['heartbeat_status'] = heartbeat_status
+            if heartbeat_status == 'ERROR':
+                raise ValueError('Heartbeat status is ERROR')
         except Exception:
             self.log.error('Failed to get heartbeat info')
             self.log.debug('', exc_info=True)
-            temp_info['heartbeat_status'] = None
+            temp_info['heartbeat_status'] = 'ERROR'
             # Report the connection as failed
             self.heartbeat = None
             if 'heartbeat' not in self.bad_hardware:
@@ -1256,7 +1259,9 @@ class DomeDaemon(BaseDaemon):
         info = self.get_info(force_update)
         if not verbose:
             msg = 'DOME:               [{}|{}]\n'.format(
-                info['a_side'].capitalize(), info['b_side'].capitalize())
+                info['a_side'].capitalize() if info['a_side'] != 'ERROR' else rtxt('ERROR'),
+                info['b_side'].capitalize() if info['b_side'] != 'ERROR' else rtxt('ERROR'),
+            )
             if info['lockdown']:
                 msg += rtxt('   LOCKDOWN ACTIVE: {}\n'.format(
                             ';'.join(info['lockdown_reasons'])))
@@ -1283,46 +1288,52 @@ class DomeDaemon(BaseDaemon):
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
             msg += '   Heartbeat:       [{}]\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
-                else info['heartbeat_status'].capitalize())
+                else info['heartbeat_status'].capitalize()
+                if (info['heartbeat_status'] and info['heartbeat_status'] != 'ERROR')
+                else rtxt('ERROR'))
             if info['emergency']:
                 msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
                 msg += rtxt('REASON(S): {}\n'.format(info['emergency_reasons']))
             msg = msg.rstrip()
         else:
             msg = '######## DOME INFO ########\n'
-            msg += 'A side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
-                                               info['a_side'].capitalize())
-            msg += 'B side ({}):  {}\n'.format(params.DOME_ASIDE_NAME.capitalize(),
-                                               info['b_side'].capitalize())
-            msg += 'Autoclose:    {}\n'.format(
+            msg += 'A side ({}):  {}\n'.format(
+                params.DOME_ASIDE_NAME.capitalize(),
+                info['a_side'].capitalize() if info['a_side'] != 'ERROR' else rtxt('ERROR'))
+            msg += 'B side ({}):  {}\n'.format(
+                params.DOME_BSIDE_NAME.capitalize(),
+                info['b_side'].capitalize() if info['b_side'] != 'ERROR' else rtxt('ERROR'))
+            msg += 'Autoclose:       {}\n'.format(
                 rtxt('Disabled') +
                 (f' (for {info["autoclose_timeout"]-time.time():.1f}s)'
                  if info['autoclose_timeout'] is not None else '')
                 if not info['autoclose_enabled'] else 'Enabled')
-            msg += 'Windshield:   {}\n'.format(
+            msg += 'Windshield:      {}\n'.format(
                 gtxt('On') if info['windshield_enabled'] else 'Off')
-            msg += ' - Autoshield:  {}\n'.format(
+            msg += ' - Autoshield:   {}\n'.format(
                 rtxt('Disabled') if not info['autoshield_enabled'] else 'Enabled')
             if params.DOME_HAS_DEHUMIDIFIER:
-                msg += 'Dehumidifier: {}\n'.format(
+                msg += 'Dehumidifier:    {}\n'.format(
                     gtxt('On') if info['dehumidifier_on'] else 'Off')
-                msg += ' - Autodehum:   {}\n'.format(
+                msg += ' - Autodehum:    {}\n'.format(
                     rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
-            msg += 'Hatch:        {}\n'.format(
+            msg += 'Hatch:           {}\n'.format(
                 rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
                 else 'Closed')
-            msg += 'Alarm:        {}\n'.format(
+            msg += 'Alarm:           {}\n'.format(
                 rtxt('Disabled') if not info['alarm_enabled'] else 'Enabled')
-            msg += 'Heartbeat:    {}\n'.format(
+            msg += 'Heartbeat:       {}\n'.format(
                 rtxt('Disabled') if info['heartbeat_status'] == 'disabled'
-                else info['heartbeat_status'].capitalize())
-            msg += 'Lockdown:     {}\n'.format(
+                else info['heartbeat_status'].capitalize()
+                if (info['heartbeat_status'] and info['heartbeat_status'] != 'ERROR')
+                else rtxt('ERROR'))
+            msg += 'Lockdown:        {}\n'.format(
                 rtxt('ACTIVE') if info['lockdown'] else 'Clear')
             if info['lockdown']:
                 msg += ' - Lockdown reasons:\n'
                 for reason in info['lockdown_reasons']:
                     msg += rtxt('   {}\n'.format(reason))
-            msg += 'Shielding:    {}\n'.format(
+            msg += 'Shielding:       {}\n'.format(
                 ytxt('ACTIVE') if info['shielding'] else 'Clear')
             if info['emergency']:
                 msg += rtxt('EMERGENCY SHUTDOWN ACTIVE: {}\n'.format(info['emergency_time']))
