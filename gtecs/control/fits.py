@@ -529,7 +529,7 @@ def make_header(ut, daemon_info=None):
 
     # Was this exposure linked to a pointing in the ObsDB (darks, flats etc are False)?
     header.append(('FROMDB  ', daemon_info['db']['from_obsdb'],
-                   'Exposure linked to observation database pointing?'))
+                   'Exposure linked to obs database pointing?'))
 
     # DB ExposureSet properties
     if daemon_info['db']['from_obsdb']:
@@ -674,7 +674,7 @@ def make_header(ut, daemon_info=None):
         user_name = 'NA'
         user_fullname = 'NA'
     header.append(('DB-USER ', user_id,
-                   'Observation database User ID who submitted this pointing'))
+                   'Observation database User ID'))
     header.append(('USERNAME', user_name,
                    'Username that submitted this pointing'))
     header.append(('USERFULL', user_fullname,
