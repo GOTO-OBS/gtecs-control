@@ -861,14 +861,7 @@ class DomeHeartbeat:
         self.thread_running = False
 
         # connect to serial port
-        try:
-            self.connect()
-        except Exception:
-            if self.log:
-                self.log.error('Error connecting to heartbeat monitor')
-                self.log.debug('', exc_info=True)
-            self.serial = None
-            self.status = 'ERROR'
+        self.connect()
 
         # start heartbeat thread
         ht = threading.Thread(target=self._heartbeat_thread)
@@ -948,7 +941,6 @@ class DomeHeartbeat:
         while attempts_remaining:
             try:
                 if self.serial is None:
-                    # Failed to connect on startup or already disconnected, try reconnecting
                     self.connect()
                 self.old_status = self.status  # save previous status
                 if self.serial.in_waiting:
@@ -964,7 +956,7 @@ class DomeHeartbeat:
                     self.log.debug('', exc_info=True)
                     if self.old_status is not None:
                         self.log.debug('Previous status: {}'.format(self.old_status))
-                if self.serial is not None and attempts_remaining > 0:
+                if attempts_remaining > 0:
                     # If we have the connection then it's worth retrying
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
                     time.sleep(0.5)
