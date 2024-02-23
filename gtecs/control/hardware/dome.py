@@ -962,7 +962,8 @@ class DomeHeartbeat:
                 if self.log:
                     self.log.warning('Error communicating with the heartbeat monitor')
                     self.log.debug('', exc_info=True)
-                    self.log.debug('Previous status: {}'.format(self.old_status))
+                    if self.old_status is not None:
+                        self.log.debug('Previous status: {}'.format(self.old_status))
                 if self.serial is not None and attempts_remaining > 0:
                     # If we have the connection then it's worth retrying
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
@@ -971,6 +972,7 @@ class DomeHeartbeat:
                     if self.log:
                         self.log.error('Could not communicate with the heartbeat monitor')
                     self.status = 'ERROR'
+                    break
 
     def _parse_status(self, status_character):
         """Parse the return value from heartbeat."""
