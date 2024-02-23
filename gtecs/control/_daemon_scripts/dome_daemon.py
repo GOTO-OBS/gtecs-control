@@ -414,10 +414,11 @@ class DomeDaemon(BaseDaemon):
 
         except Exception:
             # Connection failed
-            self.dome.disconnect()
+            if self.dome is not None:
+                self.dome.disconnect()
             self.dome = None
+            self.log.error('Failed to connect to dome')
             if 'dome' not in self.bad_hardware:
-                self.log.error('Failed to connect to dome')
                 self.bad_hardware.add('dome')
 
     def _connect_to_heartbeat(self):
@@ -455,8 +456,8 @@ class DomeDaemon(BaseDaemon):
             if self.heartbeat is not None:
                 self.heartbeat.disconnect()
             self.heartbeat = None
+            self.log.error('Failed to connect to heartbeat')
             if 'heartbeat' not in self.bad_hardware:
-                self.log.error('Failed to connect to heartbeat')
                 self.bad_hardware.add('heartbeat')
 
     def _connect_to_dehumidifier(self):
@@ -493,8 +494,8 @@ class DomeDaemon(BaseDaemon):
         except Exception:
             # Connection failed
             self.dehumidifier = None
+            self.log.error('Failed to connect to dehumidifier')
             if 'dehumidifier' not in self.bad_hardware:
-                self.log.error('Failed to connect to dehumidifier')
                 self.bad_hardware.add('dehumidifier')
 
     def _get_info(self):
