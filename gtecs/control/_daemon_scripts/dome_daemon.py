@@ -452,7 +452,8 @@ class DomeDaemon(BaseDaemon):
 
         except Exception:
             # Connection failed
-            self.heartbeat.disconnect()
+            if self.heartbeat is not None:
+                self.heartbeat.disconnect()
             self.heartbeat = None
             if 'heartbeat' not in self.bad_hardware:
                 self.log.error('Failed to connect to heartbeat')
