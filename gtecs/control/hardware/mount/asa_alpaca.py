@@ -796,7 +796,7 @@ class FakeDDM500:
         self.device_number = device_number
 
         self._status_update_time = 0
-        self.connected = True
+        self._connected = True
         self.info = self._get_info()
 
         # Create a logger if one isn't given
@@ -810,29 +810,42 @@ class FakeDDM500:
         # Fake position and statuses (starting from parked position)
         self._park_alt, self._park_az = 70, 0
         self._ra, self._dec = radec_from_altaz(self._park_alt, self._park_az)
-        self.tracking = False
-        self.slewing = False
-        self.guiding = False
-        self.parked = True
-        self.motors_on = False
-        self.position_error = {'ra': 0, 'dec': 0}
-        self.tracking_error = {'ra': 0, 'dec': 0}
-        self.velocity = {'ra': 0, 'dec': 0}
-        self.acceleration = {'ra': 0, 'dec': 0}
-        self.motor_current = {'ra': 0, 'dec': 0}
-        self.tracking_rate = {'ra': 0, 'dec': 0}
-        self.guide_rate = {'ra': 0, 'dec': 0}
+        self._tracking = False
+        self._slewing = False
+        self._guiding = False
+        self._parked = True
+        self._motors_on = False
+        self._tracking_rate = {'ra': 0, 'dec': 0}
+        self._guide_rate = {'ra': 0, 'dec': 0}
+        self._pier_side = 1
+        self._position = {'ra': 0, 'dec': 0}
+        self._position_error = {'ra': 0, 'dec': 0}
+        self._tracking_error = {'ra': 0, 'dec': 0}
+        self._velocity = {'ra': 0, 'dec': 0}
+        self._acceleration = {'ra': 0, 'dec': 0}
+        self._current = {'ra': 0, 'dec': 0}
+        self._position_hist = {'ra': [], 'dec': []}
+        self._position_error_hist = {'ra': [], 'dec': []}
+        self._tracking_error_hist = {'ra': [], 'dec': []}
+        self._velocity_hist = {'ra': [], 'dec': []}
+        self._acceleration_hist = {'ra': [], 'dec': []}
+        self._current_hist = {'ra': [], 'dec': []}
 
         self._slewing_thread_running = False
         self._slew_speed = 10  # deg/sec
 
     def connect(self):
         """Connect to the mount device."""
-        self.connected = True
+        self._connected = True
+
+    @property
+    def connected(self):
+        """Check connection to the mount device."""
+        return self._connected
 
     def disconnect(self):
         """Disconnect from the mount device."""
-        self.connected = False
+        self._connected = False
 
     def _get_info(self):
         """Get basic mount properties."""
@@ -840,14 +853,13 @@ class FakeDDM500:
         # Mount params
         info['equatorialsystem'] = 1
         info['doesrefraction'] = True
-        info['trackingrates'] = self.connected = True
+        info['trackingrates'] = [0, 1, 2]
         # ASCOM params
         info['name'] = 'Fake ASA'
         info['description'] = 'Fake ASA mount class'
         info['driverinfo'] = 'Fake class'
         info['driverversion'] = '0.0'
         info['interfaceversion'] = 0
-        info['sideofpier'] = 1
         # AutoSlew params
         info['mounttype'] = '2'
         info['maxspeed'] = '12'
@@ -867,9 +879,34 @@ class FakeDDM500:
         return get_lst().hourangle
 
     @property
+    def tracking(self):
+        """Return if the mount is currently tracking."""
+        return self._tracking
+
+    @property
     def nonsidereal(self):
         """Return if the mount has a non-sidereal tracking rate set."""
         return self.tracking_rate['ra'] != 0 or self.tracking_rate['dec'] != 0
+
+    @property
+    def slewing(self):
+        """Return if the mount is currently slewing."""
+        return self._slewing
+
+    @property
+    def guiding(self):
+        """Return if the mount is currently pulse guiding."""
+        return self._guiding
+
+    @property
+    def parked(self):
+        """Return if the mount is currently parked."""
+        return self._parked
+
+    @property
+    def motors_on(self):
+        """Return if the mount motors are currently on."""
+        return self._motors_on
 
     @property
     def status(self):
@@ -912,14 +949,89 @@ class FakeDDM500:
         _, az = altaz_from_radec(self._ra, self._dec)
         return az
 
+    @property
+    def tracking_rate(self):
+        """Return the current tracking rate (arcsec/sec)."""
+        return self._tracking_rate
+
+    @property
+    def guide_rate(self):
+        """Return the current pulse guiding rate (degrees/sec)."""
+        return self._guide_rate
+
+    @property
+    def pier_side(self):
+        """Return which side of the pier the mount is currently on."""
+        return self._pier_side
+
+    @property
+    def encoder_position(self):
+        """Return the current encoder position in both axes."""
+        return self._position
+
+    @property
+    def encoder_position_history(self):
+        """Return the history of encoder positions in both axes."""
+        return self._position_hist
+
+    @property
+    def position_error(self):
+        """Return the current encoder position error in both axes."""
+        return self._position_error
+
+    @property
+    def position_error_history(self):
+        """Return the history of encoder position errors in both axes."""
+        return self._position_error_hist
+
+    @property
+    def tracking_error(self):
+        """Return the current tracking error in both axes."""
+        return self._tracking_error
+
+    @property
+    def tracking_error_history(self):
+        """Return the history of tracking errors in both axes."""
+        return self._tracking_error_hist
+
+    @property
+    def velocity(self):
+        """Return the current motor velocity in both axes."""
+        return self._velocity
+
+    @property
+    def velocity_history(self):
+        """Return the history of motor velocities in both axes."""
+        return self._velocity_hist
+
+    @property
+    def acceleration(self):
+        """Return the current motor acceleration in both axes."""
+        return self._acceleration
+
+    @property
+    def acceleration_history(self):
+        """Return the history of motor accelerations in both axes."""
+        return self._acceleration_hist
+
+    @property
+    def motor_current(self):
+        """Return the current motor current in both axes."""
+        return self._current
+
+    @property
+    def motor_current_history(self):
+        """Return the history of motor currents in both axes."""
+        return self._current_hist
+
     def _slewing_thread(self, target_ra, target_dec, parking=False):
         """Simulate slewing from one position to another (very basic!)."""
-        self.tracking = False
-        self.parked = False
-        self.guiding = False
-        self.slewing = True
+        self._tracking = False
+        self._parked = False
+        self._guiding = False
+        self._slewing = True
 
-        while self.slewing:
+        while self._slewing:
             if self.log and self.log_debug:
                 self.log.debug('Slewing: {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                     self._ra, self._dec, target_ra, target_dec))
@@ -944,11 +1056,11 @@ class FakeDDM500:
 
             time.sleep(0.1)
 
-        self.slewing = False
+        self._slewing = False
         if not parking:
-            self.tracking = True
+            self._tracking = True
         else:
-            self.parked = True
+            self._parked = True
 
     def slew_to_radec(self, ra, dec):
         """Slew to given RA and Dec coordinates (J2000)."""
@@ -969,7 +1081,7 @@ class FakeDDM500:
 
     def track(self):
         """Start tracking at the siderial rate."""
-        self.tracking = True
+        self._tracking = True
 
     def park(self):
         """Move mount to park position."""
@@ -981,19 +1093,19 @@ class FakeDDM500:
 
     def unpark(self):
         """Unpark the mount so it can accept slew commands."""
-        self.parked = False
+        self._parked = False
 
     def halt(self):
         """Abort slew (if slewing) and stop tracking (if tracking)."""
-        self.slewing = False
+        self._slewing = False
 
     def start_motors(self):
         """Start the mount motors."""
-        self.motors_on = True
+        self._motors_on = True
 
     def stop_motors(self):
         """Stop the mount motors."""
-        self.motors_on = False
+        self._motors_on = False
 
     def set_motor_power(self, activate):
         """Turn the mount motors on or off."""
@@ -1015,10 +1127,10 @@ class FakeDDM500:
 
     def _guiding_thread(self, direction, duration):
         """Simulate guiding in some direction (very basic!)."""
-        self.tracking = False
-        self.parked = False
-        self.slewing = False
-        self.guiding = True
+        self._tracking = False
+        self._parked = False
+        self._slewing = False
+        self._guiding = True
 
         guide_start_time = time.time()
         while self.guiding:
@@ -1044,8 +1156,8 @@ class FakeDDM500:
 
             time.sleep(0.1)
 
-        self.guiding = False
-        self.tracking = True
+        self._guiding = False
+        self._tracking = True
 
     def pulse_guide(self, direction, duration):
         """Move the scope in the given direction for the given duration (in ms)."""
