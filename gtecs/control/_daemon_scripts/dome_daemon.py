@@ -414,10 +414,12 @@ class DomeDaemon(BaseDaemon):
 
         except Exception:
             # Connection failed
-            self.dome.disconnect()
+            if self.dome is not None:
+                self.dome.disconnect()
             self.dome = None
+            self.log.error('Failed to connect to dome')
             if 'dome' not in self.bad_hardware:
-                self.log.error('Failed to connect to dome')
+                self.log.debug('', exc_info=True)
                 self.bad_hardware.add('dome')
 
     def _connect_to_heartbeat(self):
@@ -442,7 +444,7 @@ class DomeDaemon(BaseDaemon):
 
             # Check if it's connected and the thread is running
             time.sleep(3)  # sleep briefly, to make sure the connection has started
-            if self.heartbeat.connection_error or not self.heartbeat.thread_running:
+            if self.heartbeat.status == 'ERROR' or not self.heartbeat.thread_running:
                 raise ValueError('Failed to connect to heartbeat monitor')
 
             # Connection successful
@@ -452,10 +454,12 @@ class DomeDaemon(BaseDaemon):
 
         except Exception:
             # Connection failed
-            self.heartbeat.disconnect()
+            if self.heartbeat is not None:
+                self.heartbeat.disconnect()
             self.heartbeat = None
+            self.log.error('Failed to connect to heartbeat')
             if 'heartbeat' not in self.bad_hardware:
-                self.log.error('Failed to connect to heartbeat')
+                self.log.debug('', exc_info=True)
                 self.bad_hardware.add('heartbeat')
 
     def _connect_to_dehumidifier(self):
@@ -492,8 +496,9 @@ class DomeDaemon(BaseDaemon):
         except Exception:
             # Connection failed
             self.dehumidifier = None
+            self.log.error('Failed to connect to dehumidifier')
             if 'dehumidifier' not in self.bad_hardware:
-                self.log.error('Failed to connect to dehumidifier')
+                self.log.debug('', exc_info=True)
                 self.bad_hardware.add('dehumidifier')
 
     def _get_info(self):

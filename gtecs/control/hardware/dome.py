@@ -796,7 +796,6 @@ class FakeHeartbeat:
 
     def __init__(self):
         self.status = 'enabled'
-        self.connection_error = False
 
     def disconnect(self):
         """Shutdown the connection."""
@@ -858,20 +857,11 @@ class DomeHeartbeat:
         self.timeout = timeout
         self.status = None
         self.old_status = None
-        self.connection_error = False
 
         self.thread_running = False
 
         # connect to serial port
-        try:
-            self.serial = serial.Serial(self.serial_port,
-                                        baudrate=self.serial_baudrate,
-                                        timeout=self.serial_timeout)
-        except Exception:
-            if self.log:
-                self.log.error('Error connecting to heartbeat monitor')
-                self.log.debug('', exc_info=True)
-            self.status = 'ERROR'
+        self.connect()
 
         # start heartbeat thread
         ht = threading.Thread(target=self._heartbeat_thread)
@@ -880,6 +870,14 @@ class DomeHeartbeat:
 
     def __del__(self):
         self.disconnect()
+
+    def connect(self):
+        """Connect to the heartbeat via serial port."""
+        self.serial = serial.Serial(
+            self.serial_port,
+            baudrate=self.serial_baudrate,
+            timeout=self.serial_timeout,
+        )
 
     def disconnect(self):
         """Shutdown the connection."""
@@ -891,6 +889,8 @@ class DomeHeartbeat:
             self.serial.close()
         except AttributeError:
             pass
+        self.serial = None
+        self.status = 'ERROR'
 
     def _heartbeat_thread(self):
         if self.log:
@@ -901,8 +901,8 @@ class DomeHeartbeat:
             # check heartbeat status
             self._read_heartbeat()
 
-            if self.connection_error:
-                # if we can't communicate with the heartbeat monitor after 3 tries then exit
+            if self.status == 'ERROR':
+                # if we can't communicate with the heartbeat monitor then exit
                 if self.log:
                     self.log.error('Connection error, exiting heartbeat thread')
                 self.thread_running = False
@@ -940,50 +940,52 @@ class DomeHeartbeat:
         attempts_remaining = attempts
         while attempts_remaining:
             try:
+                if self.serial is None:
+                    self.connect()
+                self.old_status = self.status  # save previous status
                 if self.serial.in_waiting:
                     out = self.serial.read(self.serial.in_waiting)
                     x = out[-1]
-                    self._parse_status(x)
+                    self.status = self._parse_status(x)
                     if self.log and self.log_debug:
                         self.log.debug('heartbeat RECV:"{}" (status={})'.format(x, self.status))
-                return
             except Exception:
                 attempts_remaining -= 1
                 if self.log:
                     self.log.warning('Error communicating with the heartbeat monitor')
                     self.log.debug('', exc_info=True)
-                    self.log.debug('Previous status: {}'.format(self.old_status))
+                    if self.old_status is not None:
+                        self.log.debug('Previous status: {}'.format(self.old_status))
                 if attempts_remaining > 0:
+                    # If we have the connection then it's worth retrying
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
                     time.sleep(0.5)
                 else:
                     if self.log:
                         self.log.error('Could not communicate with the heartbeat monitor')
                     self.status = 'ERROR'
-                    self.connection_error = True
+                    break
 
     def _parse_status(self, status_character):
-        # save previous status
-        self.old_status = self.status
-        # parse value from heartbeat box
+        """Parse the return value from heartbeat."""
         if status_character == 254:
-            self.status = 'closing'
+            return 'closing'
         elif status_character == 255:
-            self.status = 'closed'
+            return 'closed'
         elif status_character == 0:
-            self.status = 'disabled'
+            return 'disabled'
         elif 0 < status_character < 254:
-            self.status = 'enabled'
+            return 'enabled'
         else:
-            self.status = 'ERROR'
             raise ValueError('Unable to parse reply from the heartbeat monitor: {}'.format(
                 status_character))
-        return
 
     def sound_alarm(self):
         """Sound the dome alarm using the heartbeat (always sounds for 5s)."""
         if self.log:
             self.log.warning('Sounding alarm (status={})'.format(self.status))
+        if self.serial is None or self.status == 'ERROR':
+            raise ValueError('Cannot connect to Heartbeat')  # TODO: should be HardwareError?
         v = 255
         self.serial.write(bytes([v]))
         if self.log and self.log_debug:
