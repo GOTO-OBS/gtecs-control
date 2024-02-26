@@ -4,13 +4,13 @@ import importlib.resources as pkg_resources
 import warnings
 
 from astropy import units as u
-from astropy.coordinates import SkyCoord, get_moon
+from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astropy.time import Time
 
 import numpy as np
 
-from ..astronomy import altaz_from_radec
+from ..astronomy import altaz_from_radec, get_moon_distance
 
 
 class GlieseStar(object):
@@ -69,15 +69,7 @@ def focus_star(time):
         mag_mask = np.fabs(jmag - 10) < 2
 
     # filter on moon distance
-    moon = get_moon(time)
-
-    # NOTE - the order matters
-    # moon.separation(target) is NOT the same as target.separation(moon)
-    # the former calculates the separation in the frame of the moon coord
-    # which is GCRS, and that is what we want.
-    # https://github.com/astropy/astroplan/blob/master/astroplan/constraints.py
-
-    moon_dist = moon.separation(coords).degree
+    moon_dist = get_moon_distance(coords.ra.deg, coords.dec.deg, time)
     moon_mask = moon_dist > 45
 
     mask = mag_mask & moon_mask
