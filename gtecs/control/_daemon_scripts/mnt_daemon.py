@@ -1004,46 +1004,46 @@ class MntDaemon(BaseDaemon):
             ra, dec = info['mount_ra'], info['mount_dec']
             ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
             dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-            msg += 'Telescope RA:     {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
-            msg += 'Telescope Dec:    {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
+            msg += 'Telescope RA:      {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
+            msg += 'Telescope Dec:     {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
 
             if info['target_alt'] is None:
                 # Assume RA/Dec target, unless Alt/Az is set
                 if info['target_ra'] is not None:
                     ra = info['target_ra']
                     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-                    msg += 'Target RA:        {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
+                    msg += 'Target RA:         {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
                 else:
-                    msg += 'Target RA:        NOT SET\n'
+                    msg += 'Target RA:         NOT SET\n'
                 if info['target_dec'] is not None:
                     dec = info['target_dec']
                     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-                    msg += 'Target Dec:       {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
+                    msg += 'Target Dec:        {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
                 else:
-                    msg += 'Target Dec:       NOT SET\n'
+                    msg += 'Target Dec:        NOT SET\n'
 
-            msg += 'Mount Alt:        {:7.3f} deg\n'.format(info['mount_alt'])
-            msg += 'Mount Az:         {:7.3f} deg\n'.format(info['mount_az'])
+            msg += 'Mount Alt:         {:8.4f} deg\n'.format(info['mount_alt'])
+            msg += 'Mount Az:          {:8.4f} deg\n'.format(info['mount_az'])
 
             if info['target_alt'] is not None:
-                msg += 'Target Alt:       {:7.3f} deg\n'.format(info['target_alt'])
-                msg += 'Target Az:        {:7.3f} deg\n'.format(info['target_az'])
+                msg += 'Target Alt:        {:8.4f} deg\n'.format(info['target_alt'])
+                msg += 'Target Az:         {:8.4f} deg\n'.format(info['target_az'])
 
             if info['target_dist'] is not None:
-                msg += 'Target distance:  {:7.3f} deg\n'.format(info['target_dist'])
+                msg += 'Target distance:   {:8.4f} deg\n'.format(info['target_dist'])
             else:
-                msg += 'Target distance:  NO TARGET\n'
+                msg += 'Target distance:   NO TARGET\n'
 
             msg += '~~~~~~~\n'
             if info['class'] == 'SITECH':
                 if info['trackrate_ra'] == 0:
-                    msg += 'RA track rate:    SIDEREAL\n'
+                    msg += 'RA track rate:     SIDEREAL\n'
                 else:
-                    msg += 'RA track rate:    {:.2f} arcsec/sec\n'.format(info['trackrate_ra'])
+                    msg += 'RA track rate:     {:.2f} arcsec/sec\n'.format(info['trackrate_ra'])
                 if info['trackrate_dec'] == 0:
-                    msg += 'Dec track rate:   SIDEREAL\n'
+                    msg += 'Dec track rate:    SIDEREAL\n'
                 else:
-                    msg += 'Dec track rate:   {:.2f} arcsec/sec\n'.format(info['trackrate_dec'])
+                    msg += 'Dec track rate:    {:.2f} arcsec/sec\n'.format(info['trackrate_dec'])
             elif info['class'] == 'ASA':
                 if info['error_status'] is not None:
                     t = Time(info['error_status_time'], format='unix', precision=0)
@@ -1052,27 +1052,59 @@ class MntDaemon(BaseDaemon):
                     t = Time(info['warning_status_time'], format='unix', precision=0)
                     msg += ytxt('WARNING: "{}" (at {})\n'.format(
                         info['warning_status'], t.iso))
-                msg += 'RA track rate:    {:>6.2f} arcsec/sec\n'.format(
-                    info['tracking_rate']['ra'])
-                msg += 'Dec track rate:   {:>6.2f} arcsec/sec\n'.format(
-                    info['tracking_rate']['dec'])
-                msg += 'RA tracking err:   {:+.4f} arcsec\n'.format(info['tracking_error']['ra'])
-                msg += 'Dec tracking err:  {:+.4f} arcsec\n'.format(info['tracking_error']['dec'])
-                msg += 'RA position err:   {:+.4f} arcsec\n'.format(info['position_error']['ra'])
-                msg += 'Dec position err:  {:+.4f} arcsec\n'.format(info['position_error']['dec'])
-                msg += 'RA current:         {:.1f} A\n'.format(info['motor_current']['ra'])
-                msg += 'Dec current:        {:.1f} A\n'.format(info['motor_current']['dec'])
+
+                if info['tracking_rate']['ra'] == 0:
+                    msg += 'RA track rate:     SIDEREAL\n'
+                else:
+                    msg += 'RA track rate:   {:>+9.4f} arcsec/sec\n'.format(
+                        info['tracking_rate']['ra'])
+                if info['tracking_rate']['dec'] == 0:
+                    msg += 'Dec track rate:    SIDEREAL\n'
+                else:
+                    msg += 'Dec track rate:  {:>+9.4f} arcsec/sec\n'.format(
+                        info['tracking_rate']['dec'])
+
+                msg += 'RA encoder pos:   {:>+9.4f} deg\n'.format(
+                    info['encoder_position']['ra'])
+                msg += 'Dec encoder pos:  {:>+9.4f} deg\n'.format(
+                    info['encoder_position']['dec'])
+                msg += 'RA position err:  {:>+9.4f} arcsec\n'.format(
+                    info['position_error']['ra'])
+                msg += 'Dec position err: {:>+9.4f} arcsec\n'.format(
+                    info['position_error']['dec'])
+                # msg += 'RA tracking err:  {:>+9.4f} arcsec\n'.format(
+                #     info['tracking_error']['ra'])
+                # msg += 'Dec tracking err: {:>+9.4f} arcsec\n'.format(
+                #     info['tracking_error']['dec'])
+                msg += 'RA tracking err:        N/A arcsec\n'  # see DDM500._get_report()
+                msg += 'Dec tracking err:       N/A arcsec\n'
+                msg += 'RA velocity:      {:>+9.4f} arcsec/sec\n'.format(
+                    info['velocity']['ra'])
+                msg += 'Dec velocity:     {:>+9.4f} arcsec/sec\n'.format(
+                    info['velocity']['dec'])
+                # msg += 'RA acceleration:  {:>+9.4f} arcsec/sec²\n'.format(
+                #     info['acceleration']['ra'])
+                # msg += 'Dec acceleration: {:>+9.4f} arcsec/sec²\n'.format(
+                #     info['acceleration']['dec'])
+                msg += 'RA acceleration:        N/A arcsec/sec²\n'  # see DDM500._get_report()
+                msg += 'Dec acceleration:       N/A arcsec/sec²\n'
+                msg += 'RA current:         {:>5.2f} A\n'.format(
+                    info['motor_current']['ra'])
+                msg += 'Dec current:        {:>5.2f} A\n'.format(
+                    info['motor_current']['dec'])
 
             msg += '~~~~~~~\n'
-            msg += 'Hour Angle:       {:+6.2f} h\n'.format(info['mount_ha'])
-
             lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
-            msg += 'Sidereal Time:    {:>11}\n'.format(lst_str)
+            msg += 'Sidereal Time:     {:>11}\n'.format(lst_str)
+            msg += 'Hour Angle:        {:+6.2f} h\n'.format(info['mount_ha'])
 
-            msg += 'Sun alt:          {:+6.2f} deg\n'.format(info['sun_alt'])
-            msg += 'Moon alt:         {:+6.2f} deg\n'.format(info['moon_alt'])
-            msg += 'Moon phase:         {} ({:.0%})\n'.format(info['moon_phase'], info['moon_ill'])
-            msg += 'Moon distance:    {:6.2f} deg\n'.format(info['moon_dist'])
+            msg += 'Sun alt:           {:+6.2f} deg\n'.format(info['sun_alt'])
+            msg += 'Moon alt:          {:+6.2f} deg\n'.format(info['moon_alt'])
+            msg += 'Moon illumination: {:>6.1%} ({})\n'.format(info['moon_ill'], info['moon_phase'])
+            msg += 'Moon distance:     {:6.2f} deg\n'.format(info['moon_dist'])
+            if info['moon_dist'] <= 30:
+                msg += ytxt('  WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
+                    info['moon_dist']))
 
             msg += '~~~~~~~\n'
             msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
