@@ -608,6 +608,7 @@ class DDM500:
             # Using argument force_pier_side=-1 will override any saved on the class
             data_dict['Parameters'] = -1
         self._http_put('action', data_dict)
+
         # Although it's called "forcenextpierside", it will only try to enforce the request
         # It can still flip, which is bad for us and makes the command fairly useless
         # ASCOM has a built-in command to check the destination, so we'll use that
@@ -633,19 +634,17 @@ class DDM500:
             # Using argument force_pier_side=-1 will override any saved on the class
             data_dict['Parameters'] = -1
         self._http_put('action', data_dict)
+
         # Unfortunately there's no easy equivalent to "destinationsideofpier" for Alt/Az
         # So we'll have to convert into RA/Dec and check that (we also have to uncook first)
         # It should be close enough...
         ra, dec = radec_from_altaz(alt, az)
-        print(ra, dec)
         ra_jnow, dec_jnow = j2000_to_apparent(ra, dec, Time.now().jd)
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
         data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
-        print(data_dict)
         destination_side = self._http_get('destinationsideofpier', data_dict)
-        print(destination_side)
         if destination_side == -1:
             raise ValueError('Slew command is not within allowed limits')
         if ((self._force_pier_side != -1 and destination_side != self._force_pier_side) or
