@@ -948,6 +948,7 @@ class DomeHeartbeat:
                     self.status = self._parse_status(x)
                     if self.log and self.log_debug:
                         self.log.debug('heartbeat RECV:"{}" (status={})'.format(x, self.status))
+                break
             except Exception:
                 attempts_remaining -= 1
                 if self.log:
