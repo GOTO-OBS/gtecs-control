@@ -1310,15 +1310,17 @@ def make_header(ut, daemon_info=None):
                    'Std wind gust, km/h (last {:.0f}s)'.format(hist_time)))
 
     # Internal conditions
-    int_temp = daemon_info['conditions']['internal']['temperature']
-    if int_temp == -999:
-        int_temp = 'NA'
-    int_hum = daemon_info['conditions']['internal']['humidity']
-    if int_hum == -999:
-        int_hum = 'NA'
-    header.append(('INT-TEMP', int_temp,
+    int_temperature = np.max([daemon_info['conditions']['internal']['temperature'][source]
+                              for source in daemon_info['conditions']['internal']['temperature']])
+    if int_temperature == -999:
+        int_temperature = 'NA'
+    int_humidity = np.max([daemon_info['conditions']['internal']['humidity'][source]
+                           for source in daemon_info['conditions']['internal']['humidity']])
+    if int_humidity == -999:
+        int_humidity = 'NA'
+    header.append(('INT-TEMP', int_temperature,
                    'Internal temperature, Celsius (dome)'))
-    header.append(('INT-HUM ', int_hum,
+    header.append(('INT-HUM ', int_humidity,
                    'Internal humidity, percent (dome)'))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -586,8 +586,12 @@ class DomeDaemon(BaseDaemon):
             temp_info['windspeed'] = np.max([conditions_info['weather'][source]['windmax']
                                              for source in conditions_info['weather']])
             # Internal
-            temp_info['temperature'] = conditions_info['internal']['temperature']
-            temp_info['humidity'] = conditions_info['internal']['humidity']
+            int_temperature = np.max([conditions_info['internal']['temperature'][source]
+                                      for source in conditions_info['internal']['temperature']])
+            int_humidity = np.max([conditions_info['internal']['humidity'][source]
+                                   for source in conditions_info['internal']['humidity']])
+            temp_info['temperature'] = int_temperature
+            temp_info['humidity'] = int_humidity
         except Exception:
             self.log.error('Failed to fetch conditions')
             self.log.debug('', exc_info=True)

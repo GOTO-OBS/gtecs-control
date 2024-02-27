@@ -530,8 +530,10 @@ class ConditionsDaemon(BaseDaemon):
         sky_temp = sky_temp[sky_temp != -999]
 
         # Internal
-        int_temperature = np.array(self.info['internal']['temperature'])
-        int_humidity = np.array(self.info['internal']['humidity'])
+        int_temperature = np.array([self.info['internal']['temperature'][source]
+                                    for source in self.info['internal']['temperature']])
+        int_humidity = np.array([self.info['internal']['humidity'][source]
+                                 for source in self.info['internal']['humidity']])
 
         int_temperature = int_temperature[int_temperature != -999]
         int_humidity = int_humidity[int_humidity != -999]
@@ -979,40 +981,41 @@ class ConditionsDaemon(BaseDaemon):
                 dt_str)
             msg += weather_str
 
-        temperature = info['internal']['temperature']
-        if temperature == -999:
-            temperature_str = rtxt(' ERR')
-        elif (temperature < params.MAX_INTERNAL_TEMPERATURE and
-                temperature > params.MIN_INTERNAL_TEMPERATURE):
-            temperature_str = ytxt('{:>4.1f}'.format(temperature))
-            if (temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
-                    temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
-                temperature_str = gtxt('{:>4.1f}'.format(temperature))
-        else:
-            temperature_str = rtxt('{:>4.1f}'.format(temperature))
+        for source in info['internal']['temperature']:
+            temperature = info['internal']['temperature'][source]
+            if temperature == -999:
+                temperature_str = rtxt(' ERR')
+            elif (temperature < params.MAX_INTERNAL_TEMPERATURE and
+                    temperature > params.MIN_INTERNAL_TEMPERATURE):
+                temperature_str = ytxt('{:>4.1f}'.format(temperature))
+                if (temperature < params.MAX_INTERNAL_TEMPERATURE - 1 and
+                        temperature > params.MIN_INTERNAL_TEMPERATURE + 1):
+                    temperature_str = gtxt('{:>4.1f}'.format(temperature))
+            else:
+                temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
-        humidity = info['internal']['humidity']
-        if humidity == -999:
-            humidity_str = rtxt('  ERR')
-        elif (humidity < params.MAX_INTERNAL_HUMIDITY):
-            humidity_str = ytxt('{:>5.1f}'.format(humidity))
-            if (humidity < params.MAX_INTERNAL_HUMIDITY - 5):
-                humidity_str = gtxt('{:>5.1f}'.format(humidity))
-        else:
-            humidity_str = rtxt('{:>5.1f}'.format(humidity))
+            humidity = info['internal']['humidity'][source]
+            if humidity == -999:
+                humidity_str = rtxt('  ERR')
+            elif (humidity < params.MAX_INTERNAL_HUMIDITY):
+                humidity_str = ytxt('{:>5.1f}'.format(humidity))
+                if (humidity < params.MAX_INTERNAL_HUMIDITY - 5):
+                    humidity_str = gtxt('{:>5.1f}'.format(humidity))
+            else:
+                humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
-        dt = info['internal']['dt']
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.WEATHER_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
+            dt = info['internal']['dt']
+            if dt == -999:
+                dt_str = rtxt('ERR')
+            elif dt > params.WEATHER_TIMEOUT:
+                dt_str = rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = gtxt('{:.0f}'.format(dt))
 
-        msg += '  {: <10}\t'.format('dome_int')
-        weather_str = '{}°C  {}%                                         dt={}\n'.format(
-            temperature_str, humidity_str, dt_str)
-        msg += weather_str
+            msg += '  {: <10}\t'.format('{}_int'.format(source))
+            weather_str = '{}°C  {}%                                         dt={}\n'.format(
+                temperature_str, humidity_str, dt_str)
+            msg += weather_str
 
         msg += 'ENVIRONMENT:\n'
 
@@ -1179,25 +1182,26 @@ class ConditionsDaemon(BaseDaemon):
                 temperature_str, min_temp, max_temp, status)
 
         # internal sensors
-        msg += '  {: <10}\t'.format('dome_int')
-        min_temp = params.MIN_INTERNAL_TEMPERATURE
-        max_temp = params.MAX_INTERNAL_TEMPERATURE
+        for source in internal['temperature']:
+            msg += '  {: <10}\t'.format('{}_int'.format(source))
+            min_temp = params.MIN_INTERNAL_TEMPERATURE
+            max_temp = params.MAX_INTERNAL_TEMPERATURE
 
-        temperature = internal['temperature']
-        if temperature == -999:
-            status = rtxt('ERROR')
-            temperature_str = rtxt(' ERR')
-        elif (temperature < max_temp and temperature > min_temp):
-            status = gtxt('Good')
-            temperature_str = ytxt('{:>4.1f}'.format(temperature))
-            if temperature < max_temp - 1 and temperature > min_temp + 1:
-                temperature_str = gtxt('{:>4.1f}'.format(temperature))
-        else:
-            status = rtxt('Bad')
-            temperature_str = rtxt('{:>4.1f}'.format(temperature))
+            temperature = internal['temperature'][source]
+            if temperature == -999:
+                status = rtxt('ERROR')
+                temperature_str = rtxt(' ERR')
+            elif (temperature < max_temp and temperature > min_temp):
+                status = gtxt('Good')
+                temperature_str = ytxt('{:>4.1f}'.format(temperature))
+                if temperature < max_temp - 1 and temperature > min_temp + 1:
+                    temperature_str = gtxt('{:>4.1f}'.format(temperature))
+            else:
+                status = rtxt('Bad')
+                temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
-        msg += ' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}\n'.format(
-            temperature_str, min_temp, max_temp, status)
+            msg += ' {}°C       (min={:.1f}°C max={:.1f}°C) \t : {}\n'.format(
+                temperature_str, min_temp, max_temp, status)
 
         msg += 'HUMIDITY:\n'
         for source in weather:
@@ -1224,24 +1228,25 @@ class ConditionsDaemon(BaseDaemon):
                 humidity_str, max_hum, status)
 
         # internal sensors
-        msg += '  {: <10}\t'.format(source)
-        max_hum = params.MAX_INTERNAL_HUMIDITY
+        for source in internal['humidity']:
+            msg += '  {: <10}\t'.format('{}_int'.format(source))
+            max_hum = params.MAX_INTERNAL_HUMIDITY
 
-        humidity = weather[source]['humidity']
-        if humidity == -999:
-            status = rtxt('ERROR')
-            humidity_str = rtxt('  ERR')
-        elif (humidity < max_hum):
-            status = gtxt('Good')
-            humidity_str = ytxt('{:>5.1f}'.format(humidity))
-            if (humidity < max_hum - 5):
-                humidity_str = gtxt('{:>5.1f}'.format(humidity))
-        else:
-            status = rtxt('Bad')
-            humidity_str = rtxt('{:>5.1f}'.format(humidity))
+            humidity = internal['temperature'][source]
+            if humidity == -999:
+                status = rtxt('ERROR')
+                humidity_str = rtxt('  ERR')
+            elif (humidity < max_hum):
+                status = gtxt('Good')
+                humidity_str = ytxt('{:>5.1f}'.format(humidity))
+                if (humidity < max_hum - 5):
+                    humidity_str = gtxt('{:>5.1f}'.format(humidity))
+            else:
+                status = rtxt('Bad')
+                humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
-        msg += '{}%        (max={:.1f}%)            \t : {}\n'.format(
-            humidity_str, max_hum, status)
+            msg += '{}%        (max={:.1f}%)            \t : {}\n'.format(
+                humidity_str, max_hum, status)
 
         msg += 'DEW POINT:\n'
         for source in weather:
@@ -1313,41 +1318,42 @@ class ConditionsDaemon(BaseDaemon):
                 windmax_str, params.MAX_WINDGUST, status)
 
         msg += 'INTERNAL (critical limits):\n'
-        msg += '  {: <10}\t'.format('temperature')
 
-        temperature = internal['temperature']
-        if temperature == -999:
-            status = rtxt('ERROR')
-            temperature_str = rtxt(' ERR')
-        elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
-            status = gtxt('Good')
-            temperature_str = ytxt('{:>4.1f}'.format(temperature))
-            if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
-                temperature_str = gtxt('{:>4.1f}'.format(temperature))
-        else:
-            status = rtxt('Bad')
-            temperature_str = rtxt('{:>4.1f}'.format(temperature))
+        for source in internal['temperature']:
+            msg += '  {: <10}\t'.format('{}_int'.format(source))
+            temperature = internal['temperature'][source]
+            if temperature == -999:
+                status = rtxt('ERROR')
+                temperature_str = rtxt(' ERR')
+            elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
+                status = gtxt('Good')
+                temperature_str = ytxt('{:>4.1f}'.format(temperature))
+                if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
+                    temperature_str = gtxt('{:>4.1f}'.format(temperature))
+            else:
+                status = rtxt('Bad')
+                temperature_str = rtxt('{:>4.1f}'.format(temperature))
 
-        msg += ' {}°C       (min={:.1f}°C          \t : {}\n'.format(
-            temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status)
+            msg += ' {}°C       (min={:.1f}°C          \t : {}\n'.format(
+                temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status)
 
-        msg += '  {: <10}\t'.format('humidity')
+        for source in internal['humidity']:
+            msg += '  {: <10}\t'.format('{}_int'.format(source))
+            humidity = internal['humidity'][source]
+            if humidity == -999:
+                status = rtxt('ERROR')
+                humidity_str = rtxt('  ERR')
+            elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
+                status = gtxt('Good')
+                humidity_str = ytxt('{:>5.1f}'.format(humidity))
+                if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
+                    humidity_str = gtxt('{:>5.1f}'.format(humidity))
+            else:
+                status = rtxt('Bad')
+                humidity_str = rtxt('{:>5.1f}'.format(humidity))
 
-        humidity = internal['humidity']
-        if humidity == -999:
-            status = rtxt('ERROR')
-            humidity_str = rtxt('  ERR')
-        elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
-            status = gtxt('Good')
-            humidity_str = ytxt('{:>5.1f}'.format(humidity))
-            if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
-                humidity_str = gtxt('{:>5.1f}'.format(humidity))
-        else:
-            status = rtxt('Bad')
-            humidity_str = rtxt('{:>5.1f}'.format(humidity))
-
-        msg += '{}%        (max={:.1f}%)           \t : {}\n'.format(
-            humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status)
+            msg += '{}%        (max={:.1f}%)           \t : {}\n'.format(
+                humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status)
 
         msg += 'OTHER:\n'
 

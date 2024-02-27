@@ -111,17 +111,42 @@ def get_domealert_daemon(uri):
     weather_dict['dt'] = int(dt.to('second').value)
 
     try:
-        if data['internal_temp_valid']:
-            weather_dict['temperature'] = data['internal_temp']
+        if 'internal_temp_east' in data:
+            weather_dict['temperature'] = {}
+            if data['internal_temp_east_valid']:
+                weather_dict['temperature']['east'] = data['internal_temp_east']
+            else:
+                weather_dict['temperature']['east'] = -999
+            if data['internal_temp_west_valid']:
+                weather_dict['temperature']['west'] = data['internal_temp_west']
+            else:
+                weather_dict['temperature']['west'] = -999
+
+            weather_dict['humidity'] = {}
+            if data['internal_humidity_east_valid']:
+                weather_dict['humidity']['east'] = data['internal_humidity_east']
+            else:
+                weather_dict['humidity']['east'] = -999
+            if data['internal_humidity_west_valid']:
+                weather_dict['humidity']['west'] = data['internal_humidity_west']
+            else:
+                weather_dict['humidity']['west'] = -999
+
         else:
-            weather_dict['temperature'] = -999
-        if data['internal_humidity_valid']:
-            weather_dict['humidity'] = data['internal_humidity']
-        else:
-            weather_dict['humidity'] = -999
+            weather_dict['temperature'] = {}
+            if data['internal_temp_valid']:
+                weather_dict['temperature']['dome'] = data['internal_temp']
+            else:
+                weather_dict['temperature']['dome'] = -999
+
+            weather_dict['humidity'] = {}
+            if data['internal_humidity_valid']:
+                weather_dict['humidity']['dome'] = data['internal_humidity']
+            else:
+                weather_dict['humidity']['dome'] = -999
     except Exception:
-        weather_dict['temperature'] = -999
-        weather_dict['humidity'] = -999
+        weather_dict['temperature'] = {'dome': -999}
+        weather_dict['humidity'] = {'dome': -999}
 
     return weather_dict
 
