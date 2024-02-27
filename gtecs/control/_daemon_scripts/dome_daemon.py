@@ -31,6 +31,7 @@ class DomeDaemon(BaseDaemon):
         self.dome = None
         self.heartbeat = None
         self.dehumidifier = None
+        self.aircon = None
 
         # command flags
         self.open_flag = 0
@@ -39,6 +40,8 @@ class DomeDaemon(BaseDaemon):
         self.heartbeat_set_flag = 0
         self.dehumidifier_on_flag = 0
         self.dehumidifier_off_flag = 0
+        self.aircon_on_flag = 0
+        self.aircon_off_flag = 0
 
         # dome variables
         self.dome_timeout = 40.
@@ -62,6 +65,7 @@ class DomeDaemon(BaseDaemon):
         self.windshield_enabled = False
 
         self.autodehum_enabled = True
+        self.autoaircon_enabled = True
         self.autoclose_enabled = True
         self.autoshield_enabled = True
 
@@ -118,6 +122,9 @@ class DomeDaemon(BaseDaemon):
 
                     # Check if we need to turn on/off the dehumidifier
                     self._autodehum_check()
+
+                    # Check if we need to turn on/off the aircon
+                    self._autoaircon_check()
 
                     if params.DOME_WINDSHIELD_PERMITTED:
                         # Check if we should enable shielding due to high wind
@@ -356,6 +363,32 @@ class DomeDaemon(BaseDaemon):
                 self.dehumidifier_off_flag = 0
                 self.force_check_flag = True
 
+            # turn on aircon
+            if self.aircon_on_flag:
+                try:
+                    self.log.info('Turning aircon on')
+                    reply = self.aircon.on()
+                    if reply:
+                        self.log.info(reply)
+                except Exception:
+                    self.log.error('aircon on command failed')
+                    self.log.debug('', exc_info=True)
+                self.aircon_on_flag = 0
+                self.force_check_flag = True
+
+            # turn off aircon
+            if self.aircon_off_flag:
+                try:
+                    self.log.info('Turning aircon off')
+                    reply = self.aircon.off()
+                    if reply:
+                        self.log.info(reply)
+                except Exception:
+                    self.log.error('aircon off command failed')
+                    self.log.debug('', exc_info=True)
+                self.aircon_off_flag = 0
+                self.force_check_flag = True
+
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
         self.log.info('Daemon control thread stopped')
@@ -370,6 +403,7 @@ class DomeDaemon(BaseDaemon):
         self._connect_to_dome()
         self._connect_to_heartbeat()
         self._connect_to_dehumidifier()
+        self._connect_to_aircon()
 
     def _connect_to_dome(self):
         """Connect to the dome."""
@@ -378,12 +412,12 @@ class DomeDaemon(BaseDaemon):
             return
 
         if params.FAKE_DOME:
-            self.log.info('Creating Dome simulator')
+            self.log.info('Creating dome simulator')
             self.dome = FakeDome(self.log, params.DOME_DEBUG)
             return
 
         try:
-            self.log.info('Connecting to Dome')
+            self.log.info('Connecting to dome')
             self.dome = AstroHavenDome(
                 params.DOME_LOCATION,  # TODO: JSON params file, or pass as arg?
                 domealert_uri=params.DOMEALERT_URI,
@@ -429,12 +463,12 @@ class DomeDaemon(BaseDaemon):
             return
 
         if params.FAKE_DOME:
-            self.log.info('Creating Heartbeat simulator')
+            self.log.info('Creating heartbeat simulator')
             self.heartbeat = FakeHeartbeat()
             return
 
         try:
-            self.log.info('Connecting to Heartbeat')
+            self.log.info('Connecting to heartbeat')
             self.heartbeat = DomeHeartbeat(
                 params.DOME_HEARTBEAT_LOCATION,
                 params.DOME_HEARTBEAT_PERIOD,
@@ -472,12 +506,12 @@ class DomeDaemon(BaseDaemon):
             return
 
         if params.FAKE_DOME:
-            self.log.info('Creating Dehumidifier simulator')
+            self.log.info('Creating dehumidifier simulator')
             self.dehumidifier = FakeRelay()
             return
 
         try:
-            self.log.info('Connecting to Dehumidifier')
+            self.log.info('Connecting to dehumidifier')
             if 'DEHUMIDIFIER' in params.POWER_UNITS:
                 # Connect through the power control unit
                 self.dehumidifier = ETH002Relay(
@@ -500,6 +534,38 @@ class DomeDaemon(BaseDaemon):
             if 'dehumidifier' not in self.bad_hardware:
                 self.log.debug('', exc_info=True)
                 self.bad_hardware.add('dehumidifier')
+
+    def _connect_to_aircon(self):
+        """Connect to the aircon."""
+        if self.aircon is not None:
+            # Already connected
+            return
+        if not params.DOME_HAS_AIRCON:
+            # No aircon to connect to!
+            return
+
+        if params.FAKE_DOME:
+            self.log.info('Creating aircon simulator')
+            self.aircon = FakeRelay()
+            return
+
+        try:
+            self.log.info('Connecting to aircon')
+            # Connect though the DomeAlert
+            self.aircon = DomeAlertRelay(params.AIRCON_URI)
+
+            # Connection successful
+            self.log.info('Connected to aircon')
+            if 'aircon' in self.bad_hardware:
+                self.bad_hardware.remove('aircon')
+
+        except Exception:
+            # Connection failed
+            self.aircon = None
+            self.log.error('Failed to connect to aircon')
+            if 'aircon' not in self.bad_hardware:
+                self.log.debug('', exc_info=True)
+                self.bad_hardware.add('aircon')
 
     def _get_info(self):
         """Get the latest status info from the hardware.
@@ -577,6 +643,20 @@ class DomeDaemon(BaseDaemon):
                 self.dehumidifier = None
                 if 'dehumidifier' not in self.bad_hardware:
                     self.bad_hardware.add('dehumidifier')
+
+        # Get aircon info
+        if params.DOME_HAS_AIRCON:
+            try:
+                aircon_status = self.aircon.status
+                temp_info['aircon_on'] = bool(int(aircon_status))
+            except Exception:
+                self.log.error('Failed to get aircon info')
+                self.log.debug('', exc_info=True)
+                temp_info['aircon_on'] = None
+                # Report the connection as failed
+                self.aircon = None
+                if 'aircon' not in self.bad_hardware:
+                    self.bad_hardware.add('aircon')
 
         # Get the conditions values and limits
         try:
@@ -657,6 +737,7 @@ class DomeDaemon(BaseDaemon):
         temp_info['heartbeat_enabled'] = self.heartbeat_enabled
         temp_info['windshield_enabled'] = self.windshield_enabled
         temp_info['autodehum_enabled'] = self.autodehum_enabled
+        temp_info['autoaircon_enabled'] = self.autoaircon_enabled
         temp_info['autoclose_enabled'] = self.autoclose_enabled
         temp_info['autoshield_enabled'] = self.autoshield_enabled
         temp_info['autoclose_timeout'] = self.autoclose_timeout
@@ -687,6 +768,9 @@ class DomeDaemon(BaseDaemon):
             if not self.autodehum_enabled:
                 self.log.info('System is in robotic mode, enabling autodehum')
                 self.autodehum_enabled = True
+            if not self.autoaircon_enabled:
+                self.log.info('System is in robotic mode, enabling autoaircon')
+                self.autoaircon_enabled = True
             if not self.autoclose_enabled:
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose_enabled = True
@@ -712,6 +796,9 @@ class DomeDaemon(BaseDaemon):
                 if not self.autodehum_enabled:
                     self.log.info('System is in manual mode, enabling autodehum')
                     self.autodehum_enabled = True
+                if not self.autoaircon_enabled:
+                    self.log.info('System is in manual mode, enabling autoaircon')
+                    self.autoaircon_enabled = True
                 if not self.autoclose_enabled:
                     self.log.info('System is in manual mode, enabling autoclose')
                     self.autoclose_enabled = True
@@ -734,6 +821,10 @@ class DomeDaemon(BaseDaemon):
             if self.autodehum_enabled:
                 self.log.info('System is in engineering mode, disabling autodehum')
                 self.autodehum_enabled = False
+
+            if self.autoaircon_enabled:
+                self.log.info('System is in engineering mode, disabling autoaircon')
+                self.autoaircon_enabled = False
 
             if self.autoclose_enabled:
                 self.log.info('System is in engineering mode, disabling autoclose')
@@ -917,6 +1008,33 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('Dome temperature {}C > {}C'.format(self.info['temperature'],
                                                                   self.info['temperature_upper']))
                 self.dehumidifier_off_flag = 1
+
+    def _autoaircon_check(self):
+        """Check the aircon is off when the dome is open."""
+        if not params.DOME_HAS_AIRCON:
+            # Nothing to check
+            return
+
+        if not self.aircon:
+            self.log.warning('Auto aircon control disabled while no connection to aircon')
+            return
+
+        # Safety check: never switch automatically in engineering mode
+        if self.info['mode'] == 'engineering':
+            return
+
+        # Return if autoaircon disabled
+        if not self.autoaircon_enabled:
+            return
+
+        # Check if the aircon should be on or off
+        if self.info['dome'] != 'closed' and self.info['aircon_on']:
+            self.log.info('Dome is open, turning off aircon')
+            self.aircon_off_flag = 1
+
+        elif self.info['dome'] == 'closed' and not self.info['aircon_on']:
+            self.log.info('Dome is closed, turning on aircon')
+            self.aircon_on_flag = 1
 
     def _autoshield_check(self):
         """Check if the wind is high and the dome should be in windshield mode."""
@@ -1142,6 +1260,41 @@ class DomeDaemon(BaseDaemon):
             self.log.info('Disabling autodehum')
             self.autodehum_enabled = False
 
+    def override_aircon(self, command):
+        """Turn the aircon on or off manually."""
+        if not params.DOME_HAS_AIRCON:
+            raise ValueError('Dome has no aircon')
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        self.wait_for_info()
+        if command == 'on' and not self.info['aircon_on']:
+            self.log.info('Turning on aircon (manual command)')
+            self.aircon_on_flag = 1
+        elif command == 'off' and self.info['aircon_on']:
+            self.log.info('Turning off aircon (manual command)')
+            self.aircon_off_flag = 1
+
+    def set_autoaircon(self, command):
+        """Enable or disable the dome automatically turning the aircon on and off."""
+        if not params.DOME_HAS_AIRCON:
+            raise ValueError('Dome has no aircon')
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        self.wait_for_info()
+        if command == 'on' and self.info['mode'] == 'engineering':
+            raise ModeError('Cannot enable autoaircon in engineering mode')
+        elif command == 'off' and self.info['mode'] == 'robotic':
+            raise ModeError('Cannot disable autoaircon in robotic mode')
+
+        if command == 'on' and not self.autoaircon_enabled:
+            self.log.info('Enabling autoaircon')
+            self.autoaircon_enabled = True
+        elif command == 'off' and self.autoaircon_enabled:
+            self.log.info('Disabling autoaircon')
+            self.autoaircon_enabled = False
+
     def set_autoclose(self, command, timeout=None):
         """Enable or disable the dome autoclosing in bad conditions."""
         if command not in ['on', 'off']:
@@ -1290,6 +1443,11 @@ class DomeDaemon(BaseDaemon):
                     gtxt('On') if info['dehumidifier_on'] else 'Off',
                     ' ' if info['dehumidifier_on'] else '',
                     rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            if params.DOME_HAS_AIRCON:
+                msg += '   Aircon:          [{}]{} (Auto: {})\n'.format(
+                    gtxt('On') if info['aircon_on'] else 'Off',
+                    ' ' if info['aircon_on'] else '',
+                    rtxt('Disabled') if not info['autoaircon_enabled'] else 'Enabled')
             msg += '   Hatch:           [{}]\n'.format(
                 rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
                 else 'Closed')
@@ -1326,6 +1484,11 @@ class DomeDaemon(BaseDaemon):
                     gtxt('On') if info['dehumidifier_on'] else 'Off')
                 msg += ' - Autodehum:    {}\n'.format(
                     rtxt('Disabled') if not info['autodehum_enabled'] else 'Enabled')
+            if params.DOME_HAS_AIRCON:
+                msg += 'Aircon:          {}\n'.format(
+                    gtxt('On') if info['aircon_on'] else 'Off')
+                msg += ' - Autoaircon:    {}\n'.format(
+                    rtxt('Disabled') if not info['autoaircon_enabled'] else 'Enabled')
             msg += 'Hatch:           {}\n'.format(
                 rtxt(info['hatch'].capitalize()) if info['hatch_closed'] is not True
                 else 'Closed')

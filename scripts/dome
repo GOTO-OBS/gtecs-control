@@ -198,6 +198,39 @@ def query(command, args):
             out_str = 'Autodehum disabled, the dehumidifier will NOT turn on and off automatically'
         print(out_str)
 
+    elif command in ['airconditioning', 'aircon', 'ac']:
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            info = daemon.get_info(force_update=False)
+            daemon.override_aircon(command)
+        if command == 'on':
+            out_str = 'Aircon turned on'
+            if info['autoaircon_enabled']:
+                out_str += ' (autoaircon is enabled, so the daemon may turn it off again)'
+        elif command == 'off':
+            out_str = 'Aircon turned off'
+            if info['autoaircon_enabled']:
+                out_str += ' (autoaircon is enabled, so the daemon may turn it on again)'
+        print(out_str)
+
+    elif command == 'autoaircon':
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.set_autoaircon(command)
+        if command == 'on':
+            out_str = 'Autoaircon enabled, the aircon will turn on and off automatically'
+        elif command == 'off':
+            out_str = 'Autoaircon disabled, the aircon will NOT turn on and off automatically'
+        print(out_str)
+
     elif command == 'autoclose':
         if len(args) == 1:
             command = args[0]
