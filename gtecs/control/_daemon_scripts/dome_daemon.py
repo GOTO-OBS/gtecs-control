@@ -12,8 +12,8 @@ from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon, HardwareError, daemon_proxy
 from gtecs.control.flags import Conditions, ModeError, Status
 from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
-from gtecs.control.hardware.dome import Dehumidifier, ETH002Dehumidifier, FakeDehumidifier
 from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
+from gtecs.control.hardware.power import DomeAlertRelay, ETH002Relay, FakeRelay
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -473,20 +473,20 @@ class DomeDaemon(BaseDaemon):
 
         if params.FAKE_DOME:
             self.log.info('Creating Dehumidifier simulator')
-            self.dehumidifier = FakeDehumidifier()
+            self.dehumidifier = FakeRelay()
             return
 
         try:
             self.log.info('Connecting to Dehumidifier')
             if 'DEHUMIDIFIER' in params.POWER_UNITS:
                 # Connect through the power control unit
-                self.dehumidifier = ETH002Dehumidifier(
+                self.dehumidifier = ETH002Relay(
                     params.POWER_UNITS['DEHUMIDIFIER']['IP'],
                     int(params.POWER_UNITS['DEHUMIDIFIER']['PORT']),
                 )
             else:
                 # Connect though the DomeAlert
-                self.dehumidifier = Dehumidifier(params.DOMEALERT_URI)
+                self.dehumidifier = DomeAlertRelay(params.DOMEALERT_URI)
 
             # Connection successful
             self.log.info('Connected to dehumidifier')
