@@ -446,6 +446,10 @@ class MntDaemon(BaseDaemon):
                 temp_info['tracking_rate'] = self.mount.tracking_rate
                 temp_info['motors_on'] = self.mount.motors_on
                 temp_info['pier_side'] = self.mount.pier_side
+                if params.FORCE_MOUNT_PIER_SIDE in [0, 1]:
+                    temp_info['target_pier_side'] = params.FORCE_MOUNT_PIER_SIDE
+                else:
+                    temp_info['target_pier_side'] = None
 
                 # Extra info from the report command
                 temp_info['encoder_position'] = self.mount.encoder_position
@@ -546,6 +550,7 @@ class MntDaemon(BaseDaemon):
                 temp_info['tracking_rate'] = None
                 temp_info['motors_on'] = None
                 temp_info['pier_side'] = None
+                temp_info['target_pier_side'] = None
                 temp_info['encoder_position'] = None
                 temp_info['position_error'] = None
                 temp_info['tracking_error'] = None
@@ -647,27 +652,34 @@ class MntDaemon(BaseDaemon):
                 self.info['mount_alt'], self.info['min_elevation'])
             self.log.error(msg)
             should_stop = True
-        elif self.info['hourangle_within_limits'] is False:
+        if self.info['hourangle_within_limits'] is False:
             msg = 'Mount hour angle ({:.1f}h) is outside limit (±{:.1f}h)'.format(
                 self.info['mount_ha'], self.info['max_hourangle'])
             self.log.error(msg)
             should_stop = True
-        elif self.info['class'] == 'ASA' and self.info['encoder_ra_within_limits'] is False:
-            msg = 'Mount RA encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
-                self.info['encoder_position']['ra'],
-                self.info['encoder_position_limits']['ra'][0],
-                self.info['encoder_position_limits']['ra'][1],
-            )
-            self.log.error(msg)
-            should_stop = True
-        elif self.info['class'] == 'ASA' and self.info['encoder_dec_within_limits'] is False:
-            msg = 'Mount Dec encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
-                self.info['encoder_position']['dec'],
-                self.info['encoder_position_limits']['dec'][0],
-                self.info['encoder_position_limits']['dec'][1],
-            )
-            self.log.error(msg)
-            should_stop = True
+        if self.info['class'] == 'ASA':
+            if self.info['encoder_ra_within_limits'] is False:
+                msg = 'RA encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
+                    self.info['encoder_position']['ra'],
+                    self.info['encoder_position_limits']['ra'][0],
+                    self.info['encoder_position_limits']['ra'][1],
+                )
+                self.log.error(msg)
+                should_stop = True
+            if self.info['encoder_dec_within_limits'] is False:
+                msg = 'Dec encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
+                    self.info['encoder_position']['dec'],
+                    self.info['encoder_position_limits']['dec'][0],
+                    self.info['encoder_position_limits']['dec'][1],
+                )
+                self.log.error(msg)
+                should_stop = True
+            if (self.info['target_pier_side'] is not None and
+                    self.info['pier_side'] != self.info['target_pier_side']):
+                msg = 'Mount pier side ({}) is not the target side ({})'.format(
+                    self.info['pier_side'], self.info['target_pier_side'])
+                self.log.error(msg)
+                should_stop = True
 
         if force_stop and should_stop:
             # Stop any movement
@@ -1066,8 +1078,13 @@ class MntDaemon(BaseDaemon):
                 msg += ytxt('WARNING: Alt < {:.1f} deg\n'.format(info['min_elevation']))
             if not info['hourangle_within_limits']:
                 msg += ytxt('WARNING: HA > ±{:.1f}h\n'.format(info['max_hourangle']))
-            if self.info['class'] == 'ASA' and not info['encoder_position_within_limits']:
-                msg += ytxt('WARNING: Mount has exceed encoder limits (may have flipped)\n')
+            if self.info['class'] == 'ASA':
+                if not info['encoder_position_within_limits']:
+                    msg += ytxt('WARNING: Mount has exceed encoder limits (may have flipped)\n')
+                if (self.info['target_pier_side'] is not None and
+                        self.info['pier_side'] != self.info['target_pier_side']):
+                    msg += ytxt('WARNING: Pier side ({}) is flipped (target={})\n'.format(
+                        self.info['pier_side'], self.info['target_pier_side']))
             if info['moon_dist'] <= 30:
                 msg += ytxt('WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
                     info['moon_dist']))
@@ -1136,6 +1153,12 @@ class MntDaemon(BaseDaemon):
                     t = Time(info['warning_status_time'], format='unix', precision=0)
                     msg += ytxt('WARNING: "{}" (at {})\n'.format(
                         info['warning_status'], t.iso))
+
+                msg += 'Pier side:         {}\n'.format(info['pier_side'])
+                if (self.info['target_pier_side'] is not None and
+                        self.info['pier_side'] != self.info['target_pier_side']):
+                    msg += ytxt('  WARNING: Pier side ({}) is flipped (target={})\n'.format(
+                        self.info['pier_side'], self.info['target_pier_side']))
 
                 if info['tracking_rate']['ra'] == 0:
                     msg += 'RA track rate:     SIDEREAL\n'
