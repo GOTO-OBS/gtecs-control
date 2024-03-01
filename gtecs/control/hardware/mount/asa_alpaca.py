@@ -35,7 +35,7 @@ class DDM500:
 
     log : logger, optional
         logger to log to
-        default = None
+        default = None (one will be created by the class)
     log_debug : bool, optional
         log debug strings?
         default = False
@@ -118,7 +118,7 @@ class DDM500:
             self.transaction_count = count
 
             url = self.base_url + command_str
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug(f'{cmd}:"{url}":{data}')
 
             if cmd == 'GET':
@@ -129,7 +129,7 @@ class DDM500:
                 r = requests.put(url, data=data)
 
             reply_str = r.content.decode(r.encoding)
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug(f'RCV:"{reply_str}"')
 
             if r.status_code != 200:
@@ -480,12 +480,10 @@ class DDM500:
 
     def _report_thread(self):
         if self.report_thread_running:
-            if self.log:
-                self.log.debug('status thread tried to start when already running')
+            self.log.debug('status thread tried to start when already running')
             return
 
-        if self.log:
-            self.log.debug('mount report thread started')
+        self.log.debug('mount report thread started')
         self.report_thread_running = True
 
         while self.report_thread_running:
@@ -493,15 +491,13 @@ class DDM500:
                 self._get_report(disable_reporting_after=False)
                 time.sleep(0.1)
             except Exception:
-                if self.log:
-                    self.log.error('Error in report thread')
-                    self.log.debug('', exc_info=True)
+                self.log.error('Error in report thread')
+                self.log.debug('', exc_info=True)
                 self.report_thread_running = False
 
         # Turn off reporting when we're done
         self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
-        if self.log:
-            self.log.debug('report thread finished')
+        self.log.debug('report thread finished')
 
     @property
     def encoder_position(self):
@@ -594,7 +590,7 @@ class DDM500:
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                 ra, dec, ra_jnow, dec_jnow))
 
@@ -661,7 +657,7 @@ class DDM500:
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                 ra, dec, ra_jnow, dec_jnow))
 
@@ -781,7 +777,7 @@ class FakeDDM500:
 
     log : logger, optional
         logger to log to
-        default = None
+        default = None (one will be created by the class)
     log_debug : bool, optional
         log debug strings?
         default = False
@@ -1031,7 +1027,7 @@ class FakeDDM500:
         self._slewing = True
 
         while self._slewing:
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug('Slewing: {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                     self._ra, self._dec, target_ra, target_dec))
 
@@ -1133,7 +1129,7 @@ class FakeDDM500:
 
         guide_start_time = time.time()
         while self.guiding:
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug('Guiding: {:.6f}/{:.6f} for {:.1f}/{:.1f}'.format(
                     self._ra, self._dec, time.time() - guide_start_time, duration))
 
