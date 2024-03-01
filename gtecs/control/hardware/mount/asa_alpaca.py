@@ -394,11 +394,15 @@ class DDM500:
         self._position_error = {
             'ra': self._report_ra['PosErr'], 'dec': self._report_dec['PosErr']
         }
-        self._tracking_error = {'ra': -999, 'dec': -999}  # Not implemented
+        self._tracking_error = {
+            'ra': -999, 'dec': -999  # Not implemented
+        }
         self._velocity = {
             'ra': self._report_ra['Velocity'], 'dec': self._report_dec['Velocity']
         }
-        self._acceleration = {'ra': -999, 'dec': -999}  # Not implemented
+        self._acceleration = {
+            'ra': -999, 'dec': -999  # Not implemented
+        }
         self._current = {
             'ra': self._report_ra['QCurr'], 'dec': self._report_dec['QCurr']
         }
@@ -582,6 +586,26 @@ class DDM500:
         if not self.report_extra or not self.report_thread_running:
             raise ValueError('Mount report thread not running')
         return self._current_hist
+
+    def within_ra_limits(self, ra_min=None, ra_max=None):
+        """Return true if the mount is within the given RA limits."""
+        if ra_min is not None and self.encoder_position['ra'] < ra_min:
+            return False
+        if ra_max is not None and self.encoder_position['ra'] > ra_max:
+            return False
+        return True
+
+    def within_dec_limits(self, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given Dec limits."""
+        if dec_min is not None and self.encoder_position['dec'] < dec_min:
+            return False
+        if dec_max is not None and self.encoder_position['dec'] > dec_max:
+            return False
+        return True
+
+    def within_encoder_limits(self, ra_min=None, ra_max=None, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given encoder limits."""
+        return self.within_ra_limits(ra_min, ra_max) and self.within_dec_limits(dec_min, dec_max)
 
     def slew_to_radec(self, ra, dec, force_pier_side=None):
         """Slew to given RA and Dec coordinates (J2000)."""
@@ -1018,6 +1042,26 @@ class FakeDDM500:
     def motor_current_history(self):
         """Return the history of motor currents in both axes."""
         return self._current_hist
+
+    def within_ra_limits(self, ra_min=None, ra_max=None):
+        """Return true if the mount is within the given RA limits."""
+        if ra_min is not None and self.encoder_position['ra'] < ra_min:
+            return False
+        if ra_max is not None and self.encoder_position['ra'] > ra_max:
+            return False
+        return True
+
+    def within_dec_limits(self, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given Dec limits."""
+        if dec_min is not None and self.encoder_position['dec'] < dec_min:
+            return False
+        if dec_max is not None and self.encoder_position['dec'] > dec_max:
+            return False
+        return True
+
+    def within_encoder_limits(self, ra_min=None, ra_max=None, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given encoder limits."""
+        return self.within_ra_limits(ra_min, ra_max) and self.within_dec_limits(dec_min, dec_max)
 
     def _slewing_thread(self, target_ra, target_dec, parking=False):
         """Simulate slewing from one position to another (very basic!)."""
