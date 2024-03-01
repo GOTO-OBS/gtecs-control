@@ -716,7 +716,7 @@ class MntDaemon(BaseDaemon):
             return None
         return self.current_position.separation(self.target).deg
 
-    def _within_limits(self, coords):
+    def check_limits(self, coords):
         """Check if the given coordinates are within the mount limits."""
         if isinstance(coords, SkyCoord):
             coords_altaz = coords.transform_to(AltAz(obstime=Time.now(), location=self.location))
@@ -793,16 +793,9 @@ class MntDaemon(BaseDaemon):
         self.set_target(coords)
 
         # Check if target is within the limits
-        if not isinstance(coords, AltAz):
-            coords_altaz = coords.transform_to(AltAz(obstime=Time.now(), location=self.location))
-        else:
-            coords_altaz = coords
-            coords = SkyCoord(coords_altaz).transform_to('icrs')
-        try:
-            self._within_limits(coords)
-        except Exception:
-            raise
+        self.check_limits(coords)
 
+        # Check current status
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise HardwareError('Already slewing')
@@ -816,6 +809,10 @@ class MntDaemon(BaseDaemon):
 
     def track(self):
         """Start the mount tracking."""
+        # Check if we're currently within the limits
+        self.check_limits(self.current_position)
+
+        # Check current status
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise HardwareError('Mount is slewing, will track when reached target')
@@ -825,10 +822,6 @@ class MntDaemon(BaseDaemon):
             raise HardwareError('Mount is in blinky mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
             raise HardwareError('Mount motors are powered off')
-        try:
-            self._within_limits(self.current_position)
-        except Exception:
-            raise
 
         if self.info['status'] != 'Tracking':
             self.force_check_flag = True

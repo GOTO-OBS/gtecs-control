@@ -9,7 +9,7 @@ from astropy.time import Time
 import numpy as np
 
 from . import params
-from .astronomy import radec_from_altaz, within_mount_limits
+from .astronomy import radec_from_altaz
 from .daemons import daemon_proxy, HardwareError
 from .fits import clear_glance_files, get_glance_data, get_image_data
 
@@ -183,9 +183,6 @@ def slew_to_radec(ra, dec, timeout=120):
         time in seconds after which to timeout
 
     """
-    if not within_mount_limits(ra, dec, Time.now()):
-        raise ValueError('Target is outside of mount limits, cannot slew')
-
     print(f'Slewing to {ra:.2f} {dec:.2f}')
     with daemon_proxy('mnt') as daemon:
         info = daemon.get_info(force_update=True)
