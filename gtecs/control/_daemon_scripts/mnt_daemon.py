@@ -113,8 +113,11 @@ class MntDaemon(BaseDaemon):
                 # Check if the mount has passed the limits and should stop
                 # This is a nice idea, but including the Slewing status means we can never get
                 # out if it triggers. You'd need to be able to detect if it's moving towards
-                # or away form the limit, and that's tricky.
-                # self._limit_check()
+                # or away from the limit, and that's tricky.
+                # It's also probably better to try and have it move out itself, and for the encoder
+                # limits it's safer if it completes a flip than we stop when it's vertical.
+                # For now we can log if it's past the limits but not try to stop.
+                self._limit_check(force_stop=False)
 
             # control functions
             # slew to target
@@ -610,16 +613,39 @@ class MntDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-    def _limit_check(self):
+    def _limit_check(self, force_stop=True):
         """Check if the mount position is past the valid limits."""
-        try:
-            self._within_limits(self.current_position)
-        except Exception:
-            self.log.error(f'Mount is outside of limits [{self._pos_str()}]')
-            self.log.debug('', exc_info=True)
+        if self.info['elevation_within_limits'] is False:
+            msg = 'Mount alt ({:.1f} deg) is below limit ({:.1f} deg)'.format(
+                self.info['mount_alt'], self.info['min_elevation'])
+            self.log.error(msg)
+            should_stop = True
+        elif self.info['hourangle_within_limits'] is False:
+            msg = 'Mount hour angle ({:.1f}h) is outside limit (±{:.1f}h)'.format(
+                self.info['mount_ha'], self.info['max_hourangle'])
+            self.log.error(msg)
+            should_stop = True
+        elif self.info['encoder_ra_within_limits'] is False:
+            msg = 'Mount RA encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
+                self.info['encoder_position']['ra'],
+                self.info['encoder_position_limits']['ra'][0],
+                self.info['encoder_position_limits']['ra'][1],
+            )
+            self.log.error(msg)
+            should_stop = True
+        elif self.info['encoder_dec_within_limits'] is False:
+            msg = 'Mount Dec encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
+                self.info['encoder_position']['dec'],
+                self.info['encoder_position_limits']['dec'][0],
+                self.info['encoder_position_limits']['dec'][1],
+            )
+            self.log.error(msg)
+            should_stop = True
+
+        if force_stop and should_stop:
             # Stop any movement
             if self.info['status'] in ['Tracking', 'Slewing']:
-                self.log.error('Stopping mount')
+                self.log.warning('Stopping mount')
                 self.force_check_flag = True
                 self.halt_flag = 1
 
@@ -701,18 +727,18 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Coordinates must be an astropy `SkyCoord` or `AltAz` object')
 
         # Check if position is above horizon
-        if coords_altaz.alt.deg < params.MIN_ELEVATION:
-            msg = f'Target alt ({coords_altaz.alt.deg:.1f} deg)'
-            msg += f' is below limit ({params.MIN_ELEVATION:.1f} deg)'
-            msg += ', cannot slew'
+        if coords_altaz.alt.deg < self.info['min_elevation']:
+            msg = 'Target alt ({:.1f} deg) is below limit ({:.1f} deg), cannot slew'.format(
+                coords_altaz.alt.deg, self.info['min_elevation'])
             raise HardwareError(msg)
         # Check if position is within hour angle limits
         coords_hadec = coords.transform_to(HADec(obstime=Time.now(), location=self.location))
-        if abs(coords_hadec.ha.hour) > params.MAX_HOURANGLE:
-            msg = f'Target hour angle ({coords_hadec.ha.hour:.1f}h)'
-            msg += f' is outside limit (±{params.MAX_HOURANGLE:.1f}h)'
-            msg += ', cannot slew'
+        if abs(coords_hadec.ha.hour) > self.info['max_hourangle']:
+            msg = 'Target hour angle ({:.1f}h) is outside limit (±{}h), cannot slew'.format(
+                coords_hadec.ha.hour, self.info['max_hourangle'])
             raise HardwareError(msg)
+        # Unfortunately we can't check the encoder limits here, there's no function to get the
+        # encoder position for a given target.
         return
 
     def _pos_str(self, coords=None):
