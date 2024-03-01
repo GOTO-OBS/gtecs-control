@@ -826,8 +826,8 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_HARDWARE in self.errors:
             # The mount daemon connects to the mount hardware.
-            if 'mount' in self.bad_hardware:
-                # PROBLEM: We've lost connection to the mount.
+            if 'sitech' in self.bad_hardware or 'autoslew' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the mount controller.
                 recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the mount.
                 if self.mount_class == 'SITECH':
@@ -837,7 +837,10 @@ class MntMonitor(BaseMonitor):
                     recovery_procedure[1] = ['power off mount', 10]
                     recovery_procedure[2] = ['power on mount', 180]
                 # OUT OF SOLUTIONS: Them mount must not have started correctly.
-                return ERROR_HARDWARE + 'mount', recovery_procedure
+                if self.mount_class == 'SITECH':
+                    return ERROR_HARDWARE + 'sitech', recovery_procedure
+                elif self.mount_class == 'ASA':
+                    return ERROR_HARDWARE + 'autoslew', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
             return ERROR_HARDWARE, {}
 

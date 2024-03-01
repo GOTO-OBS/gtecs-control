@@ -335,16 +335,31 @@ class MntDaemon(BaseDaemon):
             )
             return
 
-        try:
-            self.log.info('Connecting to Mount')
-            if params.MOUNT_CLASS == 'SITECH':
+        if params.MOUNT_CLASS == 'SITECH':
+            try:
+                self.log.info('Connecting to SiTech')
                 self.mount = SiTech(
                     params.MOUNT_HOST,
                     params.MOUNT_PORT,
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
                 )
-            elif params.MOUNT_CLASS == 'ASA':
+
+                # Connection successful
+                self.log.info('Connected to SiTech')
+                if 'sitech' in self.bad_hardware:
+                    self.bad_hardware.remove('sitech')
+
+            except Exception:
+                # Connection failed
+                self.mount = None
+                if 'sitech' not in self.bad_hardware:
+                    self.log.error('Failed to connect to SiTech')
+                    self.bad_hardware.add('sitech')
+
+        elif params.MOUNT_CLASS == 'ASA':
+            try:
+                self.log.info('Connecting to AutoSlew')
                 self.mount = DDM500(
                     params.MOUNT_HOST,
                     params.MOUNT_PORT,
@@ -355,18 +370,17 @@ class MntDaemon(BaseDaemon):
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
                 )
+                # Connection successful
+                self.log.info('Connected to AutoSlew')
+                if 'autoslew' in self.bad_hardware:
+                    self.bad_hardware.remove('autoslew')
 
-            # Connection successful
-            self.log.info('Connected to mount')
-            if 'mount' in self.bad_hardware:  # TODO: rename 'sitech' or 'autoslew', dome to plc...
-                self.bad_hardware.remove('mount')
-
-        except Exception:
-            # Connection failed
-            self.mount = None
-            if 'mount' not in self.bad_hardware:
-                self.log.error('Failed to connect to mount')
-                self.bad_hardware.add('mount')
+            except Exception:
+                # Connection failed
+                self.mount = None
+                if 'autoslew' not in self.bad_hardware:
+                    self.log.error('Failed to connect to AutoSlew')
+                    self.bad_hardware.add('autoslew')
 
     def _get_info(self):
         """Get the latest status info from the hardware.
@@ -523,6 +537,10 @@ class MntDaemon(BaseDaemon):
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 temp_info['nonsidereal'] = None
+                # Report the connection as failed
+                self.mount = None
+                if 'sitech' not in self.bad_hardware:
+                    self.bad_hardware.add('sitech')
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
                 temp_info['tracking_rate'] = None
@@ -540,10 +558,10 @@ class MntDaemon(BaseDaemon):
                 temp_info['velocity_history'] = None
                 temp_info['acceleration_history'] = None
                 temp_info['motor_current_history'] = None
-            # Report the connection as failed
-            self.mount = None
-            if 'mount' not in self.bad_hardware:
-                self.bad_hardware.add('mount')
+                # Report the connection as failed
+                self.mount = None
+                if 'autoslew' not in self.bad_hardware:
+                    self.bad_hardware.add('autoslew')
 
         # Get astronomy info
         try:
