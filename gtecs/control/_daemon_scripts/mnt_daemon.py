@@ -643,7 +643,7 @@ class MntDaemon(BaseDaemon):
                 self.info['mount_ha'], self.info['max_hourangle'])
             self.log.error(msg)
             should_stop = True
-        elif self.info['encoder_ra_within_limits'] is False:
+        elif self.info['class'] == 'ASA' and self.info['encoder_ra_within_limits'] is False:
             msg = 'Mount RA encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
                 self.info['encoder_position']['ra'],
                 self.info['encoder_position_limits']['ra'][0],
@@ -651,7 +651,7 @@ class MntDaemon(BaseDaemon):
             )
             self.log.error(msg)
             should_stop = True
-        elif self.info['encoder_dec_within_limits'] is False:
+        elif self.info['class'] == 'ASA' and self.info['encoder_dec_within_limits'] is False:
             msg = 'Mount Dec encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
                 self.info['encoder_position']['dec'],
                 self.info['encoder_position_limits']['dec'][0],
@@ -1057,7 +1057,7 @@ class MntDaemon(BaseDaemon):
                 msg += ytxt('WARNING: Alt < {:.1f} deg\n'.format(info['min_elevation']))
             if not info['hourangle_within_limits']:
                 msg += ytxt('WARNING: HA > ±{:.1f}h\n'.format(info['max_hourangle']))
-            if not info['encoder_position_within_limits']:
+            if self.info['class'] == 'ASA' and not info['encoder_position_within_limits']:
                 msg += ytxt('WARNING: Mount has exceed encoder limits (may have flipped)\n')
             if info['moon_dist'] <= 30:
                 msg += ytxt('WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
