@@ -335,6 +335,8 @@ def query(command, args):
             '  autoclose [on|off] [timeout]   automatically close in bad weather? (timeout in min)',
             '  dehumidifier [on|off]          manually turn the dehumidifier on/off',
             '  autodehum [on|off]             automatically turn the dehumidifier on/off?',
+            '  aircon [on|off]                manually turn the aircon on/off',
+            '  autoaircon [on|off]            automatically turn the aircon on/off?',
             '  windshield [on|off]            manually turn wind shielding on/off',
             '  autoshield [on|off]            automatically shield in high wind?',
             '  alarm [on|off]                 automatically sound the alarm when moving?',
