@@ -558,6 +558,15 @@ class MntDaemon(BaseDaemon):
                 temp_info['velocity_history'] = None
                 temp_info['acceleration_history'] = None
                 temp_info['motor_current_history'] = None
+                temp_info['encoder_position_limits'] = None
+                temp_info['encoder_ra_within_limits'] = None
+                temp_info['encoder_dec_within_limits'] = None
+                temp_info['encoder_position_within_limits'] = None
+                temp_info['error_status'] = None
+                temp_info['error_status_time'] = None
+                temp_info['warning_status'] = None
+                temp_info['warning_status_time'] = None
+
                 # Report the connection as failed
                 self.mount = None
                 if 'autoslew' not in self.bad_hardware:
