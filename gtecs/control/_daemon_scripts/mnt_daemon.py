@@ -421,6 +421,7 @@ class MntDaemon(BaseDaemon):
                 temp_info['tracking_rate'] = self.mount.tracking_rate
                 temp_info['motors_on'] = self.mount.motors_on
                 temp_info['pier_side'] = self.mount.pier_side
+
                 # Extra info from the report command
                 temp_info['encoder_position'] = self.mount.encoder_position
                 temp_info['position_error'] = self.mount.position_error
@@ -428,6 +429,7 @@ class MntDaemon(BaseDaemon):
                 temp_info['velocity'] = self.mount.velocity
                 temp_info['acceleration'] = self.mount.acceleration
                 temp_info['motor_current'] = self.mount.motor_current
+
                 # Save history so we can add to the image headers
                 temp_info['encoder_position_history'] = self.mount.encoder_position_history
                 temp_info['position_error_history'] = self.mount.position_error_history
@@ -435,6 +437,21 @@ class MntDaemon(BaseDaemon):
                 temp_info['velocity_history'] = self.mount.velocity_history
                 temp_info['acceleration_history'] = self.mount.acceleration_history
                 temp_info['motor_current_history'] = self.mount.motor_current_history
+
+                # Check if the mount is within the encoder position limits
+                temp_info['encoder_position_limits'] = {
+                    'ra': (params.ENCODER_RA_MIN, params.ENCODER_RA_MAX),
+                    'dec': (params.ENCODER_DEC_MIN, params.ENCODER_DEC_MAX),
+                }
+                within_ra = self.mount.within_ra_limits(
+                    temp_info['encoder_position_limits']['ra'][0],
+                    temp_info['encoder_position_limits']['ra'][1]
+                )
+                within_dec = self.mount.within_dec_limits(
+                    temp_info['encoder_position_limits']['dec'][0],
+                    temp_info['encoder_position_limits']['dec'][1]
+                )
+                temp_info['encoder_position_within_limits'] = within_ra and within_dec
 
                 # Log any errors or warnings from the mount, along with the time of occurrence
                 error_status = self.mount.error_check()
@@ -981,16 +998,21 @@ class MntDaemon(BaseDaemon):
                 ra_str, ra * 360 / 24, alt)
             msg += '  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}\n'.format(
                 dec_str, dec, az)
-            if info['moon_dist'] <= 30:
-                msg += ytxt('  WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
-                    info['moon_dist']))
+
+            # Warnings and errors
             if info['error_status'] is not None:
                 t = Time(info['error_status_time'], format='unix', precision=0)
                 msg += rtxt('ERROR: "{}" (at {})\n'.format(info['error_status'], t.iso))
             if info['warning_status'] is not None:
                 t = Time(info['warning_status_time'], format='unix', precision=0)
                 msg += ytxt('WARNING: "{}" (at {})\n'.format(info['warning_status'], t.iso))
+            if not info['encoder_position_within_limits']:
+                msg += ytxt('WARNING: Mount has exceed encoder limits (may have flipped)\n')
+            if info['moon_dist'] <= 30:
+                msg += ytxt('WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
+                    info['moon_dist']))
             msg = msg.rstrip()
+
         else:
             msg = '####### MOUNT INFO ########\n'
             if info['status'] != 'Slewing':
@@ -1064,10 +1086,19 @@ class MntDaemon(BaseDaemon):
                     msg += 'Dec track rate:  {:>+9.4f} arcsec/sec\n'.format(
                         info['tracking_rate']['dec'])
 
-                msg += 'RA encoder pos:   {:>+9.4f} deg\n'.format(
-                    info['encoder_position']['ra'])
-                msg += 'Dec encoder pos:  {:>+9.4f} deg\n'.format(
-                    info['encoder_position']['dec'])
+                msg += 'RA encoder pos:   {:>+9.4f} deg (limits:{:.0f},{:.0f})\n'.format(
+                    info['encoder_position']['ra'],
+                    info['encoder_position_limits']['ra'][0],
+                    info['encoder_position_limits']['ra'][1],
+                )
+                msg += 'Dec encoder pos:  {:>+9.4f} deg (limits:{:.0f},{:.0f})\n'.format(
+                    info['encoder_position']['dec'],
+                    info['encoder_position_limits']['dec'][0],
+                    info['encoder_position_limits']['dec'][1],
+                )
+                if not info['encoder_position_within_limits']:
+                    msg += ytxt('  WARNING: Mount has exceed encoder limits (may have flipped)\n')
+
                 msg += 'RA position err:  {:>+9.4f} arcsec\n'.format(
                     info['position_error']['ra'])
                 msg += 'Dec position err: {:>+9.4f} arcsec\n'.format(

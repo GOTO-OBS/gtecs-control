@@ -245,7 +245,10 @@ MOUNT_HISTORY_PERIOD = config['MOUNT_HISTORY_PERIOD']
 
 MIN_ELEVATION = config['MIN_ELEVATION']
 MAX_HOURANGLE = config['MAX_HOURANGLE']
-
+ENCODER_RA_MIN = config['ENCODER_RA_MIN']
+ENCODER_RA_MAX = config['ENCODER_RA_MAX']
+ENCODER_DEC_MIN = config['ENCODER_DEC_MIN']
+ENCODER_DEC_MAX = config['ENCODER_DEC_MAX']
 
 ############################################################
 # Camera parameters
