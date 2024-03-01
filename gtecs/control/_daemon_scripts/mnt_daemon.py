@@ -396,6 +396,14 @@ class MntDaemon(BaseDaemon):
             coords_hadec = coords.transform_to(HADec(obstime=now, location=self.location))
             temp_info['mount_ha_pointing'] = coords_hadec.ha.hourangle
 
+            # Check if the mount is within the position limits
+            temp_info['min_elevation'] = params.MIN_ELEVATION
+            temp_info['max_hourangle'] = params.MAX_HOURANGLE
+            within_elevation = temp_info['mount_alt_pointing'] > temp_info['min_elevation']
+            within_hourangle = abs(temp_info['mount_ha_pointing']) < temp_info['max_hourangle']
+            temp_info['elevation_within_limits'] = within_elevation
+            temp_info['hourangle_within_limits'] = within_hourangle
+
             if self.position_offset is None:
                 temp_info['mount_ra'] = temp_info['mount_ra_pointing']
                 temp_info['mount_dec'] = temp_info['mount_dec_pointing']
@@ -451,6 +459,8 @@ class MntDaemon(BaseDaemon):
                     temp_info['encoder_position_limits']['dec'][0],
                     temp_info['encoder_position_limits']['dec'][1]
                 )
+                temp_info['encoder_ra_within_limits'] = within_ra
+                temp_info['encoder_dec_within_limits'] = within_dec
                 temp_info['encoder_position_within_limits'] = within_ra and within_dec
 
                 # Log any errors or warnings from the mount, along with the time of occurrence
@@ -1006,6 +1016,10 @@ class MntDaemon(BaseDaemon):
             if info['warning_status'] is not None:
                 t = Time(info['warning_status_time'], format='unix', precision=0)
                 msg += ytxt('WARNING: "{}" (at {})\n'.format(info['warning_status'], t.iso))
+            if not info['elevation_within_limits']:
+                msg += ytxt('WARNING: Alt < {:.1f} deg\n'.format(info['min_elevation']))
+            if not info['hourangle_within_limits']:
+                msg += ytxt('WARNING: HA > ±{:.1f}h\n'.format(info['max_hourangle']))
             if not info['encoder_position_within_limits']:
                 msg += ytxt('WARNING: Mount has exceed encoder limits (may have flipped)\n')
             if info['moon_dist'] <= 30:
@@ -1046,6 +1060,8 @@ class MntDaemon(BaseDaemon):
 
             msg += 'Mount Alt:         {:8.4f} deg\n'.format(info['mount_alt'])
             msg += 'Mount Az:          {:8.4f} deg\n'.format(info['mount_az'])
+            if not info['elevation_within_limits']:
+                msg += ytxt('  WARNING: Alt < {:.1f} deg\n'.format(info['min_elevation']))
 
             if info['target_alt'] is not None:
                 msg += 'Target Alt:        {:8.4f} deg\n'.format(info['target_alt'])
@@ -1128,6 +1144,8 @@ class MntDaemon(BaseDaemon):
             lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
             msg += 'Sidereal Time:     {:>11}\n'.format(lst_str)
             msg += 'Hour Angle:        {:+6.2f} h\n'.format(info['mount_ha'])
+            if not info['hourangle_within_limits']:
+                msg += ytxt('WARNING: HA > ±{:.1f}h\n'.format(info['max_hourangle']))
 
             msg += 'Sun alt:           {:+6.2f} deg\n'.format(info['sun_alt'])
             msg += 'Moon alt:          {:+6.2f} deg\n'.format(info['moon_alt'])
