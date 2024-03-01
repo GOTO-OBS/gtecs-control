@@ -1154,7 +1154,10 @@ class MntDaemon(BaseDaemon):
                     msg += ytxt('WARNING: "{}" (at {})\n'.format(
                         info['warning_status'], t.iso))
 
-                msg += 'Pier side:         {}\n'.format(info['pier_side'])
+                msg += 'Pier side:         {} ({})\n'.format(
+                    'West' if info['pier_side'] == 0 else 'East',  # Use ASA convention
+                    info['pier_side'],
+                )
                 if (self.info['target_pier_side'] is not None and
                         self.info['pier_side'] != self.info['target_pier_side']):
                     msg += ytxt('  WARNING: Pier side ({}) is flipped (target={})\n'.format(
