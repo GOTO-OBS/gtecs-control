@@ -1,4 +1,4 @@
-"""Classes to control telescope domes and dehumidifiers."""
+"""Classes to control telescope domes and related hardware."""
 
 import json
 import logging
@@ -12,7 +12,6 @@ import Pyro4
 
 import serial  # noqa: I900
 
-from .power import ETHPDU
 from .. import params
 
 
@@ -949,6 +948,7 @@ class DomeHeartbeat:
                     self.status = self._parse_status(x)
                     if self.log and self.log_debug:
                         self.log.debug('heartbeat RECV:"{}" (status={})'.format(x, self.status))
+                break
             except Exception:
                 attempts_remaining -= 1
                 if self.log:
@@ -1006,74 +1006,3 @@ class DomeHeartbeat:
         else:
             self.enabled = False
             return 'Heartbeat disabled'
-
-
-class FakeDehumidifier:
-    """Fake dehumidifier class."""
-
-    def __init__(self):
-        self._on = False
-
-    def on(self):
-        """Turn on the dehumidifier."""
-        self._on = True
-
-    def off(self):
-        """Turn off the dehumidifier."""
-        self._on = False
-
-    @property
-    def status(self):
-        """Get the dehumidifier status (True = on, False = off)."""
-        return self._on
-
-
-class ETH002Dehumidifier:
-    """Dehumidifier class (using a ETH002 relay)."""
-
-    def __init__(self, address, port):
-        self.address = address
-        self.port = port
-        self.power = ETHPDU(self.address, self.port, outlets=2, normally_closed=False)
-
-    def on(self):
-        """Turn on the dehumidifier."""
-        self.power.on(1)
-
-    def off(self):
-        """Turn off the dehumidifier."""
-        self.power.off(1)
-
-    @property
-    def status(self):
-        """Get the dehumidifier status (True = on, False = off)."""
-        return self.power.status()[0] == '1'
-
-
-class Dehumidifier:
-    """Dehumidifier class (using Paul's DomeAlert)."""
-
-    def __init__(self, uri):
-        self.uri = uri
-
-    def _proxy(self):
-        proxy = Pyro4.Proxy(self.uri)
-        proxy._pyroSerializer = 'serpent'
-        return proxy
-
-    def on(self):
-        """Turn on the dehumidifier."""
-        with self._proxy() as proxy:
-            proxy.set_relay(True)
-
-    def off(self):
-        """Turn off the dehumidifier."""
-        with self._proxy() as proxy:
-            proxy.set_relay(False)
-
-    @property
-    def status(self):
-        """Get the dehumidifier status (True = on, False = off)."""
-        with self._proxy() as proxy:
-            status = proxy.get_relay()
-        return status

@@ -7,6 +7,8 @@ import subprocess
 import threading
 import time
 
+import Pyro4
+
 from six import byte2int, indexbytes, int2byte
 
 
@@ -653,3 +655,74 @@ class ETHPDU:
             command = self.commands['OFF'] + int2byte(outlet) + int2byte(reboot_time)
         out = byte2int(self._tcp_command(command))
         return out
+
+
+class FakeRelay:
+    """Fake relay class."""
+
+    def __init__(self):
+        self._on = False
+
+    def on(self):
+        """Turn on the relay."""
+        self._on = True
+
+    def off(self):
+        """Turn off the relay."""
+        self._on = False
+
+    @property
+    def status(self):
+        """Get the relay status (True = on, False = off)."""
+        return self._on
+
+
+class ETH002Relay:
+    """Simple relay class (using a ETH002 PDU)."""
+
+    def __init__(self, address, port):
+        self.address = address
+        self.port = port
+        self.power = ETHPDU(self.address, self.port, outlets=2, normally_closed=False)
+
+    def on(self):
+        """Turn on the relay."""
+        self.power.on(1)
+
+    def off(self):
+        """Turn off the relay."""
+        self.power.off(1)
+
+    @property
+    def status(self):
+        """Get the relay status (True = on, False = off)."""
+        return self.power.status()[0] == '1'
+
+
+class DomeAlertRelay:
+    """Simple relay class (using Paul's DomeAlert)."""
+
+    def __init__(self, uri):
+        self.uri = uri
+
+    def _proxy(self):
+        proxy = Pyro4.Proxy(self.uri)
+        proxy._pyroSerializer = 'serpent'
+        return proxy
+
+    def on(self):
+        """Turn on the relay."""
+        with self._proxy() as proxy:
+            proxy.set_relay(True)
+
+    def off(self):
+        """Turn off the relay."""
+        with self._proxy() as proxy:
+            proxy.set_relay(False)
+
+    @property
+    def status(self):
+        """Get the relay status (True = on, False = off)."""
+        with self._proxy() as proxy:
+            status = proxy.get_relay()
+        return status
