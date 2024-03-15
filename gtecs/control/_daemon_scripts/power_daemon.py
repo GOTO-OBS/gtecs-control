@@ -6,6 +6,7 @@ import time
 
 from astropy.time import Time
 
+from gtecs.common.style import gtxt, rtxt
 from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.daemons import BaseDaemon
@@ -320,7 +321,7 @@ class PowerDaemon(BaseDaemon):
             outlet_list = list(set(outlet_list))
 
             # We have a list of unique outlet names, now we need to find their matching units.
-            # This funcion will return the UNIQUE list of units, so not a direct map between
+            # This function will return the UNIQUE list of units, so not a direct map between
             # outlet and unit.
             unit_list = self._units_from_names(outlet_list)
 
@@ -451,26 +452,33 @@ class PowerDaemon(BaseDaemon):
             for unit in params.POWER_UNITS:
                 unit_class = params.POWER_UNITS[unit]['CLASS']
                 ip = params.POWER_UNITS[unit]['IP']
+                if ip == 'localhost':
+                    ip = params.LOCAL_HOST
                 if 'PORT' in params.POWER_UNITS[unit]:
                     port = params.POWER_UNITS[unit]['PORT']
                     port_str = ':{}'.format(port)
                 else:
                     port_str = ''
+
                 status = info['status_' + unit]
+                msg += '{} ({}{})\n'.format(unit, ip, port_str)
                 if 'status' in status:
-                    unit_status = status['status']
-                    msg += '{} ({}{})       [{}]\n'.format(unit, ip, port_str, unit_status)
-                else:
-                    msg += '{} ({}{})\n'.format(unit, ip, port_str)
+                    msg += '   Status:             [{}]\n'.format(
+                        status['status'] if status['status'] == 'Normal'
+                        else rtxt(status['status']))
                 if 'UPS' in unit_class:
-                    msg += '   Load: {: >5}%\n'.format(status['load'])
-                    msg += '   Remaining: {}% ({}s)\n'.format(status['percent'], status['time'])
+                    msg += '   Load:                {: >5}%\n'.format(status['load'])
+                    msg += '   Remaining:           {: >5}% ({}s)\n'.format(
+                        status['percent'], status['time'])
                 if 'ATS' in unit_class:
                     if status['source'] == 'A':
                         source_status = status['status_A']
                     else:
                         source_status = status['status_B']
-                    msg += '   Current source: {} ({})\n'.format(status['source'], source_status)
+                    msg += '   Current source:      {} [{}]\n'.format(
+                        status['source'],
+                        source_status if source_status == 'Normal'
+                        else rtxt(source_status))
                 if 'NAMES' in params.POWER_UNITS[unit]:
                     names = params.POWER_UNITS[unit]['NAMES']
                     for outlet in names:
@@ -478,14 +486,18 @@ class PowerDaemon(BaseDaemon):
                         outlet_no = names.index(outlet) + 1
                         outlet_status = status[outlet].capitalize()
                         if outlet[0] != '_':
-                            msg += '   Outlet {:<2} {: <15} [{}]\n'.format(
-                                outlet_no, outlet_name, outlet_status)
+                            msg += '   Outlet {:<2} {: <20} [{}]\n'.format(
+                                outlet_no, outlet_name,
+                                gtxt(outlet_status) if outlet_status == 'On'
+                                else rtxt(outlet_status))
             msg = msg.rstrip()
         else:
             msg = '####### POWER INFO ########\n'
             for unit in params.POWER_UNITS:
                 unit_class = params.POWER_UNITS[unit]['CLASS']
                 ip = params.POWER_UNITS[unit]['IP']
+                if ip == 'localhost':
+                    ip = params.LOCAL_HOST
                 if 'PORT' in params.POWER_UNITS[unit]:
                     port = params.POWER_UNITS[unit]['PORT']
                     port_str = ':{}'.format(port)
@@ -494,23 +506,33 @@ class PowerDaemon(BaseDaemon):
                 msg += 'UNIT {} ({}{})\n'.format(unit, ip, port_str)
                 status = info['status_' + unit]
                 if 'UPS' in unit_class:
-                    msg += 'Status: {}\n'.format(status['status'])
+                    msg += 'Status: {}\n'.format(
+                        status['status'] if status['status'] == 'Normal'
+                        else rtxt(status['status']))
                     msg += 'Current load:       {}%\n'.format(status['load'])
                     msg += 'Percent remaining:  {}%\n'.format(status['percent'])
                     msg += 'Time remaining:     {}s\n'.format(status['time'])
                 if 'ATS' in unit_class:
-                    msg += 'Status: {}\n'.format(status['status'])
+                    msg += 'Status: {}\n'.format(
+                        status['status'] if status['status'] == 'Normal'
+                        else rtxt(status['status']))
                     msg += 'Current source:     {}\n'.format(status['source'])
-                    msg += 'Source A status:    {}\n'.format(status['status_A'])
-                    msg += 'Source B status:    {}\n'.format(status['status_B'])
+                    msg += 'Source A status:    {}\n'.format(
+                        status['status_A'] if status['status_A'] == 'Normal'
+                        else rtxt(status['status_A']))
+                    msg += 'Source B status:    {}\n'.format(
+                        status['status_B'] if status['status_B'] == 'Normal'
+                        else rtxt(status['status_B']))
                 if 'NAMES' in params.POWER_UNITS[unit]:
                     names = params.POWER_UNITS[unit]['NAMES']
                     for outlet in names:
                         outlet_name = '({}):'.format(outlet)
                         outlet_no = names.index(outlet) + 1
                         outlet_status = status[outlet].capitalize()
-                        msg += 'Outlet {: <2} {: <15} {}\n'.format(
-                            outlet_no, outlet_name, outlet_status)
+                        msg += 'Outlet {: <2} {: <20} {}\n'.format(
+                            outlet_no, outlet_name,
+                            gtxt(outlet_status) if outlet_status == 'On'
+                            else rtxt(outlet_status))
                 msg += '~~~~~~~\n'
 
             msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])
