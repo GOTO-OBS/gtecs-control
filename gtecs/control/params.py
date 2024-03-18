@@ -103,10 +103,20 @@ for ut in UT_DICT:
             if 'CLASS' not in UT_DICT[ut][hw_class]:
                 raise ValueError('{} for UT {} does not have a valid class'.format(hw_class, ut))
 
+    # Get specific camera operating temperatures
+    if UT_DICT[ut]['CAMERA'] is not None:
+        if 'IMAGING_TEMPERATURE' not in UT_DICT[ut]['CAMERA']:
+            UT_DICT[ut]['CAMERA']['IMAGING_TEMPERATURE'] = config['CAM_IMAGING_TEMPERATURE']
+        if 'STANDBY_TEMPERATURE' not in UT_DICT[ut]['CAMERA']:
+            UT_DICT[ut]['CAMERA']['STANDBY_TEMPERATURE'] = config['CAM_STANDBY_TEMPERATURE']
+
     # Define available filters
+    # NB We add 'FILTERS' to each UT's dict directly, not under 'FILTERWHEEL',
+    # because in cases without a filter wheel (i.e. when UT_DICT[ut]['FILTERWHEEL'] = None)
+    # we still need to define a filter for the UT.
     if UT_DICT[ut]['FILTERWHEEL'] is not None:
         if UT_DICT[ut]['FILTERWHEEL']['CLASS'] in ['None', 'Static', 'Fixed']:
-            # This UT has a "static" filter wheel, so a fixed filter which be given
+            # This UT has a single fixed filter, for us we ignore the filter wheel
             UT_DICT[ut]['FILTERS'] = [UT_DICT[ut]['FILTERWHEEL']['FILTER']]
             UT_DICT[ut]['FILTERWHEEL'] = None
         else:
