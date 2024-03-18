@@ -113,8 +113,11 @@ class MntDaemon(BaseDaemon):
                 # Check if the mount has passed the limits and should stop
                 # This is a nice idea, but including the Slewing status means we can never get
                 # out if it triggers. You'd need to be able to detect if it's moving towards
-                # or away form the limit, and that's tricky.
-                # self._limit_check()
+                # or away from the limit, and that's tricky.
+                # It's also probably better to try and have it move out itself, and for the encoder
+                # limits it's safer if it completes a flip than we stop when it's vertical.
+                # For now we can log if it's past the limits but not try to stop.
+                self._limit_check(force_stop=False)
 
             # control functions
             # slew to target
@@ -332,35 +335,52 @@ class MntDaemon(BaseDaemon):
             )
             return
 
-        try:
-            self.log.info('Connecting to Mount')
-            if params.MOUNT_CLASS == 'SITECH':
+        if params.MOUNT_CLASS == 'SITECH':
+            try:
+                self.log.info('Connecting to SiTech')
                 self.mount = SiTech(
                     params.MOUNT_HOST,
                     params.MOUNT_PORT,
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
                 )
-            elif params.MOUNT_CLASS == 'ASA':
+
+                # Connection successful
+                self.log.info('Connected to SiTech')
+                if 'sitech' in self.bad_hardware:
+                    self.bad_hardware.remove('sitech')
+
+            except Exception:
+                # Connection failed
+                self.mount = None
+                if 'sitech' not in self.bad_hardware:
+                    self.log.error('Failed to connect to SiTech')
+                    self.bad_hardware.add('sitech')
+
+        elif params.MOUNT_CLASS == 'ASA':
+            try:
+                self.log.info('Connecting to AutoSlew')
                 self.mount = DDM500(
                     params.MOUNT_HOST,
                     params.MOUNT_PORT,
                     fake_parking=params.FAKE_MOUNT_PARKING,
+                    force_pier_side=params.FORCE_MOUNT_PIER_SIDE,
+                    report_extra=True,
+                    report_history_limit=params.MOUNT_HISTORY_PERIOD,
                     log=self.log,
                     log_debug=params.MOUNT_DEBUG,
                 )
+                # Connection successful
+                self.log.info('Connected to AutoSlew')
+                if 'autoslew' in self.bad_hardware:
+                    self.bad_hardware.remove('autoslew')
 
-            # Connection successful
-            self.log.info('Connected to mount')
-            if 'mount' in self.bad_hardware:  # TODO: rename 'sitech' or 'autoslew', dome to plc...
-                self.bad_hardware.remove('mount')
-
-        except Exception:
-            # Connection failed
-            self.mount = None
-            if 'mount' not in self.bad_hardware:
-                self.log.error('Failed to connect to mount')
-                self.bad_hardware.add('mount')
+            except Exception:
+                # Connection failed
+                self.mount = None
+                if 'autoslew' not in self.bad_hardware:
+                    self.log.error('Failed to connect to AutoSlew')
+                    self.bad_hardware.add('autoslew')
 
     def _get_info(self):
         """Get the latest status info from the hardware.
@@ -393,6 +413,14 @@ class MntDaemon(BaseDaemon):
             coords_hadec = coords.transform_to(HADec(obstime=now, location=self.location))
             temp_info['mount_ha_pointing'] = coords_hadec.ha.hourangle
 
+            # Check if the mount is within the position limits
+            temp_info['min_elevation'] = params.MIN_ELEVATION
+            temp_info['max_hourangle'] = params.MAX_HOURANGLE
+            within_elevation = temp_info['mount_alt_pointing'] > temp_info['min_elevation']
+            within_hourangle = abs(temp_info['mount_ha_pointing']) < temp_info['max_hourangle']
+            temp_info['elevation_within_limits'] = within_elevation
+            temp_info['hourangle_within_limits'] = within_hourangle
+
             if self.position_offset is None:
                 temp_info['mount_ra'] = temp_info['mount_ra_pointing']
                 temp_info['mount_dec'] = temp_info['mount_dec_pointing']
@@ -415,40 +443,46 @@ class MntDaemon(BaseDaemon):
                 # temp_info['nonsidereal'] = self.mount.nonsidereal
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
-                temp_info['position_error'] = self.mount.position_error
-                temp_info['tracking_error'] = self.mount.tracking_error
-                temp_info['motor_current'] = self.mount.motor_current
                 temp_info['tracking_rate'] = self.mount.tracking_rate
                 temp_info['motors_on'] = self.mount.motors_on
+                temp_info['pier_side'] = self.mount.pier_side
+                if params.FORCE_MOUNT_PIER_SIDE in [0, 1]:
+                    temp_info['target_pier_side'] = params.FORCE_MOUNT_PIER_SIDE
+                else:
+                    temp_info['target_pier_side'] = None
 
-                # Save a history of errors so we can add to image headers
-                if (self.info and 'position_error_history' in self.info and
-                        self.info['position_error_history'] is not None):
-                    p_error_history = self.info['position_error_history']
-                else:
-                    p_error_history = []
-                if (self.info and 'tracking_error_history' in self.info and
-                        self.info['tracking_error_history'] is not None):
-                    t_error_history = self.info['tracking_error_history']
-                else:
-                    t_error_history = []
-                if (self.info and 'motor_current_history' in self.info and
-                        self.info['motor_current_history'] is not None):
-                    current_history = self.info['motor_current_history']
-                else:
-                    current_history = []
-                p_error_history = [hist for hist in p_error_history
-                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
-                t_error_history = [hist for hist in t_error_history
-                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
-                current_history = [hist for hist in current_history
-                                   if hist[0] > self.loop_time - params.MOUNT_HISTORY_PERIOD]
-                p_error_history.append((self.loop_time, temp_info['position_error']))
-                t_error_history.append((self.loop_time, temp_info['tracking_error']))
-                current_history.append((self.loop_time, temp_info['motor_current']))
-                temp_info['position_error_history'] = p_error_history
-                temp_info['tracking_error_history'] = t_error_history
-                temp_info['motor_current_history'] = current_history
+                # Extra info from the report command
+                temp_info['encoder_position'] = self.mount.encoder_position
+                temp_info['position_error'] = self.mount.position_error
+                temp_info['tracking_error'] = self.mount.tracking_error
+                temp_info['velocity'] = self.mount.velocity
+                temp_info['acceleration'] = self.mount.acceleration
+                temp_info['motor_current'] = self.mount.motor_current
+
+                # Save history so we can add to the image headers
+                temp_info['encoder_position_history'] = self.mount.encoder_position_history
+                temp_info['position_error_history'] = self.mount.position_error_history
+                temp_info['tracking_error_history'] = self.mount.tracking_error_history
+                temp_info['velocity_history'] = self.mount.velocity_history
+                temp_info['acceleration_history'] = self.mount.acceleration_history
+                temp_info['motor_current_history'] = self.mount.motor_current_history
+
+                # Check if the mount is within the encoder position limits
+                temp_info['encoder_position_limits'] = {
+                    'ra': (params.ENCODER_RA_MIN, params.ENCODER_RA_MAX),
+                    'dec': (params.ENCODER_DEC_MIN, params.ENCODER_DEC_MAX),
+                }
+                within_ra = self.mount.within_ra_limits(
+                    temp_info['encoder_position_limits']['ra'][0],
+                    temp_info['encoder_position_limits']['ra'][1]
+                )
+                within_dec = self.mount.within_dec_limits(
+                    temp_info['encoder_position_limits']['dec'][0],
+                    temp_info['encoder_position_limits']['dec'][1]
+                )
+                temp_info['encoder_ra_within_limits'] = within_ra
+                temp_info['encoder_dec_within_limits'] = within_dec
+                temp_info['encoder_position_within_limits'] = within_ra and within_dec
 
                 # Log any errors or warnings from the mount, along with the time of occurrence
                 error_status = self.mount.error_check()
@@ -507,20 +541,41 @@ class MntDaemon(BaseDaemon):
             if isinstance(self.mount, SiTech):
                 temp_info['class'] = 'SITECH'
                 temp_info['nonsidereal'] = None
+                # Report the connection as failed
+                self.mount = None
+                if 'sitech' not in self.bad_hardware:
+                    self.bad_hardware.add('sitech')
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
-                temp_info['position_error'] = None
-                temp_info['tracking_error'] = None
-                temp_info['motor_current'] = None
                 temp_info['tracking_rate'] = None
                 temp_info['motors_on'] = None
+                temp_info['pier_side'] = None
+                temp_info['target_pier_side'] = None
+                temp_info['encoder_position'] = None
+                temp_info['position_error'] = None
+                temp_info['tracking_error'] = None
+                temp_info['velocity'] = None
+                temp_info['acceleration'] = None
+                temp_info['motor_current'] = None
+                temp_info['encoder_position_history'] = None
                 temp_info['position_error_history'] = None
                 temp_info['tracking_error_history'] = None
+                temp_info['velocity_history'] = None
+                temp_info['acceleration_history'] = None
                 temp_info['motor_current_history'] = None
-            # Report the connection as failed
-            self.mount = None
-            if 'mount' not in self.bad_hardware:
-                self.bad_hardware.add('mount')
+                temp_info['encoder_position_limits'] = None
+                temp_info['encoder_ra_within_limits'] = None
+                temp_info['encoder_dec_within_limits'] = None
+                temp_info['encoder_position_within_limits'] = None
+                temp_info['error_status'] = None
+                temp_info['error_status_time'] = None
+                temp_info['warning_status'] = None
+                temp_info['warning_status_time'] = None
+
+                # Report the connection as failed
+                self.mount = None
+                if 'autoslew' not in self.bad_hardware:
+                    self.bad_hardware.add('autoslew')
 
         # Get astronomy info
         try:
@@ -590,16 +645,46 @@ class MntDaemon(BaseDaemon):
         # Update the master info dict
         self.info = temp_info
 
-    def _limit_check(self):
+    def _limit_check(self, force_stop=True):
         """Check if the mount position is past the valid limits."""
-        try:
-            self._within_limits(self.current_position)
-        except Exception:
-            self.log.error(f'Mount is outside of limits [{self._pos_str()}]')
-            self.log.debug('', exc_info=True)
+        if self.info['elevation_within_limits'] is False:
+            msg = 'Mount alt ({:.1f} deg) is below limit ({:.1f} deg)'.format(
+                self.info['mount_alt'], self.info['min_elevation'])
+            self.log.error(msg)
+            should_stop = True
+        if self.info['hourangle_within_limits'] is False:
+            msg = 'Mount hour angle ({:.1f}h) is outside limit (±{:.1f}h)'.format(
+                self.info['mount_ha'], self.info['max_hourangle'])
+            self.log.error(msg)
+            should_stop = True
+        if self.info['class'] == 'ASA':
+            if self.info['encoder_ra_within_limits'] is False:
+                msg = 'RA encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
+                    self.info['encoder_position']['ra'],
+                    self.info['encoder_position_limits']['ra'][0],
+                    self.info['encoder_position_limits']['ra'][1],
+                )
+                self.log.error(msg)
+                should_stop = True
+            if self.info['encoder_dec_within_limits'] is False:
+                msg = 'Dec encoder position ({:.1f}) is outside limits ({:.1f},{:.1f})'.format(
+                    self.info['encoder_position']['dec'],
+                    self.info['encoder_position_limits']['dec'][0],
+                    self.info['encoder_position_limits']['dec'][1],
+                )
+                self.log.error(msg)
+                should_stop = True
+            if (self.info['target_pier_side'] is not None and
+                    self.info['pier_side'] != self.info['target_pier_side']):
+                msg = 'Mount pier side ({}) is not the target side ({})'.format(
+                    self.info['pier_side'], self.info['target_pier_side'])
+                self.log.error(msg)
+                should_stop = True
+
+        if force_stop and should_stop:
             # Stop any movement
             if self.info['status'] in ['Tracking', 'Slewing']:
-                self.log.error('Stopping mount')
+                self.log.warning('Stopping mount')
                 self.force_check_flag = True
                 self.halt_flag = 1
 
@@ -670,7 +755,7 @@ class MntDaemon(BaseDaemon):
             return None
         return self.current_position.separation(self.target).deg
 
-    def _within_limits(self, coords):
+    def check_limits(self, coords):
         """Check if the given coordinates are within the mount limits."""
         if isinstance(coords, SkyCoord):
             coords_altaz = coords.transform_to(AltAz(obstime=Time.now(), location=self.location))
@@ -681,18 +766,18 @@ class MntDaemon(BaseDaemon):
             raise ValueError('Coordinates must be an astropy `SkyCoord` or `AltAz` object')
 
         # Check if position is above horizon
-        if coords_altaz.alt.deg < params.MIN_ELEVATION:
-            msg = f'Target alt ({coords_altaz.alt.deg:.1f} deg)'
-            msg += f' is below limit ({params.MIN_ELEVATION:.1f} deg)'
-            msg += ', cannot slew'
+        if coords_altaz.alt.deg < self.info['min_elevation']:
+            msg = 'Target alt ({:.1f} deg) is below limit ({:.1f} deg), cannot slew'.format(
+                coords_altaz.alt.deg, self.info['min_elevation'])
             raise HardwareError(msg)
         # Check if position is within hour angle limits
         coords_hadec = coords.transform_to(HADec(obstime=Time.now(), location=self.location))
-        if abs(coords_hadec.ha.hour) > params.MAX_HOURANGLE:
-            msg = f'Target hour angle ({coords_hadec.ha.hour:.1f}h)'
-            msg += f' is outside limit (±{params.MAX_HOURANGLE:.1f}h)'
-            msg += ', cannot slew'
+        if abs(coords_hadec.ha.hour) > self.info['max_hourangle']:
+            msg = 'Target hour angle ({:.1f}h) is outside limit (±{}h), cannot slew'.format(
+                coords_hadec.ha.hour, self.info['max_hourangle'])
             raise HardwareError(msg)
+        # Unfortunately we can't check the encoder limits here, there's no function to get the
+        # encoder position for a given target.
         return
 
     def _pos_str(self, coords=None):
@@ -747,16 +832,9 @@ class MntDaemon(BaseDaemon):
         self.set_target(coords)
 
         # Check if target is within the limits
-        if not isinstance(coords, AltAz):
-            coords_altaz = coords.transform_to(AltAz(obstime=Time.now(), location=self.location))
-        else:
-            coords_altaz = coords
-            coords = SkyCoord(coords_altaz).transform_to('icrs')
-        try:
-            self._within_limits(coords)
-        except Exception:
-            raise
+        self.check_limits(coords)
 
+        # Check current status
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise HardwareError('Already slewing')
@@ -770,6 +848,10 @@ class MntDaemon(BaseDaemon):
 
     def track(self):
         """Start the mount tracking."""
+        # Check if we're currently within the limits
+        self.check_limits(self.current_position)
+
+        # Check current status
         self.wait_for_info()
         if self.info['status'] == 'Slewing':
             raise HardwareError('Mount is slewing, will track when reached target')
@@ -779,10 +861,6 @@ class MntDaemon(BaseDaemon):
             raise HardwareError('Mount is in blinky mode, motors disabled')
         elif self.info['status'] == 'MOTORS OFF':
             raise HardwareError('Mount motors are powered off')
-        try:
-            self._within_limits(self.current_position)
-        except Exception:
-            raise
 
         if self.info['status'] != 'Tracking':
             self.force_check_flag = True
@@ -988,16 +1066,30 @@ class MntDaemon(BaseDaemon):
                 ra_str, ra * 360 / 24, alt)
             msg += '  Dec: {:>11} | {:8.4f} deg     Az: {:7.3f}\n'.format(
                 dec_str, dec, az)
-            if info['moon_dist'] <= 30:
-                msg += ytxt('  WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
-                    info['moon_dist']))
+
+            # Warnings and errors
             if info['error_status'] is not None:
                 t = Time(info['error_status_time'], format='unix', precision=0)
                 msg += rtxt('ERROR: "{}" (at {})\n'.format(info['error_status'], t.iso))
             if info['warning_status'] is not None:
                 t = Time(info['warning_status_time'], format='unix', precision=0)
                 msg += ytxt('WARNING: "{}" (at {})\n'.format(info['warning_status'], t.iso))
+            if not info['elevation_within_limits']:
+                msg += ytxt('WARNING: Alt < {:.1f} deg\n'.format(info['min_elevation']))
+            if not info['hourangle_within_limits']:
+                msg += ytxt('WARNING: HA > ±{:.1f}h\n'.format(info['max_hourangle']))
+            if self.info['class'] == 'ASA':
+                if not info['encoder_position_within_limits']:
+                    msg += ytxt('WARNING: Mount has exceed encoder limits (may have flipped)\n')
+                if (self.info['target_pier_side'] is not None and
+                        self.info['pier_side'] != self.info['target_pier_side']):
+                    msg += ytxt('WARNING: Pier side ({}) is flipped (target={})\n'.format(
+                        self.info['pier_side'], self.info['target_pier_side']))
+            if info['moon_dist'] <= 30:
+                msg += ytxt('WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
+                    info['moon_dist']))
             msg = msg.rstrip()
+
         else:
             msg = '####### MOUNT INFO ########\n'
             if info['status'] != 'Slewing':
@@ -1011,46 +1103,48 @@ class MntDaemon(BaseDaemon):
             ra, dec = info['mount_ra'], info['mount_dec']
             ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
             dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-            msg += 'Telescope RA:     {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
-            msg += 'Telescope Dec:    {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
+            msg += 'Telescope RA:      {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
+            msg += 'Telescope Dec:     {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
 
             if info['target_alt'] is None:
                 # Assume RA/Dec target, unless Alt/Az is set
                 if info['target_ra'] is not None:
                     ra = info['target_ra']
                     ra_str = Angle(ra * u.hour).to_string(sep=':', precision=1)
-                    msg += 'Target RA:        {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
+                    msg += 'Target RA:         {:>11} / {:8.4f} deg\n'.format(ra_str, ra * 360 / 24)
                 else:
-                    msg += 'Target RA:        NOT SET\n'
+                    msg += 'Target RA:         NOT SET\n'
                 if info['target_dec'] is not None:
                     dec = info['target_dec']
                     dec_str = Angle(dec * u.deg).to_string(sep=':', precision=1, alwayssign=True)
-                    msg += 'Target Dec:       {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
+                    msg += 'Target Dec:        {:>11} / {:8.4f} deg\n'.format(dec_str, dec)
                 else:
-                    msg += 'Target Dec:       NOT SET\n'
+                    msg += 'Target Dec:        NOT SET\n'
 
-            msg += 'Mount Alt:        {:7.3f} deg\n'.format(info['mount_alt'])
-            msg += 'Mount Az:         {:7.3f} deg\n'.format(info['mount_az'])
+            msg += 'Mount Alt:         {:8.4f} deg\n'.format(info['mount_alt'])
+            msg += 'Mount Az:          {:8.4f} deg\n'.format(info['mount_az'])
+            if not info['elevation_within_limits']:
+                msg += ytxt('  WARNING: Alt < {:.1f} deg\n'.format(info['min_elevation']))
 
             if info['target_alt'] is not None:
-                msg += 'Target Alt:       {:7.3f} deg\n'.format(info['target_alt'])
-                msg += 'Target Az:        {:7.3f} deg\n'.format(info['target_az'])
+                msg += 'Target Alt:        {:8.4f} deg\n'.format(info['target_alt'])
+                msg += 'Target Az:         {:8.4f} deg\n'.format(info['target_az'])
 
             if info['target_dist'] is not None:
-                msg += 'Target distance:  {:7.3f} deg\n'.format(info['target_dist'])
+                msg += 'Target distance:   {:8.4f} deg\n'.format(info['target_dist'])
             else:
-                msg += 'Target distance:  NO TARGET\n'
+                msg += 'Target distance:   NO TARGET\n'
 
             msg += '~~~~~~~\n'
             if info['class'] == 'SITECH':
                 if info['trackrate_ra'] == 0:
-                    msg += 'RA track rate:    SIDEREAL\n'
+                    msg += 'RA track rate:     SIDEREAL\n'
                 else:
-                    msg += 'RA track rate:    {:.2f} arcsec/sec\n'.format(info['trackrate_ra'])
+                    msg += 'RA track rate:     {:.2f} arcsec/sec\n'.format(info['trackrate_ra'])
                 if info['trackrate_dec'] == 0:
-                    msg += 'Dec track rate:   SIDEREAL\n'
+                    msg += 'Dec track rate:    SIDEREAL\n'
                 else:
-                    msg += 'Dec track rate:   {:.2f} arcsec/sec\n'.format(info['trackrate_dec'])
+                    msg += 'Dec track rate:    {:.2f} arcsec/sec\n'.format(info['trackrate_dec'])
             elif info['class'] == 'ASA':
                 if info['error_status'] is not None:
                     t = Time(info['error_status_time'], format='unix', precision=0)
@@ -1059,27 +1153,79 @@ class MntDaemon(BaseDaemon):
                     t = Time(info['warning_status_time'], format='unix', precision=0)
                     msg += ytxt('WARNING: "{}" (at {})\n'.format(
                         info['warning_status'], t.iso))
-                msg += 'RA track rate:    {:>6.2f} arcsec/sec\n'.format(
-                    info['tracking_rate']['ra'])
-                msg += 'Dec track rate:   {:>6.2f} arcsec/sec\n'.format(
-                    info['tracking_rate']['dec'])
-                msg += 'RA tracking err:   {:+.4f} arcsec\n'.format(info['tracking_error']['ra'])
-                msg += 'Dec tracking err:  {:+.4f} arcsec\n'.format(info['tracking_error']['dec'])
-                msg += 'RA position err:   {:+.4f} arcsec\n'.format(info['position_error']['ra'])
-                msg += 'Dec position err:  {:+.4f} arcsec\n'.format(info['position_error']['dec'])
-                msg += 'RA current:         {:.1f} A\n'.format(info['motor_current']['ra'])
-                msg += 'Dec current:        {:.1f} A\n'.format(info['motor_current']['dec'])
+
+                msg += 'Pier side:         {} ({})\n'.format(
+                    'West' if info['pier_side'] == 0 else 'East',  # Use ASA convention
+                    info['pier_side'],
+                )
+                if (self.info['target_pier_side'] is not None and
+                        self.info['pier_side'] != self.info['target_pier_side']):
+                    msg += ytxt('  WARNING: Pier side ({}) is flipped (target={})\n'.format(
+                        self.info['pier_side'], self.info['target_pier_side']))
+
+                if info['tracking_rate']['ra'] == 0:
+                    msg += 'RA track rate:     SIDEREAL\n'
+                else:
+                    msg += 'RA track rate:   {:>+9.4f} arcsec/sec\n'.format(
+                        info['tracking_rate']['ra'])
+                if info['tracking_rate']['dec'] == 0:
+                    msg += 'Dec track rate:    SIDEREAL\n'
+                else:
+                    msg += 'Dec track rate:  {:>+9.4f} arcsec/sec\n'.format(
+                        info['tracking_rate']['dec'])
+
+                msg += 'RA encoder pos:   {:>+9.4f} deg (limits:{:.0f},{:.0f})\n'.format(
+                    info['encoder_position']['ra'],
+                    info['encoder_position_limits']['ra'][0],
+                    info['encoder_position_limits']['ra'][1],
+                )
+                msg += 'Dec encoder pos:  {:>+9.4f} deg (limits:{:.0f},{:.0f})\n'.format(
+                    info['encoder_position']['dec'],
+                    info['encoder_position_limits']['dec'][0],
+                    info['encoder_position_limits']['dec'][1],
+                )
+                if not info['encoder_position_within_limits']:
+                    msg += ytxt('  WARNING: Mount has exceed encoder limits (may have flipped)\n')
+
+                msg += 'RA position err:  {:>+9.4f} arcsec\n'.format(
+                    info['position_error']['ra'])
+                msg += 'Dec position err: {:>+9.4f} arcsec\n'.format(
+                    info['position_error']['dec'])
+                # msg += 'RA tracking err:  {:>+9.4f} arcsec\n'.format(
+                #     info['tracking_error']['ra'])
+                # msg += 'Dec tracking err: {:>+9.4f} arcsec\n'.format(
+                #     info['tracking_error']['dec'])
+                msg += 'RA tracking err:        N/A arcsec\n'  # see DDM500._get_report()
+                msg += 'Dec tracking err:       N/A arcsec\n'
+                msg += 'RA velocity:      {:>+9.4f} arcsec/sec\n'.format(
+                    info['velocity']['ra'])
+                msg += 'Dec velocity:     {:>+9.4f} arcsec/sec\n'.format(
+                    info['velocity']['dec'])
+                # msg += 'RA acceleration:  {:>+9.4f} arcsec/sec²\n'.format(
+                #     info['acceleration']['ra'])
+                # msg += 'Dec acceleration: {:>+9.4f} arcsec/sec²\n'.format(
+                #     info['acceleration']['dec'])
+                msg += 'RA acceleration:        N/A arcsec/sec²\n'  # see DDM500._get_report()
+                msg += 'Dec acceleration:       N/A arcsec/sec²\n'
+                msg += 'RA current:         {:>5.2f} A\n'.format(
+                    info['motor_current']['ra'])
+                msg += 'Dec current:        {:>5.2f} A\n'.format(
+                    info['motor_current']['dec'])
 
             msg += '~~~~~~~\n'
-            msg += 'Hour Angle:       {:+6.2f} h\n'.format(info['mount_ha'])
-
             lst_str = Angle(info['lst'] * u.hourangle).to_string(sep=':', precision=1)
-            msg += 'Sidereal Time:    {:>11}\n'.format(lst_str)
+            msg += 'Sidereal Time:     {:>11}\n'.format(lst_str)
+            msg += 'Hour Angle:        {:+6.2f} h\n'.format(info['mount_ha'])
+            if not info['hourangle_within_limits']:
+                msg += ytxt('WARNING: HA > ±{:.1f}h\n'.format(info['max_hourangle']))
 
-            msg += 'Sun alt:          {:+6.2f} deg\n'.format(info['sun_alt'])
-            msg += 'Moon alt:         {:+6.2f} deg\n'.format(info['moon_alt'])
-            msg += 'Moon phase:         {} ({:.0%})\n'.format(info['moon_phase'], info['moon_ill'])
-            msg += 'Moon distance:    {:6.2f} deg\n'.format(info['moon_dist'])
+            msg += 'Sun alt:           {:+6.2f} deg\n'.format(info['sun_alt'])
+            msg += 'Moon alt:          {:+6.2f} deg\n'.format(info['moon_alt'])
+            msg += 'Moon illumination: {:>6.1%} ({})\n'.format(info['moon_ill'], info['moon_phase'])
+            msg += 'Moon distance:     {:6.2f} deg\n'.format(info['moon_dist'])
+            if info['moon_dist'] <= 30:
+                msg += ytxt('  WARNING: Moon dist < 30 deg ({:.2f})\n'.format(
+                    info['moon_dist']))
 
             msg += '~~~~~~~\n'
             msg += 'Uptime: {:.1f}s\n'.format(info['uptime'])

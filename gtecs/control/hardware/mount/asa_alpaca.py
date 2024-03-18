@@ -35,7 +35,7 @@ class DDM500:
 
     log : logger, optional
         logger to log to
-        default = None
+        default = None (one will be created by the class)
     log_debug : bool, optional
         log debug strings?
         default = False
@@ -43,7 +43,8 @@ class DDM500:
     """
 
     def __init__(self, address, port, api_version=1, device_number=0,
-                 fake_parking=False,
+                 report_extra=True, report_history_limit=60,
+                 fake_parking=False, force_pier_side=-1,
                  log=None, log_debug=False):
         self.address = address
         self.port = port
@@ -53,10 +54,26 @@ class DDM500:
         self.client_id = random.randint(0, 2**32)
         self.transaction_count = 0
 
-        # These are to acocunt for errors in AutoSlew which mean we can't use the park functions
+        # These are to account for errors in AutoSlew which mean we can't use the park functions
         self._fake_parking = fake_parking
         self._fake_parked = False
 
+        # For the GOTO mounts we want to force no pier flips
+        # Note ASA use the opposite convention to ASCOM!
+        #   For 0 the mount is on the *east* side of the pier,
+        #     but the telescope is looking towards the *west*
+        #   ASCOM calls 0 pierEast, but AutoSlew GUI reports PierSide West
+        # We just want to make sure the mount stays on whatever side it's been setup for,
+        # so it doesn't really matter which is which (basically we just have "up" and "down")
+        # -1 is code for we don't care, let AutoSlew decide for each slew
+        if force_pier_side not in [0, 1, -1]:
+            raise ValueError('Invalid option for force_pier_side: {}'.format(force_pier_side))
+        self._force_pier_side = force_pier_side
+
+        self.report_extra = report_extra
+        self.report_history_limit = report_history_limit
+        self._report_ra = None
+        self._report_dec = None
         self._status_update_time = 0
 
         # Create a logger if one isn't given
@@ -73,8 +90,20 @@ class DDM500:
         # Get mount info (this shouldn't change, so just get once when starting)
         self.info = self._get_info()
 
-        # Update status
+        # Update status and report for initial values
         self._update_status()
+        self._get_report()
+
+        # Set report thread running
+        self.report_thread_running = False
+        if self.report_extra:
+            t = threading.Thread(target=self._report_thread)
+            t.daemon = True
+            t.start()
+
+    def __del__(self):
+        self.report_thread_running = False
+        self.disconnect()
 
     def _http_request(self, cmd, command_str, data=None):
         """Send a request to the device, then parse and return the reply."""
@@ -89,7 +118,7 @@ class DDM500:
             self.transaction_count = count
 
             url = self.base_url + command_str
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug(f'{cmd}:"{url}":{data}')
 
             if cmd == 'GET':
@@ -100,7 +129,7 @@ class DDM500:
                 r = requests.put(url, data=data)
 
             reply_str = r.content.decode(r.encoding)
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug(f'RCV:"{reply_str}"')
 
             if r.status_code != 200:
@@ -169,7 +198,6 @@ class DDM500:
         info['driverinfo'] = self._http_get('driverinfo')
         info['driverversion'] = self._http_get('driverversion')
         info['interfaceversion'] = self._http_get('interfaceversion')
-        info['sideofpier'] = self._http_get('sideofpier')  # Should stay fixed
         # AutoSlew params
         info['mounttype'] = self._http_put('action',
                                            {'Action': 'telescope:reportmounttype',
@@ -226,21 +254,11 @@ class DDM500:
             self._motors_on = self._http_put('commandstring',
                                              {'Command': 'MotStat', 'Raw': False}) == 'true'
 
-            # Most of these are not yet implemented
-            self._position_error = {'ra': -999,
-                                    'dec': -999}
-            self._tracking_error = {'ra': -999,
-                                    'dec': -999}
-            self._velocity = {'ra': -999,
-                              'dec': -999}
-            self._acceleration = {'ra': -999,
-                                  'dec': -999}
-            self._current = {'ra': -999,
-                             'dec': -999}
             self._tracking_rate = {'ra': self._http_get('rightascensionrate'),
                                    'dec': self._http_get('declinationrate')}
             self._guide_rate = {'ra': self._http_get('guideraterightascension'),
                                 'dec': self._http_get('guideratedeclination')}
+            self._pier_side = self._http_get('sideofpier')
 
             # store update time
             self._status_update_time = time.time()
@@ -339,24 +357,6 @@ class DDM500:
         return self._az
 
     @property
-    def position_error(self):
-        """Return the current position error."""
-        self._update_status()
-        return self._position_error
-
-    @property
-    def tracking_error(self):
-        """Return the current tracking error."""
-        self._update_status()
-        return self._tracking_error
-
-    @property
-    def motor_current(self):
-        """Return the current motor current."""
-        self._update_status()
-        return self._current
-
-    @property
     def tracking_rate(self):
         """Return the current tracking rate (arcsec/sec)."""
         self._update_status()
@@ -368,29 +368,308 @@ class DDM500:
         self._update_status()
         return self._guide_rate
 
-    def slew_to_radec(self, ra, dec):
+    @property
+    def pier_side(self):
+        """Return which side of the pier the mount is currently on."""
+        self._update_status()
+        return self._pier_side
+
+    def _get_report(self, disable_reporting_after=True):
+        """Get extra info from the mount report."""
+        # Make sure reporting is on
+        self._http_put('action', {'Action': 'reporting', 'Parameters': 'on'})
+
+        # Get report dicts
+        report_ra = self._http_put('action', {'Action': 'report', 'Parameters': '1'})
+        report_dec = self._http_put('action', {'Action': 'report', 'Parameters': '2'})
+        if len(report_ra) == 0 or len(report_dec) == 0:
+            raise ValueError('Invalid report string')
+        self._report_ra = json.loads(report_ra)
+        self._report_dec = json.loads(report_dec)
+
+        # Store the latest values from the report
+        self._position = {
+            'ra': self._report_ra['EncPos'], 'dec': self._report_dec['EncPos']
+        }
+        self._position_error = {
+            'ra': self._report_ra['PosErr'], 'dec': self._report_dec['PosErr']
+        }
+        self._tracking_error = {
+            'ra': -999, 'dec': -999  # Not implemented
+        }
+        self._velocity = {
+            'ra': self._report_ra['Velocity'], 'dec': self._report_dec['Velocity']
+        }
+        self._acceleration = {
+            'ra': -999, 'dec': -999  # Not implemented
+        }
+        self._current = {
+            'ra': self._report_ra['QCurr'], 'dec': self._report_dec['QCurr']
+        }
+
+        # Add to history, and remove old entries
+        report_time = {
+            'ra': Time(self._report_ra['LastTime'].split('+')[0]).unix,
+            'dec': Time(self._report_dec['LastTime'].split('+')[0]).unix
+        }
+        if not hasattr(self, '_position_hist'):
+            self._position_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_position_error_hist'):
+            self._position_error_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_tracking_error_hist'):
+            self._tracking_error_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_velocity_hist'):
+            self._velocity_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_acceleration_hist'):
+            self._acceleration_hist = {'ra': [], 'dec': []}
+        if not hasattr(self, '_current_hist'):
+            self._current_hist = {'ra': [], 'dec': []}
+        for axis in ('ra', 'dec'):
+            # Add new entries, if they have changed
+            if (len(self._position_hist[axis]) == 0 or
+                    self._position_hist[axis][-1][1] != self._position[axis]):
+                self._position_hist[axis].append(
+                    (report_time[axis], self._position[axis]))
+            if (len(self._position_error_hist[axis]) == 0 or
+                    self._position_error_hist[axis][-1][1] != self._position_error[axis]):
+                self._position_error_hist[axis].append(
+                    (report_time[axis], self._position_error[axis]))
+            if (len(self._tracking_error_hist[axis]) == 0 or
+                    self._tracking_error_hist[axis][-1][1] != self._tracking_error[axis]):
+                self._tracking_error_hist[axis].append(
+                    (report_time[axis], self._tracking_error[axis]))
+            if (len(self._velocity_hist[axis]) == 0 or
+                    self._velocity_hist[axis][-1][1] != self._velocity[axis]):
+                self._velocity_hist[axis].append(
+                    (report_time[axis], self._velocity[axis]))
+            if (len(self._acceleration_hist[axis]) == 0 or
+                    self._acceleration_hist[axis][-1][1] != self._acceleration[axis]):
+                self._acceleration_hist[axis].append(
+                    (report_time[axis], self._acceleration[axis]))
+            if (len(self._current_hist[axis]) == 0 or
+                    self._current_hist[axis][-1][1] != self._current[axis]):
+                self._current_hist[axis].append(
+                    (report_time[axis], self._current[axis]))
+
+            # Remove old entries, as long as there's more than one
+            # (we had issues with -999 readings being filtered out)
+            time_limit = time.time() - self.report_history_limit
+            if len(self._position_hist[axis]) > 1:
+                self._position_hist[axis] = [
+                    hist for hist in self._position_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._position_error_hist[axis]) > 1:
+                self._position_error_hist[axis] = [
+                    hist for hist in self._position_error_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._tracking_error_hist[axis]) > 1:
+                self._tracking_error_hist[axis] = [
+                    hist for hist in self._tracking_error_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._velocity_hist[axis]) > 1:
+                self._velocity_hist[axis] = [
+                    hist for hist in self._velocity_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._acceleration_hist[axis]) > 1:
+                self._acceleration_hist[axis] = [
+                    hist for hist in self._acceleration_hist[axis] if hist[0] > time_limit
+                ]
+            if len(self._current_hist[axis]) > 1:
+                self._current_hist[axis] = [
+                    hist for hist in self._current_hist[axis] if hist[0] > time_limit
+                ]
+
+        if disable_reporting_after:
+            self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
+
+    def _report_thread(self):
+        if self.report_thread_running:
+            self.log.debug('status thread tried to start when already running')
+            return
+
+        self.log.debug('mount report thread started')
+        self.report_thread_running = True
+
+        while self.report_thread_running:
+            try:
+                self._get_report(disable_reporting_after=False)
+                time.sleep(0.1)
+            except Exception:
+                self.log.error('Error in report thread')
+                self.log.debug('', exc_info=True)
+                self.report_thread_running = False
+
+        # Turn off reporting when we're done
+        self._http_put('action', {'Action': 'reporting', 'Parameters': 'off'})
+        self.log.debug('report thread finished')
+
+    @property
+    def encoder_position(self):
+        """Return the current encoder position in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position
+
+    @property
+    def encoder_position_history(self):
+        """Return the history of encoder positions in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position_hist
+
+    @property
+    def position_error(self):
+        """Return the current encoder position error in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position_error
+
+    @property
+    def position_error_history(self):
+        """Return the history of encoder position errors in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._position_error_hist
+
+    @property
+    def tracking_error(self):
+        """Return the current tracking error in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._tracking_error
+
+    @property
+    def tracking_error_history(self):
+        """Return the history of tracking errors in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._tracking_error_hist
+
+    @property
+    def velocity(self):
+        """Return the current motor velocity in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._velocity
+
+    @property
+    def velocity_history(self):
+        """Return the history of motor velocities in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._velocity_hist
+
+    @property
+    def acceleration(self):
+        """Return the current motor acceleration in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._acceleration
+
+    @property
+    def acceleration_history(self):
+        """Return the history of motor accelerations in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._acceleration_hist
+
+    @property
+    def motor_current(self):
+        """Return the current motor current in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._current
+
+    @property
+    def motor_current_history(self):
+        """Return the history of motor currents in both axes."""
+        if not self.report_extra or not self.report_thread_running:
+            raise ValueError('Mount report thread not running')
+        return self._current_hist
+
+    def within_ra_limits(self, ra_min=None, ra_max=None):
+        """Return true if the mount is within the given RA limits."""
+        if ra_min is not None and self.encoder_position['ra'] < ra_min:
+            return False
+        if ra_max is not None and self.encoder_position['ra'] > ra_max:
+            return False
+        return True
+
+    def within_dec_limits(self, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given Dec limits."""
+        if dec_min is not None and self.encoder_position['dec'] < dec_min:
+            return False
+        if dec_max is not None and self.encoder_position['dec'] > dec_max:
+            return False
+        return True
+
+    def within_encoder_limits(self, ra_min=None, ra_max=None, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given encoder limits."""
+        return self.within_ra_limits(ra_min, ra_max) and self.within_dec_limits(dec_min, dec_max)
+
+    def slew_to_radec(self, ra, dec, force_pier_side=None):
         """Slew to given RA and Dec coordinates (J2000)."""
         # first need to "cook" the coordinates into apparent
         ra_jnow, dec_jnow = j2000_to_apparent(ra * 360 / 24, dec, Time.now().jd)
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                 ra, dec, ra_jnow, dec_jnow))
 
-        # Force pier side to not change
-        self._http_put('action', {'Action': 'forcenextpierside',
-                                  'Parameters': self.info['sideofpier']})
+        # Force (ask) pier side to not change
+        data_dict = {'Action': 'forcenextpierside'}
+        if force_pier_side is None and self._force_pier_side != -1:
+            data_dict['Parameters'] = self._force_pier_side
+        elif force_pier_side in [0, 1]:
+            data_dict['Parameters'] = force_pier_side
+        else:
+            # Using argument force_pier_side=-1 will override any saved on the class
+            data_dict['Parameters'] = -1
+        self._http_put('action', data_dict)
 
+        # Although it's called "forcenextpierside", it will only try to enforce the request
+        # It can still flip, which is bad for us and makes the command fairly useless
+        # ASCOM has a built-in command to check the destination, so we'll use that
         data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
+        destination_side = self._http_get('destinationsideofpier', data_dict)
+        if destination_side == -1:
+            raise ValueError('Slew command is not within allowed limits')
+        if ((self._force_pier_side != -1 and destination_side != self._force_pier_side) or
+                force_pier_side in [0, 1] and destination_side != force_pier_side):
+            raise ValueError('Mount wants to flip despite force_pier_side, will not slew')
+
         self._http_put('slewtocoordinatesasync', data_dict)
 
-    def slew_to_altaz(self, alt, az):
+    def slew_to_altaz(self, alt, az, force_pier_side=None):
         """Slew mount to given Alt/Az."""
-        # Force pier side to not change
-        self._http_put('action', {'Action': 'forcenextpierside',
-                                  'Parameters': self.info['sideofpier']})
+        # Force (ask) pier side to not change
+        data_dict = {'Action': 'forcenextpierside'}
+        if force_pier_side is None and self._force_pier_side != -1:
+            data_dict['Parameters'] = self._force_pier_side
+        elif force_pier_side in [0, 1]:
+            data_dict['Parameters'] = force_pier_side
+        else:
+            # Using argument force_pier_side=-1 will override any saved on the class
+            data_dict['Parameters'] = -1
+        self._http_put('action', data_dict)
+
+        # Unfortunately there's no easy equivalent to "destinationsideofpier" for Alt/Az
+        # So we'll have to convert into RA/Dec and check that (we also have to uncook first)
+        # It should be close enough...
+        ra, dec = radec_from_altaz(alt, az)
+        ra_jnow, dec_jnow = j2000_to_apparent(ra, dec, Time.now().jd)
+        ra_jnow *= 24 / 360
+        if ra_jnow >= 24:
+            ra_jnow -= 24
+        data_dict = {'RightAscension': ra_jnow, 'Declination': dec_jnow}
+        destination_side = self._http_get('destinationsideofpier', data_dict)
+        if destination_side == -1:
+            raise ValueError('Slew command is not within allowed limits')
+        if ((self._force_pier_side != -1 and destination_side != self._force_pier_side) or
+                force_pier_side in [0, 1] and destination_side != force_pier_side):
+            raise ValueError('Mount wants to flip despite force_pier_side, will not slew')
 
         data_dict = {'Azimuth': az, 'Altitude': alt}
         self._http_put('slewtoaltazasync', data_dict)
@@ -402,7 +681,7 @@ class DDM500:
         ra_jnow *= 24 / 360
         if ra_jnow >= 24:
             ra_jnow -= 24
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('Cooked {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                 ra, dec, ra_jnow, dec_jnow))
 
@@ -522,7 +801,7 @@ class FakeDDM500:
 
     log : logger, optional
         logger to log to
-        default = None
+        default = None (one will be created by the class)
     log_debug : bool, optional
         log debug strings?
         default = False
@@ -536,7 +815,7 @@ class FakeDDM500:
         self.device_number = device_number
 
         self._status_update_time = 0
-        self.connected = True
+        self._connected = True
         self.info = self._get_info()
 
         # Create a logger if one isn't given
@@ -550,29 +829,42 @@ class FakeDDM500:
         # Fake position and statuses (starting from parked position)
         self._park_alt, self._park_az = 70, 0
         self._ra, self._dec = radec_from_altaz(self._park_alt, self._park_az)
-        self.tracking = False
-        self.slewing = False
-        self.guiding = False
-        self.parked = True
-        self.motors_on = False
-        self.position_error = {'ra': 0, 'dec': 0}
-        self.tracking_error = {'ra': 0, 'dec': 0}
-        self.velocity = {'ra': 0, 'dec': 0}
-        self.acceleration = {'ra': 0, 'dec': 0}
-        self.motor_current = {'ra': 0, 'dec': 0}
-        self.tracking_rate = {'ra': 0, 'dec': 0}
-        self.guide_rate = {'ra': 0, 'dec': 0}
+        self._tracking = False
+        self._slewing = False
+        self._guiding = False
+        self._parked = True
+        self._motors_on = False
+        self._tracking_rate = {'ra': 0, 'dec': 0}
+        self._guide_rate = {'ra': 0, 'dec': 0}
+        self._pier_side = 1
+        self._position = {'ra': 0, 'dec': 0}
+        self._position_error = {'ra': 0, 'dec': 0}
+        self._tracking_error = {'ra': 0, 'dec': 0}
+        self._velocity = {'ra': 0, 'dec': 0}
+        self._acceleration = {'ra': 0, 'dec': 0}
+        self._current = {'ra': 0, 'dec': 0}
+        self._position_hist = {'ra': [], 'dec': []}
+        self._position_error_hist = {'ra': [], 'dec': []}
+        self._tracking_error_hist = {'ra': [], 'dec': []}
+        self._velocity_hist = {'ra': [], 'dec': []}
+        self._acceleration_hist = {'ra': [], 'dec': []}
+        self._current_hist = {'ra': [], 'dec': []}
 
         self._slewing_thread_running = False
         self._slew_speed = 10  # deg/sec
 
     def connect(self):
         """Connect to the mount device."""
-        self.connected = True
+        self._connected = True
+
+    @property
+    def connected(self):
+        """Check connection to the mount device."""
+        return self._connected
 
     def disconnect(self):
         """Disconnect from the mount device."""
-        self.connected = False
+        self._connected = False
 
     def _get_info(self):
         """Get basic mount properties."""
@@ -580,14 +872,13 @@ class FakeDDM500:
         # Mount params
         info['equatorialsystem'] = 1
         info['doesrefraction'] = True
-        info['trackingrates'] = self.connected = True
+        info['trackingrates'] = [0, 1, 2]
         # ASCOM params
         info['name'] = 'Fake ASA'
         info['description'] = 'Fake ASA mount class'
         info['driverinfo'] = 'Fake class'
         info['driverversion'] = '0.0'
         info['interfaceversion'] = 0
-        info['sideofpier'] = 1
         # AutoSlew params
         info['mounttype'] = '2'
         info['maxspeed'] = '12'
@@ -607,9 +898,34 @@ class FakeDDM500:
         return get_lst().hourangle
 
     @property
+    def tracking(self):
+        """Return if the mount is currently tracking."""
+        return self._tracking
+
+    @property
     def nonsidereal(self):
         """Return if the mount has a non-sidereal tracking rate set."""
         return self.tracking_rate['ra'] != 0 or self.tracking_rate['dec'] != 0
+
+    @property
+    def slewing(self):
+        """Return if the mount is currently slewing."""
+        return self._slewing
+
+    @property
+    def guiding(self):
+        """Return if the mount is currently pulse guiding."""
+        return self._guiding
+
+    @property
+    def parked(self):
+        """Return if the mount is currently parked."""
+        return self._parked
+
+    @property
+    def motors_on(self):
+        """Return if the mount motors are currently on."""
+        return self._motors_on
 
     @property
     def status(self):
@@ -652,15 +968,110 @@ class FakeDDM500:
         _, az = altaz_from_radec(self._ra, self._dec)
         return az
 
+    @property
+    def tracking_rate(self):
+        """Return the current tracking rate (arcsec/sec)."""
+        return self._tracking_rate
+
+    @property
+    def guide_rate(self):
+        """Return the current pulse guiding rate (degrees/sec)."""
+        return self._guide_rate
+
+    @property
+    def pier_side(self):
+        """Return which side of the pier the mount is currently on."""
+        return self._pier_side
+
+    @property
+    def encoder_position(self):
+        """Return the current encoder position in both axes."""
+        return self._position
+
+    @property
+    def encoder_position_history(self):
+        """Return the history of encoder positions in both axes."""
+        return self._position_hist
+
+    @property
+    def position_error(self):
+        """Return the current encoder position error in both axes."""
+        return self._position_error
+
+    @property
+    def position_error_history(self):
+        """Return the history of encoder position errors in both axes."""
+        return self._position_error_hist
+
+    @property
+    def tracking_error(self):
+        """Return the current tracking error in both axes."""
+        return self._tracking_error
+
+    @property
+    def tracking_error_history(self):
+        """Return the history of tracking errors in both axes."""
+        return self._tracking_error_hist
+
+    @property
+    def velocity(self):
+        """Return the current motor velocity in both axes."""
+        return self._velocity
+
+    @property
+    def velocity_history(self):
+        """Return the history of motor velocities in both axes."""
+        return self._velocity_hist
+
+    @property
+    def acceleration(self):
+        """Return the current motor acceleration in both axes."""
+        return self._acceleration
+
+    @property
+    def acceleration_history(self):
+        """Return the history of motor accelerations in both axes."""
+        return self._acceleration_hist
+
+    @property
+    def motor_current(self):
+        """Return the current motor current in both axes."""
+        return self._current
+
+    @property
+    def motor_current_history(self):
+        """Return the history of motor currents in both axes."""
+        return self._current_hist
+
+    def within_ra_limits(self, ra_min=None, ra_max=None):
+        """Return true if the mount is within the given RA limits."""
+        if ra_min is not None and self.encoder_position['ra'] < ra_min:
+            return False
+        if ra_max is not None and self.encoder_position['ra'] > ra_max:
+            return False
+        return True
+
+    def within_dec_limits(self, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given Dec limits."""
+        if dec_min is not None and self.encoder_position['dec'] < dec_min:
+            return False
+        if dec_max is not None and self.encoder_position['dec'] > dec_max:
+            return False
+        return True
+
+    def within_encoder_limits(self, ra_min=None, ra_max=None, dec_min=None, dec_max=None):
+        """Return true if the mount is within the given encoder limits."""
+        return self.within_ra_limits(ra_min, ra_max) and self.within_dec_limits(dec_min, dec_max)
+
     def _slewing_thread(self, target_ra, target_dec, parking=False):
         """Simulate slewing from one position to another (very basic!)."""
-        self.tracking = False
-        self.parked = False
-        self.guiding = False
-        self.slewing = True
+        self._tracking = False
+        self._parked = False
+        self._guiding = False
+        self._slewing = True
 
-        while self.slewing:
-            if self.log and self.log_debug:
+        while self._slewing:
+            if self.log_debug:
                 self.log.debug('Slewing: {:.6f}/{:.6f} to {:.6f}/{:.6f}'.format(
                     self._ra, self._dec, target_ra, target_dec))
 
@@ -684,11 +1095,11 @@ class FakeDDM500:
 
             time.sleep(0.1)
 
-        self.slewing = False
+        self._slewing = False
         if not parking:
-            self.tracking = True
+            self._tracking = True
         else:
-            self.parked = True
+            self._parked = True
 
     def slew_to_radec(self, ra, dec):
         """Slew to given RA and Dec coordinates (J2000)."""
@@ -709,7 +1120,7 @@ class FakeDDM500:
 
     def track(self):
         """Start tracking at the siderial rate."""
-        self.tracking = True
+        self._tracking = True
 
     def park(self):
         """Move mount to park position."""
@@ -721,19 +1132,19 @@ class FakeDDM500:
 
     def unpark(self):
         """Unpark the mount so it can accept slew commands."""
-        self.parked = False
+        self._parked = False
 
     def halt(self):
         """Abort slew (if slewing) and stop tracking (if tracking)."""
-        self.slewing = False
+        self._slewing = False
 
     def start_motors(self):
         """Start the mount motors."""
-        self.motors_on = True
+        self._motors_on = True
 
     def stop_motors(self):
         """Stop the mount motors."""
-        self.motors_on = False
+        self._motors_on = False
 
     def set_motor_power(self, activate):
         """Turn the mount motors on or off."""
@@ -755,14 +1166,14 @@ class FakeDDM500:
 
     def _guiding_thread(self, direction, duration):
         """Simulate guiding in some direction (very basic!)."""
-        self.tracking = False
-        self.parked = False
-        self.slewing = False
-        self.guiding = True
+        self._tracking = False
+        self._parked = False
+        self._slewing = False
+        self._guiding = True
 
         guide_start_time = time.time()
         while self.guiding:
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug('Guiding: {:.6f}/{:.6f} for {:.1f}/{:.1f}'.format(
                     self._ra, self._dec, time.time() - guide_start_time, duration))
 
@@ -784,8 +1195,8 @@ class FakeDDM500:
 
             time.sleep(0.1)
 
-        self.guiding = False
-        self.tracking = True
+        self._guiding = False
+        self._tracking = True
 
     def pulse_guide(self, direction, duration):
         """Move the scope in the given direction for the given duration (in ms)."""

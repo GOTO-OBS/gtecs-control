@@ -4,7 +4,7 @@ from astroplan import Observer
 from astroplan.moon import moon_illumination
 
 from astropy import units as u
-from astropy.coordinates import AltAz, CIRS, EarthLocation, FK5, HADec, SkyCoord, get_moon, get_sun
+from astropy.coordinates import AltAz, CIRS, EarthLocation, FK5, HADec, SkyCoord, get_body, get_sun
 from astropy.coordinates.builtin_frames.utils import get_jd12
 from astropy.time import Time
 
@@ -413,89 +413,6 @@ def get_lst(time=None, location=None):
     return time.sidereal_time(kind='apparent', longitude=location)
 
 
-def above_elevation_limit(ra_deg, dec_deg, time=None):
-    """Check if target is above the mount elevation limit at the given time.
-
-    This is not to be confused with the artificial horizon used when scheduling targets.
-
-    Parameters
-    ----------
-    ra_deg : float or numpy.ndarray
-        right ascension in degrees
-    dec_deg : float or numpy.ndarray
-        declination in degrees
-
-    time : `~astropy.time.Time`, optional
-        time to check
-        default = Time.now()
-
-    Returns
-    -------
-    above_limit : bool
-        True if the target is above params.MIN_ELEVATION, False if below
-
-    """
-    if time is None:
-        time = Time.now()
-
-    alt, _ = altaz_from_radec(ra_deg, dec_deg, time)
-    return alt > params.MIN_ELEVATION
-
-
-def within_hourangle_limit(ra_deg, dec_deg, time=None):
-    """Check if target is within the mount hour angle limit at the given time.
-
-    Parameters
-    ----------
-    ra_deg : float or numpy.ndarray
-        right ascension in degrees
-    dec_deg : float or numpy.ndarray
-        declination in degrees
-
-    time : `~astropy.time.Time`, optional
-        time to check
-        default = Time.now()
-
-    Returns
-    -------
-    within_limit : bool
-        True if the target is within |params.MAX_HOURANGLE| of zenith, False if outside
-
-    """
-    if time is None:
-        time = Time.now()
-
-    ha = get_ha(ra_deg, dec_deg, time)
-    return abs(ha) < params.MAX_HOURANGLE
-
-
-def within_mount_limits(ra_deg, dec_deg, time=None):
-    """Check if target is within the mount limits (altitude and hour angle) at the given time.
-
-    Parameters
-    ----------
-    ra_deg : float or numpy.ndarray
-        right ascension in degrees
-    dec_deg : float or numpy.ndarray
-        declination in degrees
-
-    time : `~astropy.time.Time`, optional
-        time to check
-        default = Time.now()
-
-    Returns
-    -------
-    within_limits : bool
-        True if the target is within the mount limits, False if outside
-
-    """
-    if time is None:
-        time = Time.now()
-
-    return (above_elevation_limit(ra_deg, dec_deg, time) and
-            within_hourangle_limit(ra_deg, dec_deg, time))
-
-
 def get_moon_params(time=None):
     """Get the current Moon parameters.
 
@@ -509,7 +426,7 @@ def get_moon_params(time=None):
     -------
     alt : float
         current Moon altitude in degrees
-        uses astropy.coordinates.get_moon()
+        uses astropy.coordinates.get_body('moon')
 
     illumination : float
         current fractional Moon illumination
@@ -525,7 +442,7 @@ def get_moon_params(time=None):
     if time is None:
         time = Time.now()
 
-    coords = get_moon(time)
+    coords = get_body('moon', time)
     alt, _ = altaz_from_radec(coords.ra.deg, coords.dec.deg, time)
     illumination = moon_illumination(time)
 
@@ -563,7 +480,7 @@ def get_moon_distance(ra_deg, dec_deg, time):
         time = Time.now()
 
     target = SkyCoord(ra_deg, dec_deg, unit=u.deg)
-    moon = get_moon(time)
+    moon = get_body('moon', time)
 
     # NOTE - the order matters
     # moon.separation(target) is NOT the same as target.separation(moon)

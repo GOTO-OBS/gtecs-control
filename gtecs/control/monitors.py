@@ -34,6 +34,7 @@ STATUS_MNT_BLINKY = 'in_blinky'
 STATUS_MNT_MOTORSOFF = 'motors_off'
 STATUS_MNT_CONNECTION_ERROR = 'connection_error'
 STATUS_MNT_AUTOSLEW_ERROR = 'autoslew_error'
+STATUS_MNT_POSITION_ERROR = 'outside_encoder_limits'
 STATUS_CAM_EXPOSING = 'exposing'
 STATUS_CAM_READING = 'reading'
 STATUS_CAM_WARM = 'warm'
@@ -70,6 +71,7 @@ ERROR_DOME_PARTOPENTIMEOUT = 'DOME:PARTOPEN_TIMEOUT'
 ERROR_DOME_NOTFULLOPEN = 'DOME:NOT_FULLOPEN'
 ERROR_DOME_NOTCLOSED = 'DOME:NOT_CLOSED'
 ERROR_MNT_AUTOSLEW = 'MNT:AUTOSLEW_ERROR'
+ERROR_MNT_POSITION = 'MNT:OUTSIDE_ENCODER_LIMITS'
 ERROR_MNT_MOVETIMEOUT = 'MNT:MOVING_TIMEOUT'
 ERROR_MNT_NOTONTARGET = 'MNT:NOT_ONTARGET'
 ERROR_MNT_NOTTRACKING = 'MNT:NOT_TRACKING'
@@ -681,15 +683,16 @@ class MntMonitor(BaseMonitor):
             return STATUS_UNKNOWN
 
         mount = info['status']
-        nonsidereal = info['nonsidereal']
-        target_dist = info['target_dist']
 
         if 'error_status' in info and info['error_status'] is not None:
             hardware_status = STATUS_MNT_AUTOSLEW_ERROR
+        elif ('encoder_position_within_limits' in info and
+                info['encoder_position_within_limits'] is False):
+            hardware_status = STATUS_MNT_POSITION_ERROR
         elif mount == 'Tracking':
-            if nonsidereal:
+            if info['nonsidereal']:
                 hardware_status = STATUS_MNT_NONSIDEREAL
-            elif (target_dist is not None and float(target_dist) > 0.01 and
+            elif (info['target_dist'] is not None and float(info['target_dist']) > 0.01 and
                     info['target_ra'] is not None):  # only if targeting ra/dec not alt/az
                 hardware_status = STATUS_MNT_OFFTARGET
             else:
@@ -718,9 +721,17 @@ class MntMonitor(BaseMonitor):
         # Set the error if the mount is already reporting an error
         if self.hardware_status == STATUS_MNT_AUTOSLEW_ERROR:
             self.add_error(ERROR_MNT_AUTOSLEW)
-        # Clear the error if the mount is not moving
+        # Clear the error if the mount is not reporting an error
         if self.hardware_status != STATUS_MNT_AUTOSLEW_ERROR:
             self.clear_error(ERROR_MNT_AUTOSLEW)
+
+        # STATUS_MNT_POSITION_ERROR
+        # Set the error if the mount is outside of the encoder limits
+        if self.hardware_status == STATUS_MNT_POSITION_ERROR:
+            self.add_error(ERROR_MNT_POSITION)
+        # Clear the error if the mount is back within the limits
+        if self.hardware_status != STATUS_MNT_POSITION_ERROR:
+            self.clear_error(ERROR_MNT_POSITION)
 
         # ERROR_MNT_MOVETIMEOUT
         # Set the error if the mount has been moving for too long
@@ -815,8 +826,8 @@ class MntMonitor(BaseMonitor):
 
         elif ERROR_HARDWARE in self.errors:
             # The mount daemon connects to the mount hardware.
-            if 'mount' in self.bad_hardware:
-                # PROBLEM: We've lost connection to the mount.
+            if 'sitech' in self.bad_hardware or 'autoslew' in self.bad_hardware:
+                # PROBLEM: We've lost connection to the mount controller.
                 recovery_procedure = {}
                 # SOLUTION 1: Try rebooting the mount.
                 if self.mount_class == 'SITECH':
@@ -826,7 +837,10 @@ class MntMonitor(BaseMonitor):
                     recovery_procedure[1] = ['power off mount', 10]
                     recovery_procedure[2] = ['power on mount', 180]
                 # OUT OF SOLUTIONS: Them mount must not have started correctly.
-                return ERROR_HARDWARE + 'mount', recovery_procedure
+                if self.mount_class == 'SITECH':
+                    return ERROR_HARDWARE + 'sitech', recovery_procedure
+                elif self.mount_class == 'ASA':
+                    return ERROR_HARDWARE + 'autoslew', recovery_procedure
             # OUT OF SOLUTIONS: We don't know where the hardware error is from?
             return ERROR_HARDWARE, {}
 
@@ -862,6 +876,12 @@ class MntMonitor(BaseMonitor):
             recovery_procedure[1] = ['mnt clear_error', 60]
             # OUT OF SOLUTIONS: If the error's still there is must be a hardware issue.
             return ERROR_MNT_AUTOSLEW, recovery_procedure
+
+        elif ERROR_MNT_POSITION in self.errors:
+            # PROBLEM: The ASA mount is outside of the encoder position limits.
+            recovery_procedure = {}
+            # OUT OF SOLUTIONS: We can't really un-flip remotely, so just shutdown here.
+            return ERROR_MNT_POSITION, recovery_procedure
 
         elif ERROR_MNT_CONNECTION in self.errors:
             # PROBLEM: The mount computer has lost connection to the mount controller.
