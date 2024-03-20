@@ -32,6 +32,9 @@ class DomeDaemon(BaseDaemon):
         self.heartbeat = None
         self.dehumidifier = None
         self.aircon = None
+        self.heartbeat_error = False
+        self.dehumidifier_error = False
+        self.aircon_error = False
 
         # command flags
         self.open_flag = 0
@@ -453,7 +456,7 @@ class DomeDaemon(BaseDaemon):
             self.dome = None
             self.log.error('Failed to connect to dome')
             if 'dome' not in self.bad_hardware:
-                self.log.debug('', exc_info=True)
+                self.log.debug('', exc_info=True)  # only log traceback once
                 self.bad_hardware.add('dome')
 
     def _connect_to_heartbeat(self):
@@ -483,8 +486,7 @@ class DomeDaemon(BaseDaemon):
 
             # Connection successful
             self.log.info('Connected to heartbeat')
-            if 'heartbeat' in self.bad_hardware:
-                self.bad_hardware.remove('heartbeat')
+            self.heartbeat_error = False
 
         except Exception:
             # Connection failed
@@ -492,9 +494,9 @@ class DomeDaemon(BaseDaemon):
                 self.heartbeat.disconnect()
             self.heartbeat = None
             self.log.error('Failed to connect to heartbeat')
-            if 'heartbeat' not in self.bad_hardware:
-                self.log.debug('', exc_info=True)
-                self.bad_hardware.add('heartbeat')
+            if not self.heartbeat_error:
+                self.log.debug('', exc_info=True)  # only log traceback once
+                self.heartbeat_error = False
 
     def _connect_to_dehumidifier(self):
         """Connect to the dehumidifer."""
@@ -524,16 +526,15 @@ class DomeDaemon(BaseDaemon):
 
             # Connection successful
             self.log.info('Connected to dehumidifier')
-            if 'dehumidifier' in self.bad_hardware:
-                self.bad_hardware.remove('dehumidifier')
+            self.dehumidifier_error = False
 
         except Exception:
             # Connection failed
             self.dehumidifier = None
             self.log.error('Failed to connect to dehumidifier')
-            if 'dehumidifier' not in self.bad_hardware:
-                self.log.debug('', exc_info=True)
-                self.bad_hardware.add('dehumidifier')
+            if not self.dehumidifier_error:
+                self.log.debug('', exc_info=True)  # only log traceback once
+                self.dehumidifier_error = True
 
     def _connect_to_aircon(self):
         """Connect to the aircon."""
@@ -556,16 +557,15 @@ class DomeDaemon(BaseDaemon):
 
             # Connection successful
             self.log.info('Connected to aircon')
-            if 'aircon' in self.bad_hardware:
-                self.bad_hardware.remove('aircon')
+            self.aircon_error = False
 
         except Exception:
             # Connection failed
             self.aircon = None
             self.log.error('Failed to connect to aircon')
-            if 'aircon' not in self.bad_hardware:
-                self.log.debug('', exc_info=True)
-                self.bad_hardware.add('aircon')
+            if not self.aircon_error:
+                self.log.debug('', exc_info=True)  # only log traceback once
+                self.aircon_error = True
 
     def _get_info(self):
         """Get the latest status info from the hardware.
@@ -610,7 +610,8 @@ class DomeDaemon(BaseDaemon):
             temp_info['hatch_closed'] = None
             temp_info['hatch_open_time'] = None
             # Report the connection as failed
-            self.dome.disconnect()
+            if self.dome is not None:
+                self.dome.disconnect()
             self.dome = None
             if 'dome' not in self.bad_hardware:
                 self.bad_hardware.add('dome')
@@ -622,13 +623,13 @@ class DomeDaemon(BaseDaemon):
             if heartbeat_status == 'ERROR':
                 raise ValueError('Heartbeat status is ERROR')
         except Exception:
-            self.log.error('Failed to get heartbeat info')
-            self.log.debug('', exc_info=True)
+            if not self.heartbeat_error:
+                self.log.error('Failed to get heartbeat info')
+                self.log.debug('', exc_info=True)
             temp_info['heartbeat_status'] = 'ERROR'
             # Report the connection as failed
             self.heartbeat = None
-            if 'heartbeat' not in self.bad_hardware:
-                self.bad_hardware.add('heartbeat')
+            self.heartbeat_error = True
 
         # Get dehumidifier info
         if params.DOME_HAS_DEHUMIDIFIER:
@@ -641,8 +642,7 @@ class DomeDaemon(BaseDaemon):
                 temp_info['dehumidifier_on'] = None
                 # Report the connection as failed
                 self.dehumidifier = None
-                if 'dehumidifier' not in self.bad_hardware:
-                    self.bad_hardware.add('dehumidifier')
+                self.dehumidifier_error = True
 
         # Get aircon info
         if params.DOME_HAS_AIRCON:
@@ -655,8 +655,7 @@ class DomeDaemon(BaseDaemon):
                 temp_info['aircon_on'] = None
                 # Report the connection as failed
                 self.aircon = None
-                if 'aircon' not in self.bad_hardware:
-                    self.bad_hardware.add('aircon')
+                self.aircon_error = True
 
         # Get the conditions values and limits
         try:
@@ -1229,6 +1228,9 @@ class DomeDaemon(BaseDaemon):
         """Turn the dehumidifier on or off manually."""
         if not params.DOME_HAS_DEHUMIDIFIER:
             raise ValueError('Dome has no dehumidifer')
+        if self.dehumidifier is None or self.dehumidifier_error:
+            raise HardwareError('Cannot connect to dehumidifier')
+
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
@@ -1244,6 +1246,9 @@ class DomeDaemon(BaseDaemon):
         """Enable or disable the dome automatically turning the dehumidifier on and off."""
         if not params.DOME_HAS_DEHUMIDIFIER:
             raise ValueError('Dome has no dehumidifer')
+        if self.dehumidifier is None or self.dehumidifier_error:
+            raise HardwareError('Cannot connect to dehumidifier')
+
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
@@ -1264,6 +1269,9 @@ class DomeDaemon(BaseDaemon):
         """Turn the aircon on or off manually."""
         if not params.DOME_HAS_AIRCON:
             raise ValueError('Dome has no aircon')
+        if self.aircon is None or self.aircon_error:
+            raise HardwareError('Cannot connect to aircon')
+
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
@@ -1279,6 +1287,9 @@ class DomeDaemon(BaseDaemon):
         """Enable or disable the dome automatically turning the aircon on and off."""
         if not params.DOME_HAS_AIRCON:
             raise ValueError('Dome has no aircon')
+        if self.aircon is None or self.aircon_error:
+            raise HardwareError('Cannot connect to aircon')
+
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
@@ -1343,6 +1354,9 @@ class DomeDaemon(BaseDaemon):
 
     def sound_alarm(self):
         """Sound the dome alarm."""
+        if self.heartbeat is None or self.heartbeat_error:
+            raise HardwareError('Cannot connect to heartbeat')
+
         self.wait_for_info()
         if not self.alarm_enabled:
             raise HardwareError('Alarm is disabled')
@@ -1359,6 +1373,9 @@ class DomeDaemon(BaseDaemon):
 
     def set_heartbeat(self, command):
         """Enable or disable the dome heartbeat system."""
+        if self.heartbeat is None or self.heartbeat_error:
+            raise HardwareError('Cannot connect to heartbeat')
+
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
 
