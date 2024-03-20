@@ -1134,9 +1134,12 @@ class DomeDaemon(BaseDaemon):
             # TODO: we should have a separate override for automatic moves
             return
 
-        # Sound the alarm through the heartbeat box
-        # Note the heartbeat siren always sounds for 5s
-        self.heartbeat.sound_alarm()
+        if self.heartbeat is not None:
+            # Sound the alarm through the heartbeat box
+            # Note the heartbeat siren always sounds for 5s
+            self.heartbeat.sound_alarm()
+        else:
+            self.log.warning('Cannot sound alarm with no heartbeat connection!')
 
     def _button_pressed(self, port='/dev/ttyS3'):
         """Send a message to the serial port and try to read it back."""
