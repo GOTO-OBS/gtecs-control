@@ -845,6 +845,14 @@ class DomeDaemon(BaseDaemon):
         if self.info['mode'] == 'engineering':
             return
 
+        # Check if the heartbeat is unavailable
+        if self.heartbeat_error:
+            lockdown = True
+            reason = 'heartbeat is unavailable'
+            reasons.append(reason)
+            if reason not in self.lockdown_reasons:
+                send_slack_msg('Dome heartbeat is unavailable!')
+
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
             lockdown = True
