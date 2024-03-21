@@ -868,10 +868,13 @@ class DomeHeartbeat:
         ht.start()
 
     def __del__(self):
+        self.thread_running = False
         self.disconnect()
 
     def connect(self):
         """Connect to the heartbeat via serial port."""
+        if self.log:
+            self.log.debug('connecting to heartbeat on port {}'.format(self.serial_port))
         self.serial = serial.Serial(
             self.serial_port,
             baudrate=self.serial_baudrate,
@@ -880,15 +883,11 @@ class DomeHeartbeat:
 
     def disconnect(self):
         """Shutdown the connection."""
-        # Stop thread
-        self.thread_running = False
-
-        # Close serial port
-        try:
+        if self.serial is not None:
+            if self.log:
+                self.log.debug('disconnecting from heartbeat')
             self.serial.close()
-        except AttributeError:
-            pass
-        self.serial = None
+            self.serial = None
         self.status = 'ERROR'
 
     def _heartbeat_thread(self):
@@ -939,6 +938,9 @@ class DomeHeartbeat:
         attempts_remaining = attempts
         while attempts_remaining:
             try:
+                # If we have only one attempt left then try disconnecting and reconnecting
+                if attempts_remaining == 0:
+                    self.disconnect()
                 if self.serial is None:
                     self.connect()
                 self.old_status = self.status  # save previous status
