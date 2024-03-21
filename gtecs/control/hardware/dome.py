@@ -58,7 +58,7 @@ class FakeDome:
         else:
             with open(self._temp_file, 'r') as f:
                 string = f.read().strip()
-                if self.log and self.log_debug:
+                if self.log_debug:
                     self.log.debug('RECV:"{}"'.format(string))
                 if string != '':  # I don't know why or how that happens
                     self._status_arr = list(map(int, list(string)))
@@ -67,7 +67,7 @@ class FakeDome:
         self._writing = True
         with open(self._temp_file, 'w') as f:
             string = ''.join(str(i) for i in self._status_arr)
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug('SEND:"{}"'.format(string))
             f.write(string)
         self._writing = False
@@ -131,8 +131,7 @@ class FakeDome:
         else:
             raise ValueError('Invalid side: {}'.format(side))
         start_time = time.time()
-        if self.log:
-            self.log.debug('output thread started')
+        self.log.debug('output thread started')
 
         self._read_temp()
         start_position = self._status_arr[i_side]
@@ -143,29 +142,24 @@ class FakeDome:
 
             # check reasons to break out and stop the thread
             if command == 'open' and self._status_arr[i_side] == 9:
-                if self.log:
-                    self.log.info('Dome at limit')
+                self.log.info('Dome at limit')
                 self.output_thread_running = False
                 break
             elif command == 'close' and self._status_arr[i_side] == 0:
-                if self.log:
-                    self.log.info('Dome at limit')
+                self.log.info('Dome at limit')
                 self.output_thread_running = False
                 break
             elif (frac != 1 and
                   abs(start_position - self._status_arr[i_side]) > frac * 9):
-                if self.log:
-                    self.log.info('Dome moved requested fraction')
+                self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
             elif running_time > params.DOME_MOVE_TIMEOUT:
-                if self.log:
-                    self.log.info('Dome moving timed out')
+                self.log.info('Dome moving timed out')
                 self.output_thread_running = False
                 break
             elif self.status[side] == 'ERROR':
-                if self.log:
-                    self.log.warning('All sensors failed, stopping movement')
+                self.log.warning('All sensors failed, stopping movement')
                 self.output_thread_running = False
                 break
 
@@ -183,8 +177,7 @@ class FakeDome:
 
         self._moving_side = None
         self._moving_command = None
-        if self.log:
-            self.log.debug('output thread finished')
+        self.log.debug('output thread finished')
 
     def _move_dome(self, side, command, frac):
         # Don't interrupt!
@@ -197,8 +190,7 @@ class FakeDome:
 
         # start output thread
         if not self.output_thread_running:
-            if self.log:
-                self.log.info('starting to move: {} {} {}'.format(side, command, frac))
+            self.log.info('starting to move: {} {} {}'.format(side, command, frac))
             self._moving_side = side
             self._moving_command = command
             self.output_thread_running = True
@@ -335,22 +327,20 @@ class AstroHavenDome:
                 if self.dome_serial.in_waiting:
                     out = self.dome_serial.read(self.dome_serial.in_waiting)
                     x = out.decode('ascii')[-1]
-                    if self.log and self.log_debug:
+                    if self.log_debug:
                         self.log.debug('plc RECV:"{}"'.format(x))
                     self._parse_plc_status(x)
                 return
             except Exception:
                 attempts_remaining -= 1
-                if self.log:
-                    self.log.warning('Error communicating with the PLC')
-                    self.log.debug('', exc_info=True)
-                    self.log.debug('Previous status: {}'.format(self.old_plc_status))
+                self.log.warning('Error communicating with the PLC')
+                self.log.debug('', exc_info=True)
+                self.log.debug('Previous status: {}'.format(self.old_plc_status))
                 if attempts_remaining > 0:
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
                     time.sleep(0.5)
                 else:
-                    if self.log:
-                        self.log.error('Could not communicate with the PLC')
+                    self.log.error('Could not communicate with the PLC')
                     self.plc_error = True
                     self.plc_status['a_side'] = 'ERROR'
                     self.plc_status['b_side'] = 'ERROR'
@@ -426,7 +416,7 @@ class AstroHavenDome:
     def _read_arduino(self):
         with urllib.request.urlopen(self.arduino_ip) as r:
             data = json.loads(r.read())
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('arduino RECV:"{}"'.format(data))
 
         if 'switch_a' not in data or data['switch_a'] not in [0, 1]:
@@ -449,7 +439,7 @@ class AstroHavenDome:
         with urllib.request.urlopen(self.roomalert_ip + '/getData.json') as r:
             data = json.loads(r.read())
         data = {d['lab']: d['stat'] for d in data['s_sen'] if 'Switch Sen' not in d['lab']}
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('roomalert RECV:"{}"'.format(data))
 
         if 'Hatch' not in data or data['Hatch'] not in [0, 1]:
@@ -473,7 +463,7 @@ class AstroHavenDome:
             pyro_daemon._pyroSerializer = 'serpent'
             data = pyro_daemon.last_measurement()
 
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('domealert RECV:"{}"'.format(data))
 
         if 'hatch_closed' not in data or data['hatch_closed_valid'] is False:
@@ -516,16 +506,14 @@ class AstroHavenDome:
                 return
             except Exception:
                 attempts_remaining -= 1
-                if self.log:
-                    self.log.warning('Error communicating with the switches')
-                    self.log.debug('', exc_info=True)
-                    self.log.debug('Previous status: {}'.format(self.old_switch_status))
+                self.log.warning('Error communicating with the switches')
+                self.log.debug('', exc_info=True)
+                self.log.debug('Previous status: {}'.format(self.old_switch_status))
                 if attempts_remaining > 0:
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
                     time.sleep(0.5)
                 else:
-                    if self.log:
-                        self.log.error('Could not communicate with the switches')
+                    self.log.error('Could not communicate with the switches')
                     self._parse_switch_status(None)
                     self.switch_error = True
 
@@ -591,8 +579,7 @@ class AstroHavenDome:
                         if self.plc_status[side] == 'opening':
                             # Oh dear, it's flicked past the Honeywells
                             # and it's still going!!
-                            if self.log:
-                                self.log.warning('Honeywell limit error, stopping!')
+                            self.log.warning('Honeywell limit error, stopping!')
                             self.switch_status[side] = 'full_open'
                             self.output_thread_running = False  # to be sure
                         else:
@@ -610,7 +597,7 @@ class AstroHavenDome:
         # check switches
         self._read_switches()
 
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('status: plc:{} switches:{}'.format(self.plc_status, self.switch_status))
 
         status = {}
@@ -660,12 +647,10 @@ class AstroHavenDome:
 
     def _status_thread(self):
         if self.status_thread_running:
-            if self.log:
-                self.log.debug('status thread tried to start when already running')
+            self.log.debug('status thread tried to start when already running')
             return
 
-        if self.log:
-            self.log.debug('status thread started')
+        self.log.debug('status thread started')
         self.status_thread_running = True
 
         while self.status_thread_running:
@@ -678,23 +663,19 @@ class AstroHavenDome:
                 else:
                     time.sleep(2)
             except Exception:
-                if self.log:
-                    self.log.error('Error in status thread')
-                    self.log.debug('', exc_info=True)
+                self.log.error('Error in status thread')
+                self.log.debug('', exc_info=True)
                 self.status_thread_running = False
 
-        if self.log:
-            self.log.debug('status thread finished')
+        self.log.debug('status thread finished')
 
     def _output_thread(self, side, command, frac):
         if self.output_thread_running:
-            if self.log:
-                self.log.debug('output thread tried to start when already running')
+            self.log.debug('output thread tried to start when already running')
             return
 
         start_time = time.time()
-        if self.log:
-            self.log.debug('output thread started')
+        self.log.debug('output thread started')
         self.output_thread_running = True
 
         # get the starting position
@@ -707,34 +688,29 @@ class AstroHavenDome:
 
             # check reasons to break out and stop the thread
             if command == 'open' and self.status[side] == 'full_open':
-                if self.log:
-                    self.log.info('Dome at limit (full_open)')
+                self.log.info('Dome at limit (full_open)')
                 self.output_thread_running = False
                 break
             elif command == 'close' and self.status[side] == 'closed':
-                if self.log:
-                    self.log.info('Dome at limit (closed)')
+                self.log.info('Dome at limit (closed)')
                 self.output_thread_running = False
                 break
             elif (frac != 1 and running_time > self.move_time[side][command] * frac):
-                if self.log:
-                    self.log.info('Dome moved requested fraction')
+                self.log.info('Dome moved requested fraction')
                 self.output_thread_running = False
                 break
             elif running_time > params.DOME_MOVE_TIMEOUT:
-                if self.log:
-                    self.log.info('Dome moving timed out')
+                self.log.info('Dome moving timed out')
                 self.output_thread_running = False
                 break
             elif self.status[side] == 'ERROR':
-                if self.log:
-                    self.log.warning('All sensors failed, stopping movement')
+                self.log.warning('All sensors failed, stopping movement')
                 self.output_thread_running = False
                 break
 
             # if we're still going, send the command to the serial port
             self.dome_serial.write(self.move_code[side][command])
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug('plc SEND:"{}" ({} {} {})'.format(
                     self.move_code[side][command].decode(), side, frac, command))
 
@@ -746,8 +722,7 @@ class AstroHavenDome:
             else:
                 time.sleep(params.DOME_MOVE_TIMESTEP)
 
-        if self.log:
-            self.log.debug('output thread finished')
+        self.log.debug('output thread finished')
 
     def _move_dome(self, side, command, frac):
         """Move the dome until it reaches its limit."""
@@ -761,8 +736,7 @@ class AstroHavenDome:
 
         # start output thread
         if not self.output_thread_running:
-            if self.log:
-                self.log.info('starting to move: {} {} {}'.format(side, command, frac))
+            self.log.info('starting to move: {} {} {}'.format(side, command, frac))
             ot = threading.Thread(target=self._output_thread,
                                   args=[side, command, frac])
             ot.daemon = True
@@ -786,7 +760,7 @@ class AstroHavenDome:
     def reset_bumperguard(self):
         """Reset the bumper guard sensor."""
         self.dome_serial.write(self.reset_code)
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('plc SEND:"{}" ({})'.format(self.reset_code, 'reset'))
 
 
@@ -873,8 +847,7 @@ class DomeHeartbeat:
 
     def connect(self):
         """Connect to the heartbeat via serial port."""
-        if self.log:
-            self.log.debug('connecting to heartbeat on port {}'.format(self.serial_port))
+        self.log.debug('connecting to heartbeat on port {}'.format(self.serial_port))
         self.serial = serial.Serial(
             self.serial_port,
             baudrate=self.serial_baudrate,
@@ -884,15 +857,13 @@ class DomeHeartbeat:
     def disconnect(self):
         """Shutdown the connection."""
         if self.serial is not None:
-            if self.log:
-                self.log.debug('disconnecting from heartbeat')
+            self.log.debug('disconnecting from heartbeat')
             self.serial.close()
             self.serial = None
         self.status = 'ERROR'
 
     def _heartbeat_thread(self):
-        if self.log:
-            self.log.debug('heartbeat thread started')
+        self.log.debug('heartbeat thread started')
         self.thread_running = True
 
         while self.thread_running:
@@ -901,8 +872,7 @@ class DomeHeartbeat:
 
             if self.status == 'ERROR':
                 # if we can't communicate with the heartbeat monitor then exit
-                if self.log:
-                    self.log.error('Connection error, exiting heartbeat thread')
+                self.log.error('Connection error, exiting heartbeat thread')
                 self.thread_running = False
                 break
 
@@ -910,14 +880,12 @@ class DomeHeartbeat:
                 # send a 0 to make sure the system is disabled
                 # if it's in the closed state it's already disabled, so leave it
                 if self.status not in ['disabled', 'closed']:
-                    if self.log:
-                        self.log.debug('disabling heartbeat (status={})'.format(self.status))
+                    self.log.debug('disabling heartbeat (status={})'.format(self.status))
                     v = 0
             else:
                 if self.status == 'closed':
                     # the heartbeat has triggered, send a 0 to reset it
-                    if self.log:
-                        self.log.debug('resetting heartbeat (status={})'.format(self.status))
+                    self.log.debug('resetting heartbeat (status={})'.format(self.status))
                     v = 0
                 else:
                     # send the heartbeat time to the serial port
@@ -925,14 +893,13 @@ class DomeHeartbeat:
                     v = int(self.timeout * 2)
 
             self.serial.write(bytes([v]))
-            if self.log and self.log_debug:
+            if self.log_debug:
                 self.log.debug('heartbeat SEND:"{}" (status={})'.format(v, self.status))
 
             # Sleep for half of the timeout period
             time.sleep(self.timeout / 2)
 
-        if self.log:
-            self.log.debug('heartbeat thread finished')
+        self.log.debug('heartbeat thread finished')
 
     def _read_heartbeat(self, attempts=3):
         attempts_remaining = attempts
@@ -948,23 +915,21 @@ class DomeHeartbeat:
                     out = self.serial.read(self.serial.in_waiting)
                     x = out[-1]
                     self.status = self._parse_status(x)
-                    if self.log and self.log_debug:
+                    if self.log_debug:
                         self.log.debug('heartbeat RECV:"{}" (status={})'.format(x, self.status))
                 break
             except Exception:
                 attempts_remaining -= 1
-                if self.log:
-                    self.log.warning('Error communicating with the heartbeat monitor')
-                    self.log.debug('', exc_info=True)
-                    if self.old_status is not None:
-                        self.log.debug('Previous status: {}'.format(self.old_status))
+                self.log.warning('Error communicating with the heartbeat monitor')
+                self.log.debug('', exc_info=True)
+                if self.old_status is not None:
+                    self.log.debug('Previous status: {}'.format(self.old_status))
                 if attempts_remaining > 0:
                     # If we have the connection then it's worth retrying
                     self.log.warning('Remaining tries: {}'.format(attempts_remaining))
                     time.sleep(0.5)
                 else:
-                    if self.log:
-                        self.log.error('Could not communicate with the heartbeat monitor')
+                    self.log.error('Could not communicate with the heartbeat monitor')
                     self.status = 'ERROR'
                     break
 
@@ -984,13 +949,12 @@ class DomeHeartbeat:
 
     def sound_alarm(self):
         """Sound the dome alarm using the heartbeat (always sounds for 5s)."""
-        if self.log:
-            self.log.warning('Sounding alarm (status={})'.format(self.status))
+        self.log.warning('Sounding alarm (status={})'.format(self.status))
         if self.serial is None or self.status == 'ERROR':
             raise ValueError('Cannot connect to Heartbeat')  # TODO: should be HardwareError?
         v = 255
         self.serial.write(bytes([v]))
-        if self.log and self.log_debug:
+        if self.log_debug:
             self.log.debug('heartbeat SEND:"{}" (status={})'.format(v, self.status))
 
     def enable(self):
