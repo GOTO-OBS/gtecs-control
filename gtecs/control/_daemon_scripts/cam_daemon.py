@@ -62,9 +62,11 @@ class CamDaemon(BaseDaemon):
         self.target_window = {ut: None for ut in self.uts}
         self.measure_hfds = False
 
-        self.cool_temp = int(params.CAM_IMAGING_TEMPERATURE)
-        self.warm_temp = int(params.CAM_STANDBY_TEMPERATURE)
-        self.target_temp = {ut: self.warm_temp for ut in self.uts}
+        self.cool_temp = {ut: int(params.UT_DICT[ut]['CAMERA']['IMAGING_TEMPERATURE'])
+                          for ut in self.uts}
+        self.warm_temp = {ut: int(params.UT_DICT[ut]['CAMERA']['STANDBY_TEMPERATURE'])
+                          for ut in self.uts}
+        self.target_temp = {ut: self.warm_temp[ut] for ut in self.uts}  # Start at standby temp
 
         # dependencies
         for interface_id in self.interfaces:
@@ -428,6 +430,8 @@ class CamDaemon(BaseDaemon):
                     ut_info['ccd_temp'] = interface.get_temp('CCD')
                     ut_info['base_temp'] = interface.get_temp('BASE')
                     ut_info['target_temp'] = self.target_temp[ut]
+                    ut_info['cool_temp'] = self.cool_temp[ut]
+                    ut_info['warm_temp'] = self.warm_temp[ut]
                     ut_info['cooler_power'] = interface.get_cooler_power()
                     cam_info = interface.get_camera_info()
                     ut_info['cam_info'] = cam_info
@@ -819,11 +823,7 @@ class CamDaemon(BaseDaemon):
         """Set the camera's temperature."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if target_temp.lower() == 'cool':
-            target_temp = self.cool_temp
-        elif target_temp.lower() == 'warm':
-            target_temp = self.warm_temp
-        else:
+        if target_temp.lower() not in ['cool', 'warm']:
             try:
                 target_temp = float(target_temp)
             except ValueError:
@@ -839,7 +839,12 @@ class CamDaemon(BaseDaemon):
 
         self.active_uts = sorted(uts)
         for ut in uts:
-            self.target_temp[ut] = target_temp
+            if target_temp == 'cool':
+                self.target_temp[ut] = self.cool_temp[ut]
+            elif target_temp == 'warm':
+                self.target_temp[ut] = self.warm_temp[ut]
+            else:
+                self.target_temp[ut] = target_temp
         self.set_temp_flag = 1
 
     def is_exposing(self):

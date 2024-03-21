@@ -240,7 +240,7 @@ def query(command, args):
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             daemon.set_temperature(target_temp, uts)
-        print(f'Target temperature set to {target_temp}\n')
+        print(f'Target temperature set to {target_temp}')
 
     # Help
     elif command in ['help', '?']:
