@@ -834,6 +834,8 @@ class DomeHeartbeat:
         self.thread_running = False
 
         # connect to serial port
+        self.serial = None
+        self.status == 'ERROR'
         self.connect()
 
         # start heartbeat thread
