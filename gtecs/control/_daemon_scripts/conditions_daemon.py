@@ -32,8 +32,6 @@ class ConditionsDaemon(BaseDaemon):
         super().__init__('conditions')
 
         # conditions variables
-        self.check_period = params.WEATHER_INTERVAL
-
         self.info_flag_names = ['clouds',
                                 'dark',
                                 ]
@@ -86,7 +84,7 @@ class ConditionsDaemon(BaseDaemon):
     def _control_thread(self):
         """Primary control loop."""
         self.log.info('Daemon control thread started')
-        self.check_period = params.DAEMON_CHECK_PERIOD
+        self.check_period = params.WEATHER_INTERVAL  # NB we loop less often than other daemons
         self.check_time = 0
         self.force_check_flag = True
 
