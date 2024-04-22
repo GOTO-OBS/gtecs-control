@@ -419,8 +419,8 @@ class MntDaemon(BaseDaemon):
             temp_info['max_hourangle'] = params.MAX_HOURANGLE
             within_elevation = temp_info['mount_alt_pointing'] > temp_info['min_elevation']
             within_hourangle = abs(temp_info['mount_ha_pointing']) < temp_info['max_hourangle']
-            temp_info['elevation_within_limits'] = within_elevation
-            temp_info['hourangle_within_limits'] = within_hourangle
+            temp_info['elevation_within_limits'] = bool(within_elevation)  # needs to be bool,
+            temp_info['hourangle_within_limits'] = bool(within_hourangle)  # not np.bool_
 
             if self.position_offset is None:
                 temp_info['mount_ra'] = temp_info['mount_ra_pointing']
