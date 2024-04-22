@@ -32,6 +32,9 @@ class ConditionsDaemon(BaseDaemon):
         super().__init__('conditions')
 
         # conditions variables
+        self.history = {'windgust': {}}
+        self.windgust_period = params.WINDGUST_PERIOD
+
         self.info_flag_names = ['clouds',
                                 'dark',
                                 ]
@@ -177,26 +180,25 @@ class ConditionsDaemon(BaseDaemon):
                     else:
                         continue
 
-                # Save a history of windgusts so we can log the maximum
-                if (self.info and source in self.info['weather'] and
-                        'windgust_history' in self.info['weather'][source] and
-                        self.info['weather'][source]['windgust_history'] != -999):
-                    windgust_history = self.info['weather'][source]['windgust_history']
-                else:
-                    windgust_history = []
-                # remove old readings (limit to params.WINDGUST_PERIOD) and any invalid values
-                windgust_history = [hist for hist in windgust_history
-                                    if (hist[0] > self.loop_time - params.WINDGUST_PERIOD and
-                                        hist[1] != -999)]
-                # add the latest value (if it's valid)
-                if 'windgust' in weather_dict and weather_dict['windgust'] != -999:
-                    windgust_history.append((self.loop_time, weather_dict['windgust']))
-                # save the history and maximum value to the dict
-                weather_dict['windgust_history'] = windgust_history
-                if len(windgust_history) > 1:
-                    weather_dict['windmax'] = max(hist[1] for hist in windgust_history)
-                else:
-                    weather_dict['windmax'] = -999
+                # Save a history of windgust readings internally
+                if 'windgust' in weather_dict:
+                    # Add the latest value to the history
+                    new_hist = (self.loop_time, weather_dict['windgust'])
+                    if source in self.history['windgust']:
+                        self.history['windgust'][source].append(new_hist)
+                    else:
+                        self.history['windgust'][source] = [new_hist]
+                    # Remove old readings (limit to history period) and any invalid values
+                    self.history['windgust'][source] = [
+                        h for h in self.history['windgust'][source]
+                        if h[0] > self.loop_time - self.windgust_period and h[1] != -999
+                    ]
+                    # Add the maximum windgust value to the info dict
+                    if len(self.history['windgust'][source]) > 1:
+                        windmax = max([h[1] for h in self.history['windgust'][source]])
+                        weather_dict['windmax'] = windmax
+                    else:
+                        weather_dict['windmax'] = -999
 
                 # Check if the timeout has been exceeded
                 if weather_dict['dt'] >= params.WEATHER_TIMEOUT or weather_dict['dt'] == -999:
@@ -230,7 +232,6 @@ class ConditionsDaemon(BaseDaemon):
                     'winddir': -999,
                     'windgust': -999,
                     'windmax': -999,
-                    'windgust_history': -999,
                     'humidity': -999,
                     'rain': -999,
                     'dew_point': -999,
@@ -826,6 +827,14 @@ class ConditionsDaemon(BaseDaemon):
         self.log.info(out_str)
         self.manual_override = enable
 
+    def get_history(self):
+        """Get the windgust history values for the header.
+
+        This was previously part of the usual get_info() function, but the values made the
+        dict too long so it was split out.
+        """
+        return self.history
+
     # Info function
     def get_info_string(self, force_update=False):
         """Get a string for printing status info."""
@@ -1303,7 +1312,7 @@ class ConditionsDaemon(BaseDaemon):
             msg += ' {} km/h    (max={:.1f} km/h)        \t : {}\n'.format(
                 windgust_str, params.MAX_WINDSPEED, status)
 
-        msg += 'WIND GUST ({:.0f} min maximum):\n'.format(params.WINDGUST_PERIOD / 60)
+        msg += 'WIND GUST ({:.0f} min maximum):\n'.format(self.windgust_period / 60)
         for source in weather:
             if 'windmax' not in weather[source]:
                 continue
