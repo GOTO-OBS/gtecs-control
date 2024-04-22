@@ -147,7 +147,22 @@ class ConditionsDaemon(BaseDaemon):
                 if source.startswith('PYRO:'):
                     uri = source
                     source = uri[5:].split('_')[0].lower()  # Extract source name from URI
-                    weather_dict = get_vaisala_daemon(uri)
+                    if params.FAKE_CONDITIONS:
+                        weather_dict = {
+                            'temperature': 10,
+                            'pressure': 800,
+                            'windspeed': 5,
+                            'winddir': 0,
+                            'windgust': 10,
+                            'windmax': 15,
+                            'humidity': 50,
+                            'rain': False,
+                            'dew_point': 10,
+                            'update_time': Time.now().iso,
+                            'dt': 0,
+                        }
+                    else:
+                        weather_dict = get_vaisala_daemon(uri)
                 else:
                     # As long as we have a single local source then we don't need the backups.
                     # We should have done the local masts already, so we can check if they all
@@ -208,123 +223,121 @@ class ConditionsDaemon(BaseDaemon):
                             dt, params.WEATHER_STATIC))
 
             except Exception:
-                if params.FAKE_CONDITIONS:
-                    weather_dict = {'temperature': 10,
-                                    'pressure': 800,
-                                    'windspeed': 5,
-                                    'winddir': 0,
-                                    'windgust': 10,
-                                    'windmax': 15,
-                                    'windgust_history': [],
-                                    'humidity': 50,
-                                    'rain': False,
-                                    'dew_point': 10,
-                                    'update_time': Time.now().iso,
-                                    'dt': 0,
-                                    }
-                else:
-                    self.log.error('Error getting weather from "{}"'.format(source))
-                    self.log.debug('', exc_info=True)
-                    weather_dict = {'temperature': -999,
-                                    'pressure': -999,
-                                    'windspeed': -999,
-                                    'winddir': -999,
-                                    'windgust': -999,
-                                    'windmax': -999,
-                                    'windgust_history': -999,
-                                    'humidity': -999,
-                                    'rain': -999,
-                                    'dew_point': -999,
-                                    'update_time': -999,
-                                    'dt': -999,
-                                    }
+                self.log.error('Error getting weather from "{}"'.format(source))
+                self.log.debug('', exc_info=True)
+                weather_dict = {
+                    'temperature': -999,
+                    'pressure': -999,
+                    'windspeed': -999,
+                    'winddir': -999,
+                    'windgust': -999,
+                    'windmax': -999,
+                    'windgust_history': -999,
+                    'humidity': -999,
+                    'rain': -999,
+                    'dew_point': -999,
+                    'update_time': -999,
+                    'dt': -999,
+                }
 
             temp_info['weather'][source] = weather_dict
 
         # Get the internal conditions from Paul's DomeAlert
         try:
-            internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
-        except Exception:
             if params.FAKE_CONDITIONS:
-                internal_dict = {'temperature': 10,
-                                 'humidity': 25,
-                                 'update_time': Time.now().iso,
-                                 'dt': 0,
-                                 }
+                internal_dict = {
+                    'temperature': {'dome': 10},
+                    'humidity': {'dome': 25},
+                    'update_time': Time.now().iso,
+                    'dt': 0,
+                }
             else:
-                self.log.error('Failed to get internal info')
-                self.log.debug('', exc_info=True)
-                internal_dict = {'temperature': -999,
-                                 'humidity': -999,
-                                 'update_time': -999,
-                                 'dt': -999,
-                                 }
+                internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
+        except Exception:
+            self.log.error('Failed to get internal info')
+            self.log.debug('', exc_info=True)
+            internal_dict = {
+                'temperature': -999,
+                'humidity': -999,
+                'update_time': -999,
+                'dt': -999,
+            }
         temp_info['internal'] = internal_dict
 
         # Get rain board readings
         try:
-            rain_dict = {'total': 0, 'unsafe': 0, 'dt': 0}
-
-            # Get readings from any standalone boards, connected to
-            # the dome alert or with their own daemon
-            if params.RAINDAEMON_URI != 'none':
-                try:
-                    if 'domealert' in params.RAINDAEMON_URI:
-                        rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
-                    else:
-                        rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
-                    rain_dict['total'] += rain_daemon_dict['total']
-                    rain_dict['unsafe'] += rain_daemon_dict['unsafe']
-                    rain_dict['dt'] = rain_daemon_dict['dt']
-                except Exception:
-                    self.log.error('Failed to get rain daemon info')
-
-            # We've attached rain boards to some of the Vaisalas, so include them in the count too
-            for source in temp_info['weather']:
-                if (any('rainboard_' in key for key in temp_info['weather'][source]) and
-                        temp_info['weather'][source]['rainboard_rain'] != -999):
-                    rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
-                    rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
-                    # Use the longer update time I guess??
-                    rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
-
-            if rain_dict['total'] > 0:
-                # If we have any rain boards then remove rain readings from other sources
-                for source in temp_info['weather']:
-                    if 'rain' in temp_info['weather'][source]:
-                        temp_info['weather'][source]['rain'] = None
+            if params.FAKE_CONDITIONS:
+                rain_dict = {
+                    'total': 9,
+                    'unsafe': 0,
+                    'dt': 0,
+                }
             else:
-                # If we have no other option then we'll use the readings from the stations
+                rain_dict = {'total': 0, 'unsafe': 0, 'dt': 0}
+
+                # Get readings from any standalone boards, connected to
+                # the dome alert or with their own daemon
+                if params.RAINDAEMON_URI != 'none':
+                    try:
+                        if 'domealert' in params.RAINDAEMON_URI:
+                            rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
+                        else:
+                            rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
+                        rain_dict['total'] += rain_daemon_dict['total']
+                        rain_dict['unsafe'] += rain_daemon_dict['unsafe']
+                        rain_dict['dt'] = rain_daemon_dict['dt']
+                    except Exception:
+                        self.log.error('Failed to get rain daemon info')
+
+                # We've attached rain boards to some of the Vaisalas,
+                # so include them in the count too
                 for source in temp_info['weather']:
-                    if ('rain' in temp_info['weather'][source] and
-                            temp_info['weather'][source]['rain'] != -999):
-                        rain_dict['total'] += 1
-                        rain_dict['unsafe'] += int(temp_info['weather'][source]['rain'])
+                    if (any('rainboard_' in key for key in temp_info['weather'][source]) and
+                            temp_info['weather'][source]['rainboard_rain'] != -999):
+                        rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
+                        rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
+                        # Use the longer update time I guess??
                         rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
 
-            # Now if we still have no readings then we have a problem...
-            if rain_dict['total'] == 0:
-                raise ValueError('No weather sources for rain readings')
+                if rain_dict['total'] > 0:
+                    # If we have any rain boards then remove rain readings from other sources
+                    for source in temp_info['weather']:
+                        if 'rain' in temp_info['weather'][source]:
+                            temp_info['weather'][source]['rain'] = None
+                else:
+                    # If we have no other option then we'll use the readings from the stations
+                    for source in temp_info['weather']:
+                        if ('rain' in temp_info['weather'][source] and
+                                temp_info['weather'][source]['rain'] != -999):
+                            rain_dict['total'] += 1
+                            rain_dict['unsafe'] += int(temp_info['weather'][source]['rain'])
+                            rain_dict['dt'] = max(rain_dict['dt'],
+                                                  temp_info['weather'][source]['dt'])
+
+                # Now if we still have no readings then we have a problem...
+                if rain_dict['total'] == 0:
+                    raise ValueError('No weather sources for rain readings')
 
         except Exception:
-            if params.FAKE_CONDITIONS:
-                self.log.debug('', exc_info=True)
-                rain_dict = {'total': 9,
-                             'unsafe': 0,
-                             'dt': 0,
-                             }
-            else:
-                self.log.error('Failed to get rain info')
-                self.log.debug('', exc_info=True)
-                rain_dict = {'total': -999,
-                             'unsafe': -999,
-                             'dt': -999,
-                             }
+            self.log.error('Failed to get rain info')
+            self.log.debug('', exc_info=True)
+            rain_dict = {
+                'total': -999,
+                'unsafe': -999,
+                'dt': -999,
+            }
         temp_info['rain'] = rain_dict
 
         # Get seeing and dust from the TNG webpage (La Palma only)
         try:
-            if params.SITE_NAME == 'La Palma':
+            if params.FAKE_CONDITIONS:
+                tng_dict = {
+                    'seeing': 1.2,
+                    'seeing_dt': 0,
+                    'dust': 0,
+                    'dust_dt': 0,
+                }
+            elif params.SITE_NAME == 'La Palma':
                 tng_dict = get_tng()
                 # check if the timeouts have been exceeded
                 if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
@@ -332,55 +345,57 @@ class ConditionsDaemon(BaseDaemon):
                 if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
                     tng_dict['dust'] = -999
             else:
-                tng_dict = {'seeing': -999,
-                            'seeing_dt': -999,
-                            'dust': -999,
-                            'dust_dt': -999,
-                            }
+                tng_dict = {
+                    'seeing': -999,
+                    'seeing_dt': -999,
+                    'dust': -999,
+                    'dust_dt': -999,
+                }
         except Exception:
-            if params.FAKE_CONDITIONS:
-                tng_dict = {'seeing': 1.2,
-                            'seeing_dt': 0,
-                            'dust': 0,
-                            'dust_dt': 0,
-                            }
-            else:
-                self.log.error('Failed to get TNG info')
-                self.log.debug('', exc_info=True)
-                tng_dict = {'seeing': -999,
-                            'seeing_dt': -999,
-                            'dust': -999,
-                            'dust_dt': -999,
-                            }
+            self.log.error('Failed to get TNG info')
+            self.log.debug('', exc_info=True)
+            tng_dict = {
+                'seeing': -999,
+                'seeing_dt': -999,
+                'dust': -999,
+                'dust_dt': -999,
+            }
         temp_info['tng'] = tng_dict
 
         # Get seeing from the ING RoboDIMM (La Palma only)
         try:
-            if params.SITE_NAME == 'La Palma':
+            if params.FAKE_CONDITIONS:
+                dimm_dict = {
+                    'seeing': 1.2,
+                    'dt': 0,
+                }
+            elif params.SITE_NAME == 'La Palma':
                 dimm_dict = get_robodimm()
                 # check if the timeout has been exceeded
                 if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
                     dimm_dict['seeing'] = -999
             else:
-                dimm_dict = {'seeing': -999,
-                             'dt': -999,
-                             }
+                dimm_dict = {
+                    'seeing': -999,
+                    'dt': -999,
+                }
         except Exception:
-            if params.FAKE_CONDITIONS:
-                dimm_dict = {'seeing': 1.2,
-                             'dt': 0,
-                             }
-            else:
-                self.log.error('Failed to get DIMM info')
-                self.log.debug('', exc_info=True)
-                dimm_dict = {'seeing': -999,
-                             'dt': -999,
-                             }
+            self.log.error('Failed to get DIMM info')
+            self.log.debug('', exc_info=True)
+            dimm_dict = {
+                'seeing': -999,
+                'dt': -999,
+            }
         temp_info['robodimm'] = dimm_dict
 
         # Get sky temperature from the CloudWatcher or the AAT (Siding Spring only)
         try:
-            if params.CLOUDWATCHER_URI != 'none':
+            if params.FAKE_CONDITIONS:
+                skytemp_dict = {
+                    'sky_temp': -20,
+                    'dt': 0,
+                }
+            elif params.CLOUDWATCHER_URI != 'none':
                 skytemp_dict = get_cloudwatcher_daemon(params.CLOUDWATCHER_URI)
             elif params.SITE_NAME == 'Siding Spring':
                 aat_dict = get_aat()
@@ -392,72 +407,68 @@ class ConditionsDaemon(BaseDaemon):
             else:
                 raise ValueError('No weather sources for sky temperature readings')
         except Exception:
-            if params.FAKE_CONDITIONS:
-                skytemp_dict = {'sky_temp': -20,
-                                'dt': 0,
-                                }
-            else:
-                self.log.error('Failed to get sky temperature info')
-                self.log.debug('', exc_info=True)
-                skytemp_dict = {'sky_temp': -999,
-                                'dt': -999,
-                                }
+            self.log.error('Failed to get sky temperature info')
+            self.log.debug('', exc_info=True)
+            skytemp_dict = {
+                'sky_temp': -999,
+                'dt': -999,
+            }
         temp_info['sky_temp'] = skytemp_dict
 
         # Get info from the UPSs
         try:
-            ups_percent, ups_status = get_ups()
-            temp_info['ups_percent'] = ups_percent
-            temp_info['ups_status'] = ups_status
-        except Exception:
             if params.FAKE_CONDITIONS:
                 temp_info['ups_percent'] = [100, 100]
                 temp_info['ups_status'] = [True, True]
             else:
-                self.log.error('Failed to get UPS info')
-                self.log.debug('', exc_info=True)
-                temp_info['ups_percent'] = -999
-                temp_info['ups_status'] = -999
+                ups_percent, ups_status = get_ups()
+                temp_info['ups_percent'] = ups_percent
+                temp_info['ups_status'] = ups_status
+        except Exception:
+            self.log.error('Failed to get UPS info')
+            self.log.debug('', exc_info=True)
+            temp_info['ups_percent'] = -999
+            temp_info['ups_status'] = -999
 
         # Get info from the link ping check
         try:
-            pings = [check_ping(url) for url in params.LINK_URLS]
-            temp_info['pings'] = pings
-        except Exception:
             if params.FAKE_CONDITIONS:
                 temp_info['pings'] = [True, True]
             else:
-                self.log.error('Failed to get link info')
-                self.log.debug('', exc_info=True)
-                temp_info['pings'] = -999
+                pings = [check_ping(url) for url in params.LINK_URLS]
+                temp_info['pings'] = pings
+        except Exception:
+            self.log.error('Failed to get link info')
+            self.log.debug('', exc_info=True)
+            temp_info['pings'] = -999
 
         # Get info from the disk usage check
         try:
-            free_diskspace = get_diskspace_remaining(params.IMAGE_PATH) * 100.
-            temp_info['free_diskspace'] = free_diskspace
-        except Exception:
             if params.FAKE_CONDITIONS:
                 temp_info['free_diskspace'] = 90
             else:
-                self.log.error('Failed to get diskspace info')
-                self.log.debug('', exc_info=True)
-                temp_info['free_diskspace'] = -999
+                free_diskspace = get_diskspace_remaining(params.IMAGE_PATH) * 100.
+                temp_info['free_diskspace'] = free_diskspace
+        except Exception:
+            self.log.error('Failed to get diskspace info')
+            self.log.debug('', exc_info=True)
+            temp_info['free_diskspace'] = -999
 
         # Get info from the satellite IR cloud image
         # Note if if fails (which is common) we only log the start and end
         try:
-            clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
-            temp_info['clouds'] = clouds
-            if self.info and self.info['clouds'] == -999:
-                self.log.info('Satellite clouds info restored')
-        except Exception:
             if params.FAKE_CONDITIONS:
                 temp_info['clouds'] = 0
             else:
-                if not self.info or (self.info and self.info['clouds'] != -999):
-                    self.log.error('Failed to get satellite clouds info')
-                    self.log.debug('', exc_info=True)
-                temp_info['clouds'] = -999
+                clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
+                temp_info['clouds'] = clouds
+                if self.info and self.info['clouds'] == -999:
+                    self.log.info('Satellite clouds info restored')
+        except Exception:
+            if not self.info or (self.info and self.info['clouds'] != -999):
+                self.log.error('Failed to get satellite clouds info')
+                self.log.debug('', exc_info=True)
+            temp_info['clouds'] = -999
 
         # Get current sun alt
         try:
