@@ -184,7 +184,7 @@ class APCPDU:
         command = [snmpget, '-v', '1', '-c', 'public', address] + oid_arr
         try:
             output = subprocess.check_output(command).decode('ascii').split('\n')
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             # TODO https://stackoverflow.com/questions/29824461
             raise
 
@@ -428,15 +428,19 @@ class APCUPS_USB:
         return percent
 
     def outlet_status(self):
+        """Return the current status of the outlets."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
-    def on(self, outlet):
+    def on(self, outlet):  # noqa: U100
+        """Turn on the given outlet."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
-    def off(self, outlet):
+    def off(self, outlet):  # noqa: U100
+        """Turn off the given outlet."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
-    def reboot(self, outlet):
+    def reboot(self, outlet):  # noqa: U100
+        """Reboot the given outlet."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
 
