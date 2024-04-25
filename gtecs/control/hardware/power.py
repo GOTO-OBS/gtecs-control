@@ -708,7 +708,7 @@ class ETHRelay:
     @property
     def status(self):
         """Get the relay status (True = on, False = off)."""
-        return self.power.status()[self.relay_outlet - 1] == '1'
+        return self.power.status()[self.relay_outlet - 1] == str(self.power.on_value)
 
 
 class DomeAlertRelay:
