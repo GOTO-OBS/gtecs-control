@@ -526,7 +526,7 @@ class DomeDaemon(BaseDaemon):
                             break
                 else:
                     outlets = 2  # ETH002 relay board
-                nc = bool(unit_params['NC']) if 'NC' in unit_params else False
+                nc = bool(unit_params['NC'] != '0') if 'NC' in unit_params else False
                 self.dehumidifier = ETHRelay(
                     unit_params['IP'],
                     int(unit_params['PORT']),

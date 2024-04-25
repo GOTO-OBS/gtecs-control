@@ -176,7 +176,7 @@ class PowerDaemon(BaseDaemon):
                     self.power_units[unit_name] = EPCPDU(unit_params['IP'], unit_outlets)
                 elif unit_params['CLASS'] == 'ETHPDU':
                     unit_outlets = len(unit_params['NAMES'])
-                    nc = bool(unit_params['NC']) if 'NC' in unit_params else False
+                    nc = bool(unit_params['NC'] != '0') if 'NC' in unit_params else False
                     self.power_units[unit_name] = ETHPDU(
                         unit_params['IP'],
                         int(unit_params['PORT']),
