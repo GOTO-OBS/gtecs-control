@@ -13,7 +13,7 @@ from gtecs.control.daemons import BaseDaemon, HardwareError, daemon_proxy
 from gtecs.control.flags import Conditions, ModeError, Status
 from gtecs.control.hardware.dome import AstroHavenDome, FakeDome
 from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
-from gtecs.control.hardware.power import DomeAlertRelay, ETH002Relay, FakeRelay
+from gtecs.control.hardware.power import DomeAlertRelay, ETHRelay, FakeRelay
 from gtecs.control.slack import send_slack_msg
 
 import numpy as np
@@ -516,9 +516,21 @@ class DomeDaemon(BaseDaemon):
             self.log.info('Connecting to dehumidifier')
             if 'DEHUMIDIFIER' in params.POWER_UNITS:
                 # Connect through the power control unit
-                self.dehumidifier = ETH002Relay(
+                outlet = 1
+                if 'NAMES' in params.POWER_UNITS['DEHUMIDIFIER']:
+                    outlets = len(params.POWER_UNITS['DEHUMIDIFIER']['NAMES'])
+                    for name in ['dehum', 'dehumidifier']:
+                        if name in params.POWER_UNITS['DEHUMIDIFIER']['NAMES']:
+                            outlet = params.POWER_UNITS['DEHUMIDIFIER']['NAMES'].index(name) + 1
+                            break
+                else:
+                    outlets = 2  # ETH002 relay board
+                self.dehumidifier = ETHRelay(
                     params.POWER_UNITS['DEHUMIDIFIER']['IP'],
                     int(params.POWER_UNITS['DEHUMIDIFIER']['PORT']),
+                    outlets=outlets,
+                    relay_outlet=outlet,
+                    normally_closed=params.POWER_UNITS['DEHUMIDIFIER']['NC'],
                 )
             else:
                 # Connect though the DomeAlert
