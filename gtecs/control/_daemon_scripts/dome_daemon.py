@@ -516,21 +516,23 @@ class DomeDaemon(BaseDaemon):
             self.log.info('Connecting to dehumidifier')
             if 'DEHUMIDIFIER' in params.POWER_UNITS:
                 # Connect through the power control unit
+                unit_params = params.POWER_UNITS['DEHUMIDIFIER']
                 outlet = 1
-                if 'NAMES' in params.POWER_UNITS['DEHUMIDIFIER']:
-                    outlets = len(params.POWER_UNITS['DEHUMIDIFIER']['NAMES'])
+                if 'NAMES' in unit_params:
+                    outlets = len(unit_params['NAMES'])
                     for name in ['dehum', 'dehumidifier']:
-                        if name in params.POWER_UNITS['DEHUMIDIFIER']['NAMES']:
-                            outlet = params.POWER_UNITS['DEHUMIDIFIER']['NAMES'].index(name) + 1
+                        if name in unit_params['NAMES']:
+                            outlet = unit_params['NAMES'].index(name) + 1
                             break
                 else:
                     outlets = 2  # ETH002 relay board
+                nc = bool(unit_params['NC']) if 'NC' in unit_params else False
                 self.dehumidifier = ETHRelay(
-                    params.POWER_UNITS['DEHUMIDIFIER']['IP'],
-                    int(params.POWER_UNITS['DEHUMIDIFIER']['PORT']),
+                    unit_params['IP'],
+                    int(unit_params['PORT']),
                     outlets=outlets,
                     relay_outlet=outlet,
-                    normally_closed=params.POWER_UNITS['DEHUMIDIFIER']['NC'],
+                    normally_closed=nc,
                 )
             else:
                 # Connect though the DomeAlert
