@@ -184,7 +184,7 @@ class APCPDU:
         command = [snmpget, '-v', '1', '-c', 'public', address] + oid_arr
         try:
             output = subprocess.check_output(command).decode('ascii').split('\n')
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             # TODO https://stackoverflow.com/questions/29824461
             raise
 
@@ -428,15 +428,19 @@ class APCUPS_USB:
         return percent
 
     def outlet_status(self):
+        """Return the current status of the outlets."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
-    def on(self, outlet):
+    def on(self, outlet):  # noqa: U100
+        """Turn on the given outlet."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
-    def off(self, outlet):
+    def off(self, outlet):  # noqa: U100
+        """Turn off the given outlet."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
-    def reboot(self, outlet):
+    def reboot(self, outlet):  # noqa: U100
+        """Reboot the given outlet."""
         raise NotImplementedError('Cannot control UPS outlets through USB connection')
 
 
@@ -677,26 +681,34 @@ class FakeRelay:
         return self._on
 
 
-class ETH002Relay:
-    """Simple relay class (using a ETH002 PDU)."""
+class ETHRelay:
+    """Simple relay class (using a ETH PDU)."""
 
-    def __init__(self, address, port):
+    def __init__(self, address, port, outlets=2, relay_outlet=1, normally_closed=False):
         self.address = address
         self.port = port
-        self.power = ETHPDU(self.address, self.port, outlets=2, normally_closed=False)
+        self.outlets = outlets
+        self.relay_outlet = relay_outlet
+        self.normally_closed = normally_closed
+        self.power = ETHPDU(
+            self.address,
+            self.port,
+            outlets=self.outlets,
+            normally_closed=self.normally_closed
+        )
 
     def on(self):
         """Turn on the relay."""
-        self.power.on(1)
+        self.power.on(self.relay_outlet)
 
     def off(self):
         """Turn off the relay."""
-        self.power.off(1)
+        self.power.off(self.relay_outlet)
 
     @property
     def status(self):
         """Get the relay status (True = on, False = off)."""
-        return self.power.status()[0] == '1'
+        return self.power.status()[self.relay_outlet - 1] == str(self.power.on_value)
 
 
 class DomeAlertRelay:
