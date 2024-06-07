@@ -205,8 +205,11 @@ class FiltDaemon(BaseDaemon):
             bad_uts = [ut for ut in new_filter if self.info[ut]['remaining'] > 0]
             raise HardwareError(f'Filter Wheels are already moving: {bad_uts}')
 
-        self.active_uts = sorted([ut for ut in new_filter
-                                  if new_filter[ut] == self.info[ut]['current_filter']])
+        # Don't move ones that are already at the correct position
+        new_filter = {ut: new_filter[ut] for ut in new_filter
+                      if new_filter[ut] != self.info[ut]['current_filter']}
+
+        self.active_uts = sorted(new_filter)
         self.new_filter.update(new_filter)
         self.set_filter_flag = 1
 
