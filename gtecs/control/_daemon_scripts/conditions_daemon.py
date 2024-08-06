@@ -1419,7 +1419,6 @@ class ConditionsDaemon(BaseDaemon):
         msg += '{}°        (max={:.1f}°)           \t : {}\n'.format(
             sunalt_str, params.SUN_ELEVATION_LIMIT, status)
 
-        # ADD DISKSPACE AND UPS ETC
         msg += 'OTHER:\n'
 
         for i, ups_percent in enumerate(info['ups_percent']):
