@@ -9,8 +9,8 @@ import astropy.units as u
 from astropy.coordinates import AltAz, Angle, HADec, SkyCoord
 from astropy.time import Time
 
-from gtecs.common.system import make_pid_file
 from gtecs.common.style import rtxt, ytxt
+from gtecs.common.system import make_pid_file
 from gtecs.control import params
 from gtecs.control.astronomy import (get_moon_distance, get_moon_params, get_sunalt,
                                      observatory_location)
@@ -55,6 +55,7 @@ class MntDaemon(BaseDaemon):
         self.trackrate_dec = 0
         self.set_blinky = False
         self.set_motor_power = True
+        self.history = {}
 
         # position offset (stored in a file, so it isn't forgotten if we restart)
         self.position_offset_file = os.path.join(params.FILE_PATH, 'mount_offset')
@@ -418,8 +419,8 @@ class MntDaemon(BaseDaemon):
             temp_info['max_hourangle'] = params.MAX_HOURANGLE
             within_elevation = temp_info['mount_alt_pointing'] > temp_info['min_elevation']
             within_hourangle = abs(temp_info['mount_ha_pointing']) < temp_info['max_hourangle']
-            temp_info['elevation_within_limits'] = within_elevation
-            temp_info['hourangle_within_limits'] = within_hourangle
+            temp_info['elevation_within_limits'] = bool(within_elevation)  # needs to be bool,
+            temp_info['hourangle_within_limits'] = bool(within_hourangle)  # not np.bool_
 
             if self.position_offset is None:
                 temp_info['mount_ra'] = temp_info['mount_ra_pointing']
@@ -459,13 +460,13 @@ class MntDaemon(BaseDaemon):
                 temp_info['acceleration'] = self.mount.acceleration
                 temp_info['motor_current'] = self.mount.motor_current
 
-                # Save history so we can add to the image headers
-                temp_info['encoder_position_history'] = self.mount.encoder_position_history
-                temp_info['position_error_history'] = self.mount.position_error_history
-                temp_info['tracking_error_history'] = self.mount.tracking_error_history
-                temp_info['velocity_history'] = self.mount.velocity_history
-                temp_info['acceleration_history'] = self.mount.acceleration_history
-                temp_info['motor_current_history'] = self.mount.motor_current_history
+                # Save history internally so we can add to the image headers
+                self.history['encoder_position'] = self.mount.encoder_position_history
+                self.history['position_error'] = self.mount.position_error_history
+                self.history['tracking_error'] = self.mount.tracking_error_history
+                self.history['velocity'] = self.mount.velocity_history
+                self.history['acceleration'] = self.mount.acceleration_history
+                self.history['motor_current'] = self.mount.motor_current_history
 
                 # Check if the mount is within the encoder position limits
                 temp_info['encoder_position_limits'] = {
@@ -557,12 +558,6 @@ class MntDaemon(BaseDaemon):
                 temp_info['velocity'] = None
                 temp_info['acceleration'] = None
                 temp_info['motor_current'] = None
-                temp_info['encoder_position_history'] = None
-                temp_info['position_error_history'] = None
-                temp_info['tracking_error_history'] = None
-                temp_info['velocity_history'] = None
-                temp_info['acceleration_history'] = None
-                temp_info['motor_current_history'] = None
                 temp_info['encoder_position_limits'] = None
                 temp_info['encoder_ra_within_limits'] = None
                 temp_info['encoder_dec_within_limits'] = None
@@ -1038,6 +1033,14 @@ class MntDaemon(BaseDaemon):
         if reply:
             self.log.info(reply)
         self.clear_error_flag = 1
+
+    def get_history(self):
+        """Get the mount history values for the header.
+
+        This was previously part of the usual get_info() function, but the values made the
+        dict too long so it was split out.
+        """
+        return self.history
 
     # Info function
     def get_info_string(self, verbose=False, force_update=False):

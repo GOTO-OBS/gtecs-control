@@ -210,6 +210,9 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
             force_update = bool(daemon_id != 'conditions')
             with daemon_proxy(daemon_id, timeout=timeout) as daemon:
                 daemon_info[daemon_id] = daemon.get_info(force_update)
+            if daemon_id in ['conditions', 'mnt']:
+                # raw history was split out of the info dicts to save space
+                daemon_info[daemon_id]['history'] = daemon.get_history()
             if log and log_debug:
                 log.debug(f'Fetched "{daemon_id}" info')
         except Exception:
@@ -237,301 +240,34 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
     # Mount history
     if daemon_info['mnt'] is not None:
         try:
-            exptime = daemon_info['cam']['current_exposure']['exptime']
-
-            # Encoder position history
-            encpos_info = {}
-            encpos_info['ra_hist_time'] = -999
-            encpos_info['ra_hist'] = []
-            encpos_info['ra_min'] = 'NA'
-            encpos_info['ra_max'] = 'NA'
-            encpos_info['ra_mean'] = 'NA'
-            encpos_info['ra_std'] = 'NA'
-            encpos_info['dec_hist_time'] = -999
-            encpos_info['dec_hist'] = []
-            encpos_info['dec_min'] = 'NA'
-            encpos_info['dec_max'] = 'NA'
-            encpos_info['dec_mean'] = 'NA'
-            encpos_info['dec_std'] = 'NA'
-            if daemon_info['mnt']['encoder_position_history'] is not None:
-                # Get lookback time
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                # Get RA history values
-                oldest_hist = daemon_info['mnt']['encoder_position_history']['ra'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                encpos_info['ra_hist_time'] = hist_time
-                ra_hist = [h[1] for h in daemon_info['mnt']['encoder_position_history']['ra']
-                           if info_time.unix - h[0] <= hist_time]
-                if len(ra_hist) > 0:
-                    encpos_info['ra_hist'] = ra_hist
-                    encpos_info['ra_min'] = np.min(ra_hist)
-                    encpos_info['ra_max'] = np.max(ra_hist)
-                    encpos_info['ra_mean'] = np.mean(ra_hist)
-                    encpos_info['ra_std'] = np.std(ra_hist)
-                # Get Dec history values
-                oldest_hist = daemon_info['mnt']['encoder_position_history']['dec'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                encpos_info['dec_hist_time'] = hist_time
-                dec_hist = [h[1] for h in daemon_info['mnt']['encoder_position_history']['dec']
-                            if info_time.unix - h[0] <= hist_time]
-                if len(dec_hist) > 0:
-                    encpos_info['dec_hist'] = dec_hist
-                    encpos_info['dec_min'] = np.min(dec_hist)
-                    encpos_info['dec_max'] = np.max(dec_hist)
-                    encpos_info['dec_mean'] = np.mean(dec_hist)
-                    encpos_info['dec_std'] = np.std(dec_hist)
-            daemon_info['mnt']['encoder_position_info'] = encpos_info
-
-            # Position error history
-            poserr_info = {}
-            poserr_info['ra_hist_time'] = -999
-            poserr_info['ra_hist'] = []
-            poserr_info['ra_min'] = 'NA'
-            poserr_info['ra_max'] = 'NA'
-            poserr_info['ra_mean'] = 'NA'
-            poserr_info['ra_std'] = 'NA'
-            poserr_info['dec_hist_time'] = -999
-            poserr_info['dec_hist'] = []
-            poserr_info['dec_min'] = 'NA'
-            poserr_info['dec_max'] = 'NA'
-            poserr_info['dec_mean'] = 'NA'
-            poserr_info['dec_std'] = 'NA'
-            if daemon_info['mnt']['position_error_history'] is not None:
-                # Get lookback time
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                # Get RA history values
-                oldest_hist = daemon_info['mnt']['position_error_history']['ra'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                poserr_info['ra_hist_time'] = hist_time
-                ra_hist = [h[1] for h in daemon_info['mnt']['position_error_history']['ra']
-                           if info_time.unix - h[0] <= hist_time]
-                if len(ra_hist) > 0:
-                    poserr_info['ra_hist'] = ra_hist
-                    poserr_info['ra_min'] = np.min(ra_hist)
-                    poserr_info['ra_max'] = np.max(ra_hist)
-                    poserr_info['ra_mean'] = np.mean(ra_hist)
-                    poserr_info['ra_std'] = np.std(ra_hist)
-                # Get Dec history values
-                oldest_hist = daemon_info['mnt']['position_error_history']['dec'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                poserr_info['dec_hist_time'] = hist_time
-                dec_hist = [h[1] for h in daemon_info['mnt']['position_error_history']['dec']
-                            if info_time.unix - h[0] <= hist_time]
-                if len(dec_hist) > 0:
-                    poserr_info['dec_hist'] = dec_hist
-                    poserr_info['dec_min'] = np.min(dec_hist)
-                    poserr_info['dec_max'] = np.max(dec_hist)
-                    poserr_info['dec_mean'] = np.mean(dec_hist)
-                    poserr_info['dec_std'] = np.std(dec_hist)
-            daemon_info['mnt']['position_error_info'] = poserr_info
-
-            # Tracking error history
-            trackerr_info = {}
-            trackerr_info['ra_hist_time'] = -999
-            trackerr_info['ra_hist'] = []
-            trackerr_info['ra_min'] = 'NA'
-            trackerr_info['ra_max'] = 'NA'
-            trackerr_info['ra_mean'] = 'NA'
-            trackerr_info['ra_std'] = 'NA'
-            trackerr_info['dec_hist_time'] = -999
-            trackerr_info['dec_hist'] = []
-            trackerr_info['dec_min'] = 'NA'
-            trackerr_info['dec_max'] = 'NA'
-            trackerr_info['dec_mean'] = 'NA'
-            trackerr_info['dec_std'] = 'NA'
-            if daemon_info['mnt']['tracking_error_history'] is not None:
-                # Get lookback time
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                # Get RA history values
-                oldest_hist = daemon_info['mnt']['tracking_error_history']['ra'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                trackerr_info['ra_hist_time'] = hist_time
-                ra_hist = [h[1] for h in daemon_info['mnt']['tracking_error_history']['ra']
-                           if info_time.unix - h[0] <= hist_time]
-                if len(ra_hist) > 0:
-                    trackerr_info['ra_hist'] = ra_hist
-                    trackerr_info['ra_min'] = np.min(ra_hist)
-                    trackerr_info['ra_max'] = np.max(ra_hist)
-                    trackerr_info['ra_mean'] = np.mean(ra_hist)
-                    trackerr_info['ra_std'] = np.std(ra_hist)
-                # Get Dec history values
-                oldest_hist = daemon_info['mnt']['tracking_error_history']['dec'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                trackerr_info['dec_hist_time'] = hist_time
-                dec_hist = [h[1] for h in daemon_info['mnt']['tracking_error_history']['dec']
-                            if info_time.unix - h[0] <= hist_time]
-                if len(dec_hist) > 0:
-                    trackerr_info['dec_hist'] = dec_hist
-                    trackerr_info['dec_min'] = np.min(dec_hist)
-                    trackerr_info['dec_max'] = np.max(dec_hist)
-                    trackerr_info['dec_mean'] = np.mean(dec_hist)
-                    trackerr_info['dec_std'] = np.std(dec_hist)
-            daemon_info['mnt']['tracking_error_info'] = trackerr_info
-
-            # Velocity history
-            velocity_info = {}
-            velocity_info['ra_hist_time'] = -999
-            velocity_info['ra_hist'] = []
-            velocity_info['ra_min'] = 'NA'
-            velocity_info['ra_max'] = 'NA'
-            velocity_info['ra_mean'] = 'NA'
-            velocity_info['ra_std'] = 'NA'
-            velocity_info['dec_hist_time'] = -999
-            velocity_info['dec_hist'] = []
-            velocity_info['dec_min'] = 'NA'
-            velocity_info['dec_max'] = 'NA'
-            velocity_info['dec_mean'] = 'NA'
-            velocity_info['dec_std'] = 'NA'
-            if daemon_info['mnt']['velocity_history'] is not None:
-                # Get lookback time
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                # Get RA history values
-                oldest_hist = daemon_info['mnt']['velocity_history']['ra'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                velocity_info['ra_hist_time'] = hist_time
-                ra_hist = [h[1] for h in daemon_info['mnt']['velocity_history']['ra']
-                           if info_time.unix - h[0] <= hist_time]
-                if len(ra_hist) > 0:
-                    velocity_info['ra_hist'] = ra_hist
-                    velocity_info['ra_min'] = np.min(ra_hist)
-                    velocity_info['ra_max'] = np.max(ra_hist)
-                    velocity_info['ra_mean'] = np.mean(ra_hist)
-                    velocity_info['ra_std'] = np.std(ra_hist)
-                # Get Dec history values
-                oldest_hist = daemon_info['mnt']['velocity_history']['dec'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                velocity_info['dec_hist_time'] = hist_time
-                dec_hist = [h[1] for h in daemon_info['mnt']['velocity_history']['dec']
-                            if info_time.unix - h[0] <= hist_time]
-                if len(dec_hist) > 0:
-                    velocity_info['dec_hist'] = dec_hist
-                    velocity_info['dec_min'] = np.min(dec_hist)
-                    velocity_info['dec_max'] = np.max(dec_hist)
-                    velocity_info['dec_mean'] = np.mean(dec_hist)
-                    velocity_info['dec_std'] = np.std(dec_hist)
-            daemon_info['mnt']['velocity_info'] = velocity_info
-
-            # Acceleration history
-            accel_info = {}
-            accel_info['ra_hist_time'] = -999
-            accel_info['ra_hist'] = []
-            accel_info['ra_min'] = 'NA'
-            accel_info['ra_max'] = 'NA'
-            accel_info['ra_mean'] = 'NA'
-            accel_info['ra_std'] = 'NA'
-            accel_info['dec_hist_time'] = -999
-            accel_info['dec_hist'] = []
-            accel_info['dec_min'] = 'NA'
-            accel_info['dec_max'] = 'NA'
-            accel_info['dec_mean'] = 'NA'
-            accel_info['dec_std'] = 'NA'
-            if daemon_info['mnt']['acceleration_history'] is not None:
-                # Get lookback time
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                # Get RA history values
-                oldest_hist = daemon_info['mnt']['acceleration_history']['ra'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                accel_info['ra_hist_time'] = hist_time
-                ra_hist = [h[1] for h in daemon_info['mnt']['acceleration_history']['ra']
-                           if info_time.unix - h[0] <= hist_time]
-                if len(ra_hist) > 0:
-                    accel_info['ra_hist'] = ra_hist
-                    accel_info['ra_min'] = np.min(ra_hist)
-                    accel_info['ra_max'] = np.max(ra_hist)
-                    accel_info['ra_mean'] = np.mean(ra_hist)
-                    accel_info['ra_std'] = np.std(ra_hist)
-                # Get Dec history values
-                oldest_hist = daemon_info['mnt']['acceleration_history']['dec'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                accel_info['dec_hist_time'] = hist_time
-                dec_hist = [h[1] for h in daemon_info['mnt']['acceleration_history']['dec']
-                            if info_time.unix - h[0] <= hist_time]
-                if len(dec_hist) > 0:
-                    accel_info['dec_hist'] = dec_hist
-                    accel_info['dec_min'] = np.min(dec_hist)
-                    accel_info['dec_max'] = np.max(dec_hist)
-                    accel_info['dec_mean'] = np.mean(dec_hist)
-                    accel_info['dec_std'] = np.std(dec_hist)
-            daemon_info['mnt']['acceleration_info'] = accel_info
-
-            # Motor current history
-            current_info = {}
-            current_info['ra_hist_time'] = -999
-            current_info['ra_hist'] = []
-            current_info['ra_min'] = 'NA'
-            current_info['ra_max'] = 'NA'
-            current_info['ra_mean'] = 'NA'
-            current_info['ra_std'] = 'NA'
-            current_info['dec_hist_time'] = -999
-            current_info['dec_hist'] = []
-            current_info['dec_min'] = 'NA'
-            current_info['dec_max'] = 'NA'
-            current_info['dec_mean'] = 'NA'
-            current_info['dec_std'] = 'NA'
-            if daemon_info['mnt']['motor_current_history'] is not None:
-                # Get lookback time
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                # Get RA history values
-                oldest_hist = daemon_info['mnt']['motor_current_history']['ra'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                current_info['ra_hist_time'] = hist_time
-                ra_hist = [h[1] for h in daemon_info['mnt']['motor_current_history']['ra']
-                           if info_time.unix - h[0] <= hist_time]
-                if len(ra_hist) > 0:
-                    current_info['ra_hist'] = ra_hist
-                    current_info['ra_min'] = np.min(ra_hist)
-                    current_info['ra_max'] = np.max(ra_hist)
-                    current_info['ra_mean'] = np.mean(ra_hist)
-                    current_info['ra_std'] = np.std(ra_hist)
-                # Get Dec history values
-                oldest_hist = daemon_info['mnt']['motor_current_history']['dec'][0][0]
-                max_hist_time = info_time.unix - oldest_hist
-                if hist_time > max_hist_time:
-                    hist_time = max_hist_time
-                current_info['dec_hist_time'] = hist_time
-                dec_hist = [h[1] for h in daemon_info['mnt']['motor_current_history']['dec']
-                            if info_time.unix - h[0] <= hist_time]
-                if len(dec_hist) > 0:
-                    current_info['dec_hist'] = dec_hist
-                    current_info['dec_min'] = np.min(dec_hist)
-                    current_info['dec_max'] = np.max(dec_hist)
-                    current_info['dec_mean'] = np.mean(dec_hist)
-                    current_info['dec_std'] = np.std(dec_hist)
-            daemon_info['mnt']['motor_current_info'] = current_info
+            for key in daemon_info['mnt']['history']:
+                for axis in ['ra', 'dec']:
+                    history_info = {}
+                    history_info['hist_time'] = -999
+                    history_info['min'] = 'NA'
+                    history_info['max'] = 'NA'
+                    history_info['mean'] = 'NA'
+                    history_info['std'] = 'NA'
+                    history = daemon_info['mnt']['history'][key][axis]
+                    if len(history) > 0:
+                        # Get history period (based on exposure time)
+                        hist_time = params.MIN_HEADER_HIST_TIME
+                        exp_time = daemon_info['cam']['current_exposure']['exptime']
+                        if exp_time > params.MIN_HEADER_HIST_TIME:
+                            hist_time = exp_time
+                        max_hist_time = info_time.unix - history[0][0]
+                        if hist_time > max_hist_time:
+                            hist_time = max_hist_time
+                        history_info['hist_time'] = hist_time
+                        # Get history values
+                        history = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
+                        if len(history) > 0:
+                            history_info['min'] = np.min(history)
+                            history_info['max'] = np.max(history)
+                            history_info['mean'] = np.mean(history)
+                            history_info['std'] = np.std(history)
+                    # Store the history info
+                    daemon_info['mnt']['history'][key][axis] = history_info
 
         except Exception:
             if log is None:
@@ -542,49 +278,45 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 log.debug('info: {}'.format(daemon_info['mnt']))
             except Exception:
                 pass
-            daemon_info['mnt']['encoder_position_info'] = None
-            daemon_info['mnt']['position_error_info'] = None
-            daemon_info['mnt']['tracking_error_info'] = None
-            daemon_info['mnt']['velocity_info'] = None
-            daemon_info['mnt']['acceleration_info'] = None
-            daemon_info['mnt']['motor_current_info'] = None
             bad_daemons.append('mnt_history')
 
     # Conditions history
     if daemon_info['conditions'] is not None:
         try:
-            # We only care about the primary weather source for the header
-            source = params.VAISALA_URI[5:].split('_')[0]
-            daemon_info['conditions']['weather_ext'] = daemon_info['conditions']['weather'][source]
-
-            exptime = daemon_info['cam']['current_exposure']['exptime']
-
-            # Wind gust history
-            hist_info = {}
-            hist_info['hist_time'] = -999
-            hist_info['min'] = 'NA'
-            hist_info['max'] = 'NA'
-            hist_info['mean'] = 'NA'
-            hist_info['std'] = 'NA'
-            history = daemon_info['conditions']['weather_ext']['windgust_history']
-            if history != -999:
-                # Get lookback time
-                max_hist = info_time.unix - history[0][0]
-                hist_time = params.MIN_HEADER_HIST_TIME
-                if exptime > hist_time:
-                    hist_time = exptime
-                if hist_time > max_hist:
-                    hist_time = max_hist
-                hist_info['hist_time'] = hist_time
-                # Get gust history values
-                gust_hist = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
-                if len(gust_hist) > 0:
-                    hist_info['hist'] = gust_hist
-                    hist_info['min'] = np.min(gust_hist)
-                    hist_info['max'] = np.max(gust_hist)
-                    hist_info['mean'] = np.mean(gust_hist)
-                    hist_info['std'] = np.std(gust_hist)
-            daemon_info['conditions']['weather_ext']['windgust_history_info'] = hist_info
+            for key in daemon_info['conditions']['history']:
+                for source in daemon_info['conditions']['history'][key]:
+                    history_info = {}
+                    history_info['hist_time'] = -999
+                    history_info['min'] = 'NA'
+                    history_info['max'] = 'NA'
+                    history_info['mean'] = 'NA'
+                    history_info['std'] = 'NA'
+                    history = daemon_info['conditions']['history'][key][source]
+                    if len(history) > 0:
+                        # Get history period (based on exposure time)
+                        hist_time = params.MIN_HEADER_HIST_TIME
+                        exp_time = daemon_info['cam']['current_exposure']['exptime']
+                        if exp_time > params.MIN_HEADER_HIST_TIME:
+                            hist_time = exp_time
+                        max_hist_time = info_time.unix - history[0][0]
+                        if hist_time > max_hist_time:
+                            hist_time = max_hist_time
+                        history_info['hist_time'] = hist_time
+                        # Get history values
+                        history = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
+                        if len(history) > 0:
+                            history_info['min'] = np.min(history)
+                            history_info['max'] = np.max(history)
+                            history_info['mean'] = np.mean(history)
+                            history_info['std'] = np.std(history)
+                    # Store the history info
+                    if source not in daemon_info['conditions']['weather']:
+                        # This shouldn't happen?
+                        pass
+                    if 'history' not in daemon_info['conditions']['weather'][source]:
+                        daemon_info['conditions']['weather'][source]['history'] = {}
+                    daemon_info['conditions']['weather'][source]['history'][key] = history_info
+            del daemon_info['conditions']['history']
 
         except Exception:
             if log is None:
@@ -595,7 +327,6 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                 log.debug('info: {}'.format(daemon_info['conditions']))
             except Exception:
                 pass
-            daemon_info['conditions']['weather_ext']['windgust_history_info'] = None
             bad_daemons.append('conditions_history')
 
     # Database
@@ -1301,17 +1032,17 @@ def make_header(ut, daemon_info=None):
                    'Dec tracking rate (0=sidereal)'))
 
     # Encoder position (+ history)
-    if daemon_info['mnt']['encoder_position_info'] is not None:
-        encpos_ra_hist_time = daemon_info['mnt']['encoder_position_info']['ra_hist_time']
-        encpos_ra_min = daemon_info['mnt']['encoder_position_info']['ra_min']
-        encpos_ra_max = daemon_info['mnt']['encoder_position_info']['ra_max']
-        encpos_ra_mean = daemon_info['mnt']['encoder_position_info']['ra_mean']
-        encpos_ra_std = daemon_info['mnt']['encoder_position_info']['ra_std']
-        encpos_dec_hist_time = daemon_info['mnt']['encoder_position_info']['dec_hist_time']
-        encpos_dec_min = daemon_info['mnt']['encoder_position_info']['dec_min']
-        encpos_dec_max = daemon_info['mnt']['encoder_position_info']['dec_max']
-        encpos_dec_mean = daemon_info['mnt']['encoder_position_info']['dec_mean']
-        encpos_dec_std = daemon_info['mnt']['encoder_position_info']['dec_std']
+    if ('history' in daemon_info['mnt'] and 'encoder_position' in daemon_info['mnt']['history']):
+        encpos_ra_hist_time = daemon_info['mnt']['history']['encoder_position']['ra']['hist_time']
+        encpos_ra_min = daemon_info['mnt']['history']['encoder_position']['ra']['min']
+        encpos_ra_max = daemon_info['mnt']['history']['encoder_position']['ra']['max']
+        encpos_ra_mean = daemon_info['mnt']['history']['encoder_position']['ra']['mean']
+        encpos_ra_std = daemon_info['mnt']['history']['encoder_position']['ra']['std']
+        encpos_dec_hist_time = daemon_info['mnt']['history']['encoder_position']['dec']['hist_time']
+        encpos_dec_min = daemon_info['mnt']['history']['encoder_position']['dec']['min']
+        encpos_dec_max = daemon_info['mnt']['history']['encoder_position']['dec']['max']
+        encpos_dec_mean = daemon_info['mnt']['history']['encoder_position']['dec']['mean']
+        encpos_dec_std = daemon_info['mnt']['history']['encoder_position']['dec']['std']
     else:
         encpos_ra_hist_time = -999
         encpos_ra_min = 'NA'
@@ -1345,17 +1076,17 @@ def make_header(ut, daemon_info=None):
                    'Dec std encoder position (last {:.0f}s)'.format(encpos_dec_hist_time)))
 
     # Position error (+ history)
-    if daemon_info['mnt']['position_error_info'] is not None:
-        poserr_ra_hist_time = daemon_info['mnt']['position_error_info']['ra_hist_time']
-        poserr_ra_min = daemon_info['mnt']['position_error_info']['ra_min']
-        poserr_ra_max = daemon_info['mnt']['position_error_info']['ra_max']
-        poserr_ra_mean = daemon_info['mnt']['position_error_info']['ra_mean']
-        poserr_ra_std = daemon_info['mnt']['position_error_info']['ra_std']
-        poserr_dec_hist_time = daemon_info['mnt']['position_error_info']['dec_hist_time']
-        poserr_dec_min = daemon_info['mnt']['position_error_info']['dec_min']
-        poserr_dec_max = daemon_info['mnt']['position_error_info']['dec_max']
-        poserr_dec_mean = daemon_info['mnt']['position_error_info']['dec_mean']
-        poserr_dec_std = daemon_info['mnt']['position_error_info']['dec_std']
+    if ('history' in daemon_info['mnt'] and 'position_error' in daemon_info['mnt']['history']):
+        poserr_ra_hist_time = daemon_info['mnt']['history']['position_error']['ra']['hist_time']
+        poserr_ra_min = daemon_info['mnt']['history']['position_error']['ra']['min']
+        poserr_ra_max = daemon_info['mnt']['history']['position_error']['ra']['max']
+        poserr_ra_mean = daemon_info['mnt']['history']['position_error']['ra']['mean']
+        poserr_ra_std = daemon_info['mnt']['history']['position_error']['ra']['std']
+        poserr_dec_hist_time = daemon_info['mnt']['history']['position_error']['dec']['hist_time']
+        poserr_dec_min = daemon_info['mnt']['history']['position_error']['dec']['min']
+        poserr_dec_max = daemon_info['mnt']['history']['position_error']['dec']['max']
+        poserr_dec_mean = daemon_info['mnt']['history']['position_error']['dec']['mean']
+        poserr_dec_std = daemon_info['mnt']['history']['position_error']['dec']['std']
     else:
         poserr_ra_hist_time = -999
         poserr_ra_min = 'NA'
@@ -1389,17 +1120,17 @@ def make_header(ut, daemon_info=None):
                    'Dec std position error (last {:.0f}s)'.format(poserr_dec_hist_time)))
 
     # Tracking error (+ history)
-    if daemon_info['mnt']['tracking_error_info'] is not None:
-        trkerr_ra_hist_time = daemon_info['mnt']['tracking_error_info']['ra_hist_time']
-        trkerr_ra_min = daemon_info['mnt']['tracking_error_info']['ra_min']
-        trkerr_ra_max = daemon_info['mnt']['tracking_error_info']['ra_max']
-        trkerr_ra_mean = daemon_info['mnt']['tracking_error_info']['ra_mean']
-        trkerr_ra_std = daemon_info['mnt']['tracking_error_info']['ra_std']
-        trkerr_dec_hist_time = daemon_info['mnt']['tracking_error_info']['dec_hist_time']
-        trkerr_dec_min = daemon_info['mnt']['tracking_error_info']['dec_min']
-        trkerr_dec_max = daemon_info['mnt']['tracking_error_info']['dec_max']
-        trkerr_dec_mean = daemon_info['mnt']['tracking_error_info']['dec_mean']
-        trkerr_dec_std = daemon_info['mnt']['tracking_error_info']['dec_std']
+    if ('history' in daemon_info['mnt'] and 'tracking_error' in daemon_info['mnt']['history']):
+        trkerr_ra_hist_time = daemon_info['mnt']['history']['tracking_error']['ra']['hist_time']
+        trkerr_ra_min = daemon_info['mnt']['history']['tracking_error']['ra']['min']
+        trkerr_ra_max = daemon_info['mnt']['history']['tracking_error']['ra']['max']
+        trkerr_ra_mean = daemon_info['mnt']['history']['tracking_error']['ra']['mean']
+        trkerr_ra_std = daemon_info['mnt']['history']['tracking_error']['ra']['std']
+        trkerr_dec_hist_time = daemon_info['mnt']['history']['tracking_error']['dec']['hist_time']
+        trkerr_dec_min = daemon_info['mnt']['history']['tracking_error']['dec']['min']
+        trkerr_dec_max = daemon_info['mnt']['history']['tracking_error']['dec']['max']
+        trkerr_dec_mean = daemon_info['mnt']['history']['tracking_error']['dec']['mean']
+        trkerr_dec_std = daemon_info['mnt']['history']['tracking_error']['dec']['std']
     else:
         trkerr_ra_hist_time = -999
         trkerr_ra_min = 'NA'
@@ -1433,17 +1164,17 @@ def make_header(ut, daemon_info=None):
                    'Dec std tracking error (last {:.0f}s)'.format(trkerr_dec_hist_time)))
 
     # Velocity (+ history)
-    if daemon_info['mnt']['velocity_info'] is not None:
-        velocity_ra_hist_time = daemon_info['mnt']['velocity_info']['ra_hist_time']
-        velocity_ra_min = daemon_info['mnt']['velocity_info']['ra_min']
-        velocity_ra_max = daemon_info['mnt']['velocity_info']['ra_max']
-        velocity_ra_mean = daemon_info['mnt']['velocity_info']['ra_mean']
-        velocity_ra_std = daemon_info['mnt']['velocity_info']['ra_std']
-        velocity_dec_hist_time = daemon_info['mnt']['velocity_info']['dec_hist_time']
-        velocity_dec_min = daemon_info['mnt']['velocity_info']['dec_min']
-        velocity_dec_max = daemon_info['mnt']['velocity_info']['dec_max']
-        velocity_dec_mean = daemon_info['mnt']['velocity_info']['dec_mean']
-        velocity_dec_std = daemon_info['mnt']['velocity_info']['dec_std']
+    if ('history' in daemon_info['mnt'] and 'velocity' in daemon_info['mnt']['history']):
+        velocity_ra_hist_time = daemon_info['mnt']['history']['velocity']['ra']['hist_time']
+        velocity_ra_min = daemon_info['mnt']['history']['velocity']['ra']['min']
+        velocity_ra_max = daemon_info['mnt']['history']['velocity']['ra']['max']
+        velocity_ra_mean = daemon_info['mnt']['history']['velocity']['ra']['mean']
+        velocity_ra_std = daemon_info['mnt']['history']['velocity']['ra']['std']
+        velocity_dec_hist_time = daemon_info['mnt']['history']['velocity']['dec']['hist_time']
+        velocity_dec_min = daemon_info['mnt']['history']['velocity']['dec']['min']
+        velocity_dec_max = daemon_info['mnt']['history']['velocity']['dec']['max']
+        velocity_dec_mean = daemon_info['mnt']['history']['velocity']['dec']['mean']
+        velocity_dec_std = daemon_info['mnt']['history']['velocity']['dec']['std']
     else:
         velocity_ra_hist_time = -999
         velocity_ra_min = 'NA'
@@ -1477,17 +1208,17 @@ def make_header(ut, daemon_info=None):
                    'Dec std motor velocity (last {:.0f}s)'.format(velocity_dec_hist_time)))
 
     # Acceleration (+ history)
-    if daemon_info['mnt']['acceleration_info'] is not None:
-        accel_ra_hist_time = daemon_info['mnt']['acceleration_info']['ra_hist_time']
-        accel_ra_min = daemon_info['mnt']['acceleration_info']['ra_min']
-        accel_ra_max = daemon_info['mnt']['acceleration_info']['ra_max']
-        accel_ra_mean = daemon_info['mnt']['acceleration_info']['ra_mean']
-        accel_ra_std = daemon_info['mnt']['acceleration_info']['ra_std']
-        accel_dec_hist_time = daemon_info['mnt']['acceleration_info']['dec_hist_time']
-        accel_dec_min = daemon_info['mnt']['acceleration_info']['dec_min']
-        accel_dec_max = daemon_info['mnt']['acceleration_info']['dec_max']
-        accel_dec_mean = daemon_info['mnt']['acceleration_info']['dec_mean']
-        accel_dec_std = daemon_info['mnt']['acceleration_info']['dec_std']
+    if ('history' in daemon_info['mnt'] and 'acceleration' in daemon_info['mnt']['history']):
+        accel_ra_hist_time = daemon_info['mnt']['history']['acceleration']['ra']['hist_time']
+        accel_ra_min = daemon_info['mnt']['history']['acceleration']['ra']['min']
+        accel_ra_max = daemon_info['mnt']['history']['acceleration']['ra']['max']
+        accel_ra_mean = daemon_info['mnt']['history']['acceleration']['ra']['mean']
+        accel_ra_std = daemon_info['mnt']['history']['acceleration']['ra']['std']
+        accel_dec_hist_time = daemon_info['mnt']['history']['acceleration']['dec']['hist_time']
+        accel_dec_min = daemon_info['mnt']['history']['acceleration']['dec']['min']
+        accel_dec_max = daemon_info['mnt']['history']['acceleration']['dec']['max']
+        accel_dec_mean = daemon_info['mnt']['history']['acceleration']['dec']['mean']
+        accel_dec_std = daemon_info['mnt']['history']['acceleration']['dec']['std']
     else:
         accel_ra_hist_time = -999
         accel_ra_min = 'NA'
@@ -1521,17 +1252,17 @@ def make_header(ut, daemon_info=None):
                    'Dec std motor acceleration (last {:.0f}s)'.format(accel_dec_hist_time)))
 
     # Motor current (+ history)
-    if daemon_info['mnt']['motor_current_info'] is not None:
-        current_ra_hist_time = daemon_info['mnt']['motor_current_info']['ra_hist_time']
-        current_ra_min = daemon_info['mnt']['motor_current_info']['ra_min']
-        current_ra_max = daemon_info['mnt']['motor_current_info']['ra_max']
-        current_ra_mean = daemon_info['mnt']['motor_current_info']['ra_mean']
-        current_ra_std = daemon_info['mnt']['motor_current_info']['ra_std']
-        current_dec_hist_time = daemon_info['mnt']['motor_current_info']['dec_hist_time']
-        current_dec_min = daemon_info['mnt']['motor_current_info']['dec_min']
-        current_dec_max = daemon_info['mnt']['motor_current_info']['dec_max']
-        current_dec_mean = daemon_info['mnt']['motor_current_info']['dec_mean']
-        current_dec_std = daemon_info['mnt']['motor_current_info']['dec_std']
+    if ('history' in daemon_info['mnt'] and 'motor_current' in daemon_info['mnt']['history']):
+        current_ra_hist_time = daemon_info['mnt']['history']['motor_current']['ra']['hist_time']
+        current_ra_min = daemon_info['mnt']['history']['motor_current']['ra']['min']
+        current_ra_max = daemon_info['mnt']['history']['motor_current']['ra']['max']
+        current_ra_mean = daemon_info['mnt']['history']['motor_current']['ra']['mean']
+        current_ra_std = daemon_info['mnt']['history']['motor_current']['ra']['std']
+        current_dec_hist_time = daemon_info['mnt']['history']['motor_current']['dec']['hist_time']
+        current_dec_min = daemon_info['mnt']['history']['motor_current']['dec']['min']
+        current_dec_max = daemon_info['mnt']['history']['motor_current']['dec']['max']
+        current_dec_mean = daemon_info['mnt']['history']['motor_current']['dec']['mean']
+        current_dec_std = daemon_info['mnt']['history']['motor_current']['dec']['std']
     else:
         current_ra_hist_time = -999
         current_ra_min = 'NA'
@@ -1601,7 +1332,7 @@ def make_header(ut, daemon_info=None):
     header.append(('SATCLOUD', clouds,
                    'IR satellite cloud opacity, percent (sat24.com)'))
 
-    if params.SITE_NAME == 'La Palma':
+    if daemon_info['params']['site_name'] == 'La Palma':
         seeing = daemon_info['conditions']['tng']['seeing']
         if seeing == -999:
             seeing = 'NA'
@@ -1626,33 +1357,39 @@ def make_header(ut, daemon_info=None):
                        'Seeing, arcseconds (unused)'))
 
     # External conditions
-    ext_temp = daemon_info['conditions']['weather_ext']['temperature']
+    # Default to the local goto mast, otherwise use the first source in the list
+    if 'goto' in daemon_info['conditions']['weather']:
+        source = 'goto'
+    else:
+        source = list(daemon_info['conditions']['weather'].keys())[0]
+    ext_temp = daemon_info['conditions']['weather'][source]['temperature']
     if ext_temp == -999:
         ext_temp = 'NA'
-    ext_hum = daemon_info['conditions']['weather_ext']['humidity']
+    ext_hum = daemon_info['conditions']['weather'][source]['humidity']
     if ext_hum == -999:
         ext_hum = 'NA'
     header.append(('EXT-TEMP', ext_temp,
-                   'External temperature, Celsius (GOTO mast)'))
+                   'External temperature, Celsius (source={})'.format(source)))
     header.append(('EXT-HUM ', ext_hum,
-                   'External humidity, percent (GOTO mast)'))
+                   'External humidity, percent (source={})'.format(source)))
 
     # Wind (+ history)
-    ext_wind = daemon_info['conditions']['weather_ext']['windspeed']
+    ext_wind = daemon_info['conditions']['weather'][source]['windspeed']
     if ext_wind == -999:
         ext_wind = 'NA'
-    ext_winddir = daemon_info['conditions']['weather_ext']['winddir']
+    ext_winddir = daemon_info['conditions']['weather'][source]['winddir']
     if ext_winddir == -999:
         ext_winddir = 'NA'
-    ext_gust = daemon_info['conditions']['weather_ext']['windgust']
+    ext_gust = daemon_info['conditions']['weather'][source]['windgust']
     if ext_gust == -999:
         ext_gust = 'NA'
-    if daemon_info['conditions']['weather_ext']['windgust_history_info'] is not None:
-        hist_time = daemon_info['conditions']['weather_ext']['windgust_history_info']['hist_time']
-        ext_gustmin = daemon_info['conditions']['weather_ext']['windgust_history_info']['min']
-        ext_gustmax = daemon_info['conditions']['weather_ext']['windgust_history_info']['max']
-        ext_gustmean = daemon_info['conditions']['weather_ext']['windgust_history_info']['mean']
-        ext_guststd = daemon_info['conditions']['weather_ext']['windgust_history_info']['std']
+    if ('history' in daemon_info['conditions']['weather'][source] and
+            'windgust' in daemon_info['conditions']['weather'][source]['history']):
+        hist_time = daemon_info['conditions']['weather'][source]['history']['windgust']['hist_time']
+        ext_gustmin = daemon_info['conditions']['weather'][source]['history']['windgust']['min']
+        ext_gustmax = daemon_info['conditions']['weather'][source]['history']['windgust']['max']
+        ext_gustmean = daemon_info['conditions']['weather'][source]['history']['windgust']['mean']
+        ext_guststd = daemon_info['conditions']['weather'][source]['history']['windgust']['std']
     else:
         hist_time = -999
         ext_gustmin = 'NA'
@@ -1660,11 +1397,11 @@ def make_header(ut, daemon_info=None):
         ext_gustmean = 'NA'
         ext_guststd = 'NA'
     header.append(('EXT-WIND', ext_wind,
-                   'External wind speed, km/h (GOTO mast)'))
+                   'External wind speed, km/h (source={})'.format(source)))
     header.append(('EXT-WDIR', ext_winddir,
-                   'External wind direction, degrees (GOTO mast)'))
+                   'External wind direction, degrees (source={})'.format(source)))
     header.append(('EXT-GUST', ext_gust,
-                   'External wind gust, km/h (GOTO mast)'))
+                   'External wind gust, km/h (source={})'.format(source)))
     header.append(('EXT-GMIN', ext_gustmin,
                    'Min wind gust, km/h (last {:.0f}s)'.format(hist_time)))
     header.append(('EXT-GMAX', ext_gustmax,
