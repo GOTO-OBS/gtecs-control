@@ -85,7 +85,7 @@ class Exposure(Base):
         The filter used for the exposure.
         If a string it should be a valid filter name (by default 'L', 'R', 'G', 'B', 'C'),
         or `None` if the filter was not defined for this exposure (e.g. for dark frames).
-    type : str
+    frametype : str
         Exposure type.
         Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
     ut_mask : int or `None`
@@ -141,7 +141,8 @@ class Exposure(Base):
     exptime = Column(Float, nullable=False)
     filt = Column('filter',   # filter is a built in function in Python
                   String(1), nullable=True)
-    type = Column(String(255), nullable=False)  # noqa: A003
+    frametype = Column('type',   # type is a built in function in Python
+                       String(255), nullable=False)
     ut_mask = Column(Integer, nullable=True, default=None)
     start_time = Column(DateTime, nullable=False)
     stop_time = Column(DateTime, nullable=True)
@@ -188,7 +189,7 @@ class Exposure(Base):
                    'set_number={}'.format(self.set_number),
                    'exptime={}'.format(self.exptime),
                    'filt={}'.format(self.filt),
-                   'type={}'.format(self.type),
+                   'frametype={}'.format(self.frametype),
                    'ut_mask={}'.format(self.ut_mask),
                    'start_time={}'.format(self.start_time),
                    'stop_time={}'.format(self.stop_time),
