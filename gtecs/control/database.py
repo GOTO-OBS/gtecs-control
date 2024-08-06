@@ -7,7 +7,15 @@ from astropy.time import Time
 
 
 from gtecs.common.database import get_session as get_session_common
-from gtecs.obs.database.models import Base
+try:
+    # If the gtecs.obs package is available, build on the models from there
+    from gtecs.obs.database.models import Base
+    OBSDB_CONNECTION = True
+except ImportError:
+    # Create a new base class
+    from sqlalchemy.orm import declarative_base
+    Base = declarative_base()
+    OBSDB_CONNECTION = False
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import backref, relationship, validates
@@ -140,11 +148,13 @@ class Exposure(Base):
     completed = Column(Boolean, nullable=False)
 
     # Psudo-foreign keys
-    # exposure_set_id = Column(Integer, ForeignKey('obs.exposure_sets.id'),
-    #                          nullable=True, index=True)
-    # pointing_id = Column(Integer, ForeignKey('obs.pointings.id'), nullable=True, index=True)
-    exposure_set_id = Column(Integer, nullable=True)
-    pointing_id = Column(Integer, nullable=True)
+    if OBSDB_CONNECTION:
+        exposure_set_id = Column(Integer, ForeignKey('obs.exposure_sets.id'),
+                                 nullable=True, index=True)
+        pointing_id = Column(Integer, ForeignKey('obs.pointings.id'), nullable=True, index=True)
+    else:
+        exposure_set_id = Column(Integer, nullable=True)
+        pointing_id = Column(Integer, nullable=True)
 
     # Foreign relationships
     images = relationship(
@@ -152,24 +162,25 @@ class Exposure(Base):
         order_by='Image.db_id',
         back_populates='exposure',
     )
-    # exposure_sets = relationship(
-    #     'ExposureSet',
-    #     order_by='ExposureSet.db_id',
-    #     backref=backref(  # NB Use legacy backref to add corresponding relationship to ExposureSets
-    #         'exposures',
-    #         uselist=True,
-    #     ),
-    #     viewonly=True,
-    # )
-    # pointings = relationship(
-    #     'Pointing',
-    #     order_by='Pointing.db_id',
-    #     backref=backref(  # NB Use legacy backref to add corresponding relationship to Pointings
-    #         'exposures',
-    #         uselist=True,
-    #     ),
-    #     viewonly=True,
-    # )
+    if OBSDB_CONNECTION:
+        exposure_sets = relationship(
+            'ExposureSet',
+            order_by='ExposureSet.db_id',
+            backref=backref(  # NB Use legacy backref to add corresponding relationship
+                'exposures',
+                uselist=True,
+            ),
+            viewonly=True,
+        )
+        pointings = relationship(
+            'Pointing',
+            order_by='Pointing.db_id',
+            backref=backref(  # NB Use legacy backref to add corresponding relationship
+                'exposures',
+                uselist=True,
+            ),
+            viewonly=True,
+        )
 
     def __repr__(self):
         strings = ['db_id={}'.format(self.db_id),
@@ -253,30 +264,31 @@ class Image(Base):
     )
 
     # Secondary relationships
-    # exposure_sets = relationship(
-    #     'ExposureSet',
-    #     order_by='ExposureSet.db_id',
-    #     secondary='control.exposure',
-    #     primaryjoin='Exposure.db_id == Image.exposure_id',
-    #     secondaryjoin='ExposureSet.db_id == Exposure.exposure_set_id',
-    #     backref=backref(  # NB Use legacy backref to add corresponding relationship to ExposureSets
-    #         'images',
-    #         uselist=True,
-    #     ),
-    #     viewonly=True,
-    # )
-    # pointings = relationship(
-    #     'Pointing',
-    #     order_by='Pointing.db_id',
-    #     secondary='control.exposure',
-    #     primaryjoin='Exposure.db_id == Image.exposure_id',
-    #     secondaryjoin='Pointing.db_id == Exposure.pointing_id',
-    #     backref=backref(  # NB Use legacy backref to add corresponding relationship to Pointings
-    #         'images',
-    #         uselist=True,
-    #     ),
-    #     viewonly=True,
-    # )
+    if OBSDB_CONNECTION:
+        exposure_sets = relationship(
+            'ExposureSet',
+            order_by='ExposureSet.db_id',
+            secondary='control.exposures',
+            primaryjoin='Exposure.db_id == Image.exposure_id',
+            secondaryjoin='ExposureSet.db_id == Exposure.exposure_set_id',
+            backref=backref(  # NB Use legacy backref to add corresponding relationship
+                'images',
+                uselist=True,
+            ),
+            viewonly=True,
+        )
+        pointings = relationship(
+            'Pointing',
+            order_by='Pointing.db_id',
+            secondary='control.exposures',
+            primaryjoin='Exposure.db_id == Image.exposure_id',
+            secondaryjoin='Pointing.db_id == Exposure.pointing_id',
+            backref=backref(  # NB Use legacy backref to add corresponding relationship
+                'images',
+                uselist=True,
+            ),
+            viewonly=True,
+        )
 
     def __repr__(self):
         strings = ['filename={}'.format(self.filename),
