@@ -1356,21 +1356,22 @@ class ConditionsDaemon(BaseDaemon):
 
         msg += 'ENVIRONMENT:\n'
 
-        msg += '  {: <10}\t'.format('dust_level')
-        dust = info['tng']['dust']
-        if dust == -999:
-            status = rtxt('ERROR')
-            dust_str = rtxt('  ERR')
-        elif dust < params.MAX_DUSTLEVEL:
-            status = gtxt('Good')
-            dust_str = ytxt('{:>5.1f}'.format(dust))
-            if dust < params.MAX_DUSTLEVEL - 10:
-                dust_str = gtxt('{:>5.1f}'.format(dust))
-        else:
-            status = rtxt('Bad')
-            dust_str = rtxt('{:>5.1f}'.format(dust))
-        msg += '{} μg/m³   (max={:.1f} μg/m³)      \t : {}\n'.format(
-            dust_str, params.MAX_DUSTLEVEL, status)
+        if params.SITE_NAME == 'La Palma':
+            msg += '  {: <10}\t'.format('dust_level')
+            dust = info['tng']['dust']
+            if dust == -999:
+                status = rtxt('ERROR')
+                dust_str = rtxt('  ERR')
+            elif dust < params.MAX_DUSTLEVEL:
+                status = gtxt('Good')
+                dust_str = ytxt('{:>5.1f}'.format(dust))
+                if dust < params.MAX_DUSTLEVEL - 10:
+                    dust_str = gtxt('{:>5.1f}'.format(dust))
+            else:
+                status = rtxt('Bad')
+                dust_str = rtxt('{:>5.1f}'.format(dust))
+            msg += '{} μg/m³   (max={:.1f} μg/m³)      \t : {}\n'.format(
+                dust_str, params.MAX_DUSTLEVEL, status)
 
         msg += '  {: <10}\t'.format('sky_temp')
         sky_temp = info['sky_temp']['sky_temp']
