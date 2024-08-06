@@ -207,9 +207,8 @@ class Exposure(Base):
             return None
 
         if isinstance(field, datetime.datetime):
-            value = field.strftime('%Y-%m-%d %H:%M:%S')
+            value = field.strftime('%Y-%m-%d %H:%M:%S.%f')
         elif isinstance(field, Time):
-            field.precision = 0  # no D.P on seconds
             value = field.iso
         else:
             # just hope the string works!
