@@ -140,7 +140,7 @@ class Exposure(Base):
     set_number = Column(Integer, nullable=True)
     exptime = Column(Float, nullable=False)
     filt = Column('filter',   # filter is a built in function in Python
-                  String(1), nullable=False)
+                  String(1), nullable=True)
     type = Column(String(255), nullable=False)  # noqa: A003
     ut_mask = Column(Integer, nullable=True, default=None)
     start_time = Column(DateTime, nullable=False)
