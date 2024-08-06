@@ -1332,7 +1332,7 @@ def make_header(ut, daemon_info=None):
     header.append(('SATCLOUD', clouds,
                    'IR satellite cloud opacity, percent (sat24.com)'))
 
-    if params.SITE_NAME == 'La Palma':
+    if daemon_info['params']['site_name'] == 'La Palma':
         seeing = daemon_info['conditions']['tng']['seeing']
         if seeing == -999:
             seeing = 'NA'
