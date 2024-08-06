@@ -261,10 +261,11 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                         history_info['hist_time'] = hist_time
                         # Get history values
                         history = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
-                        history_info['min'] = np.min(history)
-                        history_info['max'] = np.max(history)
-                        history_info['mean'] = np.mean(history)
-                        history_info['std'] = np.std(history)
+                        if len(history) > 0:
+                            history_info['min'] = np.min(history)
+                            history_info['max'] = np.max(history)
+                            history_info['mean'] = np.mean(history)
+                            history_info['std'] = np.std(history)
                     # Store the history info
                     daemon_info['mnt']['history'][key][axis] = history_info
 
@@ -303,10 +304,11 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                         history_info['hist_time'] = hist_time
                         # Get history values
                         history = [h[1] for h in history if info_time.unix - h[0] <= hist_time]
-                        history_info['min'] = np.min(history)
-                        history_info['max'] = np.max(history)
-                        history_info['mean'] = np.mean(history)
-                        history_info['std'] = np.std(history)
+                        if len(history) > 0:
+                            history_info['min'] = np.min(history)
+                            history_info['max'] = np.max(history)
+                            history_info['mean'] = np.mean(history)
+                            history_info['std'] = np.std(history)
                     # Store the history info
                     if source not in daemon_info['conditions']['weather']:
                         # This shouldn't happen?
