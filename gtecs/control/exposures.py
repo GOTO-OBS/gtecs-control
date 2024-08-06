@@ -83,6 +83,9 @@ class Exposure:
         # Store creation time
         self.creation_time = time.gmtime()
 
+        # These properties are set by the camera daemon
+        self.db_id = None
+
     def __str__(self):
         return self.info()
 

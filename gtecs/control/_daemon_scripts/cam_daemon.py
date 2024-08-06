@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from astropy.time import Time
 
 from gtecs.common.system import make_pid_file
+from gtecs.control import database as db
 from gtecs.control import params
 from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
                                    daemon_proxy, get_daemon_host)
@@ -169,6 +170,30 @@ class CamDaemon(BaseDaemon):
                     self.exposing_start_time = self.loop_time
                     self.exposure_state = 'exposing'
 
+                    # Add the exposure to the database
+                    try:
+                        with db.session_manager() as session:
+                            db_exposure = db.Exposure(
+                                run_number=self.latest_run_number,
+                                set_number=self.current_exposure.set_num,
+                                exptime=self.current_exposure.exptime,
+                                filt=self.current_exposure.filt,
+                                frametype=self.current_exposure.frametype,
+                                ut_mask=self.current_exposure.ut_mask,
+                                start_time=Time(self.loop_time, format='unix'),
+                                stop_time=None,
+                                completed=False,
+                                exposure_set_id=self.current_exposure.set_id,
+                                pointing_id=self.current_exposure.pointing_id,
+                            )
+                            session.add(db_exposure)
+                            session.commit()
+                            self.current_exposure.db_id = db_exposure.db_id
+                    except Exception:
+                        self.log.error('Failed to add exposure to the database')
+                        self.log.debug('', exc_info=True)
+                        self.current_exposure.db_id = None
+
                 if (self.exposure_state == 'exposing' and
                         self.info['time'] > self.exposing_start_time):
                     # STATE 2: Wait for exposures to finish
@@ -261,6 +286,15 @@ class CamDaemon(BaseDaemon):
                     t.daemon = True
                     t.start()
 
+                    # Update the database entry
+                    with db.session_manager() as session:
+                        query = session.query(db.Exposure)
+                        query = query.filter(db.Exposure.db_id == self.current_exposure.db_id)
+                        db_exposure = query.one()
+                        db_exposure.stop_time = Time(self.loop_time, format='unix')
+                        db_exposure.completed = True  # Marked as completed
+                        session.commit()
+
                     # Clear tags, ready for next exposure
                     self.exposure_state = 'none'
                     self.current_exposure = None
@@ -275,6 +309,11 @@ class CamDaemon(BaseDaemon):
                     self.force_check_flag = True
 
             # abort exposure
+            # TODO: We allow aborting on specific cameras, while letting the others continue
+            # That could confuse things, if the exposure otherwise finishes successfully
+            # (e.g. in the database, it's recorded as completed but some images will be missing)
+            # Wouldn't it be cleaner to abort the whole exposure on all cameras?
+            # It's hard to think of a case where we'd want to abort on some cameras but not others.
             if self.abort_exposure_flag:
                 try:
                     for ut in self.abort_uts:
@@ -294,8 +333,18 @@ class CamDaemon(BaseDaemon):
                             self.active_uts.remove(ut)
 
                     if len(self.active_uts) == 0:
-                        # we've aborted everything, stop the exposure
+                        # We've aborted everything, stop the exposure state machine
                         self.exposure_state = 'none'
+
+                        # Update the database entry
+                        with db.session_manager() as session:
+                            query = session.query(db.Exposure).filter(self.current_exposure.db_id)
+                            db_exposure = query.one()
+                            db_exposure.stop_time = Time(self.loop_time, format='unix')
+                            db_exposure.completed = False  # Marked as aborted
+                            session.commit()
+
+                        # Clear flags, ready for next exposure
                         self.current_exposure = None
                         self.exposing_start_time = 0
                         self.exposure_start_time = {ut: 0 for ut in self.uts}
@@ -465,6 +514,7 @@ class CamDaemon(BaseDaemon):
             current_info['set_tot'] = self.current_exposure.set_tot
             current_info['set_id'] = self.current_exposure.set_id
             current_info['pointing_id'] = self.current_exposure.pointing_id
+            current_info['db_id'] = self.current_exposure.db_id
             temp_info['current_exposure'] = current_info
         else:
             temp_info['current_exposure'] = None
@@ -593,6 +643,21 @@ class CamDaemon(BaseDaemon):
                 executor.submit(save_fits, hdu, filename,
                                 log=self.log, log_debug=False, fancy_log=True)
 
+                # Record the image in the control database
+                try:
+                    with db.session_manager() as session:
+                        db_image = db.Image(
+                            ut=ut,
+                            filename=filename,
+                            header='True' if full_headers[ut] is not None else 'False',
+                            exposure_id=cam_info['current_exposure']['db_id'],
+                        )
+                        session.add(db_image)
+                        session.commit()
+                except Exception:
+                    self.log.error('Failed to add image to the database')
+                    self.log.debug('', exc_info=True)
+
         self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
@@ -644,6 +709,25 @@ class CamDaemon(BaseDaemon):
                     )
             except Exception:
                 self.log.error('No response from interface cam{}'.format(ut))
+                self.log.debug('', exc_info=True)
+
+            # Record the image in the control database
+            try:
+                with db.session_manager() as session:
+                    if full_headers[ut] is not None:
+                        header_str = full_headers[ut].tostring()
+                    else:
+                        header_str = None
+                    db_image = db.Image(
+                        ut=ut,
+                        filename=filename.split('/')[-1],
+                        header=header_str,
+                        exposure_id=cam_info['current_exposure']['db_id'],
+                    )
+                    session.add(db_image)
+                    session.commit()
+            except Exception:
+                self.log.error('Failed to add image to the database')
                 self.log.debug('', exc_info=True)
 
         self.latest_headers = (self.num_taken, full_headers)
