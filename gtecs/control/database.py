@@ -144,7 +144,7 @@ class Exposure(Base):
     type = Column(String(255), nullable=False)  # noqa: A003
     ut_mask = Column(Integer, nullable=True, default=None)
     start_time = Column(DateTime, nullable=False)
-    stop_time = Column(DateTime, nullable=False)
+    stop_time = Column(DateTime, nullable=True)
     completed = Column(Boolean, nullable=False)
 
     # Psudo-foreign keys
@@ -201,6 +201,10 @@ class Exposure(Base):
     @validates('start_time', 'stop_time')
     def validate_times(self, key, field):  # noqa: U100
         """Use validators to allow various types of input for times."""
+        if key == 'stop_time' and field is None:
+            # stop_time is nullable, start_time isn't
+            return None
+
         if isinstance(field, datetime.datetime):
             value = field.strftime('%Y-%m-%d %H:%M:%S')
         elif isinstance(field, Time):
