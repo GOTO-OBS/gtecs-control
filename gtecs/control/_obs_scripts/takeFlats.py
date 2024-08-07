@@ -43,7 +43,11 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
     uts = [ut for ut in params.UT_DICT if filt in params.UT_DICT[ut]['FILTERS']]
 
     # Take the image, then get the mean value from the headers
-    image_headers = get_analysis_image(exptime, filt, 1, target_name, 'FLAT', glance, uts=uts,
+    if not glance:
+        imgtype = 'FLAT'
+    else:
+        imgtype = 'GLANCE'
+    image_headers = get_analysis_image(exptime, filt, 1, target_name, imgtype, uts=uts,
                                        get_data=False, get_headers=True)
 
     # Get the mean value for the images

@@ -309,8 +309,7 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
     for i in range(num_exp):
         print('Taking exposure {}/{}...'.format(i + 1, num_exp))
         # Take a set of images
-        image_data = get_analysis_image(exptime, filt, binning, target_name, 'FOCUS',
-                                        glance=False, uts=uts)
+        image_data = get_analysis_image(exptime, filt, binning, target_name, 'FOCUS', uts=uts)
 
         # Measure the median HFDs in each image
         for ut in all_uts:

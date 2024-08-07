@@ -132,17 +132,15 @@ def query(command, args):
             raise ValueError('Invalid arguments')
         nexp = 1
         frametype = 'normal'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for filt in filt_list:
-                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-                out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+                out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
                     filt if filt is not None else 'X',
-                    'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
                     info['queue_length'],
                 )
@@ -192,17 +190,15 @@ def query(command, args):
         else:
             raise ValueError('Invalid arguments')
         frametype = 'normal'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for filt in filt_list:
-                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-                out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+                out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
                     filt if filt is not None else 'X',
-                    'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
                     info['queue_length'],
                 )
@@ -252,19 +248,16 @@ def query(command, args):
         else:
             raise ValueError('Invalid arguments')
         frametype = 'normal'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for _ in range(nexp):
                 for filt in filt_list:
-                    daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance,
-                               uts)
-                out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+                    daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+                out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
                     filt if filt is not None else 'X',
-                    'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
                     info['queue_length'],
                 )
@@ -304,17 +297,15 @@ def query(command, args):
         nexp = 1
         frametype = 'normal'
         imgtype = 'GLANCE'
-        glance = True
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
             for filt in filt_list:
-                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-                out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+                daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+                out_str = 'Added {}{:.0f}s {} glance{}, now {} items in queue'.format(
                     '{}x '.format(nexp) if nexp > 1 else '',
                     exptime,
                     filt if filt is not None else 'X',
-                    'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
                     info['queue_length'],
                 )
@@ -342,16 +333,14 @@ def query(command, args):
         frametype = 'dark'
         target = 'NA'
         imgtype = 'DARK'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-        out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+        out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
             filt if filt is not None else 'X',
-            'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
             info['queue_length'],
         )
@@ -380,16 +369,14 @@ def query(command, args):
         frametype = 'dark'
         target = 'NA'
         imgtype = 'DARK'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-        out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+        out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
             filt if filt is not None else 'X',
-            'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
             info['queue_length'],
         )
@@ -416,16 +403,14 @@ def query(command, args):
         frametype = 'dark'
         target = 'NA'
         imgtype = 'BIAS'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-        out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+        out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
             filt if filt is not None else 'X',
-            'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
             info['queue_length'],
         )
@@ -453,16 +438,14 @@ def query(command, args):
         frametype = 'dark'
         target = 'NA'
         imgtype = 'BIAS'
-        glance = False
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
             info = daemon.get_info(force_update=False)
-            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, glance, uts)
-        out_str = 'Added {}{:.0f}s {} {}{}, now {} items in queue'.format(
+            daemon.add(exptime, nexp, filt, binning, frametype, target, imgtype, uts)
+        out_str = 'Added {}{:.0f}s {} exposure{}, now {} items in queue'.format(
             '{}x '.format(nexp) if nexp > 1 else '',
             exptime,
             filt if filt is not None else 'X',
-            'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
             info['queue_length'],
         )

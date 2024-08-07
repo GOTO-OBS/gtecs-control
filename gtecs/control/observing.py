@@ -10,7 +10,7 @@ import numpy as np
 
 from . import params
 from .astronomy import radec_from_altaz
-from .daemons import daemon_proxy, HardwareError
+from .daemons import HardwareError, daemon_proxy
 from .fits import clear_glance_files, get_glance_data, get_image_data
 
 
@@ -226,7 +226,7 @@ def slew_to_altaz(alt, az, timeout=120):
     slew_to_radec(ra, dec, timeout=timeout)
 
 
-def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=False, uts=None,
+def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', uts=None,
                        get_data=True, get_headers=False):
     """Take a single exposure set, then open the images and return the image data.
 
@@ -241,9 +241,10 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     name : str
         target name
     imgtype : str, default='SCIENCE'
-        image type
-    glance : bool, default=`False`
-        take a temporary glance image
+        Exposure type
+        Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
+        If 'GLANCE' then the images are taken as temporary glance images.
+
     uts : list of ints, default=`None`
         if given, the UTs to take the exposures with
         uts=`None` (the default) will take images on all UTs
@@ -272,7 +273,8 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
         info = daemon.get_info(force_update=True)
     img_num = info['num_taken'] + 1
 
-    # Remove old glance files (so we know what to wait for)
+    # If we're taking a glance image, clear the old files (so we know what to wait for)
+    glance = imgtype.upper() == 'GLANCE'
     if glance:
         clear_glance_files()
 
@@ -280,7 +282,7 @@ def get_analysis_image(exptime, filt, binning, name, imgtype='SCIENCE', glance=F
     with daemon_proxy('exq') as daemon:
         print(f'Taking {exptime:.0f}s {filt} {"exposure" if not glance else "glance"}')
         daemon.add(exptime, 1, filt, binning,
-                   target=name, imgtype=imgtype, glance=glance, uts=uts)
+                   target=name, imgtype=imgtype, uts=uts)
         daemon.resume()
         image_start_time = time.time()
 
@@ -353,7 +355,9 @@ def take_image_set(exptime, filt, name, imgtype='SCIENCE'):
     name : str
         target name
     imgtype : str, default 'SCIENCE'
-        image type
+        Exposure type
+        Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
+        If 'GLANCE' then the images are taken as temporary glance images.
 
     """
     if not isinstance(exptime, list):

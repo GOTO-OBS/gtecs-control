@@ -33,8 +33,6 @@ class Exposure:
     imgtype : str, default='SCIENCE'
         Exposure type
         Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
-    glance : bool, default=False
-        If True then the exposure is a glance
     uts : list of int or None, default=None
         The UTs to take this exposure with.
         If None then default to all UTS with cameras
@@ -54,7 +52,7 @@ class Exposure:
     """
 
     def __init__(self, exptime, filt=None, binning=1, frametype='normal',
-                 target='NA', imgtype='SCIENCE', glance=False, uts=None,
+                 target='NA', imgtype='SCIENCE', uts=None,
                  set_num=None, set_pos=1, set_tot=1,
                  set_id=None, pointing_id=None):
         # Exposure arguments
@@ -64,7 +62,6 @@ class Exposure:
         self.frametype = frametype
         self.target = target
         self.imgtype = imgtype.upper()
-        self.glance = glance
         if uts is None:
             uts = params.UTS_WITH_CAMERAS.copy()
         self.uts = uts
@@ -102,13 +99,12 @@ class Exposure:
         frametype = ls[3]
         target = ls[4]
         imgtype = ls[5].upper()
-        glance = bool(int(ls[6]))
-        uts = misc.ut_string_to_list(ls[7])
-        set_num = int(ls[8]) if int(ls[8]) != -1 else None
-        set_pos = int(ls[9])
-        set_tot = int(ls[10])
-        set_id = int(ls[11]) if int(ls[11]) != -1 else None
-        pointing_id = int(ls[12]) if int(ls[12]) != -1 else None
+        uts = misc.ut_string_to_list(ls[6])
+        set_num = int(ls[7]) if int(ls[7]) != -1 else None
+        set_pos = int(ls[8])
+        set_tot = int(ls[9])
+        set_id = int(ls[10]) if int(ls[10]) != -1 else None
+        pointing_id = int(ls[11]) if int(ls[11]) != -1 else None
 
         exposure = cls(exptime,
                        filt,
@@ -116,7 +112,6 @@ class Exposure:
                        frametype,
                        target,
                        imgtype,
-                       glance,
                        uts,
                        set_num,
                        set_pos,
@@ -128,7 +123,8 @@ class Exposure:
 
     def as_line(self):
         """Give the line representation of this Exposure."""
-        line = '{};{:.1f};{};{:d};{};{};{};{};{:d};{:d};{:d};{:d};{:d}\n'.format(
+        # TODO: Could just be JSON?
+        line = '{};{:.1f};{};{:d};{};{};{};{:d};{:d};{:d};{:d};{:d}\n'.format(
             self.ut_string,
             self.exptime,
             self.filt if self.filt is not None else 'X',
@@ -136,7 +132,6 @@ class Exposure:
             self.frametype,
             self.target,
             self.imgtype,
-            1 if self.glance is True else 0,
             self.set_num if self.set_num is not None else -1,
             self.set_pos,
             self.set_tot,
@@ -155,7 +150,6 @@ class Exposure:
         msg += '  Frame type: {}\n'.format(self.frametype)
         msg += '  Target: {}\n'.format(self.target)
         msg += '  Image type: {}\n'.format(self.imgtype)
-        msg += '  Glance: {}\n'.format(self.glance)
         msg += '  Unit telescope(s): {}\n'.format(self.uts)
         if self.in_set:
             msg += '  Set number: {}\n'.format(self.set_num)
@@ -164,6 +158,11 @@ class Exposure:
             msg += '  ExposureSet database ID: {}\n'.format(self.set_id)
             msg += '  Pointing database ID: {}\n'.format(self.pointing_id)
         return msg
+
+    @property
+    def is_glance(self):
+        """Return True if this exposure is a glance."""
+        return self.imgtype == 'GLANCE'
 
     @property
     def in_set(self):

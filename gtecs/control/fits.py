@@ -178,7 +178,7 @@ def save_fits(hdu, filename, log=None, log_debug=False, fancy_log=True):
 
     if fancy_log:
         # Log image being saved
-        if not hdu.header['GLANCE']:
+        if hdu.header['RUN'] is not None:
             expstr = 'Exposure r{:07d}'.format(int(hdu.header['RUN']))
         else:
             expstr = 'Glance'
@@ -415,7 +415,7 @@ def make_header(ut, daemon_info=None):
         raise ValueError('No exposure info provided')
 
     # Run numbers
-    if not daemon_info['cam']['current_exposure']['glance']:
+    if daemon_info['cam']['current_exposure']['run_number'] is not None:
         run_number = daemon_info['cam']['current_exposure']['run_number']
         run_number_str = f'r{run_number:07d}'
     else:
@@ -502,7 +502,7 @@ def make_header(ut, daemon_info=None):
                    'Frame type (shutter open/closed)'))
     header.append(('IMGTYPE ', daemon_info['cam']['current_exposure']['imgtype'],
                    'Image type'))
-    header.append(('GLANCE  ', daemon_info['cam']['current_exposure']['glance'],
+    header.append(('GLANCE  ', daemon_info['cam']['current_exposure']['run_number'] is None,
                    'Is this a glance frame?'))
     # Following section info is depreciated:
     header.append(('FULLSEC ', '[1:8304,1:6220]',
@@ -1457,7 +1457,7 @@ def get_image_data(run_number=None, direc=None, uts=None, timeout=90):
     ----------
     run_number : int, default=None
         the run number of the files to open
-        if None (and glance=False), open the latest images from `direc`
+        if None, open the latest images from `direc`
     direc : string, default=None
         the file directory to load images from within `gtecs.control.params.IMAGE_PATH`
         if None, use the date from `gtecs.control.astronomy.night_startdate`

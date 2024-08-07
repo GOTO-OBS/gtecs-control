@@ -231,7 +231,7 @@ class ExqDaemon(BaseDaemon):
 
                 if self.exposure_state == 'mount_tracking':
                     # STATE 7: Start the exposure
-                    if not self.current_exposure.glance:
+                    if not self.current_exposure.is_glance:
                         self.log.info('Starting {:.0f}s exposure'.format(
                             self.current_exposure.exptime))
                     else:
@@ -293,7 +293,6 @@ class ExqDaemon(BaseDaemon):
             current_info['frametype'] = self.current_exposure.frametype
             current_info['target'] = self.current_exposure.target
             current_info['imgtype'] = self.current_exposure.imgtype
-            current_info['glance'] = self.current_exposure.glance
             current_info['uts'] = self.current_exposure.uts
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
@@ -325,7 +324,7 @@ class ExqDaemon(BaseDaemon):
 
     # Control functions
     def add(self, exptime, nexp=1, filt=None, binning=1, frametype='normal',
-            target='NA', imgtype='SCIENCE', glance=False, uts=None,
+            target='NA', imgtype='SCIENCE', uts=None,
             set_id=None, pointing_id=None):
         """Add exposures to the queue."""
         if self.dependency_error:
@@ -366,7 +365,6 @@ class ExqDaemon(BaseDaemon):
                                 frametype,
                                 target.replace(';', ''),
                                 imgtype.replace(';', '').upper(),
-                                glance,
                                 uts,
                                 set_num=new_set_number,
                                 set_pos=i,
@@ -375,7 +373,7 @@ class ExqDaemon(BaseDaemon):
                                 pointing_id=pointing_id,
                                 )
             self.exp_queue.append(exposure)
-            if not glance:
+            if not exposure.is_glance:
                 self.log.info('Added {:.0f}s {} exposure, now {:.0f} in queue'.format(
                               exptime, filt if filt is not None else 'X', len(self.exp_queue)))
             else:

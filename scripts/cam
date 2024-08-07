@@ -114,17 +114,15 @@ def query(command, args):
             uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
             binning = float(args[1])
-            imgtype = 'GLANCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
             binning = float(args[2])
-            imgtype = 'GLANCE'
         else:
             raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.take_glance(exptime, binning, imgtype, uts)
+            daemon.take_glance(exptime, binning, uts)
         print('Taking glance exposure')
 
     elif command == 'dark':
@@ -251,7 +249,7 @@ def query(command, args):
             '  check/ping                     check the daemon for errors',
             'Camera commands:',
             '  image [uts] exptime binning    take a normal exposure',
-            '  glance [uts] exptime binning   take a temporary glance',
+            '  glance [uts] exptime binning   take a temporary glance exposure',
             '  dark [uts] exptime binning     take a dark frame',
             '  bias [uts] binning             take a bias frame',
             '  abort                          abort the current exposure',

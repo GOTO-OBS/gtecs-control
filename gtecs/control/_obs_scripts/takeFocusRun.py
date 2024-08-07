@@ -544,7 +544,7 @@ def run(steps, range_frac=0.035, num_exp=2, exptime=2, filt='L', binning=1,
                 # This will take and save the images, we don't care about the data here
                 image_headers = get_analysis_image(
                     exptime, filt, binning, target_name, 'FOCUS',
-                    glance=False, uts=params.UTS_WITH_FOCUSERS, get_data=False, get_headers=True)
+                    uts=params.UTS_WITH_FOCUSERS, get_data=False, get_headers=True)
                 print('Exposure {} complete'.format(image_headers[1]['RUN-ID']))
 
     print('~~~~~~')

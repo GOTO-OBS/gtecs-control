@@ -181,7 +181,6 @@ class CamDaemon(BaseDaemon):
                                 frametype=self.current_exposure.frametype,
                                 target=self.current_exposure.target,
                                 imgtype=self.current_exposure.imgtype,
-                                glance=self.current_exposure.glance,
                                 ut_mask=self.current_exposure.ut_mask,
                                 start_time=Time(self.loop_time, format='unix'),
                                 stop_time=None,
@@ -509,7 +508,6 @@ class CamDaemon(BaseDaemon):
             current_info['frametype'] = self.current_exposure.frametype
             current_info['target'] = self.current_exposure.target
             current_info['imgtype'] = self.current_exposure.imgtype
-            current_info['glance'] = self.current_exposure.glance
             current_info['uts'] = self.current_exposure.uts
             current_info['set_num'] = self.current_exposure.set_num
             current_info['set_pos'] = self.current_exposure.set_pos
@@ -608,8 +606,7 @@ class CamDaemon(BaseDaemon):
                     break
 
         # if taking glance images, clear all old glances (all, not just those in active UTs)
-        glance = current_exposure['glance']
-        if glance:
+        if current_exposure['run_number'] is None:
             clear_glance_files(params.TELESCOPE_NUMBER)
 
         # save images in parallel
@@ -620,7 +617,7 @@ class CamDaemon(BaseDaemon):
             for ut in active_uts:
                 # get image data and filename
                 image_data = images[ut]
-                if not glance:
+                if current_exposure['run_number'] is not None:
                     run_number = current_exposure['run_number']
                     filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
                 else:
@@ -678,8 +675,7 @@ class CamDaemon(BaseDaemon):
             return
 
         # if taking glance images, clear all old glances (all, not just those in active UTs)
-        glance = current_exposure['glance']
-        if glance:
+        if current_exposure['run_number'] is None:
             clear_glance_files(params.TELESCOPE_NUMBER)
 
         # save images on the interfaces in turn
@@ -690,7 +686,7 @@ class CamDaemon(BaseDaemon):
         full_headers = {ut: None for ut in self.uts}
         for ut in active_uts:
             # get filename
-            if not glance:
+            if current_exposure['run_number'] is not None:
                 run_number = current_exposure['run_number']
                 filename = image_location(run_number, ut, params.TELESCOPE_NUMBER)
             else:
@@ -743,7 +739,6 @@ class CamDaemon(BaseDaemon):
             frametype='normal',
             target='NA',
             imgtype=imgtype.upper(),
-            glance=False,
             uts=uts,
         )
         return self.take_exposure(exposure)
@@ -758,12 +753,11 @@ class CamDaemon(BaseDaemon):
             frametype='dark',
             target='NA',
             imgtype=imgtype.upper(),
-            glance=False,
             uts=uts,
         )
         return self.take_exposure(exposure)
 
-    def take_glance(self, exptime, binning, imgtype, uts=None):
+    def take_glance(self, exptime, binning, uts=None):
         """Take a glance frame with the selected cameras (no run number)."""
         if uts is None:
             uts = self.uts.copy()
@@ -772,8 +766,7 @@ class CamDaemon(BaseDaemon):
             binning=binning,
             frametype='normal',
             target='NA',
-            imgtype=imgtype.upper(),
-            glance=True,
+            imgtype='GLANCE',
             uts=uts,
         )
         return self.take_exposure(exposure)
@@ -795,7 +788,7 @@ class CamDaemon(BaseDaemon):
             raise HardwareError(f'Cameras are already exposing: {self.active_uts}')
 
         # Find and update run number, and store on the Exposure
-        if not exposure.glance:
+        if not exposure.is_glance:
             with open(self.run_number_file, 'r') as f:
                 old_run_number = int(f.read())
             new_run_number = old_run_number + 1

@@ -3,8 +3,8 @@
 import datetime
 from contextlib import contextmanager
 
-from astropy.time import Time
 from astropy.io import fits
+from astropy.time import Time
 
 from gtecs.common.database import get_session as get_session_common
 try:
@@ -98,7 +98,7 @@ class Exposure(Base):
     ----------
     run_number : int or `None`
         The number of this exposure (assigned by the camera daemon).
-        If `None` then this exposure is a glance frame.
+        If `None` then this exposure is a temporary glance frame.
     set_number : int or `None`
         The number of any set this exposure is part of (assigned by the exposure queue daemon),
         or `None` if it is not part of a set (i.e. taken manually via the camera daemon).
@@ -119,8 +119,6 @@ class Exposure(Base):
     imgtype : str
         Exposure type.
         Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
-    glance : bool, default=False
-        If True then the exposure is a glance
     ut_mask : int or `None`
         The UT cameras used to take this exposure.
         This is a binary mask, e.g. a value of 5 (binary 0101) will represents cameras 1 and 3.
@@ -178,7 +176,6 @@ class Exposure(Base):
     frametype = Column(String(255), nullable=False)
     target = Column(String(255), nullable=False)
     imgtype = Column(String(255), nullable=False)
-    glance = Column(Boolean, nullable=False)
     ut_mask = Column(Integer, nullable=True, default=None)  # None means all cameras
     start_time = Column(DateTime, nullable=False)
     stop_time = Column(DateTime, nullable=True)
@@ -229,7 +226,6 @@ class Exposure(Base):
                    'frametype={}'.format(self.frametype),
                    'target={}'.format(self.target),
                    'imgtype={}'.format(self.imgtype),
-                   'glance={}'.format(self.glance),
                    'ut_mask={}'.format(self.ut_mask),
                    'start_time={}'.format(self.start_time),
                    'stop_time={}'.format(self.stop_time),
