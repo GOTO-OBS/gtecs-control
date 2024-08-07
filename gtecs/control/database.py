@@ -4,7 +4,7 @@ import datetime
 from contextlib import contextmanager
 
 from astropy.time import Time
-
+from astropy.io import fits
 
 from gtecs.common.database import get_session as get_session_common
 try:
@@ -19,6 +19,7 @@ except ImportError:
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import backref, relationship, validates
+from sqlalchemy.types import TypeDecorator
 
 from . import params
 
@@ -65,6 +66,27 @@ def session_manager(**kwargs):
         raise
     finally:
         session.close()
+
+
+class FITSHeader(TypeDecorator):
+    """A custom SQLAlchemy type to store FITS headers in the database."""
+
+    impl = String
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def process_literal_param(self, value, dialect):  # noqa: U100
+        """Convert Header class to string to store in the database."""
+        if isinstance(value, str):
+            value = fits.Header.fromstring(value)
+        return value.tostring() if value is not None else None
+
+    process_bind_param = process_literal_param
+
+    def process_result_value(self, value, dialect):  # noqa: U100
+        """Convert string from the database to Header class."""
+        return fits.Header.fromstring(value) if value is not None else None
 
 
 class Exposure(Base):
@@ -224,9 +246,11 @@ class Image(Base):
     ut : int
         The UT number of the camera used to take this image.
     filename : str
-        The name of the image FITS file.
-    header : str
-        The FITS image header, as a string.
+        The name of the output FITS file.
+    header : str or `astropy.io.fits.Header`
+        The FITS image header, as a string or an `astropy.io.fits.Header` object.
+        A string should follow the FITS standard, as done by `astropy.io.fits.Header.tostring()`,
+        and can be converted back to a Header object with `astropy.io.fits.Header.fromstring()`.
 
     When created the instance can be linked to the following other tables as parameters,
     otherwise they are populated when it is added to the database:
@@ -255,7 +279,7 @@ class Image(Base):
     # Columns
     ut = Column(Integer, nullable=False)
     filename = Column(String(255), nullable=False)
-    header = Column(String, nullable=False)
+    header = Column(FITSHeader, nullable=True)
 
     # Foreign keys
     exposure_id = Column(Integer, ForeignKey('control.exposures.id'), nullable=False)

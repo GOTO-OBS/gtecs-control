@@ -649,7 +649,7 @@ class CamDaemon(BaseDaemon):
                         db_image = db.Image(
                             ut=ut,
                             filename=filename,
-                            header='True' if full_headers[ut] is not None else 'False',
+                            header=full_headers[ut],
                             exposure_id=cam_info['current_exposure']['db_id'],
                         )
                         session.add(db_image)
@@ -714,14 +714,10 @@ class CamDaemon(BaseDaemon):
             # Record the image in the control database
             try:
                 with db.session_manager() as session:
-                    if full_headers[ut] is not None:
-                        header_str = full_headers[ut].tostring()
-                    else:
-                        header_str = None
                     db_image = db.Image(
                         ut=ut,
                         filename=filename.split('/')[-1],
-                        header=header_str,
+                        header=full_headers[ut],
                         exposure_id=cam_info['current_exposure']['db_id'],
                     )
                     session.add(db_image)
