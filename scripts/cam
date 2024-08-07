@@ -164,16 +164,13 @@ def query(command, args):
         print(f'Taking bias exposure ({expstr})')
 
     elif command == 'abort':
-        if len(args) == 0:
-            uts = params.UTS_WITH_CAMERAS
-        elif len(args) == 1:
-            uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
-        else:
-            raise ValueError('Invalid arguments')
         daemons.check_daemon(daemon_id)
         with daemons.daemon_proxy(daemon_id) as daemon:
-            daemon.abort_exposure(uts)
-        print('Exposures aborted')
+            aborted_uts = daemon.abort_exposure()
+        if len(aborted_uts):
+            print('Exposures aborted on cameras {}'.format(aborted_uts))
+        else:
+            print('No exposures to abort')
 
     elif command == 'clear':
         if len(args) == 0:
@@ -257,7 +254,7 @@ def query(command, args):
             '  glance [uts] exptime binning   take a temporary glance',
             '  dark [uts] exptime binning     take a dark frame',
             '  bias [uts] binning             take a bias frame',
-            '  abort [uts]                    abort current exposure',
+            '  abort                          abort the current exposure',
             '  clear [uts]                    clear any images in the queue',
             '  window [uts] x y dx dy         set camera image window',
             '  window [uts] full|reset|clear  reset camera image window to full-frame',

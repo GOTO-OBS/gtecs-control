@@ -35,7 +35,6 @@ class CamDaemon(BaseDaemon):
         # camera variables
         self.uts = params.UTS_WITH_CAMERAS.copy()
         self.active_uts = []
-        self.abort_uts = []
         self.clear_uts = self.uts.copy()  # clear on daemon restart
         self.interfaces = {f'cam{ut}' for ut in self.uts}
 
@@ -295,7 +294,7 @@ class CamDaemon(BaseDaemon):
                         db_exposure.completed = True  # Marked as completed
                         session.commit()
 
-                    # Clear tags, ready for next exposure
+                    # Reset values, ready for next exposure
                     self.exposure_state = 'none'
                     self.current_exposure = None
                     self.exposing_start_time = 0
@@ -309,14 +308,9 @@ class CamDaemon(BaseDaemon):
                     self.force_check_flag = True
 
             # abort exposure
-            # TODO: We allow aborting on specific cameras, while letting the others continue
-            # That could confuse things, if the exposure otherwise finishes successfully
-            # (e.g. in the database, it's recorded as completed but some images will be missing)
-            # Wouldn't it be cleaner to abort the whole exposure on all cameras?
-            # It's hard to think of a case where we'd want to abort on some cameras but not others.
             if self.abort_exposure_flag:
                 try:
-                    for ut in self.abort_uts:
+                    for ut in self.active_uts:
                         expstr = self.current_exposure.expstr.capitalize()
                         self.log.info('{}: Aborting exposure on camera {}'.format(
                                       expstr, ut))
@@ -329,35 +323,39 @@ class CamDaemon(BaseDaemon):
                             self.log.error('No response from interface cam{}'.format(ut))
                             self.log.debug('', exc_info=True)
 
-                        if ut in self.active_uts:
-                            self.active_uts.remove(ut)
+                    # We've aborted everything, stop the exposure state machine
+                    # TODO: Could there be an actual "abort" state?
+                    #       Or this could be within State 2 when we're waiting for exposures,
+                    #       since that's the only time this should trigger.
+                    self.exposure_state = 'none'
 
-                    if len(self.active_uts) == 0:
-                        # We've aborted everything, stop the exposure state machine
-                        self.exposure_state = 'none'
+                    # Update the database entry
+                    with db.session_manager() as session:
+                        query = session.query(db.Exposure)
+                        query = query.filter(db.Exposure.db_id == self.current_exposure.db_id)
+                        db_exposure = query.one()
+                        db_exposure.stop_time = Time(self.loop_time, format='unix')
+                        db_exposure.completed = False  # Marked as aborted
+                        session.commit()
 
-                        # Update the database entry
-                        with db.session_manager() as session:
-                            query = session.query(db.Exposure).filter(self.current_exposure.db_id)
-                            db_exposure = query.one()
-                            db_exposure.stop_time = Time(self.loop_time, format='unix')
-                            db_exposure.completed = False  # Marked as aborted
-                            session.commit()
+                    # Reset values, ready for next exposure
+                    # TODO: Could be one "cleanup" state
+                    self.current_exposure = None
+                    self.exposing_start_time = 0
+                    self.exposure_start_time = {ut: 0 for ut in self.uts}
+                    self.exposure_finished = {ut: False for ut in self.uts}
+                    self.image_ready = {ut: False for ut in self.uts}
+                    self.temp_headers = None
+                    self.active_uts = []
+                    self.num_taken += 1
+                    self.take_exposure_flag = 0
 
-                        # Clear flags, ready for next exposure
-                        self.current_exposure = None
-                        self.exposing_start_time = 0
-                        self.exposure_start_time = {ut: 0 for ut in self.uts}
-                        self.exposure_finished = {ut: False for ut in self.uts}
-                        self.image_ready = {ut: False for ut in self.uts}
-                        self.temp_headers = None
-                        self.active_uts = []
-                        self.num_taken += 1
-                        self.take_exposure_flag = 0
+                    # Also clear any leftover images in the camera queues
+                    self.clear_uts = self.active_uts.copy()
+                    self.clear_queue_flag = 1
                 except Exception:
                     self.log.error('abort_exposure command failed')
                     self.log.debug('', exc_info=True)
-                self.abort_uts = []
                 self.abort_exposure_flag = 0
                 self.force_check_flag = True
 
@@ -732,7 +730,7 @@ class CamDaemon(BaseDaemon):
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, uts=None):
-        """Take a normal frame with the camera."""
+        """Take a normal frame with the selected cameras."""
         if uts is None:
             uts = self.uts.copy()
         exposure = Exposure(
@@ -747,7 +745,7 @@ class CamDaemon(BaseDaemon):
         return self.take_exposure(exposure)
 
     def take_dark(self, exptime, binning, imgtype, uts=None):
-        """Take dark frame with the camera."""
+        """Take dark frame with the selected cameras."""
         if uts is None:
             uts = self.uts.copy()
         exposure = Exposure(
@@ -762,7 +760,7 @@ class CamDaemon(BaseDaemon):
         return self.take_exposure(exposure)
 
     def take_glance(self, exptime, binning, imgtype, uts=None):
-        """Take a glance frame with the camera (no run number)."""
+        """Take a glance frame with the selected cameras (no run number)."""
         if uts is None:
             uts = self.uts.copy()
         exposure = Exposure(
@@ -777,7 +775,7 @@ class CamDaemon(BaseDaemon):
         return self.take_exposure(exposure)
 
     def take_exposure(self, exposure):
-        """Take an exposure with the camera from an Exposure object."""
+        """Take an exposure with the selected cameras from an Exposure object."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
         if int(exposure.exptime) < 0:
@@ -812,20 +810,17 @@ class CamDaemon(BaseDaemon):
 
         return exposure.expstr
 
-    def abort_exposure(self, uts=None):
-        """Abort current exposure."""
+    def abort_exposure(self):
+        """Abort an ongoing exposure (on all cameras)."""
         if self.dependency_error:
             raise DaemonDependencyError(f'Dependencies are not responding: {self.bad_dependencies}')
-        if uts is None:
-            uts = self.uts.copy()
-        if any(ut not in self.uts for ut in uts):
-            raise ValueError(f'Invalid UTs: {[ut for ut in uts if ut not in self.uts]}')
 
         if self.exposure_state == 'exposing':
-            self.abort_uts = sorted([ut for ut in uts if ut in self.active_uts])
-            self.clear_uts = self.abort_uts.copy()
+            active_uts = self.active_uts.copy()
             self.abort_exposure_flag = 1
-            self.clear_queue_flag = 1
+            return active_uts
+        else:
+            return []
 
     def clear_queue(self, uts=None):
         """Clear any leftover images in the camera memory."""
