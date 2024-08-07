@@ -32,7 +32,7 @@ class Exposure:
         Exposure target name
     imgtype : str, default='SCIENCE'
         Exposure type
-        Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK
+        Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
     glance : bool, default=False
         If True then the exposure is a glance
     uts : list of int or None, default=None

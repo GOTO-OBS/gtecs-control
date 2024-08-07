@@ -102,15 +102,25 @@ class Exposure(Base):
     set_number : int or `None`
         The number of any set this exposure is part of (assigned by the exposure queue daemon),
         or `None` if it is not part of a set (i.e. taken manually via the camera daemon).
+
     exptime : float
         The time the cameras were exposing for.
     filt : str or `None`
         The filter used for the exposure.
         If a string it should be a valid filter name (by default 'L', 'R', 'G', 'B', 'C'),
         or `None` if the filter was not defined for this exposure (e.g. for dark frames).
+    binning : int
+        The binning factor used for the exposure.
     frametype : str
+        The type of exposure taken.
+        Valid frame types are 'normal' or 'dark'
+    target : str, default='NA'
+        Exposure target name.
+    imgtype : str
         Exposure type.
         Usual types include SCIENCE, FOCUS, FLAT, BIAS, DARK, MANUAL or GLANCE.
+    glance : bool, default=False
+        If True then the exposure is a glance
     ut_mask : int or `None`
         The UT cameras used to take this exposure.
         This is a binary mask, e.g. a value of 5 (binary 0101) will represents cameras 1 and 3.
@@ -163,10 +173,13 @@ class Exposure(Base):
     set_number = Column(Integer, nullable=True)
     exptime = Column(Float, nullable=False)
     filt = Column('filter',   # filter is a built in function in Python
-                  String(1), nullable=True)
-    frametype = Column('type',   # type is a built in function in Python
-                       String(255), nullable=False)
-    ut_mask = Column(Integer, nullable=True, default=None)
+                  String(1), nullable=True)  # darks have filter=N/A
+    binning = Column(Integer, nullable=False)
+    frametype = Column(String(255), nullable=False)
+    target = Column(String(255), nullable=False)
+    imgtype = Column(String(255), nullable=False)
+    glance = Column(Boolean, nullable=False)
+    ut_mask = Column(Integer, nullable=True, default=None)  # None means all cameras
     start_time = Column(DateTime, nullable=False)
     stop_time = Column(DateTime, nullable=True)
     completed = Column(Boolean, nullable=False)
@@ -212,7 +225,11 @@ class Exposure(Base):
                    'set_number={}'.format(self.set_number),
                    'exptime={}'.format(self.exptime),
                    'filt={}'.format(self.filt),
+                   'binning={}'.format(self.binning),
                    'frametype={}'.format(self.frametype),
+                   'target={}'.format(self.target),
+                   'imgtype={}'.format(self.imgtype),
+                   'glance={}'.format(self.glance),
                    'ut_mask={}'.format(self.ut_mask),
                    'start_time={}'.format(self.start_time),
                    'stop_time={}'.format(self.stop_time),
@@ -241,6 +258,10 @@ class Exposure(Base):
 
 class Image(Base):
     """A class to represent a single image from a camera.
+
+    This is a deliberately simple table, as most useful information (exposure time, filter etc)
+    is stored in the Exposures table. This only really exists to track when each image file is
+    created, with the UT column making is easier to filter by camera.
 
     Parameters
     ----------
