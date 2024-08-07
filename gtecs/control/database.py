@@ -96,8 +96,9 @@ class Exposure(Base):
 
     Parameters
     ----------
-    run_number : int
+    run_number : int or `None`
         The number of this exposure (assigned by the camera daemon).
+        If `None` then this exposure is a glance frame.
     set_number : int or `None`
         The number of any set this exposure is part of (assigned by the exposure queue daemon),
         or `None` if it is not part of a set (i.e. taken manually via the camera daemon).
@@ -158,7 +159,7 @@ class Exposure(Base):
     db_id = Column('id', Integer, primary_key=True)
 
     # Columns
-    run_number = Column(Integer, nullable=False, unique=True, index=True)
+    run_number = Column(Integer, nullable=True, unique=True, index=True)  # glances have no run_num
     set_number = Column(Integer, nullable=True)
     exptime = Column(Float, nullable=False)
     filt = Column('filter',   # filter is a built in function in Python

@@ -173,7 +173,7 @@ class CamDaemon(BaseDaemon):
                     try:
                         with db.session_manager() as session:
                             db_exposure = db.Exposure(
-                                run_number=self.latest_run_number,
+                                run_number=self.current_exposure.run_number,
                                 set_number=self.current_exposure.set_num,
                                 exptime=self.current_exposure.exptime,
                                 filt=self.current_exposure.filt,
