@@ -633,7 +633,7 @@ class CamDaemon(BaseDaemon):
                 # in a clearly-marked invalid file
                 filename += '.no_header'
 
-            self.log.info('{}: Saving exposure on camera {}'.format(expstr, ut))
+            self.log.info('{}: Saving exposure on camera {} to {}'.format(expstr, ut, filename))
             try:
                 with daemon_proxy(f'cam{ut}') as interface:
                     full_headers[ut] = interface.save_exposure(

@@ -169,9 +169,9 @@ class CameraInterfaceDaemon(BaseDaemon):
         self.log.info('Saving image to {}'.format(filename))
         save_fits(hdu, filename, log=self.log, log_debug=True, fancy_log=False)
         if os.path.isfile(filename):
-            self.log.info('Image saved')
+            self.log.info('Image saved to {}'.format(filename))
         else:
-            self.log.warning('ERROR: Image failed to save')
+            self.log.warning('ERROR: Image failed to save to {}'.format(filename))
 
     def save_exposure(self, filename, header_cards=None, compress=False, measure_hfds=False,
                       method='proc'):
