@@ -144,7 +144,7 @@ def query(command, args):
                     filt if filt is not None else 'X',
                     'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
-                    info['queue_length'],
+                    info['queue_length'] + nexp,
                 )
                 if info['status'] == 'Paused':
                     out_str += ' [paused]'
@@ -204,7 +204,7 @@ def query(command, args):
                     filt if filt is not None else 'X',
                     'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
-                    info['queue_length'],
+                    info['queue_length'] + nexp,
                 )
                 if info['status'] == 'Paused':
                     out_str += ' [paused]'
@@ -266,7 +266,7 @@ def query(command, args):
                     filt if filt is not None else 'X',
                     'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
-                    info['queue_length'],
+                    info['queue_length'] + nexp,
                 )
                 if info['status'] == 'Paused':
                     out_str += ' [paused]'
@@ -316,7 +316,7 @@ def query(command, args):
                     filt if filt is not None else 'X',
                     'exposure' if not glance else 'glance',
                     's' if nexp > 1 else '',
-                    info['queue_length'],
+                    info['queue_length'] + nexp,
                 )
                 if info['status'] == 'Paused':
                     out_str += ' [paused]'
@@ -353,7 +353,7 @@ def query(command, args):
             filt if filt is not None else 'X',
             'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
-            info['queue_length'],
+            info['queue_length'] + nexp,
         )
         if info['status'] == 'Paused':
             out_str += ' [paused]'
@@ -391,7 +391,7 @@ def query(command, args):
             filt if filt is not None else 'X',
             'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
-            info['queue_length'],
+            info['queue_length'] + nexp,
         )
         if info['status'] == 'Paused':
             out_str += ' [paused]'
@@ -427,7 +427,7 @@ def query(command, args):
             filt if filt is not None else 'X',
             'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
-            info['queue_length'],
+            info['queue_length'] + nexp,
         )
         if info['status'] == 'Paused':
             out_str += ' [paused]'
@@ -464,7 +464,7 @@ def query(command, args):
             filt if filt is not None else 'X',
             'exposure' if not glance else 'glance',
             's' if nexp > 1 else '',
-            info['queue_length'],
+            info['queue_length'] + nexp,
         )
         if info['status'] == 'Paused':
             out_str += ' [paused]'

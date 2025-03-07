@@ -182,6 +182,13 @@ class Exposure:
             raise ValueError('Exposure run number not set')
         return f'exposure r{self.run_number:07d}'
 
+    @property
+    def setstr(self):
+        """Return a string for logging this exposure set in the exposure queue daemon."""
+        if not self.in_set:
+            raise ValueError('Exposure is not part of a set')
+        return f'set s{self.set_num:07d} {self.set_pos}/{self.set_tot}'
+
 
 class ExposureQueue(MutableSequence):
     """A queue sequence to hold Exposures.
