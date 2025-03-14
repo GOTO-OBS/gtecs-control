@@ -37,7 +37,8 @@ STATUS_MNT_AUTOSLEW_ERROR = 'autoslew_error'
 STATUS_MNT_POSITION_ERROR = 'outside_encoder_limits'
 STATUS_CAM_EXPOSING = 'exposing'
 STATUS_CAM_READING = 'reading'
-STATUS_CAM_WARM = 'warm'
+STATUS_CAM_WRONGTEMP = 'wrong_target_temp'
+STATUS_CAM_HOT = 'above_target_temp'
 STATUS_OTA_FULLOPEN = 'full_open'
 STATUS_OTA_PARTOPEN = 'part_open'
 STATUS_OTA_CLOSED = 'closed'
@@ -53,8 +54,9 @@ MODE_DOME_OPEN = 'open'
 MODE_MNT_PARKED = 'parked'
 MODE_MNT_STOPPED = 'stopped'
 MODE_MNT_TRACKING = 'tracking'
-MODE_CAM_COOL = 'cool'
-MODE_CAM_WARM = 'warm'
+MODE_CAM_TEMPCOOL = 'cool'
+MODE_CAM_TEMPWARM = 'warm'
+MODE_CAM_TEMPOTHER = 'no_temp'
 MODE_OTA_CLOSED = 'closed'
 MODE_OTA_OPEN = 'open'
 
@@ -82,7 +84,8 @@ ERROR_MNT_NOTPARKED = 'MNT:NOT_PARKED'
 ERROR_MNT_INBLINKY = 'MNT:IN_BLINKY'
 ERROR_MNT_MOTORSOFF = 'MNT:MOTORS_OFF'
 ERROR_MNT_CONNECTION = 'MNT:LOST_CONNECTION'
-ERROR_CAM_WARM = 'CAM:NOT_COOL'
+ERROR_CAM_WRONGTEMP = 'CAM:WRONG_TARGET_TEMP'
+ERROR_CAM_HOT = 'CAM:ABOVE_TARGET_TEMP'
 ERROR_CAM_READTIMEOUT = 'CAM:READING_TIMEOUT'
 ERROR_OTA_NOTFULLOPEN = 'OTA:NOT_FULLOPEN'
 ERROR_OTA_NOTCLOSED = 'OTA:NOT_CLOSED'
@@ -364,7 +367,7 @@ class BaseMonitor(ABC):
         # The above two will have populated self.errors
         if len(self.errors) > 0:
             # If there are errors log them
-            msg = '{} ({}) '.format(self.monitor_id, self.hardware_status)
+            msg = '{} ({},{}) '.format(self.monitor_id, self.mode, self.hardware_status)
             msg += 'reports {} error{}: {}'.format(len(self.errors),
                                                    's' if len(self.errors) > 1 else '',
                                                    ', '.join(self.errors))
@@ -1086,9 +1089,9 @@ class PowerMonitor(BaseMonitor):
 class CamMonitor(BaseMonitor):
     """Hardware monitor for the camera daemon."""
 
-    def __init__(self, uts, starting_mode=MODE_CAM_COOL, log=None):
+    def __init__(self, uts, starting_mode=MODE_CAM_TEMPCOOL, log=None):
         # Define modes and starting mode
-        self.available_modes = [MODE_CAM_COOL, MODE_CAM_WARM]
+        self.available_modes = [MODE_CAM_TEMPCOOL, MODE_CAM_TEMPWARM, MODE_CAM_TEMPOTHER]
         self.mode = starting_mode
 
         # Hardware parameters
@@ -1105,9 +1108,24 @@ class CamMonitor(BaseMonitor):
             self.hardware_status = STATUS_UNKNOWN
             return STATUS_UNKNOWN
 
-        all_cool = all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in self.uts)
-        if not all_cool:
-            hardware_status = STATUS_CAM_WARM
+        # TODO: This is a use of mode outside of the _check_hardware method.
+        #       It's a bit weird, and doesn't quite fit how the monitors are designed.
+        if self.mode == MODE_CAM_TEMPCOOL:
+            correct_target_temp = all(
+                info[ut]['target_temp'] == info[ut]['cool_temp']
+                for ut in self.uts)
+        elif self.mode == MODE_CAM_TEMPWARM:
+            correct_target_temp = all(
+                info[ut]['target_temp'] == info[ut]['warm_temp']
+                for ut in self.uts)
+        else:
+            correct_target_temp = True
+        at_target_temp = all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in self.uts)
+
+        if not correct_target_temp:
+            hardware_status = STATUS_CAM_WRONGTEMP
+        elif not at_target_temp:
+            hardware_status = STATUS_CAM_HOT
         elif any(info[ut]['status'] == 'Exposing' for ut in self.uts):
             hardware_status = STATUS_CAM_EXPOSING
         elif any(info[ut]['status'] == 'Reading' for ut in self.uts):
@@ -1120,13 +1138,21 @@ class CamMonitor(BaseMonitor):
 
     def _check_hardware(self):
         """Check the hardware and report any detected errors."""
-        # ERROR_CAM_WARM
-        # Set the error if the cameras should be cool and they're not
-        if self.mode == MODE_CAM_COOL and self.hardware_status == STATUS_CAM_WARM:
-            self.add_error(ERROR_CAM_WARM, delay=30)
+        # ERROR_CAM_WRONGTEMP
+        # Set the error if the cameras are set to the wrong target temperature
+        if self.mode != MODE_CAM_TEMPOTHER and self.hardware_status == STATUS_CAM_WRONGTEMP:
+            self.add_error(ERROR_CAM_WRONGTEMP, delay=30)
+        # Clear the error if the cameras set to the correct target or there is no defined target
+        if self.mode == MODE_CAM_TEMPOTHER or self.hardware_status != STATUS_CAM_WRONGTEMP:
+            self.clear_error(ERROR_CAM_WRONGTEMP)
+
+        # ERROR_CAM_HOT
+        # Set the error if the cameras are too high above the target temperature
+        if self.hardware_status == STATUS_CAM_HOT:
+            self.add_error(ERROR_CAM_HOT, delay=30)
         # Clear the error if the cameras are cool or they shouldn't be
-        if self.mode != MODE_CAM_COOL or self.hardware_status != STATUS_CAM_WARM:
-            self.clear_error(ERROR_CAM_WARM)
+        if self.hardware_status != STATUS_CAM_HOT:
+            self.clear_error(ERROR_CAM_HOT)
 
         # ERROR_CAM_READTIMEOUT
         # Set the error if the cameras have been reading out for too long
@@ -1192,15 +1218,52 @@ class CamMonitor(BaseMonitor):
             # OUT OF SOLUTIONS: This is a hardware error, so there's not much more we can do.
             return ERROR_STATUS, recovery_procedure
 
-        elif ERROR_CAM_WARM in self.errors:
-            # PROBLEM: The cameras aren't cool.
+        elif ERROR_CAM_WRONGTEMP in self.errors:
+            # PROBLEM: The cameras are set to the wrong target temperature.
             recovery_procedure = {}
             # SOLUTION 1: Try setting the target temperature.
-            #             Note we need to wait for a long time, assuming they're at room temp.
-            recovery_procedure[1] = ['cam temp cool', 600]
-            # OUT OF SOLUTIONS: Having trouble getting down to temperature,
-            #                   Either it's a hardware issue or it's just too warm.
-            return ERROR_CAM_WARM, recovery_procedure
+            #             This will depend on what mode the cameras should be in.
+            # TODO: This is using the mode here again, it should be fine but it's worth
+            #       looking at as a limitation of the current design.
+            if self.mode == MODE_CAM_TEMPCOOL:
+                recovery_procedure[1] = ['cam temp cool', 10]
+            elif self.mode == MODE_CAM_TEMPWARM:
+                recovery_procedure[1] = ['cam temp warm', 10]
+            else:
+                # This shouldn't happen, if the cameras are set to a temp other than the
+                # cool or warm temps there's nothing to compare too and ERROR_CAM_WRONGTEMP
+                # shouldn't trigger.
+                pass
+            # OUT OF SOLUTIONS: Some issue with setting the correct target in the camera daemon?
+            return ERROR_CAM_WRONGTEMP, recovery_procedure
+
+        elif ERROR_CAM_HOT in self.errors:
+            # PROBLEM: The cameras are too high above their target temperature.
+            recovery_procedure = {}
+            # SOLUTION 1: Try setting the target temperature.
+            #             This won't actually do anything, we know the target temp is correct
+            #             since that's what the ERROR_CAM_WRONGTEMP is checking for.
+            #             But we need this to have the correct delay for the pilot to let the
+            #             cameras cool down.
+            if self.mode == MODE_CAM_TEMPCOOL:
+                # Note we need to wait for a long time, assuming they're at room temp.
+                recovery_procedure[1] = ['cam temp cool', 600]
+            elif self.mode == MODE_CAM_TEMPWARM:
+                # If the cameras are recording that they're hotter than the warm target temp then
+                # we have a real problem!
+                recovery_procedure[1] = ['cam temp warm', 600]
+            else:
+                # TODO: How can we set the cameras to a target temp if we don't know what it is?
+                # We'd have to get the info here, then set each camera to the correct temp.
+                # Again it's a limitation of the current one-error-one-solution design.
+                # For now we just send the info command and wait for 10 minutes, hoping
+                # they'll cool down in that time. Argubly we could do that for the above too.
+                # See also the dome hardware error, where we just wait for a few seconds for the
+                # daemon to try to reconnect.
+                recovery_procedure[1] = ['cam info', 600]
+            # OUT OF SOLUTIONS: We know they have the right target temp set, since that's above.
+            #                   Either it's a hardware issue or it's just too hot outside.
+            return ERROR_CAM_HOT, recovery_procedure
 
         elif ERROR_CAM_READTIMEOUT in self.errors:
             # PROBLEM: The cameras have been reading out for too long.
