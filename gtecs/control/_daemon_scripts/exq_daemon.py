@@ -90,9 +90,11 @@ class ExqDaemon(BaseDaemon):
                 # If we're not currently doing anything and there are exposures in the
                 # queue then pop off the first one and make that the current
                 if self.current_exposure is None and len(self.exp_queue) > 0:
-                    self.log.info('Starting new exposure')
                     self.current_exposure = self.exp_queue.pop(0)
-                    self.log.debug(self.current_exposure.as_line().strip())
+                    setstr = self.current_exposure.setstr.capitalize()
+                    self.log.info('{}: Beginning new exposure'.format(setstr))
+                    self.log.debug('{}: {}'.format(
+                        setstr, self.current_exposure.as_line().strip()))
                     self.exposure_state = 'init'  # continue to state 1
 
                 # Exposure state machine
@@ -106,15 +108,17 @@ class ExqDaemon(BaseDaemon):
                             # Check if the mount can move
                             if info['status'] in ['Parked', 'Stopped',
                                                   'IN BLINKY MODE', 'MOTORS OFF']:
-                                self.log.warning('Cannot move mount ({}), skipping dither'.format(
-                                                 info['status']))
+                                self.log.warning(
+                                    '{}: Cannot move mount ({}), skipping dither'.format(
+                                    setstr, info['status']))
                                 self.dithering = False
                             elif self.current_exposure.set_pos != 1:  # Don't dither on first one
                                 # Offset the mount slightly by pulse guiding
                                 i = (self.current_exposure.set_pos - 2) % len(self.dither_pattern)
                                 direction = self.dither_pattern[i][0]
                                 duration = self.dither_pattern[i][1]
-                                self.log.info(f'Offsetting the mount {duration:.2f}s {direction}')
+                                msg = f'{setstr}: Offsetting the mount {duration:.2f}s {direction}'
+                                self.log.info(msg)
                                 with daemon_proxy('mnt') as daemon:
                                     daemon.pulse_guide(direction, duration * 1000)
                                 self.dither_time = self.loop_time
@@ -143,7 +147,7 @@ class ExqDaemon(BaseDaemon):
                             if all(info[ut]['homed'] for ut in filt_uts):
                                 self.exposure_state = 'filters_homed'  # skip to state 4
                             else:
-                                self.log.info('Homing filter wheels')
+                                self.log.info('{}: Homing filter wheels'.format(setstr))
                                 with daemon_proxy('filt') as daemon:
                                     daemon.home_filters(filt_uts)
                                 self.exposure_state = 'filters_homing'  # continue to state 3
@@ -163,7 +167,7 @@ class ExqDaemon(BaseDaemon):
 
                         # Continue when all the filters are homed
                         if all(info[ut]['homed'] for ut in filt_uts):
-                            self.log.info('Filter wheels homed')
+                            self.log.info('{}: Filter wheels homed'.format(setstr))
                             self.exposure_state = 'filters_homed'  # continue to state 4
                     except Exception:
                         self.log.error('Error connecting to filter wheel daemon')
@@ -181,8 +185,8 @@ class ExqDaemon(BaseDaemon):
                                for ut in filt_uts):
                             self.exposure_state = 'filters_set'  # skip to state 6
                         else:
-                            self.log.info('Setting filter wheels to {}'.format(
-                                          self.current_exposure.filt))
+                            self.log.info('{}: Setting filter wheels to {}'.format(
+                                          setstr, self.current_exposure.filt))
                             with daemon_proxy('filt') as daemon:
                                 filt_dict = {ut: self.current_exposure.filt for ut in filt_uts}
                                 daemon.set_filters(filt_dict)
@@ -201,7 +205,7 @@ class ExqDaemon(BaseDaemon):
                         # Continue when the filters are set
                         if all(info[ut]['current_filter'] == self.current_exposure.filt
                                for ut in filt_uts):
-                            self.log.info('Filter wheels set')
+                            self.log.info('{}: Filter wheels set'.format(setstr))
                             self.exposure_state = 'filters_set'  # continue to state 6
                     except Exception:
                         self.log.error('Error connecting to filter wheel daemon')
@@ -220,7 +224,7 @@ class ExqDaemon(BaseDaemon):
                                     'last_move_time' in info and
                                     info['last_move_time'] > self.dither_time and
                                     self.loop_time > info['last_move_time'] + 1):
-                                self.log.info('Mount tracking')
+                                self.log.info('{}: Mount tracking'.format(setstr))
                                 self.dithering = False
                                 self.exposure_state = 'mount_tracking'  # continue to state 7
                         except Exception:
@@ -232,11 +236,11 @@ class ExqDaemon(BaseDaemon):
                 if self.exposure_state == 'mount_tracking':
                     # STATE 7: Start the exposure
                     if not self.current_exposure.glance:
-                        self.log.info('Starting {:.0f}s exposure'.format(
-                            self.current_exposure.exptime))
+                        self.log.info('{}: Starting {:.0f}s exposure'.format(
+                            setstr, self.current_exposure.exptime))
                     else:
-                        self.log.info('Starting {:.0f}s glance'.format(
-                            self.current_exposure.exptime))
+                        self.log.info('{}: Starting {:.0f}s glance'.format(
+                            setstr, self.current_exposure.exptime))
                     try:
                         with daemon_proxy('cam') as daemon:
                             daemon.take_exposure(self.current_exposure)
@@ -253,7 +257,7 @@ class ExqDaemon(BaseDaemon):
 
                         # Continue if the exposure has finished
                         if not cam_exposing:
-                            self.log.info('Exposure complete')
+                            self.log.info('{}: Exposure complete'.format(setstr))
                             self.current_exposure = None
                             self.exposure_state = 'none'  # return to start
                             self.force_check_flag = True
@@ -359,6 +363,7 @@ class ExqDaemon(BaseDaemon):
             f.write('{:d}'.format(new_set_number))
         self.latest_set_number = new_set_number
 
+        self.log.info('Adding new exposure set s{:07d}'.format(new_set_number))
         for i in range(1, nexp + 1):
             exposure = Exposure(exptime,
                                 filt,

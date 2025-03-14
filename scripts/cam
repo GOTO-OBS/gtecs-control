@@ -95,12 +95,12 @@ def query(command, args):
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            binning = float(args[1])
+            binning = int(args[1])
             imgtype = 'MANUAL'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            binning = float(args[2])
+            binning = int(args[2])
             imgtype = 'MANUAL'
         else:
             raise ValueError('Invalid arguments')
@@ -113,12 +113,12 @@ def query(command, args):
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            binning = float(args[1])
+            binning = int(args[1])
             imgtype = 'GLANCE'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            binning = float(args[2])
+            binning = int(args[2])
             imgtype = 'GLANCE'
         else:
             raise ValueError('Invalid arguments')
@@ -131,12 +131,12 @@ def query(command, args):
         if len(args) == 2 and misc.is_num(args[0]) and misc.is_num(args[1]):
             uts = params.UTS_WITH_CAMERAS
             exptime = float(args[0])
-            binning = float(args[1])
+            binning = int(args[1])
             imgtype = 'DARK'
         elif len(args) == 3 and misc.is_num(args[1]) and misc.is_num(args[2]):
             uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = float(args[1])
-            binning = float(args[2])
+            binning = int(args[2])
             imgtype = 'DARK'
         else:
             raise ValueError('Invalid arguments')
@@ -149,12 +149,12 @@ def query(command, args):
         if len(args) == 1:
             uts = params.UTS_WITH_CAMERAS
             exptime = 0.0
-            binning = float(args[0])
+            binning = int(args[0])
             imgtype = 'BIAS'
         elif len(args) == 2:
             uts = misc.valid_ints(args[0].split(','), params.UTS_WITH_CAMERAS)
             exptime = 0.0
-            binning = float(args[1])
+            binning = int(args[1])
             imgtype = 'BIAS'
         else:
             raise ValueError('Invalid arguments')

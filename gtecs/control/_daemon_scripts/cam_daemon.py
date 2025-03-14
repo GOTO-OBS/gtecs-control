@@ -113,6 +113,9 @@ class CamDaemon(BaseDaemon):
                 if self.exposure_state == 'none':
                     # STATE 1: Set up and start the exposure
                     # Set up the exposure
+                    self.log.info('{}: Beginning new exposure'.format(expstr))
+                    self.log.debug('{}: {}'.format(
+                        expstr, self.current_exposure.as_line().strip()))
                     exptime = self.current_exposure.exptime
                     exptime_ms = exptime * 1000.
                     binning = self.current_exposure.binning
@@ -295,6 +298,7 @@ class CamDaemon(BaseDaemon):
 
                     if len(self.active_uts) == 0:
                         # we've aborted everything, stop the exposure
+                        self.log.info('{}: Exposure aborted'.format(expstr))
                         self.exposure_state = 'none'
                         self.current_exposure = None
                         self.exposing_start_time = 0
@@ -596,6 +600,7 @@ class CamDaemon(BaseDaemon):
         self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
+        self.log.info('{}: Exposure complete'.format(expstr))
 
     def _save_images_intf(self, active_uts, header_info, cam_info):
         """Save the images on the interfaces, rather than fetching and saving locally."""
@@ -633,7 +638,7 @@ class CamDaemon(BaseDaemon):
                 # in a clearly-marked invalid file
                 filename += '.no_header'
 
-            self.log.info('{}: Saving exposure on camera {}'.format(expstr, ut))
+            self.log.info('{}: Saving exposure on camera {} to {}'.format(expstr, ut, filename))
             try:
                 with daemon_proxy(f'cam{ut}') as interface:
                     full_headers[ut] = interface.save_exposure(
@@ -649,6 +654,7 @@ class CamDaemon(BaseDaemon):
         self.latest_headers = (self.num_taken, full_headers)
         self.saving_thread_running = False
         self.log.info('{}: Saving thread finished'.format(expstr))
+        self.log.info('{}: Exposure complete'.format(expstr))
 
     # Control functions
     def take_image(self, exptime, binning, imgtype, uts=None):
@@ -719,12 +725,8 @@ class CamDaemon(BaseDaemon):
             new_run_number = old_run_number + 1
             with open(self.run_number_file, 'w') as f:
                 f.write('{:d}'.format(new_run_number))
-            exposure.run_number = new_run_number
-            exposure.expstr = f'exposure r{new_run_number:07d}'
             self.latest_run_number = new_run_number
-        else:
-            exposure.run_number = None
-            exposure.expstr = 'glance'
+            exposure.run_number = new_run_number  # this will define the exposure.expstr
 
         self.current_exposure = exposure
         self.active_uts = sorted(uts)

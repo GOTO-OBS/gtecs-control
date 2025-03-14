@@ -83,6 +83,9 @@ class Exposure:
         # Store creation time
         self.creation_time = time.gmtime()
 
+        # The run number is added by the camera daemon when it's started, so it's set to None here
+        self.run_number = None
+
     def __str__(self):
         return self.info()
 
@@ -169,6 +172,22 @@ class Exposure:
     def from_database(self):
         """Return True if this exposure is from the database."""
         return self.set_id is not None
+
+    @property
+    def expstr(self):
+        """Return a string for logging this exposure in the camera daemon."""
+        if self.glance:
+            return 'glance'
+        if self.run_number is None:
+            raise ValueError('Exposure run number not set')
+        return f'exposure r{self.run_number:07d}'
+
+    @property
+    def setstr(self):
+        """Return a string for logging this exposure set in the exposure queue daemon."""
+        if not self.in_set:
+            raise ValueError('Exposure is not part of a set')
+        return f'set s{self.set_num:07d} {self.set_pos}/{self.set_tot}'
 
 
 class ExposureQueue(MutableSequence):
