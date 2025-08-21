@@ -14,7 +14,7 @@ from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
-from gtecs.control.conditions.internal import get_domealert_daemon
+from gtecs.control.conditions.internal import get_domealert_daemon, get_arduino_readout
 from gtecs.control.conditions.local import (get_cloudwatcher_daemon, get_rain_daemon,
                                             get_rain_domealert, get_vaisala_daemon)
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
@@ -245,13 +245,25 @@ class ConditionsDaemon(BaseDaemon):
         try:
             if params.FAKE_CONDITIONS:
                 internal_dict = {
-                    'temperature': {'dome': 10},
-                    'humidity': {'dome': 25},
+                    'temperature': 10,
+                    'humidity': 25,
                     'update_time': Time.now().iso,
                     'dt': 0,
                 }
-            else:
+            elif params.DOMEALERT_URI != 'none':
                 internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
+            elif params.ARDUINO_FILE != 'none':
+                internal_dict = get_arduino_readout(params.ARDUINO_FILE)
+            else:
+                raise ValueError('No valid internal source specified')
+
+            # Most internal sources only have a single sensor,
+            # but since the DomeAlert has two sources we want to keep the same structure.
+            # Other places (e.g. the dome daemon or FITS headers use) the max of the dict values.
+            if not isinstance(internal_dict['temperature'], dict):
+                internal_dict['temperature'] = {'dome': internal_dict['temperature']}
+            if not isinstance(internal_dict['humidity'], dict):
+                internal_dict['humidity'] = {'dome': internal_dict['humidity']}
         except Exception:
             self.log.error('Failed to get internal info')
             self.log.debug('', exc_info=True)
