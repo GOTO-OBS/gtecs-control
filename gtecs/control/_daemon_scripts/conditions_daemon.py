@@ -631,8 +631,8 @@ class ConditionsDaemon(BaseDaemon):
         # humidity flag
         good['humidity'] = (np.all(ext_humidity < params.MAX_HUMIDITY) and
                             np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY))
-        critical['humidity'] = (np.any(ext_humidity >= params.CRITICAL_MAX_HUMIDITY) or
-                               np.any(int_humidity >= params.CRITICAL_MAX_HUMIDITY))
+        critical['humidity'] = (np.any(ext_humidity >= params.MAX_HUMIDITY_CRITICAL) or
+                               np.any(int_humidity >= params.MAX_HUMIDITY_CRITICAL))
         valid['humidity'] = len(ext_humidity) >= 1 and len(int_humidity) >= 1
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
@@ -659,8 +659,8 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['sky_temp'] = params.SKYTEMP_BADDELAY
 
         # internal flag
-        good['internal'] = (np.all(int_humidity < params.ALERT_INTERNAL_HUMIDITY) and
-                            np.all(int_temperature > params.ALERT_INTERNAL_TEMPERATURE))
+        good['internal'] = (np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY_ALERT) and
+                            np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT))
         critical['internal'] = False
         valid['internal'] = len(int_humidity) >= 1 and len(int_temperature) >= 1
         good_delay['internal'] = params.INTERNAL_GOODDELAY
@@ -1358,16 +1358,16 @@ class ConditionsDaemon(BaseDaemon):
             if temperature == -999:
                 status = rtxt('ERROR')
                 temperature_str = rtxt(' ERR')
-            elif (temperature > params.ALERT_INTERNAL_TEMPERATURE):
+            elif (temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT):
                 status = gtxt('Good')
                 temperature_str = ytxt('{:>4.1f}'.format(temperature))
-                if (temperature > params.ALERT_INTERNAL_TEMPERATURE + 1):
+                if (temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT + 1):
                     temperature_str = gtxt('{:>4.1f}'.format(temperature))
             else:
                 status = rtxt('Bad')
                 temperature_str = rtxt('{:>4.1f}'.format(temperature))
             msg += ' {}°C       (min={:.1f}°C          \t : {}\n'.format(
-                temperature_str, params.ALERT_INTERNAL_TEMPERATURE, status)
+                temperature_str, params.MIN_INTERNAL_TEMPERATURE_ALERT, status)
 
         for source in internal['humidity']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
@@ -1375,16 +1375,16 @@ class ConditionsDaemon(BaseDaemon):
             if humidity == -999:
                 status = rtxt('ERROR')
                 humidity_str = rtxt('  ERR')
-            elif (humidity < params.ALERT_INTERNAL_HUMIDITY):
+            elif (humidity < params.MAX_INTERNAL_HUMIDITY_ALERT):
                 status = gtxt('Good')
                 humidity_str = ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.ALERT_INTERNAL_HUMIDITY - 5):
+                if (humidity < params.MAX_INTERNAL_HUMIDITY_ALERT - 5):
                     humidity_str = gtxt('{:>5.1f}'.format(humidity))
             else:
                 status = rtxt('Bad')
                 humidity_str = rtxt('{:>5.1f}'.format(humidity))
             msg += '{}%        (max={:.1f}%)           \t : {}\n'.format(
-                humidity_str, params.ALERT_INTERNAL_HUMIDITY, status)
+                humidity_str, params.MAX_INTERNAL_HUMIDITY_ALERT, status)
 
         msg += 'ENVIRONMENT:\n'
 
