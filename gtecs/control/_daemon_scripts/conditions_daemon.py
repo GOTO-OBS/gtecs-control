@@ -579,6 +579,7 @@ class ConditionsDaemon(BaseDaemon):
         # Calculate the flags and if they are valid.
         # At least one of the sources need to be valid.
         good = {flag: False for flag in self.flag_names}
+        critical = {flag: False for flag in self.flag_names}
         valid = {flag: False for flag in self.flag_names}
         good_delay = {flag: 0 for flag in self.flag_names}
         bad_delay = {flag: 0 for flag in self.flag_names}
@@ -586,12 +587,14 @@ class ConditionsDaemon(BaseDaemon):
 
         # windspeed flag (based on instantaneous windgust)
         good['windspeed'] = np.all(windgust < params.MAX_WINDSPEED)
+        critical['windspeed'] = False
         valid['windspeed'] = len(windgust) >= 1
         good_delay['windspeed'] = params.WINDSPEED_GOODDELAY
         bad_delay['windspeed'] = params.WINDSPEED_BADDELAY
 
         # windgust flag (based on historic windgust maximum)
         good['windgust'] = np.all(windmax < params.MAX_WINDGUST)
+        critical['windgust'] = False
         valid['windgust'] = len(windmax) >= 1
         good_delay['windgust'] = params.WINDGUST_GOODDELAY
         bad_delay['windgust'] = params.WINDGUST_BADDELAY
@@ -601,12 +604,14 @@ class ConditionsDaemon(BaseDaemon):
                                np.all(ext_temperature < params.MAX_TEMPERATURE) and
                                np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE) and
                                np.all(int_temperature < params.MAX_INTERNAL_TEMPERATURE))
+        critical['temperature'] = False
         valid['temperature'] = len(ext_temperature) >= 1 and len(int_temperature) >= 1
         good_delay['temperature'] = params.TEMPERATURE_GOODDELAY
         bad_delay['temperature'] = params.TEMPERATURE_BADDELAY
 
         # ice flag
         good['ice'] = np.all(ext_temperature > 0)
+        critical['ice'] = False
         valid['ice'] = len(ext_temperature) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
         bad_delay['ice'] = params.ICE_BADDELAY
@@ -614,24 +619,29 @@ class ConditionsDaemon(BaseDaemon):
         # humidity flag
         good['humidity'] = (np.all(ext_humidity < params.MAX_HUMIDITY) and
                             np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY))
+        critical['humidity'] = (np.any(ext_humidity >= params.CRITICAL_MAX_HUMIDITY) or
+                               np.any(int_humidity >= params.CRITICAL_MAX_HUMIDITY))
         valid['humidity'] = len(ext_humidity) >= 1 and len(int_humidity) >= 1
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
 
         # dew_point flag
         good['dew_point'] = np.all(dew_point > params.MIN_DEWPOINT)
+        critical['dew_point'] = False
         valid['dew_point'] = len(dew_point) >= 1
         good_delay['dew_point'] = params.DEWPOINT_GOODDELAY
         bad_delay['dew_point'] = params.DEWPOINT_BADDELAY
 
         # rain flag
         good['rain'] = np.all(rain == 0)
+        critical['rain'] = False
         valid['rain'] = len(rain) >= 1
         good_delay['rain'] = params.RAIN_GOODDELAY
         bad_delay['rain'] = params.RAIN_BADDELAY
 
         # sky_temp flag
         good['sky_temp'] = np.all(sky_temp < params.MAX_SKYTEMP)
+        critical['sky_temp'] = False
         valid['sky_temp'] = len(sky_temp) >= 1
         good_delay['sky_temp'] = params.SKYTEMP_GOODDELAY
         bad_delay['sky_temp'] = params.SKYTEMP_BADDELAY
@@ -639,12 +649,14 @@ class ConditionsDaemon(BaseDaemon):
         # internal flag
         good['internal'] = (np.all(int_humidity < params.ALERT_INTERNAL_HUMIDITY) and
                             np.all(int_temperature > params.ALERT_INTERNAL_TEMPERATURE))
+        critical['internal'] = False
         valid['internal'] = len(int_humidity) >= 1 and len(int_temperature) >= 1
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
 
         # dust flag
         good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
+        critical['dust'] = False
         valid['dust'] = len(dust) >= 1
         good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
         bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
@@ -652,36 +664,42 @@ class ConditionsDaemon(BaseDaemon):
         # ups flag
         good['ups'] = (np.all(ups_percent > params.MIN_UPSBATTERY) and
                        np.all(ups_status == 1))
+        critical['ups'] = False
         valid['ups'] = len(ups_percent) >= 1 and len(ups_status) >= 1
         good_delay['ups'] = params.UPS_GOODDELAY
         bad_delay['ups'] = params.UPS_BADDELAY
 
         # link flag
         good['link'] = np.all(pings == 1)
+        critical['link'] = False
         valid['link'] = len(pings) >= 1
         good_delay['link'] = params.LINK_GOODDELAY
         bad_delay['link'] = params.LINK_BADDELAY
 
         # diskspace flag
         good['diskspace'] = np.all(free_diskspace > params.MIN_DISKSPACE)
+        critical['diskspace'] = False
         valid['diskspace'] = len(free_diskspace) >= 1
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
 
         # clouds flag
         good['clouds'] = np.all(clouds < params.MAX_SATCLOUDS)
+        critical['clouds'] = False
         valid['clouds'] = len(clouds) >= 1
         good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
         bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
+        critical['dark'] = False
         valid['dark'] = len(sunalt) >= 1
         good_delay['dark'] = 0
         bad_delay['dark'] = 0
 
         # override flag
         good['override'] = not self.manual_override
+        critical['override'] = False
         valid['override'] = isinstance(self.manual_override, bool)
         good_delay['override'] = 0
         bad_delay['override'] = 0
@@ -715,10 +733,12 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.info('{} is good but delay is {}'.format(flag, frac))
                 continue
 
-            # check if bad
-            if valid[flag] and not good[flag] and self.flags[flag] != 1:
+            # check if bad/critical
+            if valid[flag] and (not good[flag] or critical[flag]) and self.flags[flag] != 1:
                 dt = current_time - self.update_times[flag]
-                if dt > bad_delay[flag] or self.flags[flag] == 2:
+                if dt > bad_delay[flag] or self.flags[flag] == 2 or critical[flag]:
+                    if critical[flag]:
+                        self.log.warning('{} is critical'.format(flag))
                     self.log.info('Setting {} to bad (1)'.format(flag))
                     self.flags[flag] = 1
                     self.update_times[flag] = current_time
