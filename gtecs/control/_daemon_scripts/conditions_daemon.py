@@ -1243,7 +1243,7 @@ class ConditionsDaemon(BaseDaemon):
         # internal sensors
         for source in internal['humidity']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
-            humidity = internal['temperature'][source]
+            humidity = internal['humidity'][source]
             if humidity == -999:
                 status = rtxt('ERROR')
                 humidity_str = rtxt('  ERR')
