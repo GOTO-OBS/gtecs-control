@@ -48,14 +48,14 @@ class ConditionsDaemon(BaseDaemon):
                                   'dew_point',
                                   'sky_temp',
                                   ]
-        self.critical_flag_names = ['ups',
-                                    'link',
-                                    'diskspace',
-                                    'internal',
-                                    'ice',
-                                    'override',
-                                    ]
-        self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
+        self.alert_flag_names = ['ups',
+                                 'link',
+                                 'diskspace',
+                                 'internal',
+                                 'ice',
+                                 'override',
+                                 ]
+        self.flag_names = self.info_flag_names + self.normal_flag_names + self.alert_flag_names
 
         self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
         try:
@@ -482,7 +482,7 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['flags'] = self.flags.copy()
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
-        temp_info['critical_flags'] = sorted(self.critical_flag_names)
+        temp_info['alert_flags'] = sorted(self.alert_flag_names)
         temp_info['ignored_flags'] = sorted(self.ignored_flags)
         temp_info['manual_override'] = self.manual_override
 
@@ -637,8 +637,8 @@ class ConditionsDaemon(BaseDaemon):
         bad_delay['sky_temp'] = params.SKYTEMP_BADDELAY
 
         # internal flag
-        good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
-                            np.all(int_temperature > params.CRITICAL_INTERNAL_TEMPERATURE))
+        good['internal'] = (np.all(int_humidity < params.ALERT_INTERNAL_HUMIDITY) and
+                            np.all(int_temperature > params.ALERT_INTERNAL_TEMPERATURE))
         valid['internal'] = len(int_humidity) >= 1 and len(int_temperature) >= 1
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
@@ -738,28 +738,28 @@ class ConditionsDaemon(BaseDaemon):
         data['current_time'] = Time(current_time, format='unix').iso
         data['info_flags'] = sorted(self.info_flag_names)
         data['normal_flags'] = sorted(self.normal_flag_names)
-        data['critical_flags'] = sorted(self.critical_flag_names)
+        data['alert_flags'] = sorted(self.alert_flag_names)
         data['ignored_flags'] = sorted(self.ignored_flags)
         with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
         # ~~~~~~~~~~~~~~
-        # Trigger Slack alerts for critical flags
-        for flag in self.critical_flag_names:
+        # Trigger Slack alerts for alert flags
+        for flag in self.alert_flag_names:
             if flag in self.ignored_flags:
                 # If we're ignoring the flag then don't send an alert
                 continue
             if old_flags[flag] == 0 and self.flags[flag] == 1:
                 # The flag has been set to bad
-                self.log.warning('Critical flag {} set to bad'.format(flag))
+                self.log.warning('Sending alert for flag {} (set to bad)'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to bad'.format(flag))
             elif old_flags[flag] == 0 and self.flags[flag] == 2:
                 # The flag has been set to ERROR
-                self.log.warning('Critical flag {} set to ERROR'.format(flag))
+                self.log.warning('Sending alert for flag {} (set to ERROR)'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to ERROR'.format(flag))
             elif old_flags[flag] in [1, 2] and self.flags[flag] == 0:
                 # The flag has been set to good
-                self.log.warning('Critical flag {} set to good'.format(flag))
+                self.log.warning('Sending alert for flag {} (set to good)'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to good'.format(flag))
 
     # Control functions
@@ -849,18 +849,18 @@ class ConditionsDaemon(BaseDaemon):
 
         flags = info['flags']
         normal_flags = sorted(info['normal_flags'])
-        critical_flags = sorted(info['critical_flags'])
+        alert_flags = sorted(info['alert_flags'])
         info_flags = sorted(info['info_flags'])
         m_normal = max([len(flag) for flag in normal_flags])
-        m_critical = max([len(flag) for flag in critical_flags])
+        m_alert = max([len(flag) for flag in alert_flags])
         m_info = max([len(flag) for flag in info_flags])
         ignored_flags = sorted(info['ignored_flags'])
         msg += 'FLAGS:'
         msg += f'  {" "*(m_normal-6)}   normal   '
-        msg += f'  {" "*m_critical}   critical '
+        msg += f'  {" "*m_alert}   alert   '
         msg += f'  {" "*m_info}   info\n'
-        for i in range(max(len(normal_flags), len(critical_flags), len(info_flags))):
-            # Print normal flags on the left, critical in the middle and info on the right
+        for i in range(max(len(normal_flags), len(alert_flags), len(info_flags))):
+            # Print normal flags on the left, alert in the middle and info on the right
             if len(normal_flags) >= i + 1:
                 flag = normal_flags[i]
                 if flag in ignored_flags:
@@ -875,8 +875,8 @@ class ConditionsDaemon(BaseDaemon):
             else:
                 msg += '                          '
 
-            if len(critical_flags) >= i + 1:
-                flag = critical_flags[i]
+            if len(alert_flags) >= i + 1:
+                flag = alert_flags[i]
                 if flag in ignored_flags:
                     status = '----' + '\u200c' * 11
                 elif flags[flag] == 0:
@@ -885,7 +885,7 @@ class ConditionsDaemon(BaseDaemon):
                     status = rtxt('Bad')
                 else:
                     status = rtxt('ERROR')
-                msg += f'  {flag: >{m_critical}} : {status: <16} ({flags[flag]})'
+                msg += f'  {flag: >{m_alert}} : {status: <16} ({flags[flag]})'
             else:
                 msg += '                          '
 
@@ -1318,7 +1318,7 @@ class ConditionsDaemon(BaseDaemon):
             msg += ' {} km/h    (max={:.1f} km/h)        \t : {}\n'.format(
                 windmax_str, params.MAX_WINDGUST, status)
 
-        msg += 'INTERNAL (critical limits):\n'
+        msg += 'INTERNAL (alert limits):\n'
 
         for source in internal['temperature']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
@@ -1326,16 +1326,16 @@ class ConditionsDaemon(BaseDaemon):
             if temperature == -999:
                 status = rtxt('ERROR')
                 temperature_str = rtxt(' ERR')
-            elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
+            elif (temperature > params.ALERT_INTERNAL_TEMPERATURE):
                 status = gtxt('Good')
                 temperature_str = ytxt('{:>4.1f}'.format(temperature))
-                if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
+                if (temperature > params.ALERT_INTERNAL_TEMPERATURE + 1):
                     temperature_str = gtxt('{:>4.1f}'.format(temperature))
             else:
                 status = rtxt('Bad')
                 temperature_str = rtxt('{:>4.1f}'.format(temperature))
             msg += ' {}°C       (min={:.1f}°C          \t : {}\n'.format(
-                temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status)
+                temperature_str, params.ALERT_INTERNAL_TEMPERATURE, status)
 
         for source in internal['humidity']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
@@ -1343,16 +1343,16 @@ class ConditionsDaemon(BaseDaemon):
             if humidity == -999:
                 status = rtxt('ERROR')
                 humidity_str = rtxt('  ERR')
-            elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
+            elif (humidity < params.ALERT_INTERNAL_HUMIDITY):
                 status = gtxt('Good')
                 humidity_str = ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
+                if (humidity < params.ALERT_INTERNAL_HUMIDITY - 5):
                     humidity_str = gtxt('{:>5.1f}'.format(humidity))
             else:
                 status = rtxt('Bad')
                 humidity_str = rtxt('{:>5.1f}'.format(humidity))
             msg += '{}%        (max={:.1f}%)           \t : {}\n'.format(
-                humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status)
+                humidity_str, params.ALERT_INTERNAL_HUMIDITY, status)
 
         msg += 'ENVIRONMENT:\n'
 
