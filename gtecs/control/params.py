@@ -11,10 +11,14 @@ from gtecs.common.system import get_local_ip
 ############################################################
 # Load and validate config file
 config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.control.conf'])
-if config['REMOTE_CONFIG'] != 'localhost':
+REMOTE_CONFIG = config['REMOTE_CONFIG']
+if REMOTE_CONFIG != 'localhost':
     # Try again with the remote host
-    config, CONFIG_SPEC, CONFIG_FILE = load_config('control', ['.gtecs.conf', '.control.conf'],
-                                                   remote_host=config['REMOTE_CONFIG'])
+    config, CONFIG_SPEC, CONFIG_FILE = load_config(
+        'control',
+        ['.gtecs.conf', '.control.conf'],
+        remote_host=REMOTE_CONFIG
+    )
 
 ############################################################
 # Module parameters
@@ -160,6 +164,7 @@ WEATHER_INTERVAL = config['WEATHER_INTERVAL']
 VAISALA_URI = config['VAISALA_URI']
 BACKUP_VAISALA_URIS = config['BACKUP_VAISALA_URIS']
 DOMEALERT_URI = config['DOMEALERT_URI']
+ARDUINO_FILE = config['ARDUINO_FILE']
 RAINDAEMON_URI = config['RAINDAEMON_URI']
 CLOUDWATCHER_URI = config['CLOUDWATCHER_URI']
 
@@ -169,8 +174,9 @@ RAIN_GOODDELAY = config['RAIN_GOODDELAY']
 
 # Humidity - measured in %
 MAX_HUMIDITY = config['MAX_HUMIDITY']
+MAX_HUMIDITY_CRITICAL = config['MAX_HUMIDITY_CRITICAL']
 MAX_INTERNAL_HUMIDITY = config['MAX_INTERNAL_HUMIDITY']
-CRITICAL_INTERNAL_HUMIDITY = config['CRITICAL_INTERNAL_HUMIDITY']
+MAX_INTERNAL_HUMIDITY_ALERT = config['MAX_INTERNAL_HUMIDITY_ALERT']
 HUMIDITY_BADDELAY = config['HUMIDITY_BADDELAY']
 HUMIDITY_GOODDELAY = config['HUMIDITY_GOODDELAY']
 
@@ -194,9 +200,9 @@ DEWPOINT_GOODDELAY = config['DEWPOINT_GOODDELAY']
 # Temperature - measured in Celsius
 MAX_TEMPERATURE = config['MAX_TEMPERATURE']
 MIN_TEMPERATURE = config['MIN_TEMPERATURE']
-MIN_INTERNAL_TEMPERATURE = config['MIN_INTERNAL_TEMPERATURE']
 MAX_INTERNAL_TEMPERATURE = config['MAX_INTERNAL_TEMPERATURE']
-CRITICAL_INTERNAL_TEMPERATURE = config['CRITICAL_INTERNAL_TEMPERATURE']
+MIN_INTERNAL_TEMPERATURE = config['MIN_INTERNAL_TEMPERATURE']
+MIN_INTERNAL_TEMPERATURE_ALERT = config['MIN_INTERNAL_TEMPERATURE_ALERT']
 TEMPERATURE_BADDELAY = config['TEMPERATURE_BADDELAY']
 TEMPERATURE_GOODDELAY = config['TEMPERATURE_GOODDELAY']
 ICE_BADDELAY = config['ICE_BADDELAY']
@@ -402,3 +408,9 @@ for ut in AUTOFOCUS_PARAMS:
 ENABLE_SLACK = config['ENABLE_SLACK']
 SLACK_BOT_TOKEN = config['SLACK_BOT_TOKEN']
 SLACK_DEFAULT_CHANNEL = config['SLACK_DEFAULT_CHANNEL']
+
+############################################################
+# Check for any parameters in the config spec that have not been defined in this module
+unused_params = set(CONFIG_SPEC.keys()) - {name for name in locals() if name.isupper()}
+for key in unused_params:
+    print(f'Warning: {key} in the configspec is not defined in params')
