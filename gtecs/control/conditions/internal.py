@@ -10,7 +10,7 @@ from .utils import download_data_from_url
 
 
 def get_roomalert(source, ip):
-    """Get internal conditions from the RoomAlert system."""
+    """Get the internal conditions from the RoomAlert system."""
     url = 'http://{}/getData.json'.format(ip)
     indata = download_data_from_url(url, outfile='roomalert.json')
     try:
@@ -98,7 +98,7 @@ def get_roomalert_json(source, location):
 
 
 def get_domealert_daemon(uri):
-    """Get internal readings from Paul's dome alert board."""
+    """Get the internal conditions from Paul's dome alert board."""
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
@@ -152,7 +152,7 @@ def get_domealert_daemon(uri):
 
 
 def get_SHT35_daemon(uri):
-    """Get internal readings from Paul's SHT35 board."""
+    """Get the internal conditions from Paul's SHT35 board."""
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
@@ -176,5 +176,38 @@ def get_SHT35_daemon(uri):
     except Exception:
         weather_dict['temperature'] = -999
         weather_dict['humidity'] = -999
+
+    return weather_dict
+
+
+def get_arduino_readout(file):
+    """Get the internal conditions from the Arduino readout file."""
+    try:
+        with open(file, 'r') as fp:
+            lines = fp.readlines()
+
+        last_line = lines[-1].strip().split(';')
+
+        weather_dict = {}
+
+        update_time = last_line[0][:-2] if last_line[0][-2] == ':' else last_line[0]
+        update_time = Time(update_time, precision=0)
+        dt = (Time.now() - update_time).to('second').value
+        temperature = float(last_line[2])
+        humidity = float(last_line[1])
+
+        weather_dict = {
+            'update_time': update_time.iso,
+            'dt': int(dt),
+            'temperature': temperature,
+            'humidity': humidity,
+        }
+    except Exception:
+        weather_dict = {
+            'update_time': -999,
+            'dt': 0,
+            'temperature': -999,
+            'humidity': -999,
+        }
 
     return weather_dict

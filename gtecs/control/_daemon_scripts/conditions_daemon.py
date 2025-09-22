@@ -14,7 +14,7 @@ from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
-from gtecs.control.conditions.internal import get_domealert_daemon
+from gtecs.control.conditions.internal import get_domealert_daemon, get_arduino_readout
 from gtecs.control.conditions.local import (get_cloudwatcher_daemon, get_rain_daemon,
                                             get_rain_domealert, get_vaisala_daemon)
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
@@ -48,14 +48,14 @@ class ConditionsDaemon(BaseDaemon):
                                   'dew_point',
                                   'sky_temp',
                                   ]
-        self.critical_flag_names = ['ups',
-                                    'link',
-                                    'diskspace',
-                                    'internal',
-                                    'ice',
-                                    'override',
-                                    ]
-        self.flag_names = self.info_flag_names + self.normal_flag_names + self.critical_flag_names
+        self.alert_flag_names = ['ups',
+                                 'link',
+                                 'diskspace',
+                                 'internal',
+                                 'ice',
+                                 'override',
+                                 ]
+        self.flag_names = self.info_flag_names + self.normal_flag_names + self.alert_flag_names
 
         self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
         try:
@@ -245,13 +245,25 @@ class ConditionsDaemon(BaseDaemon):
         try:
             if params.FAKE_CONDITIONS:
                 internal_dict = {
-                    'temperature': {'dome': 10},
-                    'humidity': {'dome': 25},
+                    'temperature': 10,
+                    'humidity': 25,
                     'update_time': Time.now().iso,
                     'dt': 0,
                 }
-            else:
+            elif params.DOMEALERT_URI != 'none':
                 internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
+            elif params.ARDUINO_FILE != 'none':
+                internal_dict = get_arduino_readout(params.ARDUINO_FILE)
+            else:
+                raise ValueError('No valid internal source specified')
+
+            # Most internal sources only have a single sensor,
+            # but since the DomeAlert has two sources we want to keep the same structure.
+            # Other places (e.g. the dome daemon or FITS headers use) the max of the dict values.
+            if not isinstance(internal_dict['temperature'], dict):
+                internal_dict['temperature'] = {'dome': internal_dict['temperature']}
+            if not isinstance(internal_dict['humidity'], dict):
+                internal_dict['humidity'] = {'dome': internal_dict['humidity']}
         except Exception:
             self.log.error('Failed to get internal info')
             self.log.debug('', exc_info=True)
@@ -482,7 +494,7 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['flags'] = self.flags.copy()
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
-        temp_info['critical_flags'] = sorted(self.critical_flag_names)
+        temp_info['alert_flags'] = sorted(self.alert_flag_names)
         temp_info['ignored_flags'] = sorted(self.ignored_flags)
         temp_info['manual_override'] = self.manual_override
 
@@ -579,6 +591,7 @@ class ConditionsDaemon(BaseDaemon):
         # Calculate the flags and if they are valid.
         # At least one of the sources need to be valid.
         good = {flag: False for flag in self.flag_names}
+        critical = {flag: False for flag in self.flag_names}
         valid = {flag: False for flag in self.flag_names}
         good_delay = {flag: 0 for flag in self.flag_names}
         bad_delay = {flag: 0 for flag in self.flag_names}
@@ -586,12 +599,14 @@ class ConditionsDaemon(BaseDaemon):
 
         # windspeed flag (based on instantaneous windgust)
         good['windspeed'] = np.all(windgust < params.MAX_WINDSPEED)
+        critical['windspeed'] = False
         valid['windspeed'] = len(windgust) >= 1
         good_delay['windspeed'] = params.WINDSPEED_GOODDELAY
         bad_delay['windspeed'] = params.WINDSPEED_BADDELAY
 
         # windgust flag (based on historic windgust maximum)
         good['windgust'] = np.all(windmax < params.MAX_WINDGUST)
+        critical['windgust'] = False
         valid['windgust'] = len(windmax) >= 1
         good_delay['windgust'] = params.WINDGUST_GOODDELAY
         bad_delay['windgust'] = params.WINDGUST_BADDELAY
@@ -601,12 +616,14 @@ class ConditionsDaemon(BaseDaemon):
                                np.all(ext_temperature < params.MAX_TEMPERATURE) and
                                np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE) and
                                np.all(int_temperature < params.MAX_INTERNAL_TEMPERATURE))
+        critical['temperature'] = False
         valid['temperature'] = len(ext_temperature) >= 1 and len(int_temperature) >= 1
         good_delay['temperature'] = params.TEMPERATURE_GOODDELAY
         bad_delay['temperature'] = params.TEMPERATURE_BADDELAY
 
         # ice flag
         good['ice'] = np.all(ext_temperature > 0)
+        critical['ice'] = False
         valid['ice'] = len(ext_temperature) >= 1
         good_delay['ice'] = params.ICE_GOODDELAY
         bad_delay['ice'] = params.ICE_BADDELAY
@@ -614,37 +631,44 @@ class ConditionsDaemon(BaseDaemon):
         # humidity flag
         good['humidity'] = (np.all(ext_humidity < params.MAX_HUMIDITY) and
                             np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY))
+        critical['humidity'] = (np.any(ext_humidity >= params.MAX_HUMIDITY_CRITICAL) or
+                               np.any(int_humidity >= params.MAX_HUMIDITY_CRITICAL))
         valid['humidity'] = len(ext_humidity) >= 1 and len(int_humidity) >= 1
         good_delay['humidity'] = params.HUMIDITY_GOODDELAY
         bad_delay['humidity'] = params.HUMIDITY_BADDELAY
 
         # dew_point flag
         good['dew_point'] = np.all(dew_point > params.MIN_DEWPOINT)
+        critical['dew_point'] = False
         valid['dew_point'] = len(dew_point) >= 1
         good_delay['dew_point'] = params.DEWPOINT_GOODDELAY
         bad_delay['dew_point'] = params.DEWPOINT_BADDELAY
 
         # rain flag
         good['rain'] = np.all(rain == 0)
+        critical['rain'] = False
         valid['rain'] = len(rain) >= 1
         good_delay['rain'] = params.RAIN_GOODDELAY
         bad_delay['rain'] = params.RAIN_BADDELAY
 
         # sky_temp flag
         good['sky_temp'] = np.all(sky_temp < params.MAX_SKYTEMP)
+        critical['sky_temp'] = False
         valid['sky_temp'] = len(sky_temp) >= 1
         good_delay['sky_temp'] = params.SKYTEMP_GOODDELAY
         bad_delay['sky_temp'] = params.SKYTEMP_BADDELAY
 
         # internal flag
-        good['internal'] = (np.all(int_humidity < params.CRITICAL_INTERNAL_HUMIDITY) and
-                            np.all(int_temperature > params.CRITICAL_INTERNAL_TEMPERATURE))
+        good['internal'] = (np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY_ALERT) and
+                            np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT))
+        critical['internal'] = False
         valid['internal'] = len(int_humidity) >= 1 and len(int_temperature) >= 1
         good_delay['internal'] = params.INTERNAL_GOODDELAY
         bad_delay['internal'] = params.INTERNAL_BADDELAY
 
         # dust flag
         good['dust'] = np.all(dust < params.MAX_DUSTLEVEL)
+        critical['dust'] = False
         valid['dust'] = len(dust) >= 1
         good_delay['dust'] = params.DUSTLEVEL_GOODDELAY
         bad_delay['dust'] = params.DUSTLEVEL_BADDELAY
@@ -652,36 +676,42 @@ class ConditionsDaemon(BaseDaemon):
         # ups flag
         good['ups'] = (np.all(ups_percent > params.MIN_UPSBATTERY) and
                        np.all(ups_status == 1))
+        critical['ups'] = False
         valid['ups'] = len(ups_percent) >= 1 and len(ups_status) >= 1
         good_delay['ups'] = params.UPS_GOODDELAY
         bad_delay['ups'] = params.UPS_BADDELAY
 
         # link flag
         good['link'] = np.all(pings == 1)
+        critical['link'] = False
         valid['link'] = len(pings) >= 1
         good_delay['link'] = params.LINK_GOODDELAY
         bad_delay['link'] = params.LINK_BADDELAY
 
         # diskspace flag
         good['diskspace'] = np.all(free_diskspace > params.MIN_DISKSPACE)
+        critical['diskspace'] = False
         valid['diskspace'] = len(free_diskspace) >= 1
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
 
         # clouds flag
         good['clouds'] = np.all(clouds < params.MAX_SATCLOUDS)
+        critical['clouds'] = False
         valid['clouds'] = len(clouds) >= 1
         good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
         bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
+        critical['dark'] = False
         valid['dark'] = len(sunalt) >= 1
         good_delay['dark'] = 0
         bad_delay['dark'] = 0
 
         # override flag
         good['override'] = not self.manual_override
+        critical['override'] = False
         valid['override'] = isinstance(self.manual_override, bool)
         good_delay['override'] = 0
         bad_delay['override'] = 0
@@ -715,10 +745,12 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.info('{} is good but delay is {}'.format(flag, frac))
                 continue
 
-            # check if bad
-            if valid[flag] and not good[flag] and self.flags[flag] != 1:
+            # check if bad/critical
+            if valid[flag] and (not good[flag] or critical[flag]) and self.flags[flag] != 1:
                 dt = current_time - self.update_times[flag]
-                if dt > bad_delay[flag] or self.flags[flag] == 2:
+                if dt > bad_delay[flag] or self.flags[flag] == 2 or critical[flag]:
+                    if critical[flag]:
+                        self.log.warning('{} is critical'.format(flag))
                     self.log.info('Setting {} to bad (1)'.format(flag))
                     self.flags[flag] = 1
                     self.update_times[flag] = current_time
@@ -738,28 +770,28 @@ class ConditionsDaemon(BaseDaemon):
         data['current_time'] = Time(current_time, format='unix').iso
         data['info_flags'] = sorted(self.info_flag_names)
         data['normal_flags'] = sorted(self.normal_flag_names)
-        data['critical_flags'] = sorted(self.critical_flag_names)
+        data['alert_flags'] = sorted(self.alert_flag_names)
         data['ignored_flags'] = sorted(self.ignored_flags)
         with open(self.flags_file, 'w') as f:
             json.dump(data, f)
 
         # ~~~~~~~~~~~~~~
-        # Trigger Slack alerts for critical flags
-        for flag in self.critical_flag_names:
+        # Trigger Slack alerts for alert flags
+        for flag in self.alert_flag_names:
             if flag in self.ignored_flags:
                 # If we're ignoring the flag then don't send an alert
                 continue
             if old_flags[flag] == 0 and self.flags[flag] == 1:
                 # The flag has been set to bad
-                self.log.warning('Critical flag {} set to bad'.format(flag))
+                self.log.warning('Sending alert for flag {} (set to bad)'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to bad'.format(flag))
             elif old_flags[flag] == 0 and self.flags[flag] == 2:
                 # The flag has been set to ERROR
-                self.log.warning('Critical flag {} set to ERROR'.format(flag))
+                self.log.warning('Sending alert for flag {} (set to ERROR)'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to ERROR'.format(flag))
             elif old_flags[flag] in [1, 2] and self.flags[flag] == 0:
                 # The flag has been set to good
-                self.log.warning('Critical flag {} set to good'.format(flag))
+                self.log.warning('Sending alert for flag {} (set to good)'.format(flag))
                 send_slack_msg('Conditions reports {} flag has been set to good'.format(flag))
 
     # Control functions
@@ -849,18 +881,18 @@ class ConditionsDaemon(BaseDaemon):
 
         flags = info['flags']
         normal_flags = sorted(info['normal_flags'])
-        critical_flags = sorted(info['critical_flags'])
+        alert_flags = sorted(info['alert_flags'])
         info_flags = sorted(info['info_flags'])
         m_normal = max([len(flag) for flag in normal_flags])
-        m_critical = max([len(flag) for flag in critical_flags])
+        m_alert = max([len(flag) for flag in alert_flags])
         m_info = max([len(flag) for flag in info_flags])
         ignored_flags = sorted(info['ignored_flags'])
         msg += 'FLAGS:'
         msg += f'  {" "*(m_normal-6)}   normal   '
-        msg += f'  {" "*m_critical}   critical '
+        msg += f'  {" "*m_alert}   alert   '
         msg += f'  {" "*m_info}   info\n'
-        for i in range(max(len(normal_flags), len(critical_flags), len(info_flags))):
-            # Print normal flags on the left, critical in the middle and info on the right
+        for i in range(max(len(normal_flags), len(alert_flags), len(info_flags))):
+            # Print normal flags on the left, alert in the middle and info on the right
             if len(normal_flags) >= i + 1:
                 flag = normal_flags[i]
                 if flag in ignored_flags:
@@ -875,8 +907,8 @@ class ConditionsDaemon(BaseDaemon):
             else:
                 msg += '                          '
 
-            if len(critical_flags) >= i + 1:
-                flag = critical_flags[i]
+            if len(alert_flags) >= i + 1:
+                flag = alert_flags[i]
                 if flag in ignored_flags:
                     status = '----' + '\u200c' * 11
                 elif flags[flag] == 0:
@@ -885,7 +917,7 @@ class ConditionsDaemon(BaseDaemon):
                     status = rtxt('Bad')
                 else:
                     status = rtxt('ERROR')
-                msg += f'  {flag: >{m_critical}} : {status: <16} ({flags[flag]})'
+                msg += f'  {flag: >{m_alert}} : {status: <16} ({flags[flag]})'
             else:
                 msg += '                          '
 
@@ -1243,7 +1275,7 @@ class ConditionsDaemon(BaseDaemon):
         # internal sensors
         for source in internal['humidity']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
-            humidity = internal['temperature'][source]
+            humidity = internal['humidity'][source]
             if humidity == -999:
                 status = rtxt('ERROR')
                 humidity_str = rtxt('  ERR')
@@ -1318,7 +1350,7 @@ class ConditionsDaemon(BaseDaemon):
             msg += ' {} km/h    (max={:.1f} km/h)        \t : {}\n'.format(
                 windmax_str, params.MAX_WINDGUST, status)
 
-        msg += 'INTERNAL (critical limits):\n'
+        msg += 'INTERNAL (alert limits):\n'
 
         for source in internal['temperature']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
@@ -1326,16 +1358,16 @@ class ConditionsDaemon(BaseDaemon):
             if temperature == -999:
                 status = rtxt('ERROR')
                 temperature_str = rtxt(' ERR')
-            elif (temperature > params.CRITICAL_INTERNAL_TEMPERATURE):
+            elif (temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT):
                 status = gtxt('Good')
                 temperature_str = ytxt('{:>4.1f}'.format(temperature))
-                if (temperature > params.CRITICAL_INTERNAL_TEMPERATURE + 1):
+                if (temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT + 1):
                     temperature_str = gtxt('{:>4.1f}'.format(temperature))
             else:
                 status = rtxt('Bad')
                 temperature_str = rtxt('{:>4.1f}'.format(temperature))
             msg += ' {}°C       (min={:.1f}°C          \t : {}\n'.format(
-                temperature_str, params.CRITICAL_INTERNAL_TEMPERATURE, status)
+                temperature_str, params.MIN_INTERNAL_TEMPERATURE_ALERT, status)
 
         for source in internal['humidity']:
             msg += '  {: <10}\t'.format('{}_int'.format(source))
@@ -1343,16 +1375,16 @@ class ConditionsDaemon(BaseDaemon):
             if humidity == -999:
                 status = rtxt('ERROR')
                 humidity_str = rtxt('  ERR')
-            elif (humidity < params.CRITICAL_INTERNAL_HUMIDITY):
+            elif (humidity < params.MAX_INTERNAL_HUMIDITY_ALERT):
                 status = gtxt('Good')
                 humidity_str = ytxt('{:>5.1f}'.format(humidity))
-                if (humidity < params.CRITICAL_INTERNAL_HUMIDITY - 5):
+                if (humidity < params.MAX_INTERNAL_HUMIDITY_ALERT - 5):
                     humidity_str = gtxt('{:>5.1f}'.format(humidity))
             else:
                 status = rtxt('Bad')
                 humidity_str = rtxt('{:>5.1f}'.format(humidity))
             msg += '{}%        (max={:.1f}%)           \t : {}\n'.format(
-                humidity_str, params.CRITICAL_INTERNAL_HUMIDITY, status)
+                humidity_str, params.MAX_INTERNAL_HUMIDITY_ALERT, status)
 
         msg += 'ENVIRONMENT:\n'
 
