@@ -438,6 +438,20 @@ class ExqDaemon(BaseDaemon):
             self.log.info('Resuming queue')
             self.paused = False
 
+    def dithering(self, command):
+        """Enable or disable dithering between images."""
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        if command == 'on' and self.dithering_enabled is False:
+            self.log.info('Enabling dithering')
+            self.dithering_enabled = True
+            self.dependencies.add('mnt')
+        elif command == 'off' and self.dithering_enabled is True:
+            self.log.info('Disabling dithering')
+            self.dithering_enabled = False
+            self.dependencies.discard('mnt')
+
     # Info function
     def get_info_string(self, verbose=False, force_update=False):
         """Get a string for printing status info."""
