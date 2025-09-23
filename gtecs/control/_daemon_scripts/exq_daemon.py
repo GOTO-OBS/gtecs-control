@@ -49,7 +49,7 @@ class ExqDaemon(BaseDaemon):
         # dependencies
         self.dependencies.add('cam')
         self.dependencies.add('filt')
-        if params.EXQ_DITHERING:
+        if self.dithering_enabled:
             self.dependencies.add('mnt')
 
         # start control thread
@@ -112,8 +112,19 @@ class ExqDaemon(BaseDaemon):
                                     '{}: Cannot move mount ({}), skipping dither'.format(
                                     setstr, info['status']))
                                 self.dithering = False
-                            elif self.current_exposure.set_pos != 1:  # Don't dither on first one
-                                # Offset the mount slightly by pulse guiding
+                            elif self.current_exposure.set_pos == 1:
+                                # If it's the start of a new set then make sure we're in position
+                                # If we give no coordinates it will slew to the current target,
+                                # which will reset any offsets from previous dithers
+                                msg = f'{setstr}: Centring mount on target position'
+                                self.log.info(msg)
+                                with daemon_proxy('mnt') as daemon:
+                                    daemon.slew(coords=None)
+                                self.dither_time = self.loop_time
+                                self.dithering = True
+                            else:
+                                # For subsequent exposures in a set, offset the mount slightly
+                                # using pulse guiding
                                 i = (self.current_exposure.set_pos - 2) % len(self.dither_pattern)
                                 direction = self.dither_pattern[i][0]
                                 duration = self.dither_pattern[i][1]
@@ -123,8 +134,6 @@ class ExqDaemon(BaseDaemon):
                                     daemon.pulse_guide(direction, duration * 1000)
                                 self.dither_time = self.loop_time
                                 self.dithering = True
-                            else:
-                                self.dithering = False
                             self.exposure_state = 'mount_dithering'  # continue to state 2
                         except Exception:
                             self.log.error('Error connecting to mount daemon')
