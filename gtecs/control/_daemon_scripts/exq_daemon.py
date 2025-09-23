@@ -438,7 +438,7 @@ class ExqDaemon(BaseDaemon):
             self.log.info('Resuming queue')
             self.paused = False
 
-    def dithering(self, command):
+    def switch_dithering(self, command):
         """Enable or disable dithering between images."""
         if command not in ['on', 'off']:
             raise ValueError("Command must be 'on' or 'off'")
