@@ -450,6 +450,7 @@ class MntDaemon(BaseDaemon):
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
                 temp_info['tracking_rate'] = self.mount.tracking_rate
+                temp_info['guide_rate'] = self.mount.guide_rate
                 temp_info['motors_on'] = self.mount.motors_on
                 temp_info['pier_side'] = self.mount.pier_side
                 if params.FORCE_MOUNT_PIER_SIDE in [0, 1]:
@@ -554,6 +555,7 @@ class MntDaemon(BaseDaemon):
             elif isinstance(self.mount, (DDM500, FakeDDM500)):
                 temp_info['class'] = 'ASA'
                 temp_info['tracking_rate'] = None
+                temp_info['guide_rate'] = None
                 temp_info['motors_on'] = None
                 temp_info['pier_side'] = None
                 temp_info['target_pier_side'] = None
