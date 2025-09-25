@@ -37,6 +37,7 @@ class ExqDaemon(BaseDaemon):
                                ]
         self.dithering = False
         self.dither_time = 0
+        self.dither_delay = params.EXQ_DITHER_DELAY
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
         if not os.path.exists(self.set_number_file):
@@ -231,11 +232,13 @@ class ExqDaemon(BaseDaemon):
                                 info = daemon.get_info(force_update=True)
 
                             # Continue when the mount is tracking, and the last move was after the
-                            # dithering command (otherwise the status doesn't change fast enough)
+                            # dithering command (otherwise the status doesn't change fast enough).
+                            # We also add a delay since the mount tracking status can be
+                            # set too early before it's properly settled.
                             if (info['status'] == 'Tracking' and
                                     'last_move_time' in info and
                                     info['last_move_time'] > self.dither_time and
-                                    self.loop_time > info['last_move_time'] + 1):
+                                    self.loop_time > self.dither_time + self.dither_delay):
                                 self.log.info('{}: Mount tracking'.format(setstr))
                                 self.dithering = False
                                 self.exposure_state = 'mount_tracking'  # continue to state 7

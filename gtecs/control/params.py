@@ -279,7 +279,7 @@ MIN_HEADER_HIST_TIME = config['MIN_HEADER_HIST_TIME']
 ############################################################
 # Exposure Queue parameters
 EXQ_DITHERING = config['EXQ_DITHERING']
-DITHERING_DURATION = config['DITHERING_DURATION']
+EXQ_DITHER_DELAY = config['EXQ_DITHER_DELAY']
 
 ############################################################
 # Power parameters
