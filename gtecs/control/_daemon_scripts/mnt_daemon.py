@@ -46,6 +46,7 @@ class MntDaemon(BaseDaemon):
         # mount variables
         self.target = None
         self.last_move_time = None
+        self.last_move_type = None
         self.offset_direction = None
         self.offset_distance = None
         self.guide_direction = None
@@ -139,6 +140,7 @@ class MntDaemon(BaseDaemon):
                     if reply:
                         self.log.info(reply)
                     self.last_move_time = self.loop_time
+                    self.last_move_type = 'slew'
                 except Exception:
                     self.log.error('slew command failed')
                     self.log.debug('', exc_info=True)
@@ -154,6 +156,7 @@ class MntDaemon(BaseDaemon):
                     if reply:
                         self.log.info(reply)
                     self.last_move_time = self.loop_time
+                    self.last_move_type = 'track'
                 except Exception:
                     self.log.error('track command failed')
                     self.log.debug('', exc_info=True)
@@ -183,6 +186,7 @@ class MntDaemon(BaseDaemon):
                     if reply:
                         self.log.info(reply)
                     self.last_move_time = self.loop_time
+                    self.last_move_type = 'park'
                 except Exception:
                     self.log.error('park command failed')
                     self.log.debug('', exc_info=True)
@@ -215,6 +219,7 @@ class MntDaemon(BaseDaemon):
                     if reply:
                         self.log.info(reply)
                     self.last_move_time = self.loop_time
+                    self.last_move_type = 'offset'
                 except Exception:
                     self.log.error('offset command failed')
                     self.log.debug('', exc_info=True)
@@ -233,6 +238,7 @@ class MntDaemon(BaseDaemon):
                     if reply:
                         self.log.info(reply)
                     self.last_move_time = self.loop_time
+                    self.last_move_type = 'guide'
                 except Exception:
                     self.log.error('pulse_guide command failed')
                     self.log.debug('', exc_info=True)
@@ -272,7 +278,6 @@ class MntDaemon(BaseDaemon):
                     c = self.mount.set_trackrate(self.trackrate_ra, self.trackrate_dec)
                     if c:
                         self.log.info(c)
-                    self.last_move_time = self.loop_time
                 except Exception:
                     self.log.error('set_trackrate command failed')
                     self.log.debug('', exc_info=True)
@@ -621,6 +626,7 @@ class MntDaemon(BaseDaemon):
             temp_info['target_az'] = None
         temp_info['target_dist'] = self.target_distance
         temp_info['last_move_time'] = self.last_move_time
+        temp_info['last_move_type'] = self.last_move_type
         temp_info['trackrate_ra'] = self.trackrate_ra
         temp_info['trackrate_dec'] = self.trackrate_dec
         temp_info['nonsidereal'] = self.trackrate_ra != 0 or self.trackrate_dec != 0

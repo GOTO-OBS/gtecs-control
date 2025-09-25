@@ -116,12 +116,15 @@ class ExqDaemon(BaseDaemon):
                                 # If it's the start of a new set then make sure we're in position
                                 # If we give no coordinates it will slew to the current target,
                                 # which will reset any offsets from previous dithers
-                                msg = f'{setstr}: Centring mount on target position'
-                                self.log.info(msg)
-                                with daemon_proxy('mnt') as daemon:
-                                    daemon.slew(coords=None)
-                                self.dither_time = self.loop_time
-                                self.dithering = True
+                                # However, we only want to do this if we've been dithering
+                                # since the last slew command. So we check the last move type first.
+                                if info['last_move_type'] == 'guide':
+                                    msg = f'{setstr}: Recentring mount on target position'
+                                    self.log.info(msg)
+                                    with daemon_proxy('mnt') as daemon:
+                                        daemon.slew(coords=None)
+                                    self.dither_time = self.loop_time
+                                    self.dithering = True
                             else:
                                 # For subsequent exposures in a set, offset the mount slightly
                                 # using pulse guiding
