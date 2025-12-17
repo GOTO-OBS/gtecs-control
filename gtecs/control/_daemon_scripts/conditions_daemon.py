@@ -14,7 +14,7 @@ from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
-from gtecs.control.conditions.internal import get_domealert_daemon, get_arduino_readout
+from gtecs.control.conditions.internal import get_internal_daemon, get_arduino_readout
 from gtecs.control.conditions.local import (get_cloudwatcher_daemon, get_rain_daemon,
                                             get_rain_domealert, get_vaisala_daemon)
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
@@ -241,7 +241,7 @@ class ConditionsDaemon(BaseDaemon):
 
             temp_info['weather'][source] = weather_dict
 
-        # Get the internal conditions from Paul's DomeAlert
+        # Get the internal conditions from internal sensors
         try:
             if params.FAKE_CONDITIONS:
                 internal_dict = {
@@ -250,16 +250,21 @@ class ConditionsDaemon(BaseDaemon):
                     'update_time': Time.now().iso,
                     'dt': 0,
                 }
-            elif params.DOMEALERT_URI != 'none':
-                internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
+            # First try getting the fallback Arduino if a filepath is given
             elif params.ARDUINO_FILE != 'none':
                 internal_dict = get_arduino_readout(params.ARDUINO_FILE)
+            # Otherwise try any given internal daemon URI
+            elif params.INTERNAL_URI != 'none':
+                internal_dict = get_internal_daemon(params.INTERNAL_URI)
+            # If not, then then try getting readings from the DomeAlert
+            elif params.DOMEALERT_URI != 'none':
+                internal_dict = get_internal_daemon(params.DOMEALERT_URI)
             else:
                 raise ValueError('No valid internal source specified')
 
-            # Most internal sources only have a single sensor,
-            # but since the DomeAlert has two sources we want to keep the same structure.
-            # Other places (e.g. the dome daemon or FITS headers use) the max of the dict values.
+            # Most internal sources only have a single sensor, but sometimes we have two
+            # e.g. the DomeAlert has east/west. We want to keep the same dict structure.
+            # Other places (e.g. the dome daemon or FITS headers) use the max of the dict values.
             if not isinstance(internal_dict['temperature'], dict):
                 internal_dict['temperature'] = {'dome': internal_dict['temperature']}
             if not isinstance(internal_dict['humidity'], dict):
