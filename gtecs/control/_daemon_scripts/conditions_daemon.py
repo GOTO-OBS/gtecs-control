@@ -110,11 +110,13 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                     self.flags = {flag: 2 for flag in self.flag_names}
 
-                # Set ignored flags in some circumstances
+                # Set ignored flags (in some circumstances)
                 status = Status()
                 if status.mode == 'robotic':
-                    # Can't ignore flags in robotic mode
-                    self.ignored_flags = []
+                    # Can't ignore non-info flags in robotic mode
+                    self.ignored_flags = [
+                        flag for flag in self.ignored_flags if flag in self.info_flag_names
+                    ]
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -806,12 +808,15 @@ class ConditionsDaemon(BaseDaemon):
 
     def ignore_flags(self, flags):
         """Add the given flags to the ignore list."""
-        status = Status()
-        if status.mode == 'robotic':
-            raise ModeError('Can not ignore flags in robotic mode')
         if any(flag not in self.flags for flag in flags):
             bad_flags = [flag for flag in flags if flags not in self.flags]
             raise ValueError(f'Invalid flags: {bad_flags}')
+        status = Status()
+        if status.mode == 'robotic':
+            # In robotic mode we can only ignore info flags
+            if any(flag not in self.info_flag_names for flag in flags):
+                bad_flags = [flag for flag in flags if flag not in self.info_flag_names]
+                raise ModeError(f'Can not ignore non-info flags in robotic mode: {bad_flags}')
         if 'override' in flags:
             raise ValueError('"override" flag can not be ignored')
 
@@ -821,9 +826,6 @@ class ConditionsDaemon(BaseDaemon):
 
     def enable_flags(self, flags):
         """Remove the given flags from the ignore list."""
-        status = Status()
-        if status.mode == 'robotic':
-            raise ModeError('All flags are enabled in robotic mode')
         if any(flag not in self.flags for flag in flags):
             bad_flags = [flag for flag in flags if flags not in self.flags]
             raise ValueError(f'Invalid flags: {bad_flags}')
