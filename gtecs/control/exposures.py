@@ -126,8 +126,7 @@ class Exposure:
 
     def as_line(self):
         """Give the line representation of this Exposure."""
-        line = '{};{:.1f};{};{:d};{};{};{};{};{:d};{:d};{:d};{:d};{:d}\n'.format(
-            self.ut_string,
+        line = '{:.1f};{};{:d};{};{};{};{};{};{:d};{:d};{:d};{:d};{:d}\n'.format(
             self.exptime,
             self.filt if self.filt is not None else 'X',
             self.binning,
@@ -135,6 +134,7 @@ class Exposure:
             self.target,
             self.imgtype,
             1 if self.glance is True else 0,
+            self.ut_string,
             self.set_num if self.set_num is not None else -1,
             self.set_pos,
             self.set_tot,
