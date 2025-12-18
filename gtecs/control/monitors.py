@@ -1223,12 +1223,15 @@ class CamMonitor(BaseMonitor):
             recovery_procedure = {}
             # SOLUTION 1: Try setting the target temperature.
             #             This will depend on what mode the cameras should be in.
+            #             However we can't set the target temp if the cameras are exposing,
+            #             so we need to abort any ongoing exposure first.
+            recovery_procedure[1] = ['cam abort', 30]
             # TODO: This is using the mode here again, it should be fine but it's worth
             #       looking at as a limitation of the current design.
             if self.mode == MODE_CAM_TEMPCOOL:
-                recovery_procedure[1] = ['cam temp cool', 10]
+                recovery_procedure[2] = ['cam temp cool', 10]
             elif self.mode == MODE_CAM_TEMPWARM:
-                recovery_procedure[1] = ['cam temp warm', 10]
+                recovery_procedure[2] = ['cam temp warm', 10]
             else:
                 # This shouldn't happen, if the cameras are set to a temp other than the
                 # cool or warm temps there's nothing to compare too and ERROR_CAM_WRONGTEMP
@@ -1245,13 +1248,15 @@ class CamMonitor(BaseMonitor):
             #             since that's what the ERROR_CAM_WRONGTEMP is checking for.
             #             But we need this to have the correct delay for the pilot to let the
             #             cameras cool down.
+            #             And again we need to abort any ongoing exposure first.
+            recovery_procedure[1] = ['cam abort', 30]
             if self.mode == MODE_CAM_TEMPCOOL:
                 # Note we need to wait for a long time, assuming they're at room temp.
-                recovery_procedure[1] = ['cam temp cool', 600]
+                recovery_procedure[2] = ['cam temp cool', 600]
             elif self.mode == MODE_CAM_TEMPWARM:
                 # If the cameras are recording that they're hotter than the warm target temp then
                 # we have a real problem!
-                recovery_procedure[1] = ['cam temp warm', 600]
+                recovery_procedure[2] = ['cam temp warm', 600]
             else:
                 # TODO: How can we set the cameras to a target temp if we don't know what it is?
                 # We'd have to get the info here, then set each camera to the correct temp.
@@ -1260,7 +1265,7 @@ class CamMonitor(BaseMonitor):
                 # they'll cool down in that time. Argubly we could do that for the above too.
                 # See also the dome hardware error, where we just wait for a few seconds for the
                 # daemon to try to reconnect.
-                recovery_procedure[1] = ['cam info', 600]
+                recovery_procedure[2] = ['cam info', 600]
             # OUT OF SOLUTIONS: We know they have the right target temp set, since that's above.
             #                   Either it's a hardware issue or it's just too hot outside.
             return ERROR_CAM_HOT, recovery_procedure
