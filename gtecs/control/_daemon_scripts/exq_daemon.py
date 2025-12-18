@@ -37,6 +37,7 @@ class ExqDaemon(BaseDaemon):
                                ]
         self.dithering = False
         self.dither_time = 0
+        self.dither_delay = params.EXQ_DITHER_DELAY
 
         self.set_number_file = os.path.join(params.FILE_PATH, 'set_number')
         if not os.path.exists(self.set_number_file):
@@ -49,7 +50,7 @@ class ExqDaemon(BaseDaemon):
         # dependencies
         self.dependencies.add('cam')
         self.dependencies.add('filt')
-        if params.EXQ_DITHERING:
+        if self.dithering_enabled:
             self.dependencies.add('mnt')
 
         # start control thread
@@ -112,8 +113,22 @@ class ExqDaemon(BaseDaemon):
                                     '{}: Cannot move mount ({}), skipping dither'.format(
                                     setstr, info['status']))
                                 self.dithering = False
-                            elif self.current_exposure.set_pos != 1:  # Don't dither on first one
-                                # Offset the mount slightly by pulse guiding
+                            elif self.current_exposure.set_pos == 1:
+                                # If it's the start of a new set then make sure we're in position
+                                # If we give no coordinates it will slew to the current target,
+                                # which will reset any offsets from previous dithers
+                                # However, we only want to do this if we've been dithering
+                                # since the last slew command. So we check the last move type first.
+                                if info['last_move_type'] == 'guide':
+                                    msg = f'{setstr}: Recentring mount on target position'
+                                    self.log.info(msg)
+                                    with daemon_proxy('mnt') as daemon:
+                                        daemon.slew(coords=None)
+                                    self.dither_time = self.loop_time
+                                    self.dithering = True
+                            else:
+                                # For subsequent exposures in a set, offset the mount slightly
+                                # using pulse guiding
                                 i = (self.current_exposure.set_pos - 2) % len(self.dither_pattern)
                                 direction = self.dither_pattern[i][0]
                                 duration = self.dither_pattern[i][1]
@@ -123,8 +138,6 @@ class ExqDaemon(BaseDaemon):
                                     daemon.pulse_guide(direction, duration * 1000)
                                 self.dither_time = self.loop_time
                                 self.dithering = True
-                            else:
-                                self.dithering = False
                             self.exposure_state = 'mount_dithering'  # continue to state 2
                         except Exception:
                             self.log.error('Error connecting to mount daemon')
@@ -219,11 +232,13 @@ class ExqDaemon(BaseDaemon):
                                 info = daemon.get_info(force_update=True)
 
                             # Continue when the mount is tracking, and the last move was after the
-                            # dithering command (otherwise the status doesn't change fast enough)
+                            # dithering command (otherwise the status doesn't change fast enough).
+                            # We also add a delay since the mount tracking status can be
+                            # set too early before it's properly settled.
                             if (info['status'] == 'Tracking' and
                                     'last_move_time' in info and
                                     info['last_move_time'] > self.dither_time and
-                                    self.loop_time > info['last_move_time'] + 1):
+                                    self.loop_time > self.dither_time + self.dither_delay):
                                 self.log.info('{}: Mount tracking'.format(setstr))
                                 self.dithering = False
                                 self.exposure_state = 'mount_tracking'  # continue to state 7
@@ -428,6 +443,20 @@ class ExqDaemon(BaseDaemon):
         if self.paused:
             self.log.info('Resuming queue')
             self.paused = False
+
+    def switch_dithering(self, command):
+        """Enable or disable dithering between images."""
+        if command not in ['on', 'off']:
+            raise ValueError("Command must be 'on' or 'off'")
+
+        if command == 'on' and self.dithering_enabled is False:
+            self.log.info('Enabling dithering')
+            self.dithering_enabled = True
+            self.dependencies.add('mnt')
+        elif command == 'off' and self.dithering_enabled is True:
+            self.log.info('Disabling dithering')
+            self.dithering_enabled = False
+            self.dependencies.discard('mnt')
 
     # Info function
     def get_info_string(self, verbose=False, force_update=False):

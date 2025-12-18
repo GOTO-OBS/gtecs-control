@@ -482,6 +482,20 @@ def query(command, args):
             daemon.resume()
         print('Exposure queue resumed')
 
+    elif command == 'dithering':
+        if len(args) == 1:
+            command = args[0]
+        else:
+            raise ValueError('Invalid arguments')
+        daemons.check_daemon(daemon_id)
+        with daemons.daemon_proxy(daemon_id) as daemon:
+            daemon.switch_dithering(command)
+        if command == 'on':
+            out_str = 'Dithering enabled'
+        elif command == 'off':
+            out_str = 'Dithering disabled'
+        print(out_str)
+
     elif command in ['get', 'list', 'ls']:
         if len(args) == 0:
             list_type = 'simple'
@@ -524,6 +538,7 @@ def query(command, args):
             '  multbias nexp [uts] binning',
             '  pause                          pause taking exposures',
             '  unpause/resume                 resumes taking exposures',
+            '  dithering on|off               enable/disable dithering between exposures',
             '  list [-v]                      lists the current queue',
             '  clear                          empty the queue',
             '  info/status [-r|-v] [-f]       report current status [raw/verbose/force-update]',
