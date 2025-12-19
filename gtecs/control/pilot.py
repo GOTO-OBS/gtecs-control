@@ -1089,12 +1089,7 @@ class Pilot:
                     position = focrun_positions[focrun_count]
                     execute_command(f'mnt slew_altaz {position[0]:d} {position[1]:d}')
                     # wait for mount to slew
-                    while True:
-                        await asyncio.sleep(5)
-                        mount_status = self.hardware['mnt'].get_hardware_status()
-                        self.log.debug('mount is {}'.format(mount_status))
-                        if mount_status == 'tracking':
-                            break
+                    await self.unpark_mount(slew=False)
                     # wait for the script to finish, blocking the observing loop
                     focrun_args = ['4',
                                    '-r', '0.02',
@@ -1436,6 +1431,12 @@ class Pilot:
             self.log.debug('dome is {}'.format(dome_status))
             if dome_status == 'full_open':
                 break
+            if self.hardware['dome'].mode != 'open':
+                # A close could have been triggered due to bad weather while we're waiting,
+                # so we need to break or the pilot will crash.
+                self.log.warning('dome mode changed to {}, cancelling opening'.format(
+                    self.hardware['dome'].mode))
+                break
             await asyncio.sleep(5)
             if time.time() - start_time > 300:
                 self.log.error('dome opening timed out')
@@ -1455,6 +1456,10 @@ class Pilot:
                 cover_status = self.hardware['ota'].get_hardware_status()
                 self.log.debug('covers are {}'.format(cover_status))
                 if cover_status == 'full_open':
+                    break
+                if self.hardware['ota'].mode != 'open':
+                    self.log.warning('ota mode changed to {}, cancelling opening'.format(
+                        self.hardware['ota'].mode))
                     break
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:
@@ -1493,6 +1498,10 @@ class Pilot:
                 self.log.debug('dome is {}'.format(dome_status))
                 if dome_status in ['closed', 'in_lockdown']:
                     break
+                if self.hardware['dome'].mode != 'closed':
+                    self.log.warning('dome mode changed to {}, cancelling closing'.format(
+                        self.hardware['dome'].mode))
+                    break
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:
                     self.log.error('dome closing timed out')
@@ -1503,7 +1512,7 @@ class Pilot:
             send_slack_msg('Pilot confirmed dome is closed')
             self.log.info('dome confirmed closed')
 
-    async def unpark_mount(self):
+    async def unpark_mount(self, slew=True):
         """Unpark the mount (if it's parked), start tracking and await until it is ready."""
         if self.hardware['mnt'].mode == 'parked':
             self.log.info('unparking mount')
@@ -1513,14 +1522,19 @@ class Pilot:
         await asyncio.sleep(5)
         mount_status = self.hardware['mnt'].get_hardware_status()
         if mount_status != 'tracking':
-            # slew to above horizon, to stop errors
-            execute_command('mnt slew_altaz 50 0')
+            if slew:
+                # slew to above horizon, to stop errors
+                execute_command('mnt slew_altaz 50 0')
             # wait for mount to slew
             start_time = time.time()
             while True:
                 mount_status = self.hardware['mnt'].get_hardware_status()
                 self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
+                    break
+                if self.hardware['mnt'].mode != 'tracking':
+                    self.log.warning('mnt mode changed to {}, cancelling unparking'.format(
+                        self.hardware['mnt'].mode))
                     break
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:
