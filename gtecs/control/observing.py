@@ -151,7 +151,8 @@ def prepare_for_images(open_covers=True):
     with daemon_proxy('ota') as daemon:
         info = daemon.get_info(force_update=True)
         target_position = 'full_open' if open_covers else 'closed'
-        if not all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
+        if not sum(info[ut]['position'] == target_position
+                   for ut in info['uts_with_covers']) > params.MIN_COVER_STATUS:
             if open_covers:
                 print('Opening mirror covers')
                 daemon.open_covers()
@@ -163,7 +164,8 @@ def prepare_for_images(open_covers=True):
             while True:
                 time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
-                if all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
+                if sum(info[ut]['position'] == target_position
+                       for ut in info['uts_with_covers']) > params.MIN_COVER_STATUS:
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Mirror covers timed out')

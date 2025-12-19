@@ -145,7 +145,9 @@ def run():
         while True:
             time.sleep(0.5)
             info = daemon.get_info(force_update=True)
-            if all([info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]):
+            closed_covers = sum([info[ut]['position'] == 'closed'
+                                    for ut in info['uts_with_covers']])
+            if closed_covers > params.MIN_COVER_STATUS:
                 break
             if (time.time() - start_time) > 60:
                 raise TimeoutError('Mirror covers timed out')

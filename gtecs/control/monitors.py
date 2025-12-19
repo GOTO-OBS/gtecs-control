@@ -1311,9 +1311,9 @@ class OTAMonitor(BaseMonitor):
 
         if any(info[ut]['position'] == 'ERROR' for ut in self.uts):
             hardware_status = STATUS_UNKNOWN
-        elif all(info[ut]['position'] == 'closed' for ut in self.uts):
+        elif sum(info[ut]['position'] == 'closed' for ut in self.uts) > params.MIN_COVER_STATUS:
             hardware_status = STATUS_OTA_CLOSED
-        elif all(info[ut]['position'] == 'full_open' for ut in self.uts):
+        elif sum(info[ut]['position'] == 'full_open' for ut in self.uts) > params.MIN_COVER_STATUS:
             hardware_status = STATUS_OTA_FULLOPEN
         else:
             hardware_status = STATUS_OTA_PARTOPEN

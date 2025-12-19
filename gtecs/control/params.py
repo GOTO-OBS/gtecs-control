@@ -362,6 +362,8 @@ FOCRUN_PERIOD = config['FOCRUN_PERIOD']
 
 BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 
+MIN_COVER_STATUS = config['MIN_COVER_STATUS']
+
 ############################################################
 # Day marshal parameters
 IERS_A_URL = config['IERS_A_URL']
