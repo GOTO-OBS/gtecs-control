@@ -110,15 +110,20 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                     self.flags = {flag: 2 for flag in self.flag_names}
 
-                # Set ignored flags (in some circumstances)
-                status = Status()
-                if status.mode == 'robotic':
-                    # Can't ignore non-info flags in robotic mode (and sky_temp)
-                    ignorable_flags = self.info_flag_names.copy()
-                    ignorable_flags.append('sky_temp')
-                    self.ignored_flags = [
-                        flag for flag in self.ignored_flags if flag in ignorable_flags
-                    ]
+                # Ensure we don't ignore flags in robotic mode
+                if self.info['mode'] == 'robotic':
+                    if self.info['old_mode'] != 'robotic':
+                        # If we've just switched to robotic mode then clear all ignored flags
+                        self.log.info('System is in robotic mode, clearing ignored flags')
+                        self.ignored_flags = []
+                    else:
+                        # We only allow ignoring info flags (and sky_temp) in robotic mode,
+                        # so clear them up if we're in robotic mode
+                        ignorable_flags = self.info_flag_names.copy()
+                        ignorable_flags.append('sky_temp')
+                        self.ignored_flags = [
+                            flag for flag in self.ignored_flags if flag in ignorable_flags
+                        ]
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -499,7 +504,21 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['sunalt'] = -999
 
-        # Get internal info
+        # Get status info
+        try:
+            status = Status()
+            temp_info['mode'] = status.mode
+            if self.info is not None and 'mode' in self.info:
+                temp_info['old_mode'] = self.info['mode']
+            else:
+                temp_info['old_mode'] = status.mode
+        except Exception:
+            self.log.error('Failed to get status info')
+            self.log.debug('', exc_info=True)
+            temp_info['mode'] = None
+            temp_info['old_mode'] = None
+
+        # Get other internal info
         temp_info['flags'] = self.flags.copy()
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
