@@ -113,9 +113,11 @@ class ConditionsDaemon(BaseDaemon):
                 # Set ignored flags (in some circumstances)
                 status = Status()
                 if status.mode == 'robotic':
-                    # Can't ignore non-info flags in robotic mode
+                    # Can't ignore non-info flags in robotic mode (and sky_temp)
+                    ignorable_flags = self.info_flag_names.copy()
+                    ignorable_flags.append('sky_temp')
                     self.ignored_flags = [
-                        flag for flag in self.ignored_flags if flag in self.info_flag_names
+                        flag for flag in self.ignored_flags if flag in ignorable_flags
                     ]
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
@@ -813,9 +815,12 @@ class ConditionsDaemon(BaseDaemon):
             raise ValueError(f'Invalid flags: {bad_flags}')
         status = Status()
         if status.mode == 'robotic':
-            # In robotic mode we can only ignore info flags
-            if any(flag not in self.info_flag_names for flag in flags):
-                bad_flags = [flag for flag in flags if flag not in self.info_flag_names]
+            # In robotic mode we can only ignore info flags (and sky_temp)
+            if any(flag not in self.info_flag_names and flag != 'sky_temp' for flag in flags):
+                bad_flags = [
+                    flag for flag in flags
+                    if flag not in self.info_flag_names and flag != 'sky_temp'
+                ]
                 raise ModeError(f'Can not ignore non-info flags in robotic mode: {bad_flags}')
         if 'override' in flags:
             raise ValueError('"override" flag can not be ignored')
