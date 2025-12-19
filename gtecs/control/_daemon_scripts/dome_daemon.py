@@ -788,9 +788,13 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose_enabled = True
                 self.autoclose_timeout = None
-            if not self.autoshield_enabled:
-                self.log.info('System is in robotic mode, enabling autoshield')
-                self.autoshield_enabled = True
+            if self.info['old_mode'] != 'robotic':
+                # Windshielding is allowed to be manually disabled in robotic mode now,
+                # this prevents it being constantly reenabled if it's manually turned off.
+                # But when switching to robotic from manual or engineering we make sure it's on.
+                if not self.autoshield_enabled:
+                    self.log.info('System is in robotic mode, enabling autoshield')
+                    self.autoshield_enabled = True
 
         elif self.info['mode'] == 'manual':
             # In manual mode the heartbeat should always be enabled,
@@ -800,7 +804,7 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('System is in manual mode, enabling heartbeat')
                 self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
-            if self.info['old_mode'] != 'manual':
+            if self.info['old_mode'] == 'engineering':
                 # This will turn everything on when switching from engineering to manual
                 # (if we're switching from robotic they should all be on anyway!)
                 if not self.alarm_enabled:
@@ -1445,8 +1449,6 @@ class DomeDaemon(BaseDaemon):
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
             raise ModeError('Cannot enable autoshield in engineering mode')
-        elif command == 'off' and self.info['mode'] == 'robotic':
-            raise ModeError('Cannot disable autoshield in robotic mode')
         if command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
             raise HardwareError('Windshielding is disabled system-wide')
 
