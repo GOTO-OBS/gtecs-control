@@ -125,7 +125,8 @@ def prepare_for_images(open_covers=True):
     # Bring the CCDs down to temperature
     with daemon_proxy('cam') as daemon:
         info = daemon.get_info(force_update=True)
-        if not all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+        if not all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+                   for ut in info['uts']):
             print('Cooling cameras')
             daemon.set_temperature('cool')
             # TODO: blocking command with confirmation or timeout in daemon
@@ -133,7 +134,8 @@ def prepare_for_images(open_covers=True):
             while True:
                 time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
-                if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+                if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+                       for ut in info['uts']):
                     break
                 if (time.time() - start_time) > 600:
                     raise TimeoutError('Camera cooling timed out')

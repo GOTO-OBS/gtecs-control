@@ -1120,7 +1120,9 @@ class CamMonitor(BaseMonitor):
                 for ut in self.uts)
         else:
             correct_target_temp = True
-        at_target_temp = all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in self.uts)
+        at_target_temp = all(
+            info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+            for ut in self.uts)
 
         if not correct_target_temp:
             hardware_status = STATUS_CAM_WRONGTEMP
