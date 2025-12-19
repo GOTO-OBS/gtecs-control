@@ -125,7 +125,8 @@ def prepare_for_images(open_covers=True):
     # Bring the CCDs down to temperature
     with daemon_proxy('cam') as daemon:
         info = daemon.get_info(force_update=True)
-        if not all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+        if not all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+                   for ut in info['uts']):
             print('Cooling cameras')
             daemon.set_temperature('cool')
             # TODO: blocking command with confirmation or timeout in daemon
@@ -133,7 +134,8 @@ def prepare_for_images(open_covers=True):
             while True:
                 time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
-                if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+                if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+                       for ut in info['uts']):
                     break
                 if (time.time() - start_time) > 600:
                     raise TimeoutError('Camera cooling timed out')
@@ -151,7 +153,8 @@ def prepare_for_images(open_covers=True):
     with daemon_proxy('ota') as daemon:
         info = daemon.get_info(force_update=True)
         target_position = 'full_open' if open_covers else 'closed'
-        if not all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
+        if not sum(info[ut]['position'] == target_position
+                   for ut in info['uts_with_covers']) > params.MIN_COVER_STATUS:
             if open_covers:
                 print('Opening mirror covers')
                 daemon.open_covers()
@@ -163,7 +166,8 @@ def prepare_for_images(open_covers=True):
             while True:
                 time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
-                if all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
+                if sum(info[ut]['position'] == target_position
+                       for ut in info['uts_with_covers']) > params.MIN_COVER_STATUS:
                     break
                 if (time.time() - start_time) > 60:
                     raise TimeoutError('Mirror covers timed out')

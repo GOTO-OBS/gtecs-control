@@ -14,7 +14,7 @@ from gtecs.control import params
 from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
-from gtecs.control.conditions.internal import get_domealert_daemon, get_arduino_readout
+from gtecs.control.conditions.internal import get_internal_daemon, get_arduino_readout
 from gtecs.control.conditions.local import (get_cloudwatcher_daemon, get_rain_daemon,
                                             get_rain_domealert, get_vaisala_daemon)
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
@@ -110,11 +110,20 @@ class ConditionsDaemon(BaseDaemon):
                     self.log.debug('', exc_info=True)
                     self.flags = {flag: 2 for flag in self.flag_names}
 
-                # Set ignored flags in some circumstances
-                status = Status()
-                if status.mode == 'robotic':
-                    # Can't ignore flags in robotic mode
-                    self.ignored_flags = []
+                # Ensure we don't ignore flags in robotic mode
+                if self.info['mode'] == 'robotic':
+                    if self.info['old_mode'] != 'robotic':
+                        # If we've just switched to robotic mode then clear all ignored flags
+                        self.log.info('System is in robotic mode, clearing ignored flags')
+                        self.ignored_flags = []
+                    else:
+                        # We only allow ignoring info flags (and sky_temp) in robotic mode,
+                        # so clear them up if we're in robotic mode
+                        ignorable_flags = self.info_flag_names.copy()
+                        ignorable_flags.append('sky_temp')
+                        self.ignored_flags = [
+                            flag for flag in self.ignored_flags if flag in ignorable_flags
+                        ]
 
             time.sleep(params.DAEMON_SLEEP_TIME)  # To save 100% CPU usage
 
@@ -241,7 +250,7 @@ class ConditionsDaemon(BaseDaemon):
 
             temp_info['weather'][source] = weather_dict
 
-        # Get the internal conditions from Paul's DomeAlert
+        # Get the internal conditions from internal sensors
         try:
             if params.FAKE_CONDITIONS:
                 internal_dict = {
@@ -250,16 +259,21 @@ class ConditionsDaemon(BaseDaemon):
                     'update_time': Time.now().iso,
                     'dt': 0,
                 }
-            elif params.DOMEALERT_URI != 'none':
-                internal_dict = get_domealert_daemon(params.DOMEALERT_URI)
+            # First try getting the fallback Arduino if a filepath is given
             elif params.ARDUINO_FILE != 'none':
                 internal_dict = get_arduino_readout(params.ARDUINO_FILE)
+            # Otherwise try any given internal daemon URI
+            elif params.INTERNAL_URI != 'none':
+                internal_dict = get_internal_daemon(params.INTERNAL_URI)
+            # If not, then then try getting readings from the DomeAlert
+            elif params.DOMEALERT_URI != 'none':
+                internal_dict = get_internal_daemon(params.DOMEALERT_URI)
             else:
                 raise ValueError('No valid internal source specified')
 
-            # Most internal sources only have a single sensor,
-            # but since the DomeAlert has two sources we want to keep the same structure.
-            # Other places (e.g. the dome daemon or FITS headers use) the max of the dict values.
+            # Most internal sources only have a single sensor, but sometimes we have two
+            # e.g. the DomeAlert has east/west. We want to keep the same dict structure.
+            # Other places (e.g. the dome daemon or FITS headers) use the max of the dict values.
             if not isinstance(internal_dict['temperature'], dict):
                 internal_dict['temperature'] = {'dome': internal_dict['temperature']}
             if not isinstance(internal_dict['humidity'], dict):
@@ -490,7 +504,21 @@ class ConditionsDaemon(BaseDaemon):
             self.log.debug('', exc_info=True)
             temp_info['sunalt'] = -999
 
-        # Get internal info
+        # Get status info
+        try:
+            status = Status()
+            temp_info['mode'] = status.mode
+            if self.info is not None and 'mode' in self.info:
+                temp_info['old_mode'] = self.info['mode']
+            else:
+                temp_info['old_mode'] = status.mode
+        except Exception:
+            self.log.error('Failed to get status info')
+            self.log.debug('', exc_info=True)
+            temp_info['mode'] = None
+            temp_info['old_mode'] = None
+
+        # Get other internal info
         temp_info['flags'] = self.flags.copy()
         temp_info['info_flags'] = sorted(self.info_flag_names)
         temp_info['normal_flags'] = sorted(self.normal_flag_names)
@@ -801,12 +829,18 @@ class ConditionsDaemon(BaseDaemon):
 
     def ignore_flags(self, flags):
         """Add the given flags to the ignore list."""
-        status = Status()
-        if status.mode == 'robotic':
-            raise ModeError('Can not ignore flags in robotic mode')
         if any(flag not in self.flags for flag in flags):
             bad_flags = [flag for flag in flags if flags not in self.flags]
             raise ValueError(f'Invalid flags: {bad_flags}')
+        status = Status()
+        if status.mode == 'robotic':
+            # In robotic mode we can only ignore info flags (and sky_temp)
+            if any(flag not in self.info_flag_names and flag != 'sky_temp' for flag in flags):
+                bad_flags = [
+                    flag for flag in flags
+                    if flag not in self.info_flag_names and flag != 'sky_temp'
+                ]
+                raise ModeError(f'Can not ignore non-info flags in robotic mode: {bad_flags}')
         if 'override' in flags:
             raise ValueError('"override" flag can not be ignored')
 
@@ -816,9 +850,6 @@ class ConditionsDaemon(BaseDaemon):
 
     def enable_flags(self, flags):
         """Remove the given flags from the ignore list."""
-        status = Status()
-        if status.mode == 'robotic':
-            raise ModeError('All flags are enabled in robotic mode')
         if any(flag not in self.flags for flag in flags):
             bad_flags = [flag for flag in flags if flags not in self.flags]
             raise ValueError(f'Invalid flags: {bad_flags}')
