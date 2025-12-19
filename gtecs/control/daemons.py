@@ -279,33 +279,32 @@ def check_daemon(daemon_id):
     if pid is None:
         raise DaemonNotRunningError(f'Daemon {daemon_id} not running on {host}:{port}')
 
+    error_str = f'Daemon {daemon_id} running on {host}:{port} (PID {pid})'
+
     with daemon_proxy(daemon_id) as daemon:
         try:
             status, args = daemon.get_status()
-        except Exception:
-            status = 'status_error'
+        except Exception as err:
+            error_str += ' but cannot read status.'
+            raise DaemonStatusError(error_str) from err
 
     if status == 'running':
         return pid
-
-    error_str = f'Daemon {daemon_id} running on {host}:{port} (PID {pid})'
-
-    if status == 'dependency_error':
+    elif status == 'dependency_error':
         error_str += f' but cannot connect to dependencies: {args}.'
         raise DaemonDependencyError(error_str)
-    if status == 'hardware_error':
+    elif status == 'hardware_error':
         error_str += f' but cannot connect to hardware: {args}.'
         raise HardwareError(error_str)
-
-    if status == 'status_error':
-        error_str += ' but cannot read status.'
     elif status == 'running_error':
         error_str += ' but is not active. (?)'
+        raise DaemonStatusError(error_str)
     elif status == 'ping_error':
         error_str += f' but last ping was {args:.1f}s ago.'
+        raise DaemonStatusError(error_str)
     else:
         error_str += f' but reports unknown status: {status}.'
-    raise DaemonStatusError(error_str)
+        raise DaemonStatusError(error_str)
 
 
 def start_daemon(daemon_id, timeout=4):
