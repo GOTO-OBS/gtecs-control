@@ -1313,9 +1313,9 @@ class OTAMonitor(BaseMonitor):
 
         if any(info[ut]['position'] == 'ERROR' for ut in self.uts):
             hardware_status = STATUS_UNKNOWN
-        elif sum(info[ut]['position'] == 'closed' for ut in self.uts) > params.MIN_COVER_STATUS:
+        elif sum(info[ut]['position'] == 'closed' for ut in self.uts) > params.MIN_CLOSED_COVERS:
             hardware_status = STATUS_OTA_CLOSED
-        elif sum(info[ut]['position'] == 'full_open' for ut in self.uts) > params.MIN_COVER_STATUS:
+        elif all(info[ut]['position'] == 'full_open' for ut in self.uts):  # all must be open
             hardware_status = STATUS_OTA_FULLOPEN
         else:
             hardware_status = STATUS_OTA_PARTOPEN
@@ -1403,6 +1403,9 @@ class OTAMonitor(BaseMonitor):
             # SOLUTION 2: Try opening and then closing again.
             recovery_procedure[2] = ['ota open', 120]
             recovery_procedure[3] = ['ota close', 120]
+            # SOLUTION 3: ...try again? They can get stuck.
+            recovery_procedure[4] = ['ota open', 180]
+            recovery_procedure[5] = ['ota close', 180]
             # OUT OF SOLUTIONS: Sounds like a hardware issue.
             return ERROR_OTA_NOTCLOSED, recovery_procedure
 
@@ -1414,6 +1417,9 @@ class OTAMonitor(BaseMonitor):
             # SOLUTION 2: Try closing and then opening again.
             recovery_procedure[2] = ['ota close', 120]
             recovery_procedure[3] = ['ota open', 120]
+            # SOLUTION 3: ...try again? They can get stuck.
+            recovery_procedure[4] = ['ota close', 180]
+            recovery_procedure[5] = ['ota open', 180]
             # OUT OF SOLUTIONS: Sounds like a hardware issue.
             return ERROR_OTA_NOTFULLOPEN, recovery_procedure
 

@@ -362,7 +362,7 @@ FOCRUN_PERIOD = config['FOCRUN_PERIOD']
 
 BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 
-MIN_COVER_STATUS = config['MIN_COVER_STATUS']
+MIN_CLOSED_COVERS = config['MIN_CLOSED_COVERS']
 MAX_TEMP_MARGIN = config['MAX_TEMP_MARGIN']
 
 ############################################################
