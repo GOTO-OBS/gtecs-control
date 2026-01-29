@@ -494,6 +494,7 @@ def refocus_surface(uts=None, move_limit=200):
 
     # Calculate the required focus position adjustment
     new_positions = {
+        ut:
         int(
             foc_params['fit_a'].to_dict()[ut] * hour_angle +
             foc_params['fit_b'].to_dict()[ut] * temperature +
