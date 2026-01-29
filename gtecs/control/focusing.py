@@ -477,7 +477,7 @@ def refocus_surface(uts=None, move_limit=200):
     foc_params = get_focus_params()
 
     # Get the current hour angle and internal temperature from the mount and conditions daemons
-    with daemon_proxy('tel', timeout=30) as daemon:
+    with daemon_proxy('mnt', timeout=30) as daemon:
         info = daemon.get_info(force_update=True)
     hour_angle = info['mount_ha']
     with daemon_proxy('conditions', timeout=30) as daemon:
@@ -489,6 +489,8 @@ def refocus_surface(uts=None, move_limit=200):
     print('Adjusting focus (hour angle={:.2f}, temperature={:.1f}C)'.format(
         hour_angle, temperature
     ))
+    current_positions = get_focuser_positions(uts)
+    print('Current focuser positions:', current_positions)
 
     # Calculate the required focus position adjustment
     new_positions = {
@@ -499,9 +501,9 @@ def refocus_surface(uts=None, move_limit=200):
         )
         for ut in foc_params
     }
+    print('Calculated new focuser positions:', new_positions)
 
     # Check the new positions are within the allowed move limit
-    current_positions = get_focuser_positions(uts)
     for ut in new_positions:
         delta = new_positions[ut] - current_positions[ut]
         if abs(delta) > move_limit:
