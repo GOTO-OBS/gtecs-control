@@ -351,9 +351,8 @@ if FLATS_FILTERS == 'all':  # default
     FLATS_FILTERS = ','.join(ALL_FILTERS)
 FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
 
-OBS_ADJUST_FOCUS = config['OBS_ADJUST_FOCUS']
-OBS_FOCUS_TEMP_COMPENSATION = config['OBS_FOCUS_TEMP_COMPENSATION']
-OBS_FOCUS_IMAGES = config['OBS_FOCUS_IMAGES']
+OBS_REFOCUS_METHOD = config['OBS_REFOCUS_METHOD']
+OBS_REFOCUS_IMAGES = config['OBS_REFOCUS_IMAGES']
 
 AUTOFOCUS_SLACK_REPORTS = config['AUTOFOCUS_SLACK_REPORTS']
 
@@ -378,6 +377,7 @@ AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
                     if int(ut) in UTS_WITH_FOCUSERS}
 for ut in AUTOFOCUS_PARAMS:
     # Use default params if they're not given (not perfect, they really need to be defined per UT)
+    # V-curve fitting params
     if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
     if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
@@ -390,19 +390,31 @@ for ut in AUTOFOCUS_PARAMS:
         AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
     if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
+    # Surface fit params
+    if 'FIT_A' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FIT_A'] = 1
+    if 'FIT_B' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FIT_B'] = -10
+    if 'FIT_C' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FIT_C'] = 10000
+    # Temperature compensation params
     if 'TEMP_GRADIENT' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = 0
     if 'TEMP_MINCHANGE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = 0.5
+    # Scale factor for focus runs
     if 'FOCRUN_SCALE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = 1
-    # Enforce type
+    # Enforce types
     AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
     AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
     AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
     AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
     AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
     AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
+    AUTOFOCUS_PARAMS[ut]['FIT_A'] = float(AUTOFOCUS_PARAMS[ut]['FIT_A'])
+    AUTOFOCUS_PARAMS[ut]['FIT_B'] = float(AUTOFOCUS_PARAMS[ut]['FIT_B'])
+    AUTOFOCUS_PARAMS[ut]['FIT_C'] = float(AUTOFOCUS_PARAMS[ut]['FIT_C'])
     AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
     AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
     AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = float(AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'])

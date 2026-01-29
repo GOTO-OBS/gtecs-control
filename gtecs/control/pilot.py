@@ -1160,10 +1160,16 @@ class Pilot:
                     # Start the new pointing
                     self.log.debug('starting pointing {}'.format(new_pointing['id']))
                     args = [str(new_pointing['id'])]
-                    if params.OBS_ADJUST_FOCUS:
-                        args.append('--refocus')
-                    elif params.OBS_FOCUS_TEMP_COMPENSATION:
-                        args.append('--temp-compensation')
+                    if params.OBS_REFOCUS_METHOD == 'temp_compensation':
+                        args.extend(['--refocus', 'temp_compensation'])
+                        if params.OBS_REFOCUS_IMAGES:
+                            args.append('--refocus_images')
+                    elif params.OBS_REFOCUS_METHOD == 'vcurve':
+                        args.extend(['--refocus', 'vcurve'])
+                        if params.OBS_REFOCUS_IMAGES:
+                            args.append('--refocus_images')
+                    elif params.OBS_REFOCUS_METHOD == 'surface':
+                        args.extend(['--refocus', 'surface'])
                     asyncio.ensure_future(self.start_script('OBS', 'observe.py', args=args))
                     self.current_start_time = time.time()
                     self.current_pointing = new_pointing
