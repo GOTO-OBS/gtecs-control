@@ -285,6 +285,11 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
         try:
             for key in daemon_info['conditions']['history']:
                 for source in daemon_info['conditions']['history'][key]:
+                    if source not in daemon_info['conditions']['weather']:
+                        # This shouldn't happen, but it seems it can?
+                        # If we fail to get a source it might still have entries in the
+                        # history dict (although it should have a filler -999 entry in weather...)
+                        continue
                     history_info = {}
                     history_info['hist_time'] = -999
                     history_info['min'] = 'NA'
@@ -310,9 +315,6 @@ def get_daemon_info(cam_info=None, timeout=60, log=None, log_debug=False):
                             history_info['mean'] = np.mean(history)
                             history_info['std'] = np.std(history)
                     # Store the history info
-                    if source not in daemon_info['conditions']['weather']:
-                        # This shouldn't happen?
-                        pass
                     if 'history' not in daemon_info['conditions']['weather'][source]:
                         daemon_info['conditions']['weather'][source]['history'] = {}
                     daemon_info['conditions']['weather'][source]['history'][key] = history_info
