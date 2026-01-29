@@ -419,7 +419,7 @@ def refocus_temp_compensation(take_images=False, verbose=False):
     prev_temp = {ut: info[ut]['last_move_temp'] for ut in info['uts']}
     deltas = {ut: np.round(curr_temp[ut] - prev_temp[ut], 1)
               if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
-              for ut in foc_params}
+              for ut in foc_params['TEMP_MINCHANGE'].to_dict()}
     if verbose:
         print('Checking focuser temperatures...')
         print('Current temp:', curr_temp)
@@ -427,18 +427,18 @@ def refocus_temp_compensation(take_images=False, verbose=False):
         print('Difference:', deltas)
 
     # Check if the change is greater than the minimum to refocus
-    min_change = {ut: foc_params[ut]['TEMP_MINCHANGE']
-                  for ut in foc_params}
+    min_change = {ut: foc_params['TEMP_MINCHANGE'].to_dict()[ut]
+                  for ut in foc_params['TEMP_MINCHANGE'].to_dict()}
     deltas = {ut: deltas[ut]
               if abs(deltas[ut]) > min_change[ut] else 0
               for ut in deltas}
 
     # Find the gradients (in steps/degree C)
-    gradients = {ut: foc_params[ut]['TEMP_GRADIENT']
-                 for ut in foc_params}
+    gradients = {ut: foc_params['TEMP_GRADIENT'].to_dict()[ut]
+                 for ut in foc_params['TEMP_GRADIENT'].to_dict()}
 
     # Calculate the focus offset
-    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in foc_params}
+    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in foc_params['TEMP_GRADIENT'].to_dict()}
     if verbose:
         print('Offsets:', offsets)
 
@@ -495,11 +495,11 @@ def refocus_surface(uts=None, move_limit=200):
     # Calculate the required focus position adjustment
     new_positions = {
         int(
-            foc_params[ut]['fit_a'] * hour_angle +
-            foc_params[ut]['fit_b'] * temperature +
-            foc_params[ut]['fit_c']
+            foc_params['fit_a'].to_dict()[ut] * hour_angle +
+            foc_params['fit_b'].to_dict()[ut] * temperature +
+            foc_params['fit_c'].to_dict()[ut]
         )
-        for ut in foc_params
+        for ut in foc_params['fit_a'].to_dict()
     }
     print('Calculated new focuser positions:', new_positions)
 
