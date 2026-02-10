@@ -173,7 +173,7 @@ def prepare_for_images(open_covers=True):
         else:
             # We allow a minimum number of covers to be closed
             in_position = [info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]
-            if sum(in_position) <= params.MIN_CLOSED_COVERS:
+            if sum(in_position) < params.MIN_CLOSED_COVERS:
                 print('Closing mirror covers')
                 daemon.close_covers()
                 # TODO: blocking command with confirmation or timeout in daemon
@@ -184,7 +184,7 @@ def prepare_for_images(open_covers=True):
                     in_position = [
                         info[ut]['position'] == 'closed' for ut in info['uts_with_covers']
                     ]
-                    if sum(in_position) <= params.MIN_CLOSED_COVERS:
+                    if sum(in_position) < params.MIN_CLOSED_COVERS:
                         break
                     if (time.time() - start_time) > 60:
                         raise TimeoutError('Mirror covers timed out')
