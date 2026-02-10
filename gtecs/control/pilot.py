@@ -291,6 +291,9 @@ class Pilot:
                     msg = 'Fixed error from {}: {}'.format(monitor.monitor_id, error)
                     self.log.info(msg)
                     send_slack_msg(msg)
+                    if len(self.current_errors[monitor.daemon_id]) == 0:
+                        self.log.info('{} is now AOK'.format(monitor.monitor_id))
+                        self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
                 error_count += num_errs
                 if num_errs > 0:
                     self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
