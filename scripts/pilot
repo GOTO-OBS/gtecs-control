@@ -19,18 +19,18 @@ def query(command, args):
         status = Status()
         if status.mode == 'engineering':
             print('Pilot is disabled in engineering mode')
-            send_slack_msg('Pilot tried to start, but system is in engineering mode')
+            send_slack_msg('WARNING: Pilot tried to start, but system is in engineering mode')
             return
         elif status.emergency_shutdown:
             print('Pilot is disabled during emergency shutdown')
-            send_slack_msg('Pilot tried to start, but system is in emergency shutdown')
+            send_slack_msg('WARNING: Pilot tried to start, but system is in emergency shutdown')
             return
 
         # Check it it's already running
         pid = get_pid('pilot')
         if pid:
             print('Pilot already running (PID {})'.format(pid))
-            send_slack_msg('Pilot tried to start, but is already running')
+            send_slack_msg('WARNING: Pilot tried to start, but is already running')
             return
 
         parser = argparse.ArgumentParser()
@@ -54,6 +54,7 @@ def query(command, args):
             print('Pilot is not running')
             return
         kill_process('pilot')
+        send_slack_msg('WARNING: Pilot was killed')
 
     elif command in ['log', 'tail']:
         if 'stdout' in args:

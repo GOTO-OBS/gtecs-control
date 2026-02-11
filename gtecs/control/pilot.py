@@ -1186,6 +1186,10 @@ class Pilot:
                     # the scheduler on the next loop.
                     await self.cancel_running_script('obs parking')
                     self.park_mount()
+                    # Don't send a Slack message, since it spams multiple times
+                    # while the scheduler is down.
+                    # TODO: improve how we handle losing the connection, pause the system
+                    # and send just one message (with emergency=True)
                     # send_slack_msg('Pilot has nothing to observe!')
 
             await asyncio.sleep(5)
@@ -1408,7 +1412,10 @@ class Pilot:
         """Send a warning and then shut down."""
         if not self.shutdown_now:  # Don't trigger multiple times
             self.log.info('performing emergency shutdown: {}'.format(why))
-            send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
+            send_slack_msg(
+                'WARNING: Pilot is performing an emergency shutdown: {}'.format(why),
+                emergency=True,
+            )
 
             self.log.info('closing dome immediately')
             self.stop_mount()
@@ -1514,7 +1521,7 @@ class Pilot:
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:
                     self.log.error('dome closing timed out')
-                    send_slack_msg('ERROR: Pilot could not close the dome!')
+                    send_slack_msg('CRITICAL: Pilot could not close the dome!', emergency=True)
                     asyncio.ensure_future(self.emergency_shutdown('Could not close the dome'))
 
             self.dome_confirmed_closed = True

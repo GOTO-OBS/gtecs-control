@@ -33,7 +33,7 @@ def run():
     except Exception:
         print('Failed to clear image queue, continuing with shutdown')
         traceback.print_exc()
-        send_slack_msg('Shutdown script could not clear the exposure queue!')
+        send_slack_msg('WARNING: Shutdown script could not clear the exposure queue!')
 
     # Close the mirror covers
     print('Closing mirror covers')
@@ -55,7 +55,7 @@ def run():
     except Exception:
         print('Failed to close mirror covers, continuing with shutdown')
         traceback.print_exc()
-        send_slack_msg('Shutdown script could not close the mirror covers!')
+        send_slack_msg('WARNING: Shutdown script could not close the mirror covers!')
 
     # Set camera temps to warm during the day
     print('Setting cameras to warm')
@@ -67,7 +67,7 @@ def run():
     except Exception:
         print('Failed to warm cameras, continuing with shutdown')
         traceback.print_exc()
-        send_slack_msg('Shutdown script could not warm the cameras!')
+        send_slack_msg('WARNING: Shutdown script could not warm the cameras!')
 
     # Park the mount
     print('Parking the mount')
@@ -87,7 +87,7 @@ def run():
     except Exception:
         print('Failed to park the mount, continuing with shutdown')
         traceback.print_exc()
-        send_slack_msg('Shutdown script could not park the mount!')
+        send_slack_msg('WARNING: Shutdown script could not park the mount!')
 
     # Close the dome and wait (pilot will try again before shutdown)
     print('Closing the dome')
@@ -107,7 +107,7 @@ def run():
     except TimeoutError:
         print('Failed to close the dome!')
         traceback.print_exc()
-        send_slack_msg('Shutdown script could not close the dome!')
+        send_slack_msg('CRITICAL: Shutdown script could not close the dome!', emergency=True)
 
 
 if __name__ == '__main__':

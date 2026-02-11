@@ -869,7 +869,7 @@ class DomeDaemon(BaseDaemon):
             reason = 'heartbeat is unavailable'
             reasons.append(reason)
             if reason not in self.lockdown_reasons:
-                send_slack_msg('Dome heartbeat is unavailable!')
+                send_slack_msg('WARNING: Dome heartbeat is unavailable!', emergency=True)
 
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
@@ -877,7 +877,7 @@ class DomeDaemon(BaseDaemon):
             reason = 'quick-close button pressed'
             reasons.append(reason)
             if reason not in self.lockdown_reasons:
-                send_slack_msg('Dome quick-close button has been pressed!')
+                send_slack_msg('WARNING: Dome quick-close button has been pressed!', emergency=True)
 
         # Check if the hatch is open in robotic mode
         if not self.info['hatch_closed']:
@@ -889,7 +889,7 @@ class DomeDaemon(BaseDaemon):
                 reason = 'hatch open in robotic mode'
                 reasons.append(reason)
                 if reason not in self.lockdown_reasons:
-                    send_slack_msg('Dome hatch is open in robotic mode!')
+                    send_slack_msg('WARNING: Dome hatch is open in robotic mode!', emergency=True)
         else:
             if self.hatch_open_time != 0:
                 self.hatch_open_time = 0
@@ -897,12 +897,16 @@ class DomeDaemon(BaseDaemon):
         # Check if the emergency shutdown file has been created
         if self.info['emergency']:
             lockdown = True
-            reasons.append('emergency shutdown ({})'.format(self.info['emergency_reasons']))
+            reason = 'emergency shutdown ({})'.format(self.info['emergency_reasons'])
+            reasons.append(reason)
+            if reason not in self.lockdown_reasons:
+                send_slack_msg('WARNING: Dome emergency shutdown file detected!', emergency=True)
 
         # Check if the conditions are bad
         if self.info['conditions_bad']:
             lockdown = True
-            reasons.append('conditions bad ({})'.format(self.info['conditions_bad_reasons']))
+            reason = 'conditions bad ({})'.format(self.info['conditions_bad_reasons'])
+            reasons.append(reason)
 
         # Set the flag
         if lockdown:

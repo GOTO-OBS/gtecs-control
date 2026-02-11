@@ -424,6 +424,11 @@ for ut in AUTOFOCUS_PARAMS:
 ENABLE_SLACK = config['ENABLE_SLACK']
 SLACK_BOT_TOKEN = config['SLACK_BOT_TOKEN']
 SLACK_DEFAULT_CHANNEL = config['SLACK_DEFAULT_CHANNEL']
+if SLACK_DEFAULT_CHANNEL == 'none':
+    SLACK_DEFAULT_CHANNEL = None
+SLACK_EMERGENCY_CHANNEL = config['SLACK_EMERGENCY_CHANNEL']
+if SLACK_EMERGENCY_CHANNEL == 'none':
+    SLACK_EMERGENCY_CHANNEL = None
 
 ############################################################
 # Check for any parameters in the config spec that have not been defined in this module
