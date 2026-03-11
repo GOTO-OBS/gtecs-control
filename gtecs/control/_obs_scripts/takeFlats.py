@@ -10,7 +10,7 @@ from astropy.time import Time
 
 from gtecs.control import params
 from gtecs.control.astronomy import sunalt_time
-from gtecs.control.catalogs import antisun_flat, exposure_sequence
+from gtecs.control.catalogs import antisun_flat
 from gtecs.control.daemons import daemon_proxy
 from gtecs.control.observing import get_analysis_image, prepare_for_images, slew_to_radec
 
@@ -49,7 +49,9 @@ def take_flat(exptime, filt, offset_step, target_name='Sky flats', glance=False)
     # Get the mean value for the images
     sky_medians = {ut: image_headers[ut]['MEDCNTS'] for ut in sorted(image_headers)}
     print('Median counts:', sky_medians)
+
     mean_counts = np.mean([sky_medians[ut] for ut in sky_medians])
+    print('{} image sky mean: {:.1f} counts'.format(filt, mean_counts))
 
     return mean_counts
 
@@ -111,13 +113,14 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
     print('Taking initial exposures')
     filt = filt_list[0]
     while True:
-        counts = take_flat(exptime, filt, offset_step, target_name, glance=True)
-        print('{} image sky mean: {:.1f} counts'.format(filt, counts))
+        # Take the glance and get the mean counts
+        mean_counts = take_flat(exptime, filt, offset_step, target_name, glance=True)
 
-        if eve and counts > target_counts:
+        # Wait until we reach the target sky brightness
+        if eve and mean_counts > target_counts:
             print('Waiting until below {:.1f} counts'.format(target_counts))
             time.sleep(1)
-        elif not eve and counts < target_counts:
+        elif not eve and mean_counts < target_counts:
             print('Waiting until above {:.1f} counts'.format(target_counts))
             time.sleep(1)
         else:
@@ -131,8 +134,8 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
         print('Using {} filter'.format(filt))
 
         if i > 0:
-            new_exptime = exptime * (target_counts / counts)
-            # Guess initial exposure time based on the previous filter
+            # Guess initial exposure time based on the sky brightness and previous filter
+            new_exptime = exptime * (target_counts / mean_counts)
             bandwidth_ratio = FILTER_BANDWIDTH[filt_list[i - 1]] / FILTER_BANDWIDTH[filt]
             new_exptime = new_exptime * bandwidth_ratio
             print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
@@ -141,33 +144,28 @@ def run(eve, target_counts, num_exp, filt_list=None, max_exptime=30, offset_step
                 print('Limiting exposure time to {:.1f}s'.format(max_exptime))
                 exptime = max_exptime
 
-            # Take initial measurement
+            # Take initial measurement and get the mean counts
             print('Taking {} test exposure to find new exposure time'.format(filt))
-            counts = take_flat(new_exptime, filt, offset_step, target_name, glance=True)
-            print('{} image sky mean: {:.1f} counts'.format(filt, counts))
-
-        # Rescale based on new measurement
-        new_exptime = exptime * (target_counts / counts)
-        print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
-        exptime = new_exptime
-        if exptime > max_exptime:
-            print('Limiting exposure time to {:.1f}s'.format(max_exptime))
-            exptime = max_exptime
+            mean_counts = take_flat(new_exptime, filt, offset_step, target_name, glance=True)
 
         print('~~~~~~')
-        exptime_list = exposure_sequence(exptime, num_exp, eve=eve)
-        print('Taking {} flats in {} filter'.format(len(exptime_list), filt))
-        for i, exptime in enumerate(exptime_list):
-            print('Taking {} filter flat {}/{}'.format(filt, i + 1, len(exptime_list)))
+        print('Taking {} flats in {} filter'.format(num_exp, filt))
+        for i in range(num_exp):
+            print('Taking {} filter flat {}/{}'.format(filt, i + 1, num_exp))
+
+            # Guess initial exposure time based on the sky brightness
+            new_exptime = exptime * (target_counts / mean_counts)
+            print('Rescaling exposure time from {:.1f} to {:.1f}'.format(exptime, new_exptime))
+            exptime = new_exptime
             if exptime > max_exptime:
                 print('Limiting exposure time to {:.1f}s'.format(max_exptime))
                 exptime = max_exptime
 
-            counts = take_flat(exptime, filt, offset_step, target_name)
-            print('{} image sky mean: {:.1f} counts'.format(filt, counts))
+            # Take the flat and get the mean counts
+            mean_counts = take_flat(exptime, filt, offset_step, target_name)
 
             # Stop if saturated in the morning
-            if not eve and counts > 65000:
+            if not eve and mean_counts > 65000:
                 print('Images are saturated, stopping flats')
                 break
 
