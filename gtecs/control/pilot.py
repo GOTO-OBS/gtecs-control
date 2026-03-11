@@ -13,8 +13,7 @@ from astropy.time import Time
 from gtecs.common import logging
 from gtecs.common.system import execute_command
 
-from . import monitors
-from . import params
+from . import monitors, params
 from .astronomy import get_sunalt, local_midnight, sunalt_time
 from .flags import Conditions, Status
 from .scheduling import update_schedule_pyro, update_schedule_server_async
@@ -739,6 +738,7 @@ class Pilot:
                    'script': 'autoFocus.py',
                    'args': ['-n', '1',
                             '-t', '5',
+                            '--target', 'config'
                             ],
                    }
         if not params.AUTOFOCUS_SLACK_REPORTS:  # This is ugly, these should all be in a config file

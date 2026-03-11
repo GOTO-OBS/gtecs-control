@@ -371,6 +371,11 @@ IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
 
 ############################################################
 # Obs script parameters
+AUTOFOCUS_TARGETS = config['AUTOFOCUS_TARGETS']
+AUTOFOCUS_TARGETS = {
+    str(name): (float(AUTOFOCUS_TARGETS[name][0]), float(AUTOFOCUS_TARGETS[name][1]))
+    for name in AUTOFOCUS_TARGETS
+}
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
 AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
                     for ut in AUTOFOCUS_PARAMS
