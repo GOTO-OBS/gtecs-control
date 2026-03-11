@@ -65,7 +65,7 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
             if len(config_targets) == 0:
                 raise ValueError('No targets defined in config file')
             # Cycle through the set of targets each night
-            target_names = list(sorted(config_targets.keys()))
+            target_names = list(config_targets.keys())
             target_name = target_names[int(t.unix) % len(target_names)]
             target_alt, target_az = config_targets[target_name]
             print(f'Slewing to config target ({target_name}: alt={target_alt}, az={target_az})...')
