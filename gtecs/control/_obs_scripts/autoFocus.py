@@ -16,9 +16,7 @@ import os
 import sqlite3
 from argparse import ArgumentParser
 
-from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from astropy import units as u
 
 from gtecs.control import params
 from gtecs.control.analysis import get_focus_region
@@ -26,7 +24,7 @@ from gtecs.control.catalogs import focus_star
 from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
                                     get_focus_params, get_focuser_positions, get_hfd_position,
                                     measure_focus, set_focuser_positions)
-from gtecs.control.observing import prepare_for_images, slew_to_radec
+from gtecs.control.observing import prepare_for_images, slew_to_altaz, slew_to_radec
 
 import numpy as np
 
@@ -59,6 +57,7 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
             print('Slewing to catalog target {}...'.format(star))
             target_name = star.name
             coordinate = star.coord_now()
+            slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
         elif target == 'config':
             # Select a target from the list in the config file
             config_targets = params.AUTOFOCUS_TARGETS
@@ -69,9 +68,7 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
             target_name = target_names[int(t.unix) % len(target_names)]
             target_alt, target_az = config_targets[target_name]
             print(f'Slewing to config target ({target_name}: alt={target_alt}, az={target_az})...')
-            altaz = SkyCoord(alt=target_alt * u.deg, az=target_az * u.deg, frame='altaz', obstime=t)
-            coordinate = altaz.transform_to('icrs')
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+            slew_to_altaz(target_alt, target_az, timeout=120)
         print('Reached target')
     else:
         target_name = 'Autofocus'
