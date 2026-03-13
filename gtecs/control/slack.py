@@ -10,7 +10,7 @@ from .astronomy import night_startdate, sunalt_time
 from .flags import Conditions, Status
 
 
-def send_slack_msg(text, channel=None, username=None, *args, **kwargs):
+def send_slack_msg(text, channel=None, emergency=False, username=None, *args, **kwargs):
     """Send a message to Slack.
 
     Parameters
@@ -20,6 +20,9 @@ def send_slack_msg(text, channel=None, username=None, *args, **kwargs):
     channel : string, optional
         The channel to post the message to.
         If None, defaults to `params.SLACK_DEFAULT_CHANNEL`.
+    emergency : bool, optional
+        If True, forward the message to the emergency channel (defined in
+        `params.SLACK_EMERGENCY_CHANNEL`) as well as the given channel.
     username : string, optional
         The Slack bot username to post the message as.
         If None, defaults to 'params.TELESCOPE_NAME'.
@@ -37,10 +40,30 @@ def send_slack_msg(text, channel=None, username=None, *args, **kwargs):
 
     if params.ENABLE_SLACK:
         # Use the common function
-        return send_message(
-            text, channel, params.SLACK_BOT_TOKEN,
-            username=username, icon_emoji=f'goto_bot_{params.TELESCOPE_NUMBER}',
-            *args, **kwargs)
+        message_link = send_message(
+            text,
+            channel,
+            params.SLACK_BOT_TOKEN,
+            username=username,
+            icon_emoji=f'goto_bot_{params.TELESCOPE_NUMBER}',
+            return_link=True,
+            *args,
+            **kwargs,
+        )
+        if emergency and params.SLACK_EMERGENCY_CHANNEL is not None:
+            # If it's an emergency, also send to the emergency channel
+            forward_message = f':warning: *EMERGENCY ALERT from {params.TELESCOPE_NAME}* :warning:'
+            forward_message += f'\nSee <{message_link}|Message details> in <#{channel}>:'
+            send_message(
+                forward_message,
+                params.SLACK_EMERGENCY_CHANNEL,
+                params.SLACK_BOT_TOKEN,
+                username=username,
+                icon_emoji=f'goto_bot_{params.TELESCOPE_NUMBER}',
+                *args,
+                **kwargs,
+            )
+        return message_link
     else:
         print('Slack Message:', text)
 
@@ -51,8 +74,9 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
 
     # Conditions summary
     conditions = Conditions()
-    conditions_summary = conditions.get_formatted_string(good=':heavy_check_mark:',
-                                                         bad=':exclamation:')
+    conditions_summary = conditions.get_formatted_string(
+        good=':heavy_check_mark:', bad=':exclamation:'
+    )
     if conditions.bad:
         conditions_status = ':warning: Conditions are bad! :warning:'
         if colour is None:
@@ -61,20 +85,22 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
         conditions_status = 'Conditions are good'
         if colour is None:
             colour = 'good'
-    attach = {'fallback': 'Conditions summary',
-              'title': conditions_status,
-              'text': conditions_summary,
-              'color': colour,
-              'ts': conditions.current_time.unix,
-              }
+    attach = {
+        'fallback': 'Conditions summary',
+        'title': conditions_status,
+        'text': conditions_summary,
+        'color': colour,
+        'ts': conditions.current_time.unix,
+    }
     attachments.append(attach)
 
     # System status
     status = Status()
-    attach = {'fallback': 'System mode: {}'.format(status.mode),
-              'text': 'System is in *{}* mode'.format(status.mode),
-              'color': colour,
-              }
+    attach = {
+        'fallback': 'System mode: {}'.format(status.mode),
+        'text': 'System is in *{}* mode'.format(status.mode),
+        'color': colour,
+    }
     attachments.append(attach)
 
     if startup:
@@ -85,38 +111,43 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
             ing_url = 'http://catserver.ing.iac.es/weather/index.php?view=site'
             not_url = 'http://www.not.iac.es/weather/'
             tng_url = 'https://tngweb.tng.iac.es/weather/'
-            links = ['<{}|Local environment page>'.format(env_url),
-                     '<{}|Mountain forecast>'.format(mf_url),
-                     '<{}|ING>'.format(ing_url),
-                     '<{}|NOT>'.format(not_url),
-                     '<{}|TNG>'.format(tng_url),
-                     ]
-            attach = {'fallback': 'Useful links',
-                      'text': '  -  '.join(links),
-                      'color': colour,
-                      }
+            links = [
+                '<{}|Local environment page>'.format(env_url),
+                '<{}|Mountain forecast>'.format(mf_url),
+                '<{}|ING>'.format(ing_url),
+                '<{}|NOT>'.format(not_url),
+                '<{}|TNG>'.format(tng_url),
+            ]
+            attach = {
+                'fallback': 'Useful links',
+                'text': '  -  '.join(links),
+                'color': colour,
+            }
             attachments.append(attach)
         elif site == 'Siding Spring':
             aat_url = 'http://aat-ops.anu.edu.au/AATdatabase/met.html'
-            links = ['<{}|AAT>'.format(aat_url),
-                     ]
-            attach = {'fallback': 'Useful links',
-                      'text': '  -  '.join(links),
-                      'color': colour,
-                      }
+            links = [
+                '<{}|AAT>'.format(aat_url),
+            ]
+            attach = {
+                'fallback': 'Useful links',
+                'text': '  -  '.join(links),
+                'color': colour,
+            }
             attachments.append(attach)
 
         # External webcam
         if site == 'La Palma':
             ts = '{:.0f}'.format(Time.now().unix)
             image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/ext2/static?' + ts
-            attach = {'fallback': 'External webcam view',
-                      'title': 'External webcam view',
-                      'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
-                      'text': 'Image attached:',
-                      'image_url': image_url,
-                      'color': colour,
-                      }
+            attach = {
+                'fallback': 'External webcam view',
+                'title': 'External webcam view',
+                'title_link': 'http://lapalma-observatory.warwick.ac.uk/eastcam/',
+                'text': 'Image attached:',
+                'image_url': image_url,
+                'color': colour,
+            }
             attachments.append(attach)
         elif site == 'Siding Spring':
             pass
@@ -126,36 +157,39 @@ def send_status_report(msg, colour=None, startup=True, slack_channel=None, site=
         if site == 'La Palma':
             ts = '{:.0f}'.format(Time.now().unix)
             image_url = 'https://en.sat24.com/image?type=infraPolair&region=ce&' + ts
-            attach = {'fallback': 'IR satellite view',
-                      'title': 'IR satellite view',
-                      'title_link': 'https://en.sat24.com/en/ce/infraPolair',
-                      'text': 'Image attached:',
-                      'image_url': image_url,
-                      'color': colour,
-                      }
+            attach = {
+                'fallback': 'IR satellite view',
+                'title': 'IR satellite view',
+                'title_link': 'https://en.sat24.com/en/ce/infraPolair',
+                'text': 'Image attached:',
+                'image_url': image_url,
+                'color': colour,
+            }
             attachments.append(attach)
         elif site == 'Siding Spring':
             image_url = 'http://www.bom.gov.au/gms/IDE00005.gif'
-            attach = {'fallback': 'IR satellite view',
-                      'title': 'IR satellite view',
-                      'title_link': 'http://www.bom.gov.au/gms/IDE00005.gif',
-                      'text': 'Image attached:',
-                      'image_url': image_url,
-                      'color': colour,
-                      }
+            attach = {
+                'fallback': 'IR satellite view',
+                'title': 'IR satellite view',
+                'title_link': 'http://www.bom.gov.au/gms/IDE00005.gif',
+                'text': 'Image attached:',
+                'image_url': image_url,
+                'color': colour,
+            }
             attachments.append(attach)
     else:
         # Internal webcam
         if site == 'La Palma':
             ts = '{:.0f}'.format(Time.now().unix)
             image_url = 'http://lapalma-observatory.warwick.ac.uk/webcam/goto/static?' + ts
-            attach = {'fallback': 'Internal webcam view',
-                      'title': 'Internal webcam view',
-                      'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
-                      'text': 'Image attached:',
-                      'image_url': image_url,
-                      'color': colour,
-                      }
+            attach = {
+                'fallback': 'Internal webcam view',
+                'title': 'Internal webcam view',
+                'title_link': 'http://lapalma-observatory.warwick.ac.uk/goto/dome/',
+                'text': 'Image attached:',
+                'image_url': image_url,
+                'color': colour,
+            }
             attachments.append(attach)
         elif site == 'Siding Spring':
             pass
@@ -175,17 +209,24 @@ def send_dome_report(msg, confirmed_closed, slack_channel=None):
         colour = 'good'
     else:
         colour = 'danger'
-    send_status_report(msg=msg, colour=colour, startup=False, slack_channel=slack_channel)
+    send_status_report(
+        msg=msg,
+        colour=colour,
+        startup=False,
+        slack_channel=slack_channel,
+        emergency=False if confirmed_closed else True,
+    )
 
 
-def send_timing_report(time=None,
-                       startup_sunalt=12,
-                       open_sunalt=0,
-                       obs_start_sunalt=-12,
-                       obs_stop_sunalt=None,
-                       close_sunalt=None,
-                       slack_channel=None,
-                       ):
+def send_timing_report(
+    time=None,
+    startup_sunalt=12,
+    open_sunalt=0,
+    obs_start_sunalt=-12,
+    obs_stop_sunalt=None,
+    close_sunalt=None,
+    slack_channel=None,
+):
     """Send a Slack message containing tonight's observing times."""
     if time is None:
         time = Time.now()
@@ -216,9 +257,10 @@ def send_timing_report(time=None,
     text += ': Observing finish (_sunalt={}°_)\n'.format(obs_stop_sunalt)
     text += close_time.strftime('%Y-%m-%d %H:%M UTC')
     text += ': Dome closed (_sunalt={}°_)\n'.format(close_sunalt)
-    attach = {'fallback': text,
-              'text': text,
-              }
+    attach = {
+        'fallback': text,
+        'text': text,
+    }
     attachments.append(attach)
 
     send_slack_msg(msg, attachments=attachments, channel=slack_channel)

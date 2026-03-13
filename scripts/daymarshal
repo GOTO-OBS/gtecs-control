@@ -42,7 +42,7 @@ def run(test=False):
     pid = get_pid('pilot')
     if pid:
         print('Pilot is still running (PID {})'.format(pid))
-        send_slack_msg('Pilot did not shut down correctly!')
+        send_slack_msg('WARNING: Pilot did not shut down correctly!')
         kill_process('pilot')
         time.sleep(5)
         pid = get_pid('pilot')
@@ -51,7 +51,7 @@ def run(test=False):
             send_slack_msg('Pilot killed')
         else:
             print('Pilot is still running (PID {})'.format(pid))
-            send_slack_msg('Pilot could not be killed!')
+            send_slack_msg('WARNING: Pilot could not be killed!')
 
     # Check the dome status
     confirmed_closed = False
@@ -72,6 +72,7 @@ def run(test=False):
         log.error('Error checking the dome', exc_info=True)
 
     # Send the report to Slack
+    # Note if we're not confirmed closed it will trigger an emergency alert
     log.info('Sending status report to Slack')
     send_dome_report(msg, confirmed_closed)
 
@@ -129,14 +130,14 @@ if __name__ == '__main__':
     status = Status()
     if status.mode == 'engineering':
         print('Day marshal is disabled in engineering mode')
-        send_slack_msg('Day marshal tried to run, but system is in engineering mode')
+        send_slack_msg('WARNING: Day marshal tried to run, but system is in engineering mode')
         sys.exit(0)
 
     # Check it it's already running
     pid = get_pid('daymarshal')
     if pid:
         print('Day marshal is already running (PID {})'.format(pid))
-        send_slack_msg('Day marshal tried to run, but is already running')
+        send_slack_msg('WARNING: Day marshal tried to run, but is already running')
         sys.exit(0)
 
     parser = argparse.ArgumentParser(description=__doc__,

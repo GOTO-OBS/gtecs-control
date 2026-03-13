@@ -2,11 +2,10 @@
 
 import time
 
-from gtecs.common.system import NeatCloser
-
 import numpy as np
-
 import pandas as pd
+
+from gtecs.common.system import NeatCloser
 
 from . import params
 from .analysis import get_focus_region, measure_image_hfd
@@ -31,13 +30,19 @@ class RestoreFocusCloser(NeatCloser):
 def get_focus_params():
     """Create a dataframe with all the autofocus parameters from params."""
     all_uts = sorted(params.AUTOFOCUS_PARAMS.keys())
-    foc_params = {'big_step': {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in all_uts},
-                  'small_step': {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in all_uts},
-                  'nfv': {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in all_uts},
-                  'm_l': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in all_uts},
-                  'm_r': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in all_uts},
-                  'delta_x': {ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in all_uts},
-                  }
+    foc_params = {
+        # Parameters for the V-curve method
+        'big_step': {ut: params.AUTOFOCUS_PARAMS[ut]['BIG_STEP'] for ut in all_uts},
+        'small_step': {ut: params.AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] for ut in all_uts},
+        'nfv': {ut: params.AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] for ut in all_uts},
+        'm_l': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] for ut in all_uts},
+        'm_r': {ut: params.AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] for ut in all_uts},
+        'delta_x': {ut: params.AUTOFOCUS_PARAMS[ut]['DELTA_X'] for ut in all_uts},
+        # Parameters for the surface fit method
+        'fit_a': {ut: params.AUTOFOCUS_PARAMS[ut]['FIT_A'] for ut in all_uts},
+        'fit_b': {ut: params.AUTOFOCUS_PARAMS[ut]['FIT_B'] for ut in all_uts},
+        'fit_c': {ut: params.AUTOFOCUS_PARAMS[ut]['FIT_C'] for ut in all_uts},
+    }
     foc_params = pd.DataFrame(foc_params)
     return foc_params
 
@@ -402,8 +407,11 @@ def measure_focus(num_exp=1, exptime=5, filt='L', binning=1, target_name='Focus 
     return all_dfs
 
 
-def focus_temp_compensation(take_images=False, verbose=False):
+def refocus_temp_compensation(take_images=False, verbose=False):
     """Apply any needed temperature compensation to the focusers."""
+    # Get the focus parameters defined in params
+    foc_params = get_focus_params()
+
     # Find the change in temperature since the last move
     with daemon_proxy('foc') as daemon:
         info = daemon.get_info(force_update=True)
@@ -411,7 +419,7 @@ def focus_temp_compensation(take_images=False, verbose=False):
     prev_temp = {ut: info[ut]['last_move_temp'] for ut in info['uts']}
     deltas = {ut: np.round(curr_temp[ut] - prev_temp[ut], 1)
               if (curr_temp[ut] is not None and prev_temp[ut] is not None) else 0
-              for ut in params.AUTOFOCUS_PARAMS}
+              for ut in foc_params['TEMP_MINCHANGE'].to_dict()}
     if verbose:
         print('Checking focuser temperatures...')
         print('Current temp:', curr_temp)
@@ -419,18 +427,18 @@ def focus_temp_compensation(take_images=False, verbose=False):
         print('Difference:', deltas)
 
     # Check if the change is greater than the minimum to refocus
-    min_change = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE']
-                  for ut in params.AUTOFOCUS_PARAMS}
+    min_change = {ut: foc_params['TEMP_MINCHANGE'].to_dict()[ut]
+                  for ut in foc_params['TEMP_MINCHANGE'].to_dict()}
     deltas = {ut: deltas[ut]
               if abs(deltas[ut]) > min_change[ut] else 0
               for ut in deltas}
 
     # Find the gradients (in steps/degree C)
-    gradients = {ut: params.AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT']
-                 for ut in params.AUTOFOCUS_PARAMS}
+    gradients = {ut: foc_params['TEMP_GRADIENT'].to_dict()[ut]
+                 for ut in foc_params['TEMP_GRADIENT'].to_dict()}
 
     # Calculate the focus offset
-    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in params.AUTOFOCUS_PARAMS}
+    offsets = {ut: int(deltas[ut] * gradients[ut]) for ut in foc_params['TEMP_GRADIENT'].to_dict()}
     if verbose:
         print('Offsets:', offsets)
 
@@ -459,7 +467,66 @@ def focus_temp_compensation(take_images=False, verbose=False):
             print('Change in HFDs:', diff)
 
 
-def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=False):
+def refocus_surface(uts=None, move_limit=200):
+    """Adjust the focus with a surface fit based on the hour angle and temperature."""
+    if uts is None:
+        uts = params.UTS_WITH_FOCUSERS
+    uts = [ut for ut in uts if ut in params.UTS_WITH_FOCUSERS]
+
+    # Get the focus parameters defined in params
+    foc_params = get_focus_params()
+
+    # Get the current hour angle and internal temperature from the mount and conditions daemons
+    with daemon_proxy('mnt', timeout=30) as daemon:
+        info = daemon.get_info(force_update=True)
+    hour_angle = info['mount_ha']
+    with daemon_proxy('conditions', timeout=30) as daemon:
+        info = daemon.get_info(force_update=False)
+    temperature = np.max(
+        [info['internal']['temperature'][source] for source in info['internal']['temperature']]
+    )
+
+    print('Adjusting focus (hour angle={:.2f}, temperature={:.1f}C)'.format(
+        hour_angle, temperature
+    ))
+    current_positions = get_focuser_positions(uts)
+    print('Current focuser positions:', current_positions)
+
+    # Calculate the required focus position adjustment
+    new_positions = {
+        ut:
+        int(
+            foc_params['fit_a'].to_dict()[ut] * hour_angle +
+            foc_params['fit_b'].to_dict()[ut] * temperature +
+            foc_params['fit_c'].to_dict()[ut]
+        )
+        for ut in foc_params['fit_a'].to_dict()
+    }
+    print('Calculated new focuser positions:', new_positions)
+
+    # Check the new positions are within the allowed move limit
+    for ut in new_positions:
+        delta = new_positions[ut] - current_positions[ut]
+        if abs(delta) > move_limit:
+            if delta > 0:
+                limit_position = current_positions[ut] + move_limit
+            else:
+                limit_position = current_positions[ut] - move_limit
+            print('Warning: UT{} focus change from {} to {} exceeds limit of {}, '
+                  'capping to {}'.format(
+                      ut, current_positions[ut], new_positions[ut], move_limit, limit_position
+                )
+            )
+            new_positions[ut] = limit_position
+        new_positions[ut] = int(new_positions[ut])
+
+    # Move the focusers
+    set_focuser_positions(new_positions, timeout=60)
+
+    print('Focus adjustment complete')
+
+
+def refocus_vcurve(uts=None, use_annulus_region=True, take_test_images=False, reset=False):
     """Quickly test and adjust the focus position if necessary."""
     if uts is None:
         uts = params.UTS_WITH_FOCUSERS
@@ -579,7 +646,7 @@ def refocus(uts=None, use_annulus_region=True, take_test_images=False, reset=Fal
         np.array([r_hfds[ut] for ut in r_hfds]),
         np.array([foc_params['m_r'].to_dict()[ut] for ut in foc_params['m_r'].to_dict()]),
     )
-    bf_positions = {ut: int(bf_positions[ut - 1]) for ut in uts}
+    bf_positions = {ut: int(bf_positions[i]) for i, ut in enumerate(uts)}
     print('best positions:', bf_positions)
 
     # Step 11: Wait until the focusers have finished moving

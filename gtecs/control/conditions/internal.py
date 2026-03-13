@@ -97,8 +97,14 @@ def get_roomalert_json(source, location):
     return weather_dict
 
 
-def get_domealert_daemon(uri):
-    """Get the internal conditions from Paul's dome alert board."""
+def get_internal_daemon(uri):
+    """Get the internal conditions from a local environment daemon.
+
+    There are multiple possible data formats used by different versions with
+    different key names and number of sensors.
+
+    """
+    # Get the latest measurement from the Pyro daemon
     with Pyro4.Proxy(uri) as proxy:
         proxy._pyroTimeout = 5
         proxy._pyroSerializer = 'serpent'
@@ -106,12 +112,37 @@ def get_domealert_daemon(uri):
 
     weather_dict = {}
 
+    # Get the update time
     weather_dict['update_time'] = Time(data['date'], precision=0).iso
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
+    # Try to get temperature and humidity
     try:
-        if 'internal_temp_east' in data:
+        # Option 1: just single 'temperature' and 'humidity' values
+        if 'temperature' in data:
+            if data['temperature_valid']:
+                weather_dict['temperature'] = data['temperature']
+            else:
+                weather_dict['temperature'] = -999
+            if data['relative_humidity_valid']:
+                weather_dict['humidity'] = data['relative_humidity']
+            else:
+                weather_dict['humidity'] = -999
+
+        # Option 2: single 'internal_temp' and 'internal_humidity' values
+        elif 'internal_temp' in data:
+            if data['internal_temp_valid']:
+                weather_dict['temperature'] = data['internal_temp']
+            else:
+                weather_dict['temperature'] = -999
+            if data['internal_humidity_valid']:
+                weather_dict['humidity'] = data['internal_humidity']
+            else:
+                weather_dict['humidity'] = -999
+
+        # Option 3: two separate sensors for east and west
+        elif 'internal_temp_east' in data:
             weather_dict['temperature'] = {}
             if data['internal_temp_east_valid']:
                 weather_dict['temperature']['east'] = data['internal_temp_east']
@@ -132,47 +163,30 @@ def get_domealert_daemon(uri):
             else:
                 weather_dict['humidity']['west'] = -999
 
-        else:
+        # Option 4: two separate numbered sensors
+        elif 'temperature1' in data:
             weather_dict['temperature'] = {}
-            if data['internal_temp_valid']:
-                weather_dict['temperature']['dome'] = data['internal_temp']
+            if data['temperature1_valid']:
+                weather_dict['temperature']['1'] = data['temperature1']
             else:
-                weather_dict['temperature']['dome'] = -999
+                weather_dict['temperature']['1'] = -999
+            if data['temperature2_valid']:
+                weather_dict['temperature']['2'] = data['temperature2']
+            else:
+                weather_dict['temperature']['2'] = -999
 
             weather_dict['humidity'] = {}
-            if data['internal_humidity_valid']:
-                weather_dict['humidity']['dome'] = data['internal_humidity']
+            if data['humidity1_valid']:
+                weather_dict['humidity']['1'] = data['humidity1']
             else:
-                weather_dict['humidity']['dome'] = -999
-    except Exception:
-        weather_dict['temperature'] = {'dome': -999}
-        weather_dict['humidity'] = {'dome': -999}
+                weather_dict['humidity']['1'] = -999
+            if data['humidity2_valid']:
+                weather_dict['humidity']['2'] = data['humidity2']
+            else:
+                weather_dict['humidity']['2'] = -999
 
-    return weather_dict
-
-
-def get_SHT35_daemon(uri):
-    """Get the internal conditions from Paul's SHT35 board."""
-    with Pyro4.Proxy(uri) as proxy:
-        proxy._pyroTimeout = 5
-        proxy._pyroSerializer = 'serpent'
-        data = proxy.last_measurement()
-
-    weather_dict = {}
-
-    weather_dict['update_time'] = Time(data['date'], precision=0).iso
-    dt = Time.now() - Time(weather_dict['update_time'])
-    weather_dict['dt'] = int(dt.to('second').value)
-
-    try:
-        if data['temperature_valid']:
-            weather_dict['temperature'] = data['temperature']
         else:
-            weather_dict['temperature'] = -999
-        if data['relative_humidity_valid']:
-            weather_dict['humidity'] = data['relative_humidity']
-        else:
-            weather_dict['humidity'] = -999
+            raise KeyError('No known temperature/humidity keys found in data')
     except Exception:
         weather_dict['temperature'] = -999
         weather_dict['humidity'] = -999

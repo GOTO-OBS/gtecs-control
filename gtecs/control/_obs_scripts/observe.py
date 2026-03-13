@@ -9,8 +9,13 @@ from argparse import ArgumentParser
 from gtecs.common.system import NeatCloser
 from gtecs.control import params
 from gtecs.control.daemons import daemon_proxy
-from gtecs.control.focusing import (focus_temp_compensation, get_focuser_positions, refocus,
-                                    set_focuser_positions)
+from gtecs.control.focusing import (
+    refocus_surface,
+    refocus_temp_compensation,
+    get_focuser_positions,
+    refocus_vcurve,
+    set_focuser_positions,
+)
 from gtecs.control.misc import ut_mask_to_string, ut_string_to_list
 from gtecs.control.observing import prepare_for_images, slew_to_radec
 from gtecs.control.scheduling import get_pointing_info
@@ -65,7 +70,7 @@ class InterruptedPointingCloser(NeatCloser):
         sys.exit(retcode)
 
 
-def run(pointing_id, adjust_focus=False, temp_compensation=False):
+def run(pointing_id, refocus_method=None, refocus_images=False):
     """Run the observe routine."""
     # make sure hardware is ready
     prepare_for_images()
@@ -76,7 +81,9 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
     start_time = time.time()
 
     # Catch any interrupts or exceptions from now on
-    if adjust_focus or temp_compensation:
+    if refocus_method is not None:
+        if refocus_method not in ['temp_compensation', 'vcurve', 'surface']:
+            raise ValueError('Invalid refocus method: {}'.format(refocus_method))
         # If the script is interrupted we need the closer to restore the original focus positions.
         initial_positions = get_focuser_positions()
         InterruptedPointingCloser(pointing_id, start_time, min_time=pointing_info['min_time'],
@@ -91,12 +98,14 @@ def run(pointing_id, adjust_focus=False, temp_compensation=False):
         print('In position')
 
         # Adjust focus first, if requested
-        if adjust_focus or temp_compensation:
+        if refocus_method is not None:
             try:
-                if adjust_focus:
-                    refocus(take_test_images=params.OBS_FOCUS_IMAGES)
-                elif temp_compensation:
-                    focus_temp_compensation(take_images=params.OBS_FOCUS_IMAGES, verbose=True)
+                if refocus_method  == 'temp_compensation':
+                    refocus_temp_compensation(take_images=refocus_images, verbose=True)
+                elif refocus_method == 'vcurve':
+                    refocus_vcurve(take_test_images=refocus_images)
+                elif refocus_method == 'surface':
+                    refocus_surface()
             except Exception:
                 # We can reset but don't interrupt the pointing
                 print('Error caught:')
@@ -177,19 +186,18 @@ if __name__ == '__main__':
                         help='Pointing Database ID',
                         )
     # Flags
-    parser.add_argument('--refocus', action='store_true',
+    parser.add_argument('--refocus', type=str,
+                        choices=['temp_compensation', 'vcurve', 'surface'],
                         help=('adjust the focus position before the exposure starts')
                         )
-    parser.add_argument('--temp-compensation', action='store_true',
-                        help=('adjust the focus position to compensate for temperature changes')
+    parser.add_argument('--refocus-images', action='store_true', default=False,
+                        help=('take test images during refocusing'
+                        '(only for vcurve or temp_compensation methods)')
                         )
 
     args = parser.parse_args()
     pointing_id = args.pointing_id
-    adjust_focus = args.refocus
-    temp_compensation = args.temp_compensation
+    refocus_method = args.refocus
+    refocus_images = args.refocus_images
 
-    if adjust_focus and temp_compensation:
-        raise ValueError('Cannot include both --refocus and --temp-compensation flags')
-
-    run(pointing_id, adjust_focus, temp_compensation)
+    run(pointing_id, refocus_method, refocus_images)

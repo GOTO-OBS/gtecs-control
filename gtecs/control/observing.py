@@ -125,7 +125,8 @@ def prepare_for_images(open_covers=True):
     # Bring the CCDs down to temperature
     with daemon_proxy('cam') as daemon:
         info = daemon.get_info(force_update=True)
-        if not all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+        if not all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+                   for ut in info['uts']):
             print('Cooling cameras')
             daemon.set_temperature('cool')
             # TODO: blocking command with confirmation or timeout in daemon
@@ -133,7 +134,8 @@ def prepare_for_images(open_covers=True):
             while True:
                 time.sleep(0.5)
                 info = daemon.get_info(force_update=True)
-                if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + 1 for ut in info['uts']):
+                if all(info[ut]['ccd_temp'] < info[ut]['target_temp'] + params.MAX_TEMP_MARGIN
+                       for ut in info['uts']):
                     break
                 if (time.time() - start_time) > 600:
                     raise TimeoutError('Camera cooling timed out')
@@ -150,23 +152,42 @@ def prepare_for_images(open_covers=True):
     # Open/close the mirror covers
     with daemon_proxy('ota') as daemon:
         info = daemon.get_info(force_update=True)
-        target_position = 'full_open' if open_covers else 'closed'
-        if not all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
-            if open_covers:
+        if open_covers:
+            # We need all covers to be open to observe
+            in_position = [info[ut]['position'] == 'full_open' for ut in info['uts_with_covers']]
+            if not all(in_position):
                 print('Opening mirror covers')
                 daemon.open_covers()
-            else:
+                # TODO: blocking command with confirmation or timeout in daemon
+                start_time = time.time()
+                while True:
+                    time.sleep(0.5)
+                    info = daemon.get_info(force_update=True)
+                    in_position = [
+                        info[ut]['position'] == 'full_open' for ut in info['uts_with_covers']
+                    ]
+                    if all(in_position):
+                        break
+                    if (time.time() - start_time) > 60:
+                        raise TimeoutError('Mirror covers timed out')
+        else:
+            # We allow a minimum number of covers to be closed
+            in_position = [info[ut]['position'] == 'closed' for ut in info['uts_with_covers']]
+            if sum(in_position) < params.MIN_CLOSED_COVERS:
                 print('Closing mirror covers')
                 daemon.close_covers()
-            # TODO: blocking command with confirmation or timeout in daemon
-            start_time = time.time()
-            while True:
-                time.sleep(0.5)
-                info = daemon.get_info(force_update=True)
-                if all([info[ut]['position'] == target_position for ut in info['uts_with_covers']]):
-                    break
-                if (time.time() - start_time) > 60:
-                    raise TimeoutError('Mirror covers timed out')
+                # TODO: blocking command with confirmation or timeout in daemon
+                start_time = time.time()
+                while True:
+                    time.sleep(0.5)
+                    info = daemon.get_info(force_update=True)
+                    in_position = [
+                        info[ut]['position'] == 'closed' for ut in info['uts_with_covers']
+                    ]
+                    if sum(in_position) < params.MIN_CLOSED_COVERS:
+                        break
+                    if (time.time() - start_time) > 60:
+                        raise TimeoutError('Mirror covers timed out')
 
 
 def slew_to_radec(ra, dec, timeout=120):

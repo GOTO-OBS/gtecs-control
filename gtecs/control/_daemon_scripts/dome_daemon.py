@@ -788,9 +788,13 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('System is in robotic mode, enabling autoclose')
                 self.autoclose_enabled = True
                 self.autoclose_timeout = None
-            if not self.autoshield_enabled:
-                self.log.info('System is in robotic mode, enabling autoshield')
-                self.autoshield_enabled = True
+            if self.info['old_mode'] != 'robotic':
+                # Windshielding is allowed to be manually disabled in robotic mode now,
+                # this prevents it being constantly reenabled if it's manually turned off.
+                # But when switching to robotic from manual or engineering we make sure it's on.
+                if not self.autoshield_enabled:
+                    self.log.info('System is in robotic mode, enabling autoshield')
+                    self.autoshield_enabled = True
 
         elif self.info['mode'] == 'manual':
             # In manual mode the heartbeat should always be enabled,
@@ -800,7 +804,7 @@ class DomeDaemon(BaseDaemon):
                 self.log.info('System is in manual mode, enabling heartbeat')
                 self.heartbeat_enabled = True
                 self.heartbeat_set_flag = 1
-            if self.info['old_mode'] != 'manual':
+            if self.info['old_mode'] == 'engineering':
                 # This will turn everything on when switching from engineering to manual
                 # (if we're switching from robotic they should all be on anyway!)
                 if not self.alarm_enabled:
@@ -865,7 +869,7 @@ class DomeDaemon(BaseDaemon):
             reason = 'heartbeat is unavailable'
             reasons.append(reason)
             if reason not in self.lockdown_reasons:
-                send_slack_msg('Dome heartbeat is unavailable!')
+                send_slack_msg('WARNING: Dome heartbeat is unavailable!', emergency=True)
 
         # Check if the quick-close button has been pressed
         if self.info['button_pressed']:
@@ -873,7 +877,7 @@ class DomeDaemon(BaseDaemon):
             reason = 'quick-close button pressed'
             reasons.append(reason)
             if reason not in self.lockdown_reasons:
-                send_slack_msg('Dome quick-close button has been pressed!')
+                send_slack_msg('WARNING: Dome quick-close button has been pressed!', emergency=True)
 
         # Check if the hatch is open in robotic mode
         if not self.info['hatch_closed']:
@@ -885,7 +889,7 @@ class DomeDaemon(BaseDaemon):
                 reason = 'hatch open in robotic mode'
                 reasons.append(reason)
                 if reason not in self.lockdown_reasons:
-                    send_slack_msg('Dome hatch is open in robotic mode!')
+                    send_slack_msg('WARNING: Dome hatch is open in robotic mode!', emergency=True)
         else:
             if self.hatch_open_time != 0:
                 self.hatch_open_time = 0
@@ -893,12 +897,16 @@ class DomeDaemon(BaseDaemon):
         # Check if the emergency shutdown file has been created
         if self.info['emergency']:
             lockdown = True
-            reasons.append('emergency shutdown ({})'.format(self.info['emergency_reasons']))
+            reason = 'emergency shutdown ({})'.format(self.info['emergency_reasons'])
+            reasons.append(reason)
+            if reason not in self.lockdown_reasons:
+                send_slack_msg('WARNING: Dome emergency shutdown file detected!', emergency=True)
 
         # Check if the conditions are bad
         if self.info['conditions_bad']:
             lockdown = True
-            reasons.append('conditions bad ({})'.format(self.info['conditions_bad_reasons']))
+            reason = 'conditions bad ({})'.format(self.info['conditions_bad_reasons'])
+            reasons.append(reason)
 
         # Set the flag
         if lockdown:
@@ -1445,8 +1453,6 @@ class DomeDaemon(BaseDaemon):
         self.wait_for_info()
         if command == 'on' and self.info['mode'] == 'engineering':
             raise ModeError('Cannot enable autoshield in engineering mode')
-        elif command == 'off' and self.info['mode'] == 'robotic':
-            raise ModeError('Cannot disable autoshield in robotic mode')
         if command == 'on' and not params.DOME_WINDSHIELD_PERMITTED:
             raise HardwareError('Windshielding is disabled system-wide')
 

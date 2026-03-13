@@ -67,7 +67,7 @@ if __name__ == '__main__':
             reason = 'unknown'
 
         status.create_shutdown_file(reasons=[reason])
-        send_slack_msg('Emergency shutdown: {}'.format(reason))
+        send_slack_msg('WARNING: Emergency lockdown triggered: {}'.format(reason), emergency=True)
         print('Lockdown file created at {}'.format(status.emergency_file))
         print('The dome will not open until that file is deleted')
         sys.exit()

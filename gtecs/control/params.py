@@ -164,6 +164,7 @@ WEATHER_INTERVAL = config['WEATHER_INTERVAL']
 VAISALA_URI = config['VAISALA_URI']
 BACKUP_VAISALA_URIS = config['BACKUP_VAISALA_URIS']
 DOMEALERT_URI = config['DOMEALERT_URI']
+INTERNAL_URI = config['INTERNAL_URI']
 ARDUINO_FILE = config['ARDUINO_FILE']
 RAINDAEMON_URI = config['RAINDAEMON_URI']
 CLOUDWATCHER_URI = config['CLOUDWATCHER_URI']
@@ -350,9 +351,8 @@ if FLATS_FILTERS == 'all':  # default
     FLATS_FILTERS = ','.join(ALL_FILTERS)
 FLATS_TARGET_COUNTS = config['FLATS_TARGET_COUNTS']
 
-OBS_ADJUST_FOCUS = config['OBS_ADJUST_FOCUS']
-OBS_FOCUS_TEMP_COMPENSATION = config['OBS_FOCUS_TEMP_COMPENSATION']
-OBS_FOCUS_IMAGES = config['OBS_FOCUS_IMAGES']
+OBS_REFOCUS_METHOD = config['OBS_REFOCUS_METHOD']
+OBS_REFOCUS_IMAGES = config['OBS_REFOCUS_IMAGES']
 
 AUTOFOCUS_SLACK_REPORTS = config['AUTOFOCUS_SLACK_REPORTS']
 
@@ -361,6 +361,9 @@ FOCRUN_PERIOD = config['FOCRUN_PERIOD']
 
 BAD_CONDITIONS_TASKS_PERIOD = config['BAD_CONDITIONS_TASKS_PERIOD']
 
+MIN_CLOSED_COVERS = config['MIN_CLOSED_COVERS']
+MAX_TEMP_MARGIN = config['MAX_TEMP_MARGIN']
+
 ############################################################
 # Day marshal parameters
 IERS_A_URL = config['IERS_A_URL']
@@ -368,12 +371,18 @@ IERS_A_URL_BACKUP = config['IERS_A_URL_BACKUP']
 
 ############################################################
 # Obs script parameters
+AUTOFOCUS_TARGETS = config['AUTOFOCUS_TARGETS']
+AUTOFOCUS_TARGETS = {
+    str(name): (float(AUTOFOCUS_TARGETS[name][0]), float(AUTOFOCUS_TARGETS[name][1]))
+    for name in AUTOFOCUS_TARGETS
+}
 AUTOFOCUS_PARAMS = config['AUTOFOCUS_PARAMS']
 AUTOFOCUS_PARAMS = {int(ut): AUTOFOCUS_PARAMS[ut]
                     for ut in AUTOFOCUS_PARAMS
                     if int(ut) in UTS_WITH_FOCUSERS}
 for ut in AUTOFOCUS_PARAMS:
     # Use default params if they're not given (not perfect, they really need to be defined per UT)
+    # V-curve fitting params
     if 'NEAR_FOCUS_VALUE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = 5
     if 'BIG_STEP' not in AUTOFOCUS_PARAMS[ut]:
@@ -386,19 +395,31 @@ for ut in AUTOFOCUS_PARAMS:
         AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = 0.001
     if 'DELTA_X' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['DELTA_X'] = 2000
+    # Surface fit params
+    if 'FIT_A' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FIT_A'] = 1
+    if 'FIT_B' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FIT_B'] = -10
+    if 'FIT_C' not in AUTOFOCUS_PARAMS[ut]:
+        AUTOFOCUS_PARAMS[ut]['FIT_C'] = 10000
+    # Temperature compensation params
     if 'TEMP_GRADIENT' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = 0
     if 'TEMP_MINCHANGE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = 0.5
+    # Scale factor for focus runs
     if 'FOCRUN_SCALE' not in AUTOFOCUS_PARAMS[ut]:
         AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = 1
-    # Enforce type
+    # Enforce types
     AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'] = int(AUTOFOCUS_PARAMS[ut]['NEAR_FOCUS_VALUE'])
     AUTOFOCUS_PARAMS[ut]['BIG_STEP'] = int(AUTOFOCUS_PARAMS[ut]['BIG_STEP'])
     AUTOFOCUS_PARAMS[ut]['SMALL_STEP'] = int(AUTOFOCUS_PARAMS[ut]['SMALL_STEP'])
     AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_LEFT'])
     AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'] = float(AUTOFOCUS_PARAMS[ut]['SLOPE_RIGHT'])
     AUTOFOCUS_PARAMS[ut]['DELTA_X'] = float(AUTOFOCUS_PARAMS[ut]['DELTA_X'])
+    AUTOFOCUS_PARAMS[ut]['FIT_A'] = float(AUTOFOCUS_PARAMS[ut]['FIT_A'])
+    AUTOFOCUS_PARAMS[ut]['FIT_B'] = float(AUTOFOCUS_PARAMS[ut]['FIT_B'])
+    AUTOFOCUS_PARAMS[ut]['FIT_C'] = float(AUTOFOCUS_PARAMS[ut]['FIT_C'])
     AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_GRADIENT'])
     AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'] = float(AUTOFOCUS_PARAMS[ut]['TEMP_MINCHANGE'])
     AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'] = float(AUTOFOCUS_PARAMS[ut]['FOCRUN_SCALE'])
@@ -408,6 +429,11 @@ for ut in AUTOFOCUS_PARAMS:
 ENABLE_SLACK = config['ENABLE_SLACK']
 SLACK_BOT_TOKEN = config['SLACK_BOT_TOKEN']
 SLACK_DEFAULT_CHANNEL = config['SLACK_DEFAULT_CHANNEL']
+if SLACK_DEFAULT_CHANNEL == 'none':
+    SLACK_DEFAULT_CHANNEL = None
+SLACK_EMERGENCY_CHANNEL = config['SLACK_EMERGENCY_CHANNEL']
+if SLACK_EMERGENCY_CHANNEL == 'none':
+    SLACK_EMERGENCY_CHANNEL = None
 
 ############################################################
 # Check for any parameters in the config spec that have not been defined in this module

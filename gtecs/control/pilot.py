@@ -13,8 +13,7 @@ from astropy.time import Time
 from gtecs.common import logging
 from gtecs.common.system import execute_command
 
-from . import monitors
-from . import params
+from . import monitors, params
 from .astronomy import get_sunalt, local_midnight, sunalt_time
 from .flags import Conditions, Status
 from .scheduling import update_schedule_pyro, update_schedule_server_async
@@ -291,6 +290,9 @@ class Pilot:
                     msg = 'Fixed error from {}: {}'.format(monitor.monitor_id, error)
                     self.log.info(msg)
                     send_slack_msg(msg)
+                    if len(self.current_errors[monitor.daemon_id]) == 0:
+                        self.log.info('{} is now AOK'.format(monitor.monitor_id))
+                        self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
                 error_count += num_errs
                 if num_errs > 0:
                     self.log.debug('{} info: {}'.format(monitor.monitor_id, monitor.info))
@@ -736,6 +738,7 @@ class Pilot:
                    'script': 'autoFocus.py',
                    'args': ['-n', '1',
                             '-t', '5',
+                            '--target', 'config'
                             ],
                    }
         if not params.AUTOFOCUS_SLACK_REPORTS:  # This is ugly, these should all be in a config file
@@ -1089,12 +1092,7 @@ class Pilot:
                     position = focrun_positions[focrun_count]
                     execute_command(f'mnt slew_altaz {position[0]:d} {position[1]:d}')
                     # wait for mount to slew
-                    while True:
-                        await asyncio.sleep(5)
-                        mount_status = self.hardware['mnt'].get_hardware_status()
-                        self.log.debug('mount is {}'.format(mount_status))
-                        if mount_status == 'tracking':
-                            break
+                    await self.unpark_mount(slew=False)
                     # wait for the script to finish, blocking the observing loop
                     focrun_args = ['4',
                                    '-r', '0.02',
@@ -1165,10 +1163,16 @@ class Pilot:
                     # Start the new pointing
                     self.log.debug('starting pointing {}'.format(new_pointing['id']))
                     args = [str(new_pointing['id'])]
-                    if params.OBS_ADJUST_FOCUS:
-                        args.append('--refocus')
-                    elif params.OBS_FOCUS_TEMP_COMPENSATION:
-                        args.append('--temp-compensation')
+                    if params.OBS_REFOCUS_METHOD == 'temp_compensation':
+                        args.extend(['--refocus', 'temp_compensation'])
+                        if params.OBS_REFOCUS_IMAGES:
+                            args.append('--refocus_images')
+                    elif params.OBS_REFOCUS_METHOD == 'vcurve':
+                        args.extend(['--refocus', 'vcurve'])
+                        if params.OBS_REFOCUS_IMAGES:
+                            args.append('--refocus_images')
+                    elif params.OBS_REFOCUS_METHOD == 'surface':
+                        args.extend(['--refocus', 'surface'])
                     asyncio.ensure_future(self.start_script('OBS', 'observe.py', args=args))
                     self.current_start_time = time.time()
                     self.current_pointing = new_pointing
@@ -1182,6 +1186,10 @@ class Pilot:
                     # the scheduler on the next loop.
                     await self.cancel_running_script('obs parking')
                     self.park_mount()
+                    # Don't send a Slack message, since it spams multiple times
+                    # while the scheduler is down.
+                    # TODO: improve how we handle losing the connection, pause the system
+                    # and send just one message (with emergency=True)
                     # send_slack_msg('Pilot has nothing to observe!')
 
             await asyncio.sleep(5)
@@ -1404,7 +1412,10 @@ class Pilot:
         """Send a warning and then shut down."""
         if not self.shutdown_now:  # Don't trigger multiple times
             self.log.info('performing emergency shutdown: {}'.format(why))
-            send_slack_msg('Pilot is performing an emergency shutdown: {}'.format(why))
+            send_slack_msg(
+                'WARNING: Pilot is performing an emergency shutdown: {}'.format(why),
+                emergency=True,
+            )
 
             self.log.info('closing dome immediately')
             self.stop_mount()
@@ -1436,6 +1447,12 @@ class Pilot:
             self.log.debug('dome is {}'.format(dome_status))
             if dome_status == 'full_open':
                 break
+            if self.hardware['dome'].mode != 'open':
+                # A close could have been triggered due to bad weather while we're waiting,
+                # so we need to break or the pilot will crash.
+                self.log.warning('dome mode changed to {}, cancelling opening'.format(
+                    self.hardware['dome'].mode))
+                break
             await asyncio.sleep(5)
             if time.time() - start_time > 300:
                 self.log.error('dome opening timed out')
@@ -1455,6 +1472,10 @@ class Pilot:
                 cover_status = self.hardware['ota'].get_hardware_status()
                 self.log.debug('covers are {}'.format(cover_status))
                 if cover_status == 'full_open':
+                    break
+                if self.hardware['ota'].mode != 'open':
+                    self.log.warning('ota mode changed to {}, cancelling opening'.format(
+                        self.hardware['ota'].mode))
                     break
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:
@@ -1493,17 +1514,21 @@ class Pilot:
                 self.log.debug('dome is {}'.format(dome_status))
                 if dome_status in ['closed', 'in_lockdown']:
                     break
+                if self.hardware['dome'].mode != 'closed':
+                    self.log.warning('dome mode changed to {}, cancelling closing'.format(
+                        self.hardware['dome'].mode))
+                    break
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:
                     self.log.error('dome closing timed out')
-                    send_slack_msg('ERROR: Pilot could not close the dome!')
+                    send_slack_msg('CRITICAL: Pilot could not close the dome!', emergency=True)
                     asyncio.ensure_future(self.emergency_shutdown('Could not close the dome'))
 
             self.dome_confirmed_closed = True
             send_slack_msg('Pilot confirmed dome is closed')
             self.log.info('dome confirmed closed')
 
-    async def unpark_mount(self):
+    async def unpark_mount(self, slew=True):
         """Unpark the mount (if it's parked), start tracking and await until it is ready."""
         if self.hardware['mnt'].mode == 'parked':
             self.log.info('unparking mount')
@@ -1513,14 +1538,19 @@ class Pilot:
         await asyncio.sleep(5)
         mount_status = self.hardware['mnt'].get_hardware_status()
         if mount_status != 'tracking':
-            # slew to above horizon, to stop errors
-            execute_command('mnt slew_altaz 50 0')
+            if slew:
+                # slew to above horizon, to stop errors
+                execute_command('mnt slew_altaz 50 0')
             # wait for mount to slew
             start_time = time.time()
             while True:
                 mount_status = self.hardware['mnt'].get_hardware_status()
                 self.log.debug('mount is {}'.format(mount_status))
                 if mount_status == 'tracking':
+                    break
+                if self.hardware['mnt'].mode != 'tracking':
+                    self.log.warning('mnt mode changed to {}, cancelling unparking'.format(
+                        self.hardware['mnt'].mode))
                     break
                 await asyncio.sleep(5)
                 if time.time() - start_time > 300:

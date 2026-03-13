@@ -24,7 +24,7 @@ from gtecs.control.catalogs import focus_star
 from gtecs.control.focusing import (RestoreFocusCloser, get_best_focus_position,
                                     get_focus_params, get_focuser_positions, get_hfd_position,
                                     measure_focus, set_focuser_positions)
-from gtecs.control.observing import prepare_for_images, slew_to_radec
+from gtecs.control.observing import prepare_for_images, slew_to_altaz, slew_to_radec
 
 import numpy as np
 
@@ -32,7 +32,7 @@ import pandas as pd
 
 
 def run(num_exp=3, exptime=5, filt='L', binning=1,
-        no_slew=False, no_report=False,
+        target=None, no_report=False,
         use_annulus_region=True):
     """Run the autofocus routine.
 
@@ -45,14 +45,30 @@ def run(num_exp=3, exptime=5, filt='L', binning=1,
     print('~~~~~~')
     print('Starting focus routine')
 
-    # Slew to a focus star
-    if not no_slew:
+    # Slew to target
+    if target not in ['gliese', 'config', None]:
+        raise ValueError('Invalid target: {}'.format(target))
+    if target is not None:
         print('~~~~~~')
-        star = focus_star(Time.now())
-        print('Slewing to target {}...'.format(star))
-        target_name = star.name
-        coordinate = star.coord_now()
-        slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        t = Time.now()
+        if target == 'gliese':
+            # Slew to a bright star from the Gliese catalog near zenith.
+            star = focus_star(t)
+            print('Slewing to catalog target {}...'.format(star))
+            target_name = star.name
+            coordinate = star.coord_now()
+            slew_to_radec(coordinate.ra.deg, coordinate.dec.deg, timeout=120)
+        elif target == 'config':
+            # Select a target from the list in the config file
+            config_targets = params.AUTOFOCUS_TARGETS
+            if len(config_targets) == 0:
+                raise ValueError('No targets defined in config file')
+            # Cycle through the set of targets each night
+            target_names = list(config_targets.keys())
+            target_name = target_names[int(t.unix) % len(target_names)]
+            target_alt, target_az = config_targets[target_name]
+            print(f'Slewing to config target ({target_name}: alt={target_alt}, az={target_az})...')
+            slew_to_altaz(target_alt, target_az, timeout=120)
         print('Reached target')
     else:
         target_name = 'Autofocus'
@@ -389,10 +405,12 @@ if __name__ == '__main__':
                         help=('image binning factor'
                               ' (default=%(default)d)')
                         )
-    # Flags
-    parser.add_argument('--no-slew', action='store_true',
-                        help=('do not slew to a focus star (stay at current position)')
+    parser.add_argument('-T', '--target',
+                        choices=['gliese', 'config'], default=None,
+                        help=('target name'
+                              ' (options=%(choices)s, default=%(default)s)')
                         )
+    # Flags
     parser.add_argument('--no-report', action='store_true',
                         help=('do not send final focus positions to Slack')
                         )
@@ -402,14 +420,14 @@ if __name__ == '__main__':
     exptime = args.exptime
     filt = args.filter
     binning = args.binning
-    no_slew = args.no_slew
+    target = args.target
     no_report = args.no_report
 
     # If something goes wrong we need to restore the original focus
     initial_positions = get_focuser_positions()
     try:
         RestoreFocusCloser(initial_positions)
-        run(num_exp, exptime, filt, binning, no_slew, no_report)
+        run(num_exp, exptime, filt, binning, target, no_report)
     except Exception:
         print('Error caught: Restoring original focus positions...')
         set_focuser_positions(initial_positions, timeout=60)
