@@ -646,7 +646,7 @@ def refocus_vcurve(uts=None, use_annulus_region=True, take_test_images=False, re
         np.array([r_hfds[ut] for ut in r_hfds]),
         np.array([foc_params['m_r'].to_dict()[ut] for ut in foc_params['m_r'].to_dict()]),
     )
-    bf_positions = {ut: int(bf_positions[ut - 1]) for ut in uts}
+    bf_positions = {ut: int(bf_positions[i]) for i, ut in enumerate(uts)}
     print('best positions:', bf_positions)
 
     # Step 11: Wait until the focusers have finished moving
