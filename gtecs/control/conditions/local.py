@@ -261,6 +261,9 @@ def get_cloudwatcher_daemon(uri):
     dt = Time.now() - Time(weather_dict['update_time'])
     weather_dict['dt'] = int(dt.to('second').value)
 
-    weather_dict['sky_temp'] = data['sky_temp']
+    if 'sky_temp_eff' in data:
+        weather_dict['sky_temp'] = data['sky_temp_eff']
+    else:
+        weather_dict['sky_temp'] = data['sky_temp']
 
     return weather_dict
