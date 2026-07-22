@@ -16,8 +16,6 @@ from gtecs.control.hardware.dome import DomeHeartbeat, FakeHeartbeat
 from gtecs.control.hardware.power import DomeAlertRelay, ETHRelay, FakeRelay
 from gtecs.control.slack import send_slack_msg
 
-import numpy as np
-
 import serial  # noqa: I900
 
 
@@ -676,13 +674,25 @@ class DomeDaemon(BaseDaemon):
             with daemon_proxy('conditions', timeout=30) as daemon:
                 conditions_info = daemon.get_info(force_update=False)
             # Windspeed - take the maximum gust from all stations
-            temp_info['windspeed'] = np.max([conditions_info['weather'][source]['windmax']
-                                             for source in conditions_info['weather']])
+            temp_info['windspeed'] = max(
+                [
+                    conditions_info['weather'][source]['windmax']
+                    for source in conditions_info['weather']
+                ]
+            )
             # Internal
-            int_temperature = np.max([conditions_info['internal']['temperature'][source]
-                                      for source in conditions_info['internal']['temperature']])
-            int_humidity = np.max([conditions_info['internal']['humidity'][source]
-                                   for source in conditions_info['internal']['humidity']])
+            int_temperature = max(
+                [
+                    conditions_info['internal']['temperature'][source]
+                    for source in conditions_info['internal']['temperature']
+                ]
+            )
+            int_humidity = max(
+                [
+                    conditions_info['internal']['humidity'][source]
+                    for source in conditions_info['internal']['humidity']
+                ]
+            )
             temp_info['temperature'] = int_temperature
             temp_info['humidity'] = int_humidity
         except Exception:

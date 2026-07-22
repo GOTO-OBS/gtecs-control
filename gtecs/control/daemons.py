@@ -2,6 +2,7 @@
 
 import importlib.resources as pkg_resources
 import os
+import serpent
 import subprocess
 import time
 from abc import ABC, abstractmethod
@@ -237,6 +238,15 @@ class BaseDaemon(ABC):
         """Return hardware information."""
         if force_update:
             self.wait_for_info()
+        # Force info dicts to be serpent serialisable
+        # https://github.com/GOTO-OBS/gtecs-control/issues/649
+        try:
+            serpent.loads(serpent.dumps(self.info))
+        except ValueError as err:
+            if 'malformed node or string' not in str(err):
+                raise
+            self.log.warning('Error serialising info dict: {}'.format(err))
+            self.log.warning('Contents: {}'.format(serpent.dumps(self.info)))
         return self.info
 
     def shutdown(self):

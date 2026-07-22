@@ -482,8 +482,11 @@ def refocus_surface(uts=None, move_limit=200):
     hour_angle = info['mount_ha']
     with daemon_proxy('conditions', timeout=30) as daemon:
         info = daemon.get_info(force_update=False)
-    temperature = np.max(
-        [info['internal']['temperature'][source] for source in info['internal']['temperature']]
+    temperature = max(
+        [
+            info['internal']['temperature'][source]
+            for source in info['internal']['temperature']
+        ]
     )
 
     print('Adjusting focus (hour angle={:.2f}, temperature={:.1f}C)'.format(
