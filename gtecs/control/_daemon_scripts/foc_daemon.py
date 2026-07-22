@@ -11,8 +11,6 @@ from gtecs.control import params
 from gtecs.control.daemons import (BaseDaemon, DaemonDependencyError, HardwareError,
                                    daemon_proxy, get_daemon_host)
 
-import numpy as np
-
 
 class FocDaemon(BaseDaemon):
     """Focuser hardware daemon class."""
@@ -240,8 +238,12 @@ class FocDaemon(BaseDaemon):
         try:
             with daemon_proxy('conditions', timeout=30) as daemon:
                 conditions_info = daemon.get_info(force_update=False)
-            int_temperature = np.max([conditions_info['internal']['temperature'][source]
-                                      for source in conditions_info['internal']['temperature']])
+            int_temperature = max(
+                [
+                    conditions_info['internal']['temperature'][source]
+                    for source in conditions_info['internal']['temperature']
+                ]
+            )
             temp_info['dome_temp'] = int_temperature
         except Exception:
             self.log.error('Failed to get dome internal temperature')
