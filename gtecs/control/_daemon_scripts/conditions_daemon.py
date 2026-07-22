@@ -32,6 +32,9 @@ class ConditionsDaemon(BaseDaemon):
         super().__init__('conditions')
 
         # conditions variables
+        self.weather_sources = [params.VAISALA_URI]
+        for source in [source for source in params.BACKUP_VAISALA_URIS if source != 'none']:
+            self.weather_sources.append(source)
         self.history = {'windgust': {}}
         self.windgust_period = params.WINDGUST_PERIOD
 
@@ -130,137 +133,120 @@ class ConditionsDaemon(BaseDaemon):
         self.log.info('Daemon control thread stopped')
 
     # Internal functions
-    def _get_info(self):
-        """Get the latest status info from the hardware."""
-        temp_info = {}
+    def _get_weather_info(self, source):
+        """Get the latest weather info from the given source."""
+        # TODO: weather_dict should be a template for type checking and validation
+        if params.FAKE_CONDITIONS:
+            weather_dict = {
+                'temperature': 10,
+                'pressure': 800,
+                'windspeed': 5,
+                'winddir': 0,
+                'windgust': 10,
+                'windmax': 15,
+                'humidity': 50,
+                'rain': False,
+                'dew_point': 10,
+                'update_time': Time.now().iso,
+                'dt': 0,
+            }
+            return weather_dict
 
-        # Get basic daemon info
-        temp_info['daemon_id'] = self.daemon_id
-        temp_info['time'] = self.loop_time
-        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
-        temp_info['uptime'] = self.loop_time - self.start_time
-
-        # Get info from the weather masts
-        temp_info['weather'] = {}
-
-        weather_sources = [params.VAISALA_URI]
-        for source in [source for source in params.BACKUP_VAISALA_URIS if source != 'none']:
-            weather_sources.append(source)
-        # Add fallback sources just in case
-        if params.SITE_NAME == 'La Palma':
-            weather_sources.append('ing')
-        elif params.SITE_NAME == 'Siding Spring':
-            weather_sources.append('aat')
-
-        for source in weather_sources:
-            try:
-                if source.startswith('PYRO:'):
-                    uri = source
-                    source = uri[5:].split('_')[0].lower()  # Extract source name from URI
-                    if params.FAKE_CONDITIONS:
-                        weather_dict = {
-                            'temperature': 10,
-                            'pressure': 800,
-                            'windspeed': 5,
-                            'winddir': 0,
-                            'windgust': 10,
-                            'windmax': 15,
-                            'humidity': 50,
-                            'rain': False,
-                            'dew_point': 10,
-                            'update_time': Time.now().iso,
-                            'dt': 0,
-                        }
-                    else:
-                        weather_dict = get_vaisala_daemon(uri)
-                else:
-                    # As long as we have a single local source then we don't need the backups.
-                    # We should have done the local masts already, so we can check if they all
-                    # failed by looking at the temp dict.
-                    if all(temp_info['weather'][source]['dt'] == -999
-                           for source in temp_info['weather']):
-                        self.log.warning('All local weather sources failed!')
-                        if source == 'ing':
-                            weather_dict = get_ing()
-                        elif source == 'aat':
-                            weather_dict = get_aat()
-                        else:
-                            raise ValueError('Unknown weather source "{}"'.format(source))
-                    else:
-                        continue
-
-                # Save a history of windgust readings internally
-                if 'windgust' in weather_dict:
-                    # Add the latest value to the history
-                    new_hist = (self.loop_time, weather_dict['windgust'])
-                    if source in self.history['windgust']:
-                        self.history['windgust'][source].append(new_hist)
-                    else:
-                        self.history['windgust'][source] = [new_hist]
-                    # Remove old readings (limit to history period) and any invalid values
-                    self.history['windgust'][source] = [
-                        h for h in self.history['windgust'][source]
-                        if h[0] > self.loop_time - self.windgust_period and h[1] != -999
-                    ]
-                    # Add the maximum windgust value to the info dict
-                    if len(self.history['windgust'][source]) > 1:
-                        windmax = max([h[1] for h in self.history['windgust'][source]])
-                        weather_dict['windmax'] = windmax
-                    else:
-                        weather_dict['windmax'] = -999
-
-                # Check if the timeout has been exceeded
-                if weather_dict['dt'] >= params.WEATHER_TIMEOUT or weather_dict['dt'] == -999:
-                    raise ValueError('Timeout exceeded ({:.1f} > {:.1f})'.format(
-                        weather_dict['dt'], params.WEATHER_TIMEOUT))
-
-                # Also check if the weather hasn't changed for a given time
-                weather_dict['changed_time'] = self.loop_time
-                if (self.info and
-                        source in self.info['weather'] and
-                        self.info['weather'][source] and
-                        'changed_time' in self.info['weather'][source]):
-                    changed_time = self.info['weather'][source]['changed_time']
-                    unchanged = [
-                        weather_dict[key] == self.info['weather'][source][key]
-                        for key in weather_dict
-                        if key in self.info['weather'][source]
-                    ]
-                    dt = self.loop_time - changed_time
-                    if all(unchanged) and dt > params.WEATHER_STATIC:
-                        raise ValueError('Weather values unchanged ({:.1f} > {:.1f})'.format(
-                            dt, params.WEATHER_STATIC))
-
-            except Exception:
-                self.log.error('Error getting weather from "{}"'.format(source))
-                self.log.debug('', exc_info=True)
-                weather_dict = {
-                    'temperature': -999,
-                    'pressure': -999,
-                    'windspeed': -999,
-                    'winddir': -999,
-                    'windgust': -999,
-                    'windmax': -999,
-                    'humidity': -999,
-                    'rain': -999,
-                    'dew_point': -999,
-                    'update_time': -999,
-                    'dt': -999,
-                }
-
-            temp_info['weather'][source] = weather_dict
-
-        # Get the internal conditions from internal sensors
         try:
-            if params.FAKE_CONDITIONS:
-                internal_dict = {
-                    'temperature': {'dome': 10},
-                    'humidity': {'dome': 25},
-                    'update_time': Time.now().iso,
-                    'dt': 0,
-                }
+            if source.startswith('PYRO:'):
+                uri = source
+                source = uri[5:].split('_')[0].lower()  # Extract source name from URI
+                weather_dict = get_vaisala_daemon(uri)
+            elif source == 'ing':
+                weather_dict = get_ing()
+            elif source == 'aat':
+                weather_dict = get_aat()
+            else:
+                raise ValueError('Unknown weather source "{}"'.format(source))
+
+            # Save a history of windgust readings internally
+            if 'windgust' in weather_dict:
+                # Add the latest value to the history
+                new_hist = (self.loop_time, weather_dict['windgust'])
+                if source in self.history['windgust']:
+                    self.history['windgust'][source].append(new_hist)
+                else:
+                    self.history['windgust'][source] = [new_hist]
+                # Remove old readings (limit to history period) and any invalid values
+                self.history['windgust'][source] = [
+                    h
+                    for h in self.history['windgust'][source]
+                    if h[0] > self.loop_time - self.windgust_period and h[1] != -999
+                ]
+                # Add the maximum windgust value to the info dict
+                if len(self.history['windgust'][source]) > 1:
+                    windmax = max([h[1] for h in self.history['windgust'][source]])
+                    weather_dict['windmax'] = windmax
+                else:
+                    weather_dict['windmax'] = -999
+
+            # Check if the timeout has been exceeded
+            if weather_dict['dt'] >= params.WEATHER_TIMEOUT or weather_dict['dt'] == -999:
+                msg = 'Timeout exceeded for weather source "{}" ({:.1f} > {:.1f})'.format(
+                    source, weather_dict['dt'], params.WEATHER_TIMEOUT
+                )
+                raise ValueError(msg)
+
+            # Also check if the weather hasn't changed for a given time
+            weather_dict['changed_time'] = self.loop_time
+            if (
+                self.info
+                and source in self.info['weather']
+                and self.info['weather'][source]
+                and 'changed_time' in self.info['weather'][source]
+            ):
+                changed_time = self.info['weather'][source]['changed_time']
+                unchanged = [
+                    weather_dict[key] == self.info['weather'][source][key]
+                    for key in weather_dict
+                    if key in self.info['weather'][source]
+                ]
+                dt = self.loop_time - changed_time
+                if all(unchanged) and dt > params.WEATHER_STATIC:
+                    msg = 'Weather values unchanged for source "{}" ({:.1f} > {:.1f})'.format(
+                        source, dt, params.WEATHER_STATIC
+                    )
+                    raise ValueError(msg)
+
+            return weather_dict
+
+        except Exception:
+            self.log.error('Error getting weather from "{}"'.format(source))
+            self.log.debug('', exc_info=True)
+            weather_dict = {
+                'temperature': -999,
+                'pressure': -999,
+                'windspeed': -999,
+                'winddir': -999,
+                'windgust': -999,
+                'windmax': -999,
+                'humidity': -999,
+                'rain': -999,
+                'dew_point': -999,
+                'update_time': -999,
+                'dt': -999,
+            }
+            return weather_dict
+
+    def _get_internal_info(self):
+        """Get the latest internal info from the internal sensors."""
+        if params.FAKE_CONDITIONS:
+            internal_dict = {
+                'temperature': {'dome': 10},
+                'humidity': {'dome': 25},
+                'update_time': Time.now().iso,
+                'dt': 0,
+            }
+            return internal_dict
+
+        try:
             # First try getting the fallback Arduino if a filepath is given
-            elif params.ARDUINO_FILE != 'none':
+            if params.ARDUINO_FILE != 'none':
                 internal_dict = get_arduino_readout(params.ARDUINO_FILE)
             # Otherwise try any given internal daemon URI
             elif params.INTERNAL_URI != 'none':
@@ -278,6 +264,9 @@ class ConditionsDaemon(BaseDaemon):
                 internal_dict['temperature'] = {'dome': internal_dict['temperature']}
             if not isinstance(internal_dict['humidity'], dict):
                 internal_dict['humidity'] = {'dome': internal_dict['humidity']}
+
+            return internal_dict
+
         except Exception:
             self.log.error('Failed to get internal info')
             self.log.debug('', exc_info=True)
@@ -287,82 +276,73 @@ class ConditionsDaemon(BaseDaemon):
                 'update_time': -999,
                 'dt': -999,
             }
-        temp_info['internal'] = internal_dict
+            return internal_dict
 
-        # Get rain board readings
+    def _get_rain_info(self, weather_data):
+        """Get the latest rain info from the rain boards or weather stations."""
+        if params.FAKE_CONDITIONS:
+            return {'total': 9, 'unsafe': 0, 'dt': 0}
+
         try:
-            if params.FAKE_CONDITIONS:
-                rain_dict = {
-                    'total': 9,
-                    'unsafe': 0,
-                    'dt': 0,
-                }
+            rain_dict = {'total': 0, 'unsafe': 0, 'dt': 0}
+
+            # Get readings from any standalone boards, connected to
+            # the dome alert or with their own daemon
+            if params.RAINDAEMON_URI != 'none':
+                try:
+                    if 'domealert' in params.RAINDAEMON_URI:
+                        rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
+                    else:
+                        rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
+                    rain_dict['total'] += rain_daemon_dict['total']
+                    rain_dict['unsafe'] += rain_daemon_dict['unsafe']
+                    rain_dict['dt'] = rain_daemon_dict['dt']
+                except Exception:
+                    self.log.error('Failed to get rain daemon info')
+
+            # We've attached rain boards to some of the Vaisalas,
+            # so include them in the count too
+            for source in weather_data:
+                if (
+                    any('rainboard_' in key for key in weather_data[source])
+                    and weather_data[source]['rainboard_rain'] != -999
+                ):
+                    rain_dict['total'] += weather_data[source]['rainboard_total']
+                    rain_dict['unsafe'] += weather_data[source]['rainboard_unsafe']
+                    # Use the longer update time I guess??
+                    rain_dict['dt'] = max(rain_dict['dt'], weather_data[source]['dt'])
+
+            if rain_dict['total'] > 0:
+                # If we have any rain boards then remove rain readings from other sources
+                for source in weather_data:
+                    if 'rain' in weather_data[source]:
+                        weather_data[source]['rain'] = None
             else:
-                rain_dict = {'total': 0, 'unsafe': 0, 'dt': 0}
+                # If we have no other option then we'll use the readings from the stations
+                for source in weather_data:
+                    if 'rain' in weather_data[source] and weather_data[source]['rain'] != -999:
+                        rain_dict['total'] += 1
+                        rain_dict['unsafe'] += int(weather_data[source]['rain'])
+                        rain_dict['dt'] = max(rain_dict['dt'], weather_data[source]['dt'])
 
-                # Get readings from any standalone boards, connected to
-                # the dome alert or with their own daemon
-                if params.RAINDAEMON_URI != 'none':
-                    try:
-                        if 'domealert' in params.RAINDAEMON_URI:
-                            rain_daemon_dict = get_rain_domealert(params.RAINDAEMON_URI)
-                        else:
-                            rain_daemon_dict = get_rain_daemon(params.RAINDAEMON_URI)
-                        rain_dict['total'] += rain_daemon_dict['total']
-                        rain_dict['unsafe'] += rain_daemon_dict['unsafe']
-                        rain_dict['dt'] = rain_daemon_dict['dt']
-                    except Exception:
-                        self.log.error('Failed to get rain daemon info')
+            # Now if we still have no readings then we have a problem...
+            if rain_dict['total'] == 0:
+                raise ValueError('No weather sources for rain readings')
 
-                # We've attached rain boards to some of the Vaisalas,
-                # so include them in the count too
-                for source in temp_info['weather']:
-                    if (any('rainboard_' in key for key in temp_info['weather'][source]) and
-                            temp_info['weather'][source]['rainboard_rain'] != -999):
-                        rain_dict['total'] += temp_info['weather'][source]['rainboard_total']
-                        rain_dict['unsafe'] += temp_info['weather'][source]['rainboard_unsafe']
-                        # Use the longer update time I guess??
-                        rain_dict['dt'] = max(rain_dict['dt'], temp_info['weather'][source]['dt'])
-
-                if rain_dict['total'] > 0:
-                    # If we have any rain boards then remove rain readings from other sources
-                    for source in temp_info['weather']:
-                        if 'rain' in temp_info['weather'][source]:
-                            temp_info['weather'][source]['rain'] = None
-                else:
-                    # If we have no other option then we'll use the readings from the stations
-                    for source in temp_info['weather']:
-                        if ('rain' in temp_info['weather'][source] and
-                                temp_info['weather'][source]['rain'] != -999):
-                            rain_dict['total'] += 1
-                            rain_dict['unsafe'] += int(temp_info['weather'][source]['rain'])
-                            rain_dict['dt'] = max(rain_dict['dt'],
-                                                  temp_info['weather'][source]['dt'])
-
-                # Now if we still have no readings then we have a problem...
-                if rain_dict['total'] == 0:
-                    raise ValueError('No weather sources for rain readings')
+            return rain_dict
 
         except Exception:
             self.log.error('Failed to get rain info')
             self.log.debug('', exc_info=True)
-            rain_dict = {
-                'total': -999,
-                'unsafe': -999,
-                'dt': -999,
-            }
-        temp_info['rain'] = rain_dict
+            return {'total': -999, 'unsafe': -999, 'dt': -999}
 
-        # Get seeing and dust from the TNG webpage (La Palma only)
+    def _get_tng_info(self):
+        """Get the latest seeing and dust info from the TNG webpage (La Palma only)."""
+        if params.FAKE_CONDITIONS:
+            return {'seeing': 1.2, 'seeing_dt': 0, 'dust': 0, 'dust_dt': 0}
+
         try:
-            if params.FAKE_CONDITIONS:
-                tng_dict = {
-                    'seeing': 1.2,
-                    'seeing_dt': 0,
-                    'dust': 0,
-                    'dust_dt': 0,
-                }
-            elif params.SITE_NAME == 'La Palma':
+            if params.SITE_NAME == 'La Palma':
                 tng_dict = get_tng()
                 # check if the timeouts have been exceeded
                 if tng_dict['seeing_dt'] >= params.SEEING_TIMEOUT or tng_dict['seeing_dt'] == -999:
@@ -370,153 +350,203 @@ class ConditionsDaemon(BaseDaemon):
                 if tng_dict['dust_dt'] >= params.DUSTLEVEL_TIMEOUT or tng_dict['dust_dt'] == -999:
                     tng_dict['dust'] = -999
             else:
-                tng_dict = {
-                    'seeing': -999,
-                    'seeing_dt': -999,
-                    'dust': -999,
-                    'dust_dt': -999,
-                }
+                tng_dict = {'seeing': -999, 'seeing_dt': -999, 'dust': -999, 'dust_dt': -999}
+            return tng_dict
+
         except Exception:
             self.log.error('Failed to get TNG info')
             self.log.debug('', exc_info=True)
-            tng_dict = {
-                'seeing': -999,
-                'seeing_dt': -999,
-                'dust': -999,
-                'dust_dt': -999,
-            }
-        temp_info['tng'] = tng_dict
+            return {'seeing': -999, 'seeing_dt': -999, 'dust': -999, 'dust_dt': -999}
 
-        # Get seeing from the ING RoboDIMM (La Palma only)
+    def _get_robodimm_info(self):
+        """Get the latest seeing info from the ING RoboDIMM (La Palma only)."""
+        if params.FAKE_CONDITIONS:
+            return {'seeing': 1.2, 'dt': 0}
+
         try:
-            if params.FAKE_CONDITIONS:
-                dimm_dict = {
-                    'seeing': 1.2,
-                    'dt': 0,
-                }
-            elif params.SITE_NAME == 'La Palma':
+            if params.SITE_NAME == 'La Palma':
                 dimm_dict = get_robodimm()
                 # check if the timeout has been exceeded
                 if dimm_dict['dt'] >= params.SEEING_TIMEOUT or dimm_dict['dt'] == -999:
                     dimm_dict['seeing'] = -999
             else:
-                dimm_dict = {
-                    'seeing': -999,
-                    'dt': -999,
-                }
+                dimm_dict = {'seeing': -999, 'dt': -999}
+            return dimm_dict
+
         except Exception:
             self.log.error('Failed to get DIMM info')
             self.log.debug('', exc_info=True)
-            dimm_dict = {
-                'seeing': -999,
-                'dt': -999,
-            }
-        temp_info['robodimm'] = dimm_dict
+            return {'seeing': -999, 'dt': -999}
 
-        # Get sky temperature from the CloudWatcher or the AAT (Siding Spring only)
+    def _get_cloudwatcher_info(self):
+        """Get the latest sky temperature info the CloudWatcher or the AAT (Siding Spring only)."""
+        if params.FAKE_CONDITIONS:
+            return {'sky_temp': -20, 'dt': 0}
+
         try:
-            if params.FAKE_CONDITIONS:
-                skytemp_dict = {
-                    'sky_temp': -20,
-                    'dt': 0,
-                }
-            elif params.CLOUDWATCHER_URI != 'none':
+            if params.CLOUDWATCHER_URI != 'none':
                 skytemp_dict = get_cloudwatcher_daemon(params.CLOUDWATCHER_URI)
             elif params.SITE_NAME == 'Siding Spring':
                 aat_dict = get_aat()
                 # Simplify to values of interest
-                skytemp_dict = {'sky_temp': aat_dict['sky_temp'],
-                                'update_time': aat_dict['update_time'],
-                                'dt': aat_dict['dt'],
-                                }
+                skytemp_dict = {
+                    'sky_temp': aat_dict['sky_temp'],
+                    'update_time': aat_dict['update_time'],
+                    'dt': aat_dict['dt'],
+                }
             else:
                 raise ValueError('No weather sources for sky temperature readings')
+            return skytemp_dict
+
         except Exception:
             self.log.error('Failed to get sky temperature info')
             self.log.debug('', exc_info=True)
-            skytemp_dict = {
-                'sky_temp': -999,
-                'dt': -999,
-            }
-        temp_info['sky_temp'] = skytemp_dict
+            return {'sky_temp': -999, 'dt': -999}
 
-        # Get info from the UPSs
+    def _get_ups_info(self):
+        """Get info from the UPSs."""
+        if params.FAKE_CONDITIONS:
+            return ([100, 100], [True, True])
+
         try:
-            if params.FAKE_CONDITIONS:
-                temp_info['ups_percent'] = [100, 100]
-                temp_info['ups_status'] = [True, True]
-            else:
-                ups_percent, ups_status = get_ups()
-                temp_info['ups_percent'] = ups_percent
-                temp_info['ups_status'] = ups_status
+            return get_ups()
+
         except Exception:
             self.log.error('Failed to get UPS info')
             self.log.debug('', exc_info=True)
-            temp_info['ups_percent'] = -999
-            temp_info['ups_status'] = -999
+            return (-999, -999)
 
-        # Get info from the link ping check
+    def _get_ping_info(self):
+        """Get info from the link ping check."""
+        if params.FAKE_CONDITIONS:
+            return [True, True]
+
         try:
-            if params.FAKE_CONDITIONS:
-                temp_info['pings'] = [True, True]
-            else:
-                pings = [check_ping(url) for url in params.LINK_URLS]
-                temp_info['pings'] = pings
+            return [check_ping(url) for url in params.LINK_URLS]
+
         except Exception:
             self.log.error('Failed to get link info')
             self.log.debug('', exc_info=True)
-            temp_info['pings'] = -999
+            return -999
 
-        # Get info from the disk usage check
+    def _get_disk_info(self):
+        """Get info from the disk usage check."""
+        if params.FAKE_CONDITIONS:
+            return 90
+
         try:
-            if params.FAKE_CONDITIONS:
-                temp_info['free_diskspace'] = 90
-            else:
-                free_diskspace = get_diskspace_remaining(params.IMAGE_PATH) * 100.
-                temp_info['free_diskspace'] = free_diskspace
+            return get_diskspace_remaining(params.IMAGE_PATH) * 100
+
         except Exception:
             self.log.error('Failed to get diskspace info')
             self.log.debug('', exc_info=True)
-            temp_info['free_diskspace'] = -999
+            return -999
 
-        # Get info from the satellite IR cloud image
-        # Note if if fails (which is common) we only log the start and end
+    def _get_satellite_clouds_info(self):
+        """Get info from the satellite IR cloud image."""
+        if params.FAKE_CONDITIONS:
+            return 0
+
         try:
-            if params.FAKE_CONDITIONS:
-                temp_info['clouds'] = 0
-            else:
-                clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
-                temp_info['clouds'] = clouds
-                if self.info and self.info['clouds'] == -999:
-                    self.log.info('Satellite clouds info restored')
+            clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
+            if self.info and self.info['clouds'] == -999:
+                self.log.info('Satellite clouds info restored')
+            return clouds
+
         except Exception:
+            # Note if if fails (which is common) we only log the start and end
             if not self.info or (self.info and self.info['clouds'] != -999):
                 self.log.error('Failed to get satellite clouds info')
                 self.log.debug('', exc_info=True)
-            temp_info['clouds'] = -999
+            return -999
 
-        # Get current sun alt
+    def _get_sunalt_info(self):
+        """Get current sun alt."""
         try:
-            sunalt = get_sunalt(Time(self.loop_time, format='unix'))
-            temp_info['sunalt'] = sunalt
+            return get_sunalt(Time(self.loop_time, format='unix'))
         except Exception:
             self.log.error('Failed to get sunalt info')
             self.log.debug('', exc_info=True)
-            temp_info['sunalt'] = -999
+            return -999
 
-        # Get status info
+    def _get_status_info(self):
+        """Get system status info."""
         try:
             status = Status()
-            temp_info['mode'] = status.mode
+            mode = status.mode
             if self.info is not None and 'mode' in self.info:
-                temp_info['old_mode'] = self.info['mode']
+                old_mode = self.info['mode']
             else:
-                temp_info['old_mode'] = status.mode
+                old_mode = status.mode
+            return mode, old_mode
         except Exception:
             self.log.error('Failed to get status info')
             self.log.debug('', exc_info=True)
-            temp_info['mode'] = None
-            temp_info['old_mode'] = None
+            return None, None
+
+    def _get_info(self):
+        """Get the latest status info from the hardware."""
+        temp_info = {}
+
+        # Get basic daemon info
+        temp_info['daemon_id'] = self.daemon_id
+        temp_info['time'] = self.loop_time
+        temp_info['timestamp'] = Time(self.loop_time, format='unix', precision=0).iso
+        temp_info['uptime'] = self.loop_time - self.start_time
+
+        # Get info from the weather masts
+        weather_data = {
+            source[5:].split('_')[0].lower()
+            if source.startswith('PYRO:')
+            else source: self._get_weather_info(source)
+            for source in self.weather_sources
+        }
+        if all(weather_data[source]['dt'] == -999 for source in weather_data):
+            # Backup for if the local masts fail
+            self.log.warning('All local weather sources failed!')
+            # Try using the fallback sources
+            if params.SITE_NAME == 'La Palma':
+                weather_data['ing'] = self._get_weather_info('ing')
+            elif params.SITE_NAME == 'Siding Spring':
+                weather_data['aat'] = self._get_weather_info('aat')
+        temp_info['weather'] = weather_data
+
+        # Get the internal conditions from internal sensors
+        temp_info['internal'] = self._get_internal_info()
+
+        # Get rain board readings (including from any weather stations)
+        temp_info['rain'] = self._get_rain_info(weather_data)
+
+        # Get seeing and dust from the TNG webpage (La Palma only)
+        temp_info['tng'] = self._get_tng_info()
+
+        # Get seeing from the ING RoboDIMM (La Palma only)
+        temp_info['robodimm'] = self._get_robodimm_info()
+
+        # Get sky temperature from the CloudWatcher or the AAT (Siding Spring only)
+        temp_info['sky_temp'] = self._get_cloudwatcher_info()
+
+        # Get info from the UPSs
+        ups_percent, ups_status = self._get_ups_info()
+        temp_info['ups_percent'] = ups_percent
+        temp_info['ups_status'] = ups_status
+
+        # Get info from the link ping check
+        temp_info['pings'] = self._get_ping_info()
+
+        # Get info from the disk usage check
+        temp_info['free_diskspace'] = self._get_disk_info()
+
+        # Get info from the satellite IR cloud image
+        temp_info['clouds'] = self._get_satellite_clouds_info()
+
+        # Get current sun alt
+        temp_info['sunalt'] = self._get_sunalt_info()
+
+        # Get status info
+        mode, old_mode = self._get_status_info()
+        temp_info['mode'] = mode
+        temp_info['old_mode'] = old_mode
 
         # Get other internal info
         temp_info['flags'] = self.flags.copy()
