@@ -254,8 +254,8 @@ class ConditionsDaemon(BaseDaemon):
         try:
             if params.FAKE_CONDITIONS:
                 internal_dict = {
-                    'temperature': 10,
-                    'humidity': 25,
+                    'temperature': {'dome': 10},
+                    'humidity': {'dome': 25},
                     'update_time': Time.now().iso,
                     'dt': 0,
                 }
@@ -282,8 +282,8 @@ class ConditionsDaemon(BaseDaemon):
             self.log.error('Failed to get internal info')
             self.log.debug('', exc_info=True)
             internal_dict = {
-                'temperature': -999,
-                'humidity': -999,
+                'temperature': {'dome': -999},
+                'humidity': {'dome': -999},
                 'update_time': -999,
                 'dt': -999,
             }
