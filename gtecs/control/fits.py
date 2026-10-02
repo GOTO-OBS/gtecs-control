@@ -1339,7 +1339,7 @@ def make_header(ut, daemon_info=None):
     header.append(('CLOUDVAL', cloud_cam_value,
                      'Cloud camera cloud value, percent'))
 
-    sat_clouds = daemon_info['conditions']['clouds']
+    sat_clouds = daemon_info['conditions']['sat_clouds']
     if sat_clouds == -999:
         sat_clouds = 'NA'
     header.append(('SATCLOUD', sat_clouds,

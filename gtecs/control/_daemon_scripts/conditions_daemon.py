@@ -483,13 +483,13 @@ class ConditionsDaemon(BaseDaemon):
 
         try:
             sat_clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
-            if self.info and self.info['clouds'] == -999:
+            if self.info and self.info['sat_clouds'] == -999:
                 self.log.info('Satellite clouds info restored')
             return sat_clouds
 
         except Exception:
             # Note if if fails (which is common) we only log the start and end
-            if not self.info or (self.info and self.info['clouds'] != -999):
+            if not self.info or (self.info and self.info['sat_clouds'] != -999):
                 self.log.error('Failed to get satellite clouds info')
                 self.log.debug('', exc_info=True)
             return -999
