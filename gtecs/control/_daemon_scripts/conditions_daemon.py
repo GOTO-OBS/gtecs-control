@@ -15,8 +15,13 @@ from gtecs.control.astronomy import get_sunalt
 from gtecs.control.conditions.clouds import get_satellite_clouds
 from gtecs.control.conditions.external import get_aat, get_ing, get_robodimm, get_tng
 from gtecs.control.conditions.internal import get_internal_daemon, get_arduino_readout
-from gtecs.control.conditions.local import (get_cloudwatcher_daemon, get_rain_daemon,
-                                            get_rain_domealert, get_vaisala_daemon)
+from gtecs.control.conditions.local import (
+    get_cloudcam_daemon,
+    get_cloudwatcher_daemon,
+    get_rain_daemon,
+    get_rain_domealert,
+    get_vaisala_daemon,
+)
 from gtecs.control.conditions.misc import check_ping, get_diskspace_remaining, get_ups
 from gtecs.control.daemons import BaseDaemon
 from gtecs.control.flags import ModeError, Status
@@ -38,26 +43,30 @@ class ConditionsDaemon(BaseDaemon):
         self.history = {'windgust': {}}
         self.windgust_period = params.WINDGUST_PERIOD
 
-        self.info_flag_names = ['clouds',
-                                'dark',
-                                ]
+        self.info_flag_names = [
+            'sat_clouds',
+            'dark',
+        ]
         if params.SITE_NAME == 'La Palma':
             self.info_flag_names.append('dust')
-        self.normal_flag_names = ['rain',
-                                  'windspeed',
-                                  'windgust',
-                                  'humidity',
-                                  'temperature',
-                                  'dew_point',
-                                  'sky_temp',
-                                  ]
-        self.alert_flag_names = ['ups',
-                                 'link',
-                                 'diskspace',
-                                 'internal',
-                                 'ice',
-                                 'override',
-                                 ]
+        self.normal_flag_names = [
+            'rain',
+            'windspeed',
+            'windgust',
+            'humidity',
+            'temperature',
+            'dew_point',
+            'sky_temp',
+            'cloud_cam',
+        ]
+        self.alert_flag_names = [
+            'ups',
+            'link',
+            'diskspace',
+            'internal',
+            'ice',
+            'override',
+        ]
         self.flag_names = self.info_flag_names + self.normal_flag_names + self.alert_flag_names
 
         self.flags_file = os.path.join(params.FILE_PATH, 'conditions_flags.json')
@@ -120,10 +129,11 @@ class ConditionsDaemon(BaseDaemon):
                         self.log.info('System is in robotic mode, clearing ignored flags')
                         self.ignored_flags = []
                     else:
-                        # We only allow ignoring info flags (and sky_temp) in robotic mode,
+                        # We only allow ignoring info flags (and cloud readings) in robotic mode,
                         # so clear them up if we're in robotic mode
                         ignorable_flags = self.info_flag_names.copy()
                         ignorable_flags.append('sky_temp')
+                        ignorable_flags.append('cloud_cam')
                         self.ignored_flags = [
                             flag for flag in self.ignored_flags if flag in ignorable_flags
                         ]
@@ -379,7 +389,7 @@ class ConditionsDaemon(BaseDaemon):
             return {'seeing': -999, 'dt': -999}
 
     def _get_cloudwatcher_info(self):
-        """Get the latest sky temperature info the CloudWatcher or the AAT (Siding Spring only)."""
+        """Get the latest sky temperature info from the CloudWatcher or the AAT (SSO only)."""
         if params.FAKE_CONDITIONS:
             return {'sky_temp': -20, 'dt': 0}
 
@@ -402,6 +412,30 @@ class ConditionsDaemon(BaseDaemon):
             self.log.error('Failed to get sky temperature info')
             self.log.debug('', exc_info=True)
             return {'sky_temp': -999, 'dt': -999}
+
+    def _get_cloudcam_info(self):
+        """Get the latest all-sky camera reading from the CloudCam daemon (SSO only)."""
+        if params.FAKE_CONDITIONS:
+            return {'prediction': 'Clear', 'value': 0.9, 'dt': 0}
+
+        try:
+            if params.CLOUDCAM_URI != 'none' and params.SITE_NAME == 'Siding Spring':
+                data_dict = get_cloudcam_daemon(params.CLOUDCAM_URI)
+                # Simplify to values of interest
+                cloudcam_dict = {
+                    'prediction': data_dict['highest_class'],
+                    'value': data_dict['highest_value'],
+                    'update_time': data_dict['update_time'],
+                    'dt': data_dict['dt'],
+                }
+            else:
+                cloudcam_dict = {'prediction': 'Clear', 'value': 0.9, 'dt': 0}
+            return cloudcam_dict
+
+        except Exception:
+            self.log.error('Failed to get cloud camera info')
+            self.log.debug('', exc_info=True)
+            return {'prediction': -999, 'value': -999, 'dt': -999}
 
     def _get_ups_info(self):
         """Get info from the UPSs."""
@@ -448,10 +482,10 @@ class ConditionsDaemon(BaseDaemon):
             return 0
 
         try:
-            clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
+            sat_clouds = get_satellite_clouds(site=params.SITE_NAME) * 100
             if self.info and self.info['clouds'] == -999:
                 self.log.info('Satellite clouds info restored')
-            return clouds
+            return sat_clouds
 
         except Exception:
             # Note if if fails (which is common) we only log the start and end
@@ -526,6 +560,9 @@ class ConditionsDaemon(BaseDaemon):
         # Get sky temperature from the CloudWatcher or the AAT (Siding Spring only)
         temp_info['sky_temp'] = self._get_cloudwatcher_info()
 
+        # Get cloud camera readings from the CloudCam daemon (Siding Spring only)
+        temp_info['cloud_cam'] = self._get_cloudcam_info()
+
         # Get info from the UPSs
         ups_percent, ups_status = self._get_ups_info()
         temp_info['ups_percent'] = ups_percent
@@ -538,7 +575,7 @@ class ConditionsDaemon(BaseDaemon):
         temp_info['free_diskspace'] = self._get_disk_info()
 
         # Get info from the satellite IR cloud image
-        temp_info['clouds'] = self._get_satellite_clouds_info()
+        temp_info['sat_clouds'] = self._get_satellite_clouds_info()
 
         # Get current sun alt
         temp_info['sunalt'] = self._get_sunalt_info()
@@ -609,6 +646,10 @@ class ConditionsDaemon(BaseDaemon):
         sky_temp = np.array(self.info['sky_temp']['sky_temp'])
         sky_temp = sky_temp[sky_temp != -999]
 
+        # Cloud cam reading
+        cloud_cam = np.array(self.info['cloud_cam']['prediction'])
+        cloud_cam = cloud_cam[cloud_cam != -999]
+
         # Internal
         int_temperature = np.array([self.info['internal']['temperature'][source]
                                     for source in self.info['internal']['temperature']])
@@ -633,9 +674,9 @@ class ConditionsDaemon(BaseDaemon):
         free_diskspace = np.array(self.info['free_diskspace'])
         free_diskspace = free_diskspace[free_diskspace != -999]
 
-        # Clouds
-        clouds = np.array(self.info['clouds'])
-        clouds = clouds[clouds != -999]
+        # Satellite Clouds
+        sat_clouds = np.array(self.info['sat_clouds'])
+        sat_clouds = sat_clouds[sat_clouds != -999]
 
         # Dust
         dust = np.array(self.info['tng']['dust'])
@@ -716,6 +757,17 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['sky_temp'] = params.SKYTEMP_GOODDELAY
         bad_delay['sky_temp'] = params.SKYTEMP_BADDELAY
 
+        # cloud_cam flag
+        # TODO: Allow other values (e.g. Partially cloudy)?
+        #       Or at least have the valid values in a config param
+        #       OR, instead just getting the highest prediction, add up the 'good' percentages
+        #       and have a threshold (e.g. pClear > 0.75)
+        good['cloud_cam'] = np.all(cloud_cam == 'Clear')
+        critical['cloud_cam'] = False
+        valid['cloud_cam'] = len(cloud_cam) >= 1
+        good_delay['cloud_cam'] = params.CLOUDCAM_GOODDELAY
+        bad_delay['cloud_cam'] = params.CLOUDCAM_BADDELAY
+
         # internal flag
         good['internal'] = (np.all(int_humidity < params.MAX_INTERNAL_HUMIDITY_ALERT) and
                             np.all(int_temperature > params.MIN_INTERNAL_TEMPERATURE_ALERT))
@@ -753,12 +805,12 @@ class ConditionsDaemon(BaseDaemon):
         good_delay['diskspace'] = 0
         bad_delay['diskspace'] = 0
 
-        # clouds flag
-        good['clouds'] = np.all(clouds < params.MAX_SATCLOUDS)
-        critical['clouds'] = False
-        valid['clouds'] = len(clouds) >= 1
-        good_delay['clouds'] = params.SATCLOUDS_GOODDELAY
-        bad_delay['clouds'] = params.SATCLOUDS_BADDELAY
+        # sat_clouds flag
+        good['sat_clouds'] = np.all(sat_clouds < params.MAX_SATCLOUDS)
+        critical['sat_clouds'] = False
+        valid['sat_clouds'] = len(sat_clouds) >= 1
+        good_delay['sat_clouds'] = params.SATCLOUDS_GOODDELAY
+        bad_delay['sat_clouds'] = params.SATCLOUDS_BADDELAY
 
         # dark flag
         good['dark'] = np.all(sunalt < params.SUN_ELEVATION_LIMIT)
@@ -864,11 +916,18 @@ class ConditionsDaemon(BaseDaemon):
             raise ValueError(f'Invalid flags: {bad_flags}')
         status = Status()
         if status.mode == 'robotic':
-            # In robotic mode we can only ignore info flags (and sky_temp)
-            if any(flag not in self.info_flag_names and flag != 'sky_temp' for flag in flags):
+            # In robotic mode we can only ignore info flags (and sky_temp/cloud_cam)
+            if any(
+                flag not in self.info_flag_names
+                and flag != 'sky_temp'
+                and flag != 'cloud_cam'
+                for flag in flags
+            ):
                 bad_flags = [
                     flag for flag in flags
-                    if flag not in self.info_flag_names and flag != 'sky_temp'
+                    if flag not in self.info_flag_names
+                    and flag != 'sky_temp'
+                    and flag != 'cloud_cam'
                 ]
                 raise ModeError(f'Can not ignore non-info flags in robotic mode: {bad_flags}')
         if 'override' in flags:
@@ -1145,7 +1204,7 @@ class ConditionsDaemon(BaseDaemon):
             dt_str = rtxt('{:.0f}'.format(dt))
         else:
             dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  rain_sensors {}      dt={}\n'.format(rain_str, dt_str)
+        msg += '  rain_sensors {}             dt={}\n'.format(rain_str, dt_str)
 
         sky_temp = info['sky_temp']['sky_temp']
         if sky_temp == -999:
@@ -1163,19 +1222,39 @@ class ConditionsDaemon(BaseDaemon):
             dt_str = rtxt('{:.0f}'.format(dt))
         else:
             dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  sky_temp     {}°C          dt={}\n'.format(sky_temp_str, dt_str)
+        msg += '  sky_temp     {}°C                 dt={}\n'.format(sky_temp_str, dt_str)
 
-        clouds = info['clouds']
-        if clouds == -999:
-            clouds_str = rtxt('  ERR')
-        elif clouds < params.MAX_SATCLOUDS:
-            clouds_str = ytxt('{:>5.1f}'.format(clouds))
-            if clouds < params.MAX_SATCLOUDS - 5:
-                clouds_str = gtxt('{:>5.1f}'.format(clouds))
+        cloud_cam = info['cloud_cam']['prediction']
+        if cloud_cam == -999:
+            cloud_cam_str = rtxt('  ERR')
+        elif cloud_cam == 'Clear':
+            cloud_cam_str = gtxt(cloud_cam)
+            cloud_cam_str += f' ({info["cloud_cam"]["value"]:.1%})'
+            cloud_cam_str = f'{cloud_cam_str:<33}'
         else:
-            clouds_str = rtxt('{:>5.1f}'.format(clouds))
+            cloud_cam_str = rtxt(cloud_cam)
+            cloud_cam_str += f' ({info["cloud_cam"]["value"]:.1%})'
+            cloud_cam_str = f'{cloud_cam_str:<33}'
+        dt = info['cloud_cam']['dt']
+        if dt == -999:
+            dt_str = rtxt('ERR')
+        elif dt > params.WEATHER_TIMEOUT:
+            dt_str = rtxt('{:.0f}'.format(dt))
+        else:
+            dt_str = gtxt('{:.0f}'.format(dt))
+        msg += '  cloud_cam     {} dt={}\n'.format(cloud_cam_str, dt_str)
+
+        sat_clouds = info['sat_clouds']
+        if sat_clouds == -999:
+            sat_clouds_str = rtxt('  ERR')
+        elif sat_clouds < params.MAX_SATCLOUDS:
+            sat_clouds_str = ytxt('{:>5.1f}'.format(sat_clouds))
+            if sat_clouds < params.MAX_SATCLOUDS - 5:
+                sat_clouds_str = gtxt('{:>5.1f}'.format(sat_clouds))
+        else:
+            sat_clouds_str = rtxt('{:>5.1f}'.format(sat_clouds))
         dt_str = 'N/A'  # TODO: we don't get the image time for clouds
-        msg += '  sat_clouds   {}%           dt={}\n'.format(clouds_str, dt_str)
+        msg += '  sat_clouds   {}%                  dt={}\n'.format(sat_clouds_str, dt_str)
 
         if params.SITE_NAME == 'La Palma':
             dust = info['tng']['dust']
@@ -1194,7 +1273,7 @@ class ConditionsDaemon(BaseDaemon):
                 dt_str = rtxt('{:.0f}'.format(dt))
             else:
                 dt_str = gtxt('{:.0f}'.format(dt))
-            msg += '  dust (tng)   {} μg/m³      dt={}\n'.format(dust_str, dt_str)
+            msg += '  dust (tng)   {} μg/m³             dt={}\n'.format(dust_str, dt_str)
 
         if params.SITE_NAME == 'La Palma':
             seeing = info['tng']['seeing']
@@ -1209,7 +1288,7 @@ class ConditionsDaemon(BaseDaemon):
                 dt_str = rtxt('{:.0f}'.format(dt))
             else:
                 dt_str = gtxt('{:.0f}'.format(dt))
-            msg += '  seeing (tng)   {}"           dt={}\n'.format(seeing_str, dt_str)
+            msg += '  seeing (tng)   {}"                  dt={}\n'.format(seeing_str, dt_str)
 
         if params.SITE_NAME == 'La Palma':
             seeing = info['robodimm']['seeing']
@@ -1224,7 +1303,7 @@ class ConditionsDaemon(BaseDaemon):
                 dt_str = rtxt('{:.0f}'.format(dt))
             else:
                 dt_str = gtxt('{:.0f}'.format(dt))
-            msg += '  seeing (ing)   {}"           dt={}\n'.format(seeing_str, dt_str)
+            msg += '  seeing (ing)   {}"                  dt={}\n'.format(seeing_str, dt_str)
 
         sunalt = info['sunalt']
         if sunalt < 0:
@@ -1482,21 +1561,24 @@ class ConditionsDaemon(BaseDaemon):
         msg += '{}°C       (max={:.1f}°C)            \t : {}\n'.format(
             sky_temp_str, params.MAX_SKYTEMP, status)
 
+            #### TODO CLOUDS
+
+
         msg += '  {: <10}\t'.format('sat_clouds')
-        clouds = info['clouds']
-        if clouds == -999:
+        sat_clouds = info['sat_clouds']
+        if sat_clouds == -999:
             status = rtxt('ERROR')
-            clouds_str = rtxt('  ERR')
-        elif clouds < params.MAX_SATCLOUDS:
+            sat_clouds_str = rtxt('  ERR')
+        elif sat_clouds < params.MAX_SATCLOUDS:
             status = gtxt('Good')
-            clouds_str = ytxt('{:>5.1f}'.format(clouds))
-            if clouds < params.MAX_SATCLOUDS - 5:
-                clouds_str = gtxt('{:>5.1f}'.format(clouds))
+            sat_clouds_str = ytxt('{:>5.1f}'.format(sat_clouds))
+            if sat_clouds < params.MAX_SATCLOUDS - 5:
+                sat_clouds_str = gtxt('{:>5.1f}'.format(sat_clouds))
         else:
             status = rtxt('Bad')
-            clouds_str = rtxt('{:>5.1f}'.format(clouds))
+            sat_clouds_str = rtxt('{:>5.1f}'.format(sat_clouds))
         msg += '{}%        (max={:.1f}%)            \t : {}\n'.format(
-            clouds_str, params.MAX_SATCLOUDS, status)
+            sat_clouds_str, params.MAX_SATCLOUDS, status)
 
         msg += '  {: <10}\t'.format('sunalt')
         sunalt = info['sunalt']
