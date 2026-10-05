@@ -197,7 +197,7 @@ def get_sunalt(time=None, location=None):
     sun = get_sun(time)
     altaz_frame = AltAz(obstime=time, location=location)
     altaz_coo = sun.transform_to(altaz_frame)
-    return altaz_coo.alt.degree
+    return float(altaz_coo.alt.degree)
 
 
 def get_night_times(time=None, location=None, horizon=-15):
