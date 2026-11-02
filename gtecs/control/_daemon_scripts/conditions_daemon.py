@@ -57,8 +57,9 @@ class ConditionsDaemon(BaseDaemon):
             'temperature',
             'dew_point',
             'sky_temp',
-            'cloud_cam',
         ]
+        if params.SITE_NAME == 'Siding Spring':
+            self.normal_flag_names.append('cloud_cam')
         self.alert_flag_names = [
             'ups',
             'link',
@@ -1224,25 +1225,26 @@ class ConditionsDaemon(BaseDaemon):
             dt_str = gtxt('{:.0f}'.format(dt))
         msg += '  sky_temp     {}°C                 dt={}\n'.format(sky_temp_str, dt_str)
 
-        cloud_cam = info['cloud_cam']['prediction']
-        if cloud_cam == -999:
-            cloud_cam_str = rtxt('  ERR')
-        elif cloud_cam == 'Clear':
-            cloud_cam_str = gtxt(cloud_cam)
-            cloud_cam_str += f' ({info["cloud_cam"]["value"]:.1%})'
-            cloud_cam_str = f'{cloud_cam_str:<33}'
-        else:
-            cloud_cam_str = rtxt(cloud_cam)
-            cloud_cam_str += f' ({info["cloud_cam"]["value"]:.1%})'
-            cloud_cam_str = f'{cloud_cam_str:<33}'
-        dt = info['cloud_cam']['dt']
-        if dt == -999:
-            dt_str = rtxt('ERR')
-        elif dt > params.WEATHER_TIMEOUT:
-            dt_str = rtxt('{:.0f}'.format(dt))
-        else:
-            dt_str = gtxt('{:.0f}'.format(dt))
-        msg += '  cloud_cam     {} dt={}\n'.format(cloud_cam_str, dt_str)
+        if params.SITE_NAME == 'Siding Spring':
+            cloud_cam = info['cloud_cam']['prediction']
+            if cloud_cam == -999:
+                cloud_cam_str = rtxt('  ERR')
+            elif cloud_cam == 'Clear':
+                cloud_cam_str = gtxt(cloud_cam)
+                cloud_cam_str += f' ({info["cloud_cam"]["value"]:.1%})'
+                cloud_cam_str = f'{cloud_cam_str:<33}'
+            else:
+                cloud_cam_str = rtxt(cloud_cam)
+                cloud_cam_str += f' ({info["cloud_cam"]["value"]:.1%})'
+                cloud_cam_str = f'{cloud_cam_str:<33}'
+            dt = info['cloud_cam']['dt']
+            if dt == -999:
+                dt_str = rtxt('ERR')
+            elif dt > params.WEATHER_TIMEOUT:
+                dt_str = rtxt('{:.0f}'.format(dt))
+            else:
+                dt_str = gtxt('{:.0f}'.format(dt))
+            msg += '  cloud_cam     {} dt={}\n'.format(cloud_cam_str, dt_str)
 
         sat_clouds = info['sat_clouds']
         if sat_clouds == -999:
@@ -1561,8 +1563,8 @@ class ConditionsDaemon(BaseDaemon):
         msg += '{}°C       (max={:.1f}°C)            \t : {}\n'.format(
             sky_temp_str, params.MAX_SKYTEMP, status)
 
-            #### TODO CLOUDS
-
+        # We don't include cloud_cam since it's currently boolean (Clear or !Clear)
+        # See TODO under cloud_cam flag above about making it a limit instead.
 
         msg += '  {: <10}\t'.format('sat_clouds')
         sat_clouds = info['sat_clouds']

@@ -1329,15 +1329,21 @@ def make_header(ut, daemon_info=None):
     header.append(('SKYTEMP ', sky_temp,
                    'Sky temperature, Celsius'))
 
-    cloud_cam_prediction = daemon_info['conditions']['cloud_cam']['prediction']
-    cloud_cam_value = daemon_info['conditions']['cloud_cam']['value']
-    if cloud_cam_prediction == -999:
-        cloud_cam_prediction = 'NA'
-        cloud_cam_value = 'NA'
-    header.append(('CLOUDCAM', cloud_cam_prediction,
-                     'Cloud camera cloud prediction class'))
-    header.append(('CLOUDVAL', cloud_cam_value,
-                     'Cloud camera cloud value, percent'))
+    if daemon_info['params']['site_name'] == 'Siding Spring':
+        cloud_cam_prediction = daemon_info['conditions']['cloud_cam']['prediction']
+        cloud_cam_value = daemon_info['conditions']['cloud_cam']['value']
+        if cloud_cam_prediction == -999:
+            cloud_cam_prediction = 'NA'
+            cloud_cam_value = 'NA'
+        header.append(('CLOUDCAM', cloud_cam_prediction,
+                        'Cloud camera cloud prediction class'))
+        header.append(('CLOUDVAL', cloud_cam_value,
+                        'Cloud camera cloud value, percent'))
+    else:
+        header.append(('CLOUDCAM', 'NA',
+                        'Cloud camera cloud prediction class (unused)'))
+        header.append(('CLOUDVAL', 'NA',
+                        'Cloud camera cloud value, percent (unused)'))
 
     sat_clouds = daemon_info['conditions']['sat_clouds']
     if sat_clouds == -999:
