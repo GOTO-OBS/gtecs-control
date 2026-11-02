@@ -58,7 +58,7 @@ class ConditionsDaemon(BaseDaemon):
             'dew_point',
             'sky_temp',
         ]
-        if params.SITE_NAME == 'Siding Spring':
+        if params.CLOUDCAM_URI != 'none':
             self.normal_flag_names.append('cloud_cam')
         self.alert_flag_names = [
             'ups',
@@ -415,12 +415,12 @@ class ConditionsDaemon(BaseDaemon):
             return {'sky_temp': -999, 'dt': -999}
 
     def _get_cloudcam_info(self):
-        """Get the latest all-sky camera reading from the CloudCam daemon (SSO only)."""
+        """Get the latest all-sky camera reading from the CloudCam daemon."""
         if params.FAKE_CONDITIONS:
             return {'prediction': 'Clear', 'value': 0.9, 'dt': 0}
 
         try:
-            if params.CLOUDCAM_URI != 'none' and params.SITE_NAME == 'Siding Spring':
+            if params.CLOUDCAM_URI != 'none':
                 data_dict = get_cloudcam_daemon(params.CLOUDCAM_URI)
                 # Simplify to values of interest
                 cloudcam_dict = {
@@ -561,7 +561,7 @@ class ConditionsDaemon(BaseDaemon):
         # Get sky temperature from the CloudWatcher or the AAT (Siding Spring only)
         temp_info['sky_temp'] = self._get_cloudwatcher_info()
 
-        # Get cloud camera readings from the CloudCam daemon (Siding Spring only)
+        # Get cloud camera readings from the CloudCam daemon
         temp_info['cloud_cam'] = self._get_cloudcam_info()
 
         # Get info from the UPSs
@@ -1225,7 +1225,7 @@ class ConditionsDaemon(BaseDaemon):
             dt_str = gtxt('{:.0f}'.format(dt))
         msg += '  sky_temp     {}°C                 dt={}\n'.format(sky_temp_str, dt_str)
 
-        if params.SITE_NAME == 'Siding Spring':
+        if params.CLOUDCAM_URI != 'none':
             cloud_cam = info['cloud_cam']['prediction']
             if cloud_cam == -999:
                 cloud_cam_str = rtxt('  ERR')

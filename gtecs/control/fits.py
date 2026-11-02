@@ -1329,7 +1329,8 @@ def make_header(ut, daemon_info=None):
     header.append(('SKYTEMP ', sky_temp,
                    'Sky temperature, Celsius'))
 
-    if daemon_info['params']['site_name'] == 'Siding Spring':
+    if 'cloud_cam' in daemon_info['conditions']['flags']:
+        # this lets us detect if the cloud cam is being used without accessing param.CLOUDCAM_URI
         cloud_cam_prediction = daemon_info['conditions']['cloud_cam']['prediction']
         cloud_cam_value = daemon_info['conditions']['cloud_cam']['value']
         if cloud_cam_prediction == -999:
