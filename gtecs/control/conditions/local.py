@@ -267,3 +267,27 @@ def get_cloudwatcher_daemon(uri):
         weather_dict['sky_temp'] = data['sky_temp']
 
     return weather_dict
+
+
+def get_cloudcam_daemon(uri):
+    """Get skycam cloud readings from the CloudCam daemon."""
+    with Pyro4.Proxy(uri) as proxy:
+        proxy._pyroTimeout = 5
+        proxy._pyroSerializer = 'serpent'
+        data = proxy.get_prediction()
+
+    weather_dict = {}
+
+    weather_dict['update_time'] = Time(data['image_time'], precision=0).iso
+    dt = Time.now() - Time(weather_dict['update_time'])
+    weather_dict['dt'] = int(dt.to('second').value)
+
+    weather_dict['prediction'] = data['prediction']
+
+    # Get the predicted class with the highest probability
+    highest_class = max(data['prediction'], key=data['prediction'].get)
+    highest_value = data['prediction'][highest_class]
+    weather_dict['highest_class'] = highest_class
+    weather_dict['highest_value'] = highest_value
+
+    return weather_dict

@@ -1326,12 +1326,30 @@ def make_header(ut, daemon_info=None):
     sky_temp = daemon_info['conditions']['sky_temp']['sky_temp']
     if sky_temp == -999:
         sky_temp = 'NA'
-    clouds = daemon_info['conditions']['clouds']
-    if clouds == -999:
-        clouds = 'NA'
     header.append(('SKYTEMP ', sky_temp,
                    'Sky temperature, Celsius'))
-    header.append(('SATCLOUD', clouds,
+
+    if 'cloud_cam' in daemon_info['conditions']['flags']:
+        # this lets us detect if the cloud cam is being used without accessing param.CLOUDCAM_URI
+        cloud_cam_prediction = daemon_info['conditions']['cloud_cam']['prediction']
+        cloud_cam_value = daemon_info['conditions']['cloud_cam']['value']
+        if cloud_cam_prediction == -999:
+            cloud_cam_prediction = 'NA'
+            cloud_cam_value = 'NA'
+        header.append(('CLOUDCAM', cloud_cam_prediction,
+                        'Cloud camera cloud prediction class'))
+        header.append(('CLOUDVAL', cloud_cam_value,
+                        'Cloud camera cloud value, percent'))
+    else:
+        header.append(('CLOUDCAM', 'NA',
+                        'Cloud camera cloud prediction class (unused)'))
+        header.append(('CLOUDVAL', 'NA',
+                        'Cloud camera cloud value, percent (unused)'))
+
+    sat_clouds = daemon_info['conditions']['sat_clouds']
+    if sat_clouds == -999:
+        sat_clouds = 'NA'
+    header.append(('SATCLOUD', sat_clouds,
                    'IR satellite cloud opacity, percent (sat24.com)'))
 
     if daemon_info['params']['site_name'] == 'La Palma':
