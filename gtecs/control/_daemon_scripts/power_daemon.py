@@ -163,7 +163,10 @@ class PowerDaemon(BaseDaemon):
                         len(unit_params['NAMES'])
                     )
                 elif unit_params['CLASS'] == 'APCUPS':
-                    self.power_units[unit_name] = APCUPS(unit_params['IP'])
+                    self.power_units[unit_name] = APCUPS(
+                        unit_params['IP'],
+                        outlets=len(unit_params['NAMES'])
+                    )
                 elif unit_params['CLASS'] == 'APCUPS_USB':
                     self.power_units[unit_name] = APCUPS_USB(
                         unit_params['IP'],
